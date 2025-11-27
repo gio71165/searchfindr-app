@@ -3,7 +3,9 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { supabase } from '../supabaseClient';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 type Company = {
   id: string;
@@ -35,7 +37,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const init = async () => {
-      // 1) Check user auth
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -49,7 +50,6 @@ export default function DashboardPage() {
       setUserId(user.id);
       setCheckingAuth(false);
 
-      // 2) Fetch this user's deals
       setLoadingDeals(true);
       setErrorMsg(null);
 
@@ -126,6 +126,37 @@ export default function DashboardPage() {
     }
   };
 
+  // delete handler
+  const handleDelete = async (id: string) => {
+    const yes = window.confirm('Delete this deal? This cannot be undone.');
+
+    if (!yes) return;
+
+    setErrorMsg(null);
+
+    try {
+      const res = await fetch('/api/delete-deal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        console.error('Delete error:', json);
+        setErrorMsg(json.error || 'Failed to delete deal.');
+        return;
+      }
+
+      // Remove from local state so UI updates instantly
+      setDeals((prev) => prev.filter((d) => d.id !== id));
+    } catch (err) {
+      console.error(err);
+      setErrorMsg('Unexpected error deleting deal.');
+    }
+  };
+
   const filteredDeals =
     selectedView === 'all'
       ? deals
@@ -138,33 +169,33 @@ export default function DashboardPage() {
 
   if (checkingAuth) {
     return (
-      <main className="py-12">
-        <p className="text-sm text-slate-300">Checking your session…</p>
+      <main className="py-12 text-center">
+        <p className="text-sm">Checking your session…</p>
       </main>
     );
   }
 
   return (
-    <main className="space-y-6 py-4">
+    <main className="space-y-6 py-6 px-4">
+      {/* Header / Nav */}
       <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My Deals</h1>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm">
             On-market companies captured via the Chrome extension, plus CIMs and
             off-market opportunities.
           </p>
         </div>
         <div className="flex items-center gap-3">
           {email && (
-            <span className="text-xs text-slate-400">
-              Signed in as{' '}
-              <span className="font-mono text-slate-200">{email}</span>
+            <span className="text-xs">
+              Signed in as <span className="font-mono">{email}</span>
             </span>
           )}
-          <button
-            onClick={handleLogout}
-            className="rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-200 hover:bg-slate-800"
-          >
+
+          <ThemeToggle />
+
+          <button onClick={handleLogout} className="btn-main">
             Log out
           </button>
         </div>
@@ -172,18 +203,13 @@ export default function DashboardPage() {
 
       {/* Top actions */}
       <div className="space-y-3">
-        {/* Action buttons */}
         <div className="flex flex-wrap gap-3">
-          <button className="rounded-md bg-slate-800 px-3 py-2 text-xs font-medium text-slate-50 hover:bg-slate-700">
-            Upload CIM (PDF)
-          </button>
-          <button className="rounded-md bg-slate-800 px-3 py-2 text-xs font-medium text-slate-50 hover:bg-slate-700">
-            Add off-market company
-          </button>
+          <button className="btn-main">Upload CIM (PDF)</button>
+          <button className="btn-main">Add off-market company</button>
           <button
             onClick={handleAddSampleDeal}
             disabled={addingSample}
-            className="rounded-md bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-60"
+            className="btn-main disabled:opacity-60"
           >
             {addingSample ? 'Adding sample…' : 'Add sample deal'}
           </button>
@@ -191,57 +217,40 @@ export default function DashboardPage() {
 
         {/* View selector buttons */}
         <div className="flex flex-wrap gap-3 pt-2 text-xs">
-          <button
-            onClick={() => setSelectedView('all')}
-            className={`rounded-md px-3 py-2 font-medium border ${
-              selectedView === 'all'
-                ? 'bg-slate-200 text-slate-900 border-slate-200'
-                : 'bg-slate-900 text-slate-200 border-slate-700'
-            }`}
-          >
-            All deals
-          </button>
-          <button
-            onClick={() => setSelectedView('on_market')}
-            className={`rounded-md px-3 py-2 font-medium border ${
-              selectedView === 'on_market'
-                ? 'bg-slate-200 text-slate-900 border-slate-200'
-                : 'bg-slate-900 text-slate-200 border-slate-700'
-            }`}
-          >
-            On-market deals
-          </button>
-          <button
-            onClick={() => setSelectedView('off_market')}
-            className={`rounded-md px-3 py-2 font-medium border ${
-              selectedView === 'off_market'
-                ? 'bg-slate-200 text-slate-900 border-slate-200'
-                : 'bg-slate-900 text-slate-200 border-slate-700'
-            }`}
-          >
-            Off-market deals
-          </button>
-          <button
-            onClick={() => setSelectedView('cim_pdf')}
-            className={`rounded-md px-3 py-2 font-medium border ${
-              selectedView === 'cim_pdf'
-                ? 'bg-slate-200 text-slate-900 border-slate-200'
-                : 'bg-slate-900 text-slate-200 border-slate-700'
-            }`}
-          >
-            CIMs (PDF)
-          </button>
+          {(['all', 'on_market', 'off_market', 'cim_pdf'] as const).map(
+            (view) => {
+              const isActive = selectedView === view;
+              const label =
+                view === 'all'
+                  ? 'All deals'
+                  : view === 'on_market'
+                  ? 'On-market deals'
+                  : view === 'off_market'
+                  ? 'Off-market deals'
+                  : 'CIMs (PDF)';
+
+              return (
+                <button
+                  key={view}
+                  onClick={() => setSelectedView(view)}
+                  className={`view-pill ${isActive ? 'view-pill--active' : ''}`}
+                >
+                  {label}
+                </button>
+              );
+            }
+          )}
         </div>
       </div>
 
       {/* Deals table */}
-      <section className="mt-4 rounded-lg border border-slate-800 bg-slate-900/70 p-4">
+      <section className="mt-4 card-table">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-200">Saved companies</h2>
+          <h2 className="text-sm font-semibold">Saved companies</h2>
           {loadingDeals ? (
-            <p className="text-xs text-slate-500">Loading deals…</p>
+            <p className="text-xs">Loading deals…</p>
           ) : (
-            <p className="text-xs text-slate-500">
+            <p className="text-xs">
               {filteredDeals.length === 0
                 ? 'No deals yet.'
                 : `${filteredDeals.length} deal(s) shown.`}
@@ -250,12 +259,12 @@ export default function DashboardPage() {
         </div>
 
         {errorMsg && (
-          <p className="mb-2 text-xs text-red-400">{errorMsg}</p>
+          <p className="mb-2 text-xs text-red-600">{errorMsg}</p>
         )}
 
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-xs">
-            <thead className="border-b border-slate-800 text-slate-400">
+            <thead className="table-header">
               <tr>
                 <th className="px-2 py-1.5 font-medium">Company</th>
                 <th className="px-2 py-1.5 font-medium">Location</th>
@@ -264,56 +273,71 @@ export default function DashboardPage() {
                 <th className="px-2 py-1.5 font-medium">Score</th>
                 <th className="px-2 py-1.5 font-medium">Tier</th>
                 <th className="px-2 py-1.5 font-medium">Created</th>
+                <th className="px-2 py-1.5 font-medium text-right">
+                  {/* actions */}
+                </th>
               </tr>
             </thead>
             <tbody>
               {loadingDeals ? (
                 <tr>
-                  <td className="px-2 py-3 text-slate-400" colSpan={7}>
+                  <td className="px-2 py-3" colSpan={8}>
                     Loading…
                   </td>
                 </tr>
               ) : filteredDeals.length === 0 ? (
                 <tr>
-                  <td className="px-2 py-3 text-slate-400" colSpan={7}>
-                    <span className="italic">
-                      No deals yet. Once you analyze a listing with the Chrome extension
-                      or add a CIM/off-market company, it’ll show up here.
-                    </span>
+                  <td className="px-2 py-3 italic" colSpan={8}>
+                    No deals yet. Once you analyze a listing with the Chrome
+                    extension or add a CIM/off-market company, it’ll show up
+                    here.
                   </td>
                 </tr>
               ) : (
                 filteredDeals.map((deal) => (
                   <tr
                     key={deal.id}
-                    className="border-t border-slate-800 hover:bg-slate-900/70"
+                    className="table-row cursor-pointer"
                   >
-                    <td className="px-2 py-2 text-slate-200">
-                      {deal.company_name || '—'}
+                    <td className="px-2 py-2">
+                      <Link href={`/deals/${deal.id}`} className="underline">
+                        {deal.company_name || '—'}
+                      </Link>
                     </td>
-                    <td className="px-2 py-2 text-slate-300">
+                    <td className="px-2 py-2">
                       {deal.location_city || deal.location_state
                         ? `${deal.location_city || ''}${
                             deal.location_city && deal.location_state ? ', ' : ''
                           }${deal.location_state || ''}`
                         : '—'}
                     </td>
-                    <td className="px-2 py-2 text-slate-300">
+                    <td className="px-2 py-2">
                       {deal.industry || '—'}
                     </td>
-                    <td className="px-2 py-2 text-slate-300">
+                    <td className="px-2 py-2">
                       {deal.source_type || '—'}
                     </td>
-                    <td className="px-2 py-2 text-slate-300">
+                    <td className="px-2 py-2">
                       {deal.score ?? '—'}
                     </td>
-                    <td className="px-2 py-2 text-slate-300">
+                    <td className="px-2 py-2">
                       {deal.final_tier || '—'}
                     </td>
-                    <td className="px-2 py-2 text-slate-400">
+                    <td className="px-2 py-2">
                       {deal.created_at
                         ? new Date(deal.created_at).toLocaleDateString()
                         : '—'}
+                    </td>
+                    <td className="px-2 py-2 text-right">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(deal.id);
+                        }}
+                        className="text-red-500 text-[11px] underline"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))

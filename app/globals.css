@@ -5,18 +5,9 @@
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root.dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
 }
 
 body {
@@ -24,3 +15,131 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+/* Primary action buttons (Upload, Add off-market, Add sample, etc.) */
+.btn-main {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  border: 1px solid #000;
+  background: #000;
+  color: #fff;
+  cursor: pointer;
+}
+
+.btn-main:hover {
+  background: #111111;
+}
+
+/* In dark mode: invert (white buttons on black background) */
+:root.dark .btn-main {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+}
+
+:root.dark .btn-main:hover {
+  background: #f5f5f5;
+}
+
+/* Filter pills (All deals / On-market / etc.) */
+.view-pill {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 0.375rem;
+  border: 1px solid #000;
+  background: #ffffff;
+  color: #000000;
+  cursor: pointer;
+}
+
+.view-pill--active {
+  background: #000000;
+  color: #ffffff;
+}
+
+/* Dark mode for filter pills */
+:root.dark .view-pill {
+  background: transparent;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+:root.dark .view-pill--active {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+}
+
+/* Deals table card */
+.card-table {
+  border-radius: 0.75rem;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  background: #ffffff;
+}
+
+/* Dark mode card background */
+:root.dark .card-table {
+  background: #111827; /* dark slate */
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Table header row */
+.table-header {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Dark mode table header */
+:root.dark .table-header {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Table body rows */
+.table-row {
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.table-row:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Dark mode rows */
+:root.dark .table-row {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:root.dark .table-row:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+/* Generic detail cards (AI summary, financials, scoring, criteria) */
+.card-section {
+  border-radius: 0.75rem;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  padding: 1.25rem;
+  background: #ffffff;
+}
+
+/* Dark mode detail cards */
+:root.dark .card-section {
+  background: #111827;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Red flags card */
+.card-red {
+  border-radius: 0.75rem;
+  border: 1px solid #dc2626; /* red-600 */
+  padding: 1.25rem;
+  background: #fee2e2; /* red-100 */
+  color: #7f1d1d;      /* red-800 */
+}
+
+/* Dark mode red flags card */
+:root.dark .card-red {
+  background: rgba(127, 29, 29, 0.25); /* translucent dark red */
+  border-color: #fca5a5;               /* red-300 */
+  color: #fecaca;                      /* red-200 */
+}
+
