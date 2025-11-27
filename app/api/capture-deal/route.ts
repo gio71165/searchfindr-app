@@ -13,7 +13,7 @@ const supabaseAdmin = createClient(
 );
 
 // 🔴 IMPORTANT: replace this with YOUR real Supabase user ID (from Auth → Users)
-const MY_USER_ID = "PASTE-YOUR-USER-ID-HERE";
+const MY_USER_ID = "3025715c-5ff8-425e-9735-0206857e499b";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*", // extension origin is different, so allow all

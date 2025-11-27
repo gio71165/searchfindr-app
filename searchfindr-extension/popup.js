@@ -1,5 +1,5 @@
-// popup.js — production version
-console.log("SearchFindr popup loaded");
+// popup.js — clean production version
+console.log("SearchFindr popup v10 loaded");
 
 // 🔥 Your LIVE API endpoint
 const API_URL = "https://searchfindr-app.vercel.app/api/capture-deal";
@@ -13,68 +13,73 @@ function setStatus(msg, isError = false) {
   statusEl.style.color = isError ? "#f87171" : "#9ca3af";
 }
 
-async function handleClick() {
+function handleClick() {
   setStatus("Reading page…");
 
-  try {
-    // 1) Get the active tab
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  // 1) Get active tab
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs[0];
 
     if (!tab || !tab.id) {
       setStatus("No active tab found.", true);
       return;
     }
 
-    // 2) Extract URL + title + body text from the page
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => {
-        const url = window.location.href;
-        const title = document.title || "";
-        const bodyText = document.body.innerText || "";
-        return {
-          url,
-          title,
-          bodyText: bodyText.slice(0, 20000), // limit size
-        };
+    // 2) Execute script in the page to grab URL, title, and body text
+    chrome.scripting.executeScript(
+      {
+        target: { tabId: tab.id },
+        func: () => {
+          const url = window.location.href;
+          const title = document.title || "";
+          const pageText = document.body.innerText || "";
+          return {
+            url,
+            title,
+            pageText: pageText.slice(0, 20000), // limit size
+          };
+        },
       },
-    });
+      (results) => {
+        if (!results || !results[0] || !results[0].result) {
+          setStatus("Could not read page content.", true);
+          return;
+        }
 
-    if (!results || !results[0] || !results[0].result) {
-      setStatus("Could not read page content.", true);
-      return;
-    }
+        const { url, title, pageText } = results[0].result;
 
-    const { url, title, bodyText } = results[0].result;
+        if (!pageText || pageText.trim().length === 0) {
+          setStatus("No text found on page.", true);
+          return;
+        }
 
-    if (!bodyText || bodyText.trim().length === 0) {
-      setStatus("No text found on page.", true);
-      return;
-    }
+        setStatus("Sending to SearchFindr…");
 
-    setStatus("Sending to SearchFindr…");
+        // 3) Send to your live API (no cookies needed)
+        fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url, title, text: pageText }),
+        })
+          .then((res) => {
+            return res.text().then((body) => {
+              console.log("RAW API RESPONSE:", body);
+              console.log("STATUS:", res.status, "OK?", res.ok);
 
-    // 3) Send to your live API (no cookies needed)
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, title, text: bodyText }),
-    });
-
-    const rawResponse = await res.text();
-    console.log("RAW API RESPONSE:", rawResponse);
-    console.log("STATUS:", res.status, "OK?", res.ok);
-
-    if (!res.ok) {
-      setStatus("API error (see console).", true);
-      return;
-    }
-
-    setStatus("Deal saved to SearchFindr ✓");
-  } catch (err) {
-    console.error("Extension error:", err);
-    setStatus("Unexpected error.", true);
-  }
+              if (!res.ok) {
+                setStatus("API error (see console).", true);
+              } else {
+                setStatus("Deal saved to SearchFindr ✓");
+              }
+            });
+          })
+          .catch((err) => {
+            console.error("Extension fetch error:", err);
+            setStatus("Unexpected error.", true);
+          });
+      }
+    );
+  });
 }
 
 if (sendButton) {
