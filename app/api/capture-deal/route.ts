@@ -12,8 +12,21 @@ const supabaseAdmin = createClient(
   }
 );
 
-// TODO: replace this with YOUR actual Supabase auth user id
-const MY_USER_ID = "3025715c-5ff8-425e-9735-0206857e499b";
+// 🔴 IMPORTANT: replace this with YOUR real Supabase user ID (from Auth → Users)
+const MY_USER_ID = "PASTE-YOUR-USER-ID-HERE";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*", // extension origin is different, so allow all
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 200,
+    headers: corsHeaders,
+  });
+}
 
 export async function POST(req: Request) {
   try {
@@ -22,7 +35,7 @@ export async function POST(req: Request) {
     if (!url || !text) {
       return NextResponse.json(
         { error: "Missing url or text." },
-        { status: 400 }
+        { status: 400, headers: corsHeaders }
       );
     }
 
@@ -95,7 +108,7 @@ Listing:
       console.error("OpenAI error:", await aiResponse.text());
       return NextResponse.json(
         { error: "OpenAI API error." },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       );
     }
 
@@ -125,7 +138,7 @@ Listing:
     // 2) INSERT INTO companies, TIED TO YOUR USER_ID
     // -----------------------------
     const { error: insertError } = await supabaseAdmin.from("companies").insert({
-      user_id: MY_USER_ID, // 🔑 this makes the deal belong to YOUR account
+      user_id: MY_USER_ID,
       company_name,
       listing_url: url,
       raw_listing_text: text,
@@ -148,16 +161,16 @@ Listing:
       console.error("Insert error:", insertError);
       return NextResponse.json(
         { error: insertError.message },
-        { status: 500 }
+        { status: 500, headers: corsHeaders }
       );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true }, { status: 200, headers: corsHeaders });
   } catch (err: any) {
     console.error("capture-deal error:", err);
     return NextResponse.json(
       { error: err.message || "Server error." },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }
