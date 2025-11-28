@@ -169,9 +169,7 @@ export default function DashboardPage() {
 
           {/* Download Chrome Extension button */}
           <a
-            href="https://qcqhmoshjlxiuhgwpfca.supabase.co/storage/v1/object/public/extensions/searchfindr-extension-uncle%20(2).zip"
-            download="SearchFindr-Chrome-Extension.zip"
-            className="btn-main"
+            href="https://qcqhmoshjlxiuhgwpfca.supabase.co/storage/v1/object/public/extensions/searchfindr-extension-uncle.zip"
           >
             Download Chrome extension
           </a>
