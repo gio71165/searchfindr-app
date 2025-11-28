@@ -166,6 +166,15 @@ export default function DashboardPage() {
         <div className="flex flex-wrap gap-3">
           <button className="btn-main">Upload CIM (PDF)</button>
           <button className="btn-main">Add off-market company</button>
+
+          {/* Download Chrome Extension button */}
+          <a
+            href="https://qcqhmoshjlxiuhgwpfca.supabase.co/storage/v1/object/public/extensions/searchfindr-extension-uncle%20(2).zip"
+            download="SearchFindr-Chrome-Extension.zip"
+            className="btn-main"
+          >
+            Download Chrome extension
+          </a>
         </div>
 
         {/* View selector buttons */}
