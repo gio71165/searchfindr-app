@@ -24,13 +24,11 @@ export default function DashboardPage() {
   const router = useRouter();
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
 
   const [loadingDeals, setLoadingDeals] = useState(true);
   const [deals, setDeals] = useState<Company[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const [addingSample, setAddingSample] = useState(false);
   const [selectedView, setSelectedView] = useState<
     'all' | 'on_market' | 'off_market' | 'cim_pdf'
   >('all');
@@ -47,7 +45,6 @@ export default function DashboardPage() {
       }
 
       setEmail(user.email ?? null);
-      setUserId(user.id);
       setCheckingAuth(false);
 
       setLoadingDeals(true);
@@ -87,43 +84,6 @@ export default function DashboardPage() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.replace('/');
-  };
-
-  const handleAddSampleDeal = async () => {
-    if (!userId) return;
-    setAddingSample(true);
-    setErrorMsg(null);
-
-    try {
-      const { data, error } = await supabase
-        .from('companies')
-        .insert([
-          {
-            user_id: userId,
-            company_name: 'Sample Electrical Contractor',
-            location_city: 'Phoenix',
-            location_state: 'AZ',
-            industry: 'Commercial Electrical Services',
-            source_type: 'on_market',
-            score: 88,
-            final_tier: 'A',
-          },
-        ])
-        .select()
-        .single();
-
-      if (error) {
-        console.error(error);
-        setErrorMsg('Failed to add sample deal.');
-      } else if (data) {
-        setDeals((prev) => [data as Company, ...prev]);
-      }
-    } catch (err) {
-      console.error(err);
-      setErrorMsg('Unexpected error adding sample deal.');
-    } finally {
-      setAddingSample(false);
-    }
   };
 
   // delete handler
@@ -206,13 +166,6 @@ export default function DashboardPage() {
         <div className="flex flex-wrap gap-3">
           <button className="btn-main">Upload CIM (PDF)</button>
           <button className="btn-main">Add off-market company</button>
-          <button
-            onClick={handleAddSampleDeal}
-            disabled={addingSample}
-            className="btn-main disabled:opacity-60"
-          >
-            {addingSample ? 'Adding sample…' : 'Add sample deal'}
-          </button>
         </div>
 
         {/* View selector buttons */}
