@@ -6,7 +6,7 @@ const API_URL = "https://searchfindr-app.vercel.app/api/capture-deal";
 
 // 👇 Put YOUR personal API key from the user_api_keys table here
 // e.g. "sfk_your_key_1"
-const API_KEY = "sfk_your_dev_key_1";
+const API_KEY = "sfk_uncles_key_1";
 
 const sendButton = document.getElementById("sendButton");
 const statusEl = document.getElementById("status");

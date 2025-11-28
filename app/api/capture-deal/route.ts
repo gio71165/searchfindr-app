@@ -6,19 +6,14 @@ const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
   process.env.SUPABASE_SERVICE_ROLE_KEY as string,
   {
-    auth: {
-      persistSession: false,
-    },
+    auth: { persistSession: false },
   }
 );
 
-// 🔴 IMPORTANT: replace this with YOUR real Supabase user ID (from Auth → Users)
-const MY_USER_ID = "3025715c-5ff8-425e-9735-0206857e499b";
-
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*", // extension origin is different, so allow all
+  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Headers": "Content-Type, X-Searchfindr-Key",
 };
 
 export async function OPTIONS() {
@@ -30,6 +25,33 @@ export async function OPTIONS() {
 
 export async function POST(req: Request) {
   try {
+    // 1) Read API key
+    const apiKey = req.headers.get("x-searchfindr-key");
+
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "Missing X-Searchfindr-Key header." },
+        { status: 401, headers: corsHeaders }
+      );
+    }
+
+    // 2) Lookup user_id for this API key
+    const { data: keyRow, error: keyError } = await supabaseAdmin
+      .from("user_api_keys")
+      .select("user_id")
+      .eq("api_key", apiKey)
+      .single();
+
+    if (keyError || !keyRow) {
+      return NextResponse.json(
+        { error: "Invalid API key." },
+        { status: 401, headers: corsHeaders }
+      );
+    }
+
+    const ownerUserId = keyRow.user_id;
+
+    // 3) Extract data from extension
     const { url, title, text } = await req.json();
 
     if (!url || !text) {
@@ -41,13 +63,11 @@ export async function POST(req: Request) {
 
     const company_name = title || null;
 
-    // -----------------------------
-    // 1) AI PROMPT
-    // -----------------------------
+    // 4) AI prompt
     const prompt = `
 You are helping a search fund / ETA buyer evaluate a lower middle market deal.
 
-Return a JSON object with this EXACT structure:
+Return a JSON object with the following shape:
 
 {
   "ai_summary": "",
@@ -107,7 +127,7 @@ Listing:
     if (!aiResponse.ok) {
       console.error("OpenAI error:", await aiResponse.text());
       return NextResponse.json(
-        { error: "OpenAI API error." },
+        { error: "OpenAI error" },
         { status: 500, headers: corsHeaders }
       );
     }
@@ -115,6 +135,7 @@ Listing:
     const aiJSON = await aiResponse.json();
     const parsed = JSON.parse(aiJSON.choices[0].message.content);
 
+    // Extract fields
     const {
       ai_summary,
       ai_red_flags,
@@ -126,30 +147,24 @@ Listing:
       industry,
     } = parsed;
 
-    // Convert final tier to numeric score
-    let score: number | null = null;
-    const final_tier = scoring?.final_tier;
+    // Numeric score for dashboard
+    let score = null;
+    if (scoring.final_tier === "A") score = 85;
+    else if (scoring.final_tier === "B") score = 75;
+    else if (scoring.final_tier === "C") score = 65;
 
-    if (final_tier === "A") score = 85;
-    else if (final_tier === "B") score = 75;
-    else if (final_tier === "C") score = 65;
-
-    // -----------------------------
-    // 2) INSERT INTO companies, TIED TO YOUR USER_ID
-    // -----------------------------
+    // 5) Insert deal for this user
     const { error: insertError } = await supabaseAdmin.from("companies").insert({
-      user_id: MY_USER_ID,
+      user_id: ownerUserId,
       company_name,
       listing_url: url,
       raw_listing_text: text,
       source_type: "on_market",
-
       location_city,
       location_state,
       industry,
-      final_tier,
+      final_tier: scoring.final_tier,
       score,
-
       ai_summary,
       ai_red_flags,
       ai_financials_json: financials,
@@ -169,7 +184,7 @@ Listing:
   } catch (err: any) {
     console.error("capture-deal error:", err);
     return NextResponse.json(
-      { error: err.message || "Server error." },
+      { error: err.message },
       { status: 500, headers: corsHeaders }
     );
   }
