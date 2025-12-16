@@ -4,8 +4,12 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '../../supabaseClient';
+import { useSearchParams } from 'next/navigation';
+
 
 export default function DealDetailPage() {
+  const searchParams = useSearchParams();
+  const from = searchParams.get('from'); // 'off_market' | 'on_market' | 'cim_pdf' | 'saved'
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = params?.id as string | undefined;
@@ -17,6 +21,10 @@ export default function DealDetailPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const autoTriggeredRef = useRef(false);
+
+  // Off-market AI states
+  const [runningOffMarketDD, setRunningOffMarketDD] = useState(false);
+  const [offMarketError, setOffMarketError] = useState<string | null>(null);
 
   // CIM AI states
   const [processingCim, setProcessingCim] = useState(false);
@@ -48,7 +56,7 @@ export default function DealDetailPage() {
   }, [id]);
 
   // ------------------------------------------------------------------------------------
-  // On-market AI analysis
+  // On-market AI analysis (Chrome extension listings)
   // ------------------------------------------------------------------------------------
   const runAnalysis = async () => {
     if (!id || !deal) return;
@@ -81,13 +89,8 @@ export default function DealDetailPage() {
         throw new Error(json.error || 'Failed to analyze deal.');
       }
 
-      const {
-        ai_summary,
-        ai_red_flags,
-        financials,
-        scoring,
-        criteria_match,
-      } = json;
+      const { ai_summary, ai_red_flags, financials, scoring, criteria_match } =
+        json;
 
       const { error: updateError } = await supabase
         .from('companies')
@@ -125,11 +128,11 @@ export default function DealDetailPage() {
     }
   };
 
-  // Auto-run AI for non-CIM deals with no summary yet
+  // ✅ Auto-run AI ONLY for on-market deals (NOT off-market, NOT CIM)
   useEffect(() => {
     if (
       deal &&
-      deal.source_type !== 'cim_pdf' &&
+      deal.source_type === 'on_market' &&
       !deal.ai_summary &&
       !autoTriggeredRef.current
     ) {
@@ -137,6 +140,86 @@ export default function DealDetailPage() {
       runAnalysis();
     }
   }, [deal]);
+
+  // ------------------------------------------------------------------------------------
+  // Off-market: Run Initial Diligence (website-based)
+  // ------------------------------------------------------------------------------------
+  const runOffMarketInitialDiligence = async () => {
+    if (!deal?.id || deal.source_type !== 'off_market') return;
+
+    if (!deal.website) {
+      setOffMarketError('This off-market company has no website to analyze.');
+      return;
+    }
+
+    setRunningOffMarketDD(true);
+    setOffMarketError(null);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+
+      if (!token) {
+        setOffMarketError('Not signed in.');
+        setRunningOffMarketDD(false);
+        return;
+      }
+
+      const res = await fetch('/api/off-market/diligence', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          companyId: deal.id,
+        }),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'Failed to run initial diligence.');
+      }
+
+      const { ai_summary, ai_red_flags, financials, scoring, criteria_match } =
+        json;
+
+      const { error: updateError } = await supabase
+        .from('companies')
+        .update({
+          ai_summary,
+          ai_red_flags,
+          ai_financials_json: financials,
+          ai_scoring_json: scoring,
+          criteria_match_json: criteria_match,
+        })
+        .eq('id', deal.id);
+
+      if (updateError) {
+        console.error('Supabase update error (Off-market):', updateError);
+        throw new Error('Failed to save AI result: ' + updateError.message);
+      }
+
+      setDeal((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              ai_summary,
+              ai_red_flags,
+              ai_financials_json: financials,
+              ai_scoring_json: scoring,
+              criteria_match_json: criteria_match,
+            }
+          : prev
+      );
+    } catch (err: any) {
+      console.error('runOffMarketInitialDiligence error', err);
+      setOffMarketError(err.message || 'Something went wrong.');
+    } finally {
+      setRunningOffMarketDD(false);
+    }
+  };
 
   // ------------------------------------------------------------------------------------
   // CIM: Run AI on PDF
@@ -172,13 +255,8 @@ export default function DealDetailPage() {
         return;
       }
 
-      const {
-        ai_summary,
-        ai_red_flags,
-        financials,
-        scoring,
-        criteria_match,
-      } = json;
+      const { ai_summary, ai_red_flags, financials, scoring, criteria_match } =
+        json;
 
       const { error: updateError } = await supabase
         .from('companies')
@@ -232,19 +310,15 @@ export default function DealDetailPage() {
   }
 
   if (!deal) {
-    return (
-      <main className="py-10 text-center text-red-600">
-        Deal not found.
-      </main>
-    );
+    return <main className="py-10 text-center text-red-600">Deal not found.</main>;
   }
 
-  // Branch: CIM vs On-market
+  // Branch: CIM vs Off-market vs On-market
   if (deal.source_type === 'cim_pdf') {
     return (
       <CimDealView
         deal={deal}
-        onBack={() => router.push('/dashboard')}
+        onBack={() => router.push(from ? `/dashboard?view=${from}` : '/dashboard')}
         processingCim={processingCim}
         cimError={cimError}
         cimSuccess={cimSuccess}
@@ -253,10 +327,22 @@ export default function DealDetailPage() {
     );
   }
 
+  if (deal.source_type === 'off_market') {
+    return (
+      <OffMarketDealView
+        deal={deal}
+        onBack={() => router.push(from ? `/dashboard?view=${from}` : '/dashboard')}
+        running={runningOffMarketDD}
+        error={offMarketError}
+        onRunInitialDiligence={runOffMarketInitialDiligence}
+      />
+    );
+  }
+
   return (
     <OnMarketDealView
       deal={deal}
-      onBack={() => router.push('/dashboard')}
+      onBack={() => router.push(from ? `/dashboard?view=${from}` : '/dashboard')}
       analyzing={analyzing}
       aiError={aiError}
       onRunAnalysis={runAnalysis}
@@ -329,6 +415,332 @@ function TierBadge({ tier }: { tier: string | null }) {
     </span>
   );
 }
+
+// ====================================================================================
+// OFF-MARKET DEAL VIEW (Google Places)
+// ====================================================================================
+
+function OffMarketDealView({
+  deal,
+  onBack,
+  running,
+  error,
+  onRunInitialDiligence,
+}: {
+  deal: any;
+  onBack: () => void;
+  running: boolean;
+  error: string | null;
+  onRunInitialDiligence: () => void;
+}) {
+  const fin = deal.ai_financials_json || {};
+  const scoring = deal.ai_scoring_json || {};
+  const criteria = deal.criteria_match_json || {};
+  const ownerSignals = criteria?.owner_signals || null; // ✅ NEW
+  const redFlags = normalizeRedFlags(deal.ai_red_flags);
+
+  const createdLabel = deal.created_at
+    ? new Date(deal.created_at).toLocaleDateString()
+    : null;
+
+  const ratingLine =
+    deal.rating || deal.ratings_total
+      ? `${deal.rating ?? '—'} (${deal.ratings_total ?? '—'} reviews)`
+      : null;
+
+  // tier_reason is stored as object; show reasons if present
+  const tierReasons: string[] = Array.isArray(deal?.tier_reason?.reasons)
+    ? deal.tier_reason.reasons.map(String)
+    : [];
+
+  const confidencePct =
+    ownerSignals && typeof ownerSignals.confidence === 'number'
+      ? Math.round(ownerSignals.confidence * 100)
+      : null;
+
+  return (
+    <main className="min-h-screen">
+      <div className="max-w-4xl mx-auto py-10 px-4 space-y-8">
+        <button onClick={onBack} className="text-xs underline">
+          ← Back to dashboard
+        </button>
+
+        {/* Header */}
+        <section>
+          <h1 className="text-3xl font-semibold mb-1">
+            {deal.company_name || 'Untitled Company'}
+          </h1>
+
+          <p className="text-sm text-muted-foreground">
+            {deal.address || ''}
+            {deal.website && (
+              <>
+                {' • '}
+                <a
+                  href={deal.website}
+                  className="underline"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Visit website
+                </a>
+              </>
+            )}
+          </p>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <SourceBadge source={deal.source_type} />
+            <TierBadge tier={deal.tier || deal.final_tier} />
+            {createdLabel && (
+              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                Added {createdLabel}
+              </span>
+            )}
+            {ratingLine && (
+              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                Google {ratingLine}
+              </span>
+            )}
+          </div>
+        </section>
+
+        {/* Initial Diligence */}
+        <section className="card-section">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-lg font-semibold">Initial Diligence</h2>
+            <button
+              onClick={onRunInitialDiligence}
+              disabled={running}
+              className="text-xs px-2 py-1 border rounded"
+            >
+              {running
+                ? 'Running…'
+                : deal.ai_summary
+                ? 'Re-run Initial Diligence'
+                : 'Run Initial Diligence'}
+            </button>
+          </div>
+
+          {error && <p className="text-xs text-red-500 mb-1">{error}</p>}
+
+          <p className="whitespace-pre-line text-sm leading-relaxed">
+            {deal.ai_summary ||
+              'No diligence memo yet. Run Initial Diligence to generate one from the company website.'}
+          </p>
+        </section>
+
+        {/* ✅ Owner Signals (Probabilistic) */}
+        {ownerSignals && (
+          <section className="card-section">
+            <h2 className="text-lg font-semibold mb-2">
+              Owner Signals (Probabilistic)
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-xs uppercase">Likely owner-operated</p>
+                <p className="font-medium">
+                  {ownerSignals.likely_owner_operated ? 'Yes' : 'No'}
+                  {confidencePct !== null && (
+                    <span className="text-xs text-muted-foreground">
+                      {' '}
+                      ({confidencePct}%)
+                    </span>
+                  )}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs uppercase">Owner named on site</p>
+                <p className="font-medium">
+                  {ownerSignals.owner_named_on_site ? 'Yes' : 'No'}
+                  {ownerSignals.owner_named_on_site && ownerSignals.owner_name ? (
+                    <span className="text-xs text-muted-foreground">
+                      {' '}
+                      — {ownerSignals.owner_name}
+                    </span>
+                  ) : null}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs uppercase">Generation hint</p>
+                <p className="font-medium">
+                  {ownerSignals.generation_hint || 'unknown'}
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs uppercase">Owner dependency risk</p>
+                <p className="font-medium">
+                  {ownerSignals.owner_dependency_risk || 'Unknown'}
+                </p>
+              </div>
+
+              <div className="sm:col-span-2">
+                <p className="text-xs uppercase">Years in business</p>
+                <p className="font-medium">
+                  {ownerSignals.years_in_business || 'Unknown'}
+                </p>
+              </div>
+            </div>
+
+            {Array.isArray(ownerSignals.evidence) &&
+              ownerSignals.evidence.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs uppercase mb-1">Evidence</p>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    {ownerSignals.evidence.slice(0, 6).map((e: string, idx: number) => (
+                      <li key={idx}>{e}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+            {Array.isArray(ownerSignals.missing_info) &&
+              ownerSignals.missing_info.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs uppercase mb-1">Missing info</p>
+                  <ul className="list-disc list-inside space-y-1 text-sm">
+                    {ownerSignals.missing_info
+                      .slice(0, 6)
+                      .map((m: string, idx: number) => (
+                        <li key={idx}>{m}</li>
+                      ))}
+                  </ul>
+                </div>
+              )}
+          </section>
+        )}
+
+        {/* Quick signals (from discovery tier) */}
+        {tierReasons.length > 0 && (
+          <section className="card-section">
+            <h2 className="text-lg font-semibold mb-2">Discovery Signals</h2>
+            <ul className="list-disc list-inside space-y-1 text-sm">
+              {tierReasons.map((r, i) => (
+                <li key={i}>{r}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Financials (usually unknown for off-market) */}
+        <section className="card-section">
+          <h2 className="text-lg font-semibold mb-3">
+            Financials (if available)
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
+            <div>
+              <p className="text-xs uppercase">Revenue</p>
+              <p className="font-medium">{fin.revenue || 'Unknown'}</p>
+            </div>
+
+            <div>
+              <p className="text-xs uppercase">EBITDA</p>
+              <p className="font-medium">{fin.ebitda || 'Unknown'}</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Scoring + Fit */}
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="card-section text-sm space-y-4">
+            <h2 className="text-lg font-semibold mb-1">Scoring Breakdown</h2>
+
+            {Object.keys(scoring).length === 0 ? (
+              <p className="text-sm">No scoring stored yet.</p>
+            ) : (
+              <>
+                {scoring.succession_risk && (
+                  <div>
+                    <p className="font-semibold">Succession Risk</p>
+                    <p>{scoring.succession_risk}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {scoring.succession_risk_reason}
+                    </p>
+                  </div>
+                )}
+
+                {scoring.industry_fit && (
+                  <div>
+                    <p className="font-semibold">Industry Fit</p>
+                    <p>{scoring.industry_fit}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {scoring.industry_fit_reason}
+                    </p>
+                  </div>
+                )}
+
+                {scoring.geography_fit && (
+                  <div>
+                    <p className="font-semibold">Geography Fit</p>
+                    <p>{scoring.geography_fit}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {scoring.geography_fit_reason}
+                    </p>
+                  </div>
+                )}
+
+                {scoring.final_tier && (
+                  <div>
+                    <p className="font-semibold">Final Tier</p>
+                    <p>{scoring.final_tier}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {scoring.final_tier_reason}
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="card-section text-sm space-y-3">
+            <h2 className="text-lg font-semibold mb-1">
+              Fit with Search Criteria
+            </h2>
+
+            {Object.keys(criteria).length === 0 ? (
+              <p className="text-sm">No criteria analysis yet.</p>
+            ) : (
+              <>
+                <div>
+                  <p className="font-semibold">Business Model</p>
+                  <p>{criteria.business_model || '—'}</p>
+                </div>
+
+                <div>
+                  <p className="font-semibold">Owner Profile</p>
+                  <p>{criteria.owner_profile || '—'}</p>
+                </div>
+
+                <div>
+                  <p className="font-semibold">Notes for Searcher</p>
+                  <p>{criteria.notes_for_searcher || '—'}</p>
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* Red Flags */}
+        <section className="card-red">
+          <h2 className="text-lg font-semibold mb-2">Red Flags</h2>
+          {redFlags.length === 0 ? (
+            <p className="text-sm">No red flags detected yet.</p>
+          ) : (
+            <ul className="list-disc list-inside space-y-1 text-sm">
+              {redFlags.map((flag, idx) => (
+                <li key={idx}>{flag}</li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
+
 
 // ====================================================================================
 // ON-MARKET DEAL VIEW (Chrome extension)
@@ -406,17 +818,11 @@ function OnMarketDealView({
               disabled={analyzing}
               className="text-xs px-2 py-1 border rounded"
             >
-              {analyzing
-                ? 'Analyzing…'
-                : deal.ai_summary
-                ? 'Re-run AI'
-                : 'Run AI'}
+              {analyzing ? 'Analyzing…' : deal.ai_summary ? 'Re-run AI' : 'Run AI'}
             </button>
           </div>
 
-          {aiError && (
-            <p className="text-xs text-red-500 mb-1">{aiError}</p>
-          )}
+          {aiError && <p className="text-xs text-red-500 mb-1">{aiError}</p>}
 
           <p className="whitespace-pre-line text-sm leading-relaxed">
             {deal.ai_summary ||
@@ -430,16 +836,12 @@ function OnMarketDealView({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
             <div>
               <p className="text-xs uppercase">Revenue</p>
-              <p className="font-medium">
-                {deal.revenue || fin.revenue || '—'}
-              </p>
+              <p className="font-medium">{deal.revenue || fin.revenue || '—'}</p>
             </div>
 
             <div>
               <p className="text-xs uppercase">EBITDA</p>
-              <p className="font-medium">
-                {deal.ebitda || fin.ebitda || '—'}
-              </p>
+              <p className="font-medium">{deal.ebitda || fin.ebitda || '—'}</p>
             </div>
 
             {fin.margin && (
@@ -452,9 +854,7 @@ function OnMarketDealView({
             {fin.customer_concentration && (
               <div className="sm:col-span-2">
                 <p className="text-xs uppercase">Customer Concentration</p>
-                <p className="font-medium">
-                  {fin.customer_concentration}
-                </p>
+                <p className="font-medium">{fin.customer_concentration}</p>
               </div>
             )}
           </div>
@@ -527,9 +927,7 @@ function OnMarketDealView({
 
         {/* Criteria Match */}
         <section className="card-section">
-          <h2 className="text-lg font-semibold mb-3">
-            Fit with Search Criteria
-          </h2>
+          <h2 className="text-lg font-semibold mb-3">Fit with Search Criteria</h2>
 
           {!criteria || Object.keys(criteria).length === 0 ? (
             <p className="text-sm">No criteria analysis yet.</p>
@@ -563,7 +961,7 @@ function OnMarketDealView({
 }
 
 // ====================================================================================
-// CIM DEAL VIEW (PDF CIM)
+// CIM DEAL VIEW (PDF CIM)  (UNCHANGED)
 // ====================================================================================
 
 function CimDealView({
@@ -585,9 +983,7 @@ function CimDealView({
   const criteria = deal.criteria_match_json || {};
   const finRaw = deal.ai_financials_json || {};
 
-  // 🔧 FIX: be very forgiving with key names so values actually show up
   const fin = {
-    // TTM / latest revenue
     revenue:
       finRaw.revenue ??
       finRaw.ttm_revenue ??
@@ -595,8 +991,6 @@ function CimDealView({
       finRaw.ttmRevenue ??
       finRaw.latest_revenue ??
       null,
-
-    // TTM / latest EBITDA
     ebitda:
       finRaw.ebitda ??
       finRaw.ttm_ebitda ??
@@ -604,53 +998,36 @@ function CimDealView({
       finRaw.ttmEbitda ??
       finRaw.latest_ebitda ??
       null,
-
-    // EBITDA margin
     margin:
       finRaw.ebitda_margin ??
       finRaw.ebitda_margin_ttm ??
       finRaw.margin ??
       finRaw.ebitdaMargin ??
       null,
-
-    // Customer concentration
     customer_concentration:
       finRaw.customer_concentration ??
       finRaw.customer_conc ??
       finRaw.customer_concentration_summary ??
       null,
-
-    // Historical revenue
     revenue_1y_ago:
       finRaw.revenue_1y_ago ??
       finRaw.revenue_last_year ??
       finRaw.revenue_fy1 ??
       null,
-
     revenue_2y_ago:
       finRaw.revenue_2y_ago ??
       finRaw.revenue_two_years_ago ??
       finRaw.revenue_fy2 ??
       null,
-
-    // 3-year revenue CAGR
     revenue_cagr_3y:
       finRaw.revenue_cagr_3y ??
       finRaw.revenue_3yr_cagr ??
       finRaw.revenue_cagr_3yr ??
       finRaw.rev_cagr_3y ??
       null,
-
-    // Capex / working capital
-    capex_intensity:
-      finRaw.capex_intensity ??
-      finRaw.capex_pct_revenue ??
-      null,
-
+    capex_intensity: finRaw.capex_intensity ?? finRaw.capex_pct_revenue ?? null,
     working_capital_needs:
-      finRaw.working_capital_needs ??
-      finRaw.working_capital_profile ??
-      null,
+      finRaw.working_capital_needs ?? finRaw.working_capital_profile ?? null,
   };
 
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
@@ -669,7 +1046,6 @@ function CimDealView({
           ← Back to dashboard
         </button>
 
-        {/* HERO / HEADER */}
         <section className="flex flex-col gap-2">
           <h1 className="text-3xl font-semibold mb-1">
             {deal.company_name || 'CIM Deal'}
@@ -689,7 +1065,6 @@ function CimDealView({
             )}
           </div>
 
-          {/* CIM Processing controls */}
           <div className="mt-4 card-section">
             <div className="flex items-center justify-between gap-2">
               <div>
@@ -707,9 +1082,7 @@ function CimDealView({
               </button>
             </div>
 
-            {cimError && (
-              <p className="text-xs text-red-500 mt-1">{cimError}</p>
-            )}
+            {cimError && <p className="text-xs text-red-500 mt-1">{cimError}</p>}
 
             {cimSuccess && (
               <p className="text-xs text-green-600 mt-1">
@@ -719,37 +1092,26 @@ function CimDealView({
           </div>
         </section>
 
-        {/* MAIN GRID: Summary + Financial Snapshot */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* AI Investment Memo */}
           <div className="lg:col-span-2 card-section">
-            <h2 className="text-lg font-semibold mb-2">
-              AI Investment Memo (CIM)
-            </h2>
+            <h2 className="text-lg font-semibold mb-2">AI Investment Memo (CIM)</h2>
             <p className="whitespace-pre-line text-sm leading-relaxed">
               {deal.ai_summary ||
                 'No AI summary available yet. Run AI on CIM to generate an investment memo.'}
             </p>
           </div>
 
-          {/* Financial Snapshot */}
           <div className="card-section space-y-3 text-sm">
-            <h2 className="text-lg font-semibold mb-2">
-              Financial Snapshot
-            </h2>
+            <h2 className="text-lg font-semibold mb-2">Financial Snapshot</h2>
 
             <div>
               <p className="text-xs uppercase">TTM Revenue</p>
-              <p className="font-medium">
-                {fin.revenue || 'Unknown'}
-              </p>
+              <p className="font-medium">{fin.revenue || 'Unknown'}</p>
             </div>
 
             <div>
               <p className="text-xs uppercase">TTM EBITDA</p>
-              <p className="font-medium">
-                {fin.ebitda || 'Unknown'}
-              </p>
+              <p className="font-medium">{fin.ebitda || 'Unknown'}</p>
             </div>
 
             {fin.margin && (
@@ -762,65 +1124,50 @@ function CimDealView({
             {fin.revenue_1y_ago && (
               <div>
                 <p className="text-xs uppercase">Revenue (1Y ago)</p>
-                <p className="font-medium">
-                  {fin.revenue_1y_ago}
-                </p>
+                <p className="font-medium">{fin.revenue_1y_ago}</p>
               </div>
             )}
 
             {fin.revenue_2y_ago && (
               <div>
                 <p className="text-xs uppercase">Revenue (2Y ago)</p>
-                <p className="font-medium">
-                  {fin.revenue_2y_ago}
-                </p>
+                <p className="font-medium">{fin.revenue_2y_ago}</p>
               </div>
             )}
 
             {fin.revenue_cagr_3y && (
               <div>
                 <p className="text-xs uppercase">3Y Revenue CAGR</p>
-                <p className="font-medium">
-                  {fin.revenue_cagr_3y}
-                </p>
+                <p className="font-medium">{fin.revenue_cagr_3y}</p>
               </div>
             )}
 
             {fin.customer_concentration && (
               <div>
                 <p className="text-xs uppercase">Customer Concentration</p>
-                <p className="font-medium">
-                  {fin.customer_concentration}
-                </p>
+                <p className="font-medium">{fin.customer_concentration}</p>
               </div>
             )}
 
             {fin.capex_intensity && (
               <div>
                 <p className="text-xs uppercase">Capex Intensity</p>
-                <p className="font-medium">
-                  {fin.capex_intensity}
-                </p>
+                <p className="font-medium">{fin.capex_intensity}</p>
               </div>
             )}
 
             {fin.working_capital_needs && (
               <div>
                 <p className="text-xs uppercase">Working Capital</p>
-                <p className="font-medium">
-                  {fin.working_capital_needs}
-                </p>
+                <p className="font-medium">{fin.working_capital_needs}</p>
               </div>
             )}
           </div>
         </section>
 
-        {/* Scoring + Platform Fit */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="card-section text-sm space-y-4">
-            <h2 className="text-lg font-semibold mb-1">
-              Scoring Breakdown
-            </h2>
+            <h2 className="text-lg font-semibold mb-1">Scoring Breakdown</h2>
 
             {scoring.succession_risk && (
               <div>
@@ -874,9 +1221,7 @@ function CimDealView({
           </div>
 
           <div className="card-section text-sm space-y-3">
-            <h2 className="text-lg font-semibold mb-1">
-              Fit with Search Criteria
-            </h2>
+            <h2 className="text-lg font-semibold mb-1">Fit with Search Criteria</h2>
 
             <div>
               <p className="font-semibold">Deal Size Fit</p>
@@ -915,14 +1260,11 @@ function CimDealView({
           </div>
         </section>
 
-        {/* Red Flags + DD Checklist */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="card-red">
             <h2 className="text-lg font-semibold mb-2">Red Flags</h2>
             {redFlags.length === 0 ? (
-              <p className="text-sm">
-                No explicit red flags list stored yet.
-              </p>
+              <p className="text-sm">No explicit red flags list stored yet.</p>
             ) : (
               <ul className="list-disc list-inside space-y-1 text-sm">
                 {redFlags.map((item, idx) => (
@@ -933,13 +1275,10 @@ function CimDealView({
           </div>
 
           <div className="card-section">
-            <h2 className="text-lg font-semibold mb-2">
-              Due Diligence Checklist
-            </h2>
+            <h2 className="text-lg font-semibold mb-2">Due Diligence Checklist</h2>
             {ddChecklist.length === 0 ? (
               <p className="text-sm">
-                No checklist generated yet. Re-run AI on CIM to populate
-                this.
+                No checklist generated yet. Re-run AI on CIM to populate this.
               </p>
             ) : (
               <ul className="list-disc list-inside space-y-1 text-sm">

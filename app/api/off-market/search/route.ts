@@ -1,0 +1,421 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+
+export const runtime = "nodejs";
+
+// Server-side Supabase client (service role) so inserts work reliably under RLS design
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+const GOOGLE_KEY = process.env.GOOGLE_MAPS_API_KEY;
+
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com";
+
+type Body = {
+  industry: string;
+  location: string; // e.g. "Austin, TX"
+  radius_miles: number; // e.g. 10
+};
+
+function milesToMeters(mi: number) {
+  return Math.round(mi * 1609.344);
+}
+
+function toTextSafe(s: any) {
+  return typeof s === "string" ? s : "";
+}
+
+// Very V1: hard filters that eliminate obvious noise BEFORE AI
+function failsHardFilter(input: {
+  name: string | null;
+  website: string | null;
+  address: string | null;
+  industryQuery: string;
+}) {
+  // Require a website (key V1 rule to avoid directory noise)
+  if (!input.website) return { fail: true, reason: "No website" };
+
+  const name = (input.name ?? "").toLowerCase();
+
+  // Obvious “not a small owner-operator target” signals
+  const excludeKeywords = [
+    "franchise",
+    "franchising",
+    "corporate",
+    "headquarters",
+    "hq",
+    "holdings",
+    "private equity",
+    "venture",
+    "vc",
+    "fund",
+    "investments",
+    "group",
+    "llc", // optional: can be too aggressive; leaving here is ok but comment out if you want
+  ];
+
+  // NOTE: "llc" is super common for true SMBs; if you see this filtering too much, remove it.
+  // I'd personally remove "llc" later if it hurts recall.
+
+  for (const kw of excludeKeywords) {
+    if (kw === "llc") continue; // disabled by default (too aggressive)
+    if (name.includes(kw)) return { fail: true, reason: `Keyword: ${kw}` };
+  }
+
+  return { fail: false, reason: "" };
+}
+
+async function getAuthedUserAndWorkspace(req: NextRequest) {
+  const authHeader = req.headers.get("authorization") || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  if (!token) return { userId: null, workspaceId: null };
+
+  const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+  if (userErr || !userData?.user?.id) return { userId: null, workspaceId: null };
+
+  const userId = userData.user.id;
+
+  const { data: profile, error: profErr } = await supabase
+    .from("profiles")
+    .select("workspace_id")
+    .eq("id", userId)
+    .single();
+
+  if (profErr || !profile?.workspace_id) return { userId, workspaceId: null };
+
+  return { userId, workspaceId: profile.workspace_id as string };
+}
+
+async function googleGeocode(location: string) {
+  const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
+  url.searchParams.set("address", location);
+  url.searchParams.set("key", GOOGLE_KEY!);
+
+  const res = await fetch(url.toString());
+  const json = await res.json();
+
+  if (!res.ok || json.status !== "OK" || !json.results?.[0]?.geometry?.location) {
+    throw new Error(`Geocode failed: ${json.status || res.status}`);
+  }
+
+  return json.results[0].geometry.location as { lat: number; lng: number };
+}
+
+async function googlePlacesNearby(params: { lat: number; lng: number; radiusMeters: number; keyword: string }) {
+  const url = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json");
+  url.searchParams.set("location", `${params.lat},${params.lng}`);
+  url.searchParams.set("radius", String(params.radiusMeters));
+  url.searchParams.set("keyword", params.keyword);
+  url.searchParams.set("key", GOOGLE_KEY!);
+
+  const res = await fetch(url.toString());
+  const json = await res.json();
+
+  if (!res.ok || (json.status !== "OK" && json.status !== "ZERO_RESULTS")) {
+    throw new Error(`Places nearby failed: ${json.status || res.status}`);
+  }
+
+  return (json.results ?? []) as any[];
+}
+
+async function googlePlaceDetails(placeId: string) {
+  const url = new URL("https://maps.googleapis.com/maps/api/place/details/json");
+  url.searchParams.set("place_id", placeId);
+  url.searchParams.set(
+    "fields",
+    [
+      "place_id",
+      "name",
+      "formatted_address",
+      "formatted_phone_number",
+      "website",
+      "geometry/location",
+      "rating",
+      "user_ratings_total",
+    ].join(",")
+  );
+  url.searchParams.set("key", GOOGLE_KEY!);
+
+  const res = await fetch(url.toString());
+  const json = await res.json();
+
+  if (!res.ok || json.status !== "OK") return null;
+  return json.result as any;
+}
+
+// V1: fetch ONLY homepage text (no crawling)
+async function fetchHomepageText(urlStr: string) {
+  try {
+    const res = await fetch(urlStr, {
+      redirect: "follow",
+      headers: {
+        "User-Agent": "SearchFindrBot/1.0 (+https://searchfindr.local)",
+      },
+    });
+
+    if (!res.ok) return "";
+
+    const html = await res.text();
+    // Cheap strip (no dependencies): remove scripts/styles, collapse whitespace
+    const cleaned = html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    // cap to keep token + cost stable
+    return cleaned.slice(0, 6000);
+  } catch {
+    return "";
+  }
+}
+
+async function openAIKeepOrReject(input: {
+  industry: string;
+  location: string;
+  radiusMiles: number;
+  companyName: string;
+  website: string;
+  address: string | null;
+  phone: string | null;
+  rating: number | null;
+  ratingsTotal: number | null;
+  homepageText: string;
+}) {
+  // V1 prompt: strict JSON output, no extra text
+  const prompt = `
+You are SearchFindr, helping a search fund / ETA buyer find owner-operated small businesses.
+
+Decide whether to KEEP this company as an off-market candidate.
+
+Search criteria:
+- Industry: ${input.industry}
+- Geography: ${input.location} within ${input.radiusMiles} miles
+- Must be plausibly owner-operated SMB (not a chain, not franchise-heavy, not PE/VC/holding-company branded)
+- Prefer local service businesses with real operations
+- If unsure, reject (KEEP=false) to reduce noise in V1
+
+Company:
+- Name: ${input.companyName}
+- Website: ${input.website}
+- Address: ${input.address ?? ""}
+- Phone: ${input.phone ?? ""}
+- Google rating: ${input.rating ?? ""}
+- Ratings count: ${input.ratingsTotal ?? ""}
+
+Homepage text (may be partial):
+${input.homepageText}
+
+Return ONLY valid JSON in this exact schema:
+{
+  "keep": boolean,
+  "tier": "A" | "B" | "C",
+  "reasons": string[],
+  "red_flags": string[]
+}
+`;
+
+  const res = await fetch(`${OPENAI_BASE_URL}/v1/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      temperature: 0.2,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+
+  const json = await res.json();
+
+  if (!res.ok) {
+    const msg = json?.error?.message || "OpenAI error";
+    throw new Error(msg);
+  }
+
+  const content = json?.choices?.[0]?.message?.content ?? "";
+  // Parse strict JSON
+  const parsed = JSON.parse(content);
+
+  // small validation
+  if (typeof parsed?.keep !== "boolean") throw new Error("Bad AI response: keep missing");
+  if (!["A", "B", "C"].includes(parsed?.tier)) throw new Error("Bad AI response: tier invalid");
+  if (!Array.isArray(parsed?.reasons)) parsed.reasons = [];
+  if (!Array.isArray(parsed?.red_flags)) parsed.red_flags = [];
+
+  return parsed as { keep: boolean; tier: "A" | "B" | "C"; reasons: string[]; red_flags: string[] };
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    if (!GOOGLE_KEY) {
+      return NextResponse.json({ success: false, error: "Missing GOOGLE_MAPS_API_KEY" }, { status: 500 });
+    }
+    if (!OPENAI_API_KEY) {
+      return NextResponse.json({ success: false, error: "Missing OPENAI_API_KEY" }, { status: 500 });
+    }
+
+    const { userId, workspaceId } = await getAuthedUserAndWorkspace(req);
+    if (!userId || !workspaceId) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = (await req.json()) as Body;
+    const industry = toTextSafe(body.industry).trim();
+    const location = toTextSafe(body.location).trim();
+    const radiusMiles = Number(body.radius_miles);
+
+    if (!industry || !location || !Number.isFinite(radiusMiles) || radiusMiles <= 0) {
+      return NextResponse.json({ success: false, error: "Invalid inputs" }, { status: 400 });
+    }
+
+    // 1) Geocode the location
+    const { lat, lng } = await googleGeocode(location);
+
+    // 2) Nearby search by keyword within radius
+    const radiusMeters = milesToMeters(radiusMiles);
+    const results = await googlePlacesNearby({ lat, lng, radiusMeters, keyword: industry });
+
+    // 3) Fetch details
+    const detailed = await Promise.all(
+      results.slice(0, 20).map(async (r) => {
+        const placeId = r.place_id as string | undefined;
+        const details = placeId ? await googlePlaceDetails(placeId) : null;
+
+        const name = details?.name ?? r.name ?? null;
+        const address = details?.formatted_address ?? r.vicinity ?? null;
+
+        const phone = details?.formatted_phone_number ?? null;
+        const website = details?.website ?? null;
+
+        const loc = details?.geometry?.location ?? r.geometry?.location ?? null;
+
+        const rating = details?.rating ?? r.rating ?? null;
+        const ratingsTotal = details?.user_ratings_total ?? r.user_ratings_total ?? null;
+
+        const externalId = placeId ?? `${name ?? "unknown"}|${address ?? "unknown"}`;
+
+        return {
+          placeId: placeId ?? null,
+          externalId,
+          name,
+          address,
+          phone,
+          website,
+          lat: loc?.lat ?? null,
+          lng: loc?.lng ?? null,
+          rating,
+          ratingsTotal,
+        };
+      })
+    );
+
+    // 4) Hard filter (free) — eliminate noise BEFORE AI
+    const survivors = detailed.filter((c) => {
+      const hard = failsHardFilter({
+        name: c.name,
+        website: c.website,
+        address: c.address,
+        industryQuery: industry,
+      });
+      return !hard.fail;
+    });
+
+    // 5) AI review ONLY on survivors (cap for cost control)
+    const AI_CAP = 8; // V1 cost guardrail
+    const toReview = survivors.slice(0, AI_CAP);
+
+    const reviewed = await Promise.all(
+      toReview.map(async (c) => {
+        const homepageText = c.website ? await fetchHomepageText(c.website) : "";
+
+        // If we can’t fetch any homepage text, reject (V1 noise control)
+        if (!homepageText) {
+          return { keep: false as const, company: c, ai: null as any };
+        }
+
+        const ai = await openAIKeepOrReject({
+          industry,
+          location,
+          radiusMiles,
+          companyName: c.name ?? "Unknown",
+          website: c.website!,
+          address: c.address,
+          phone: c.phone,
+          rating: c.rating,
+          ratingsTotal: c.ratingsTotal,
+          homepageText,
+        });
+
+        return { keep: ai.keep, company: c, ai };
+      })
+    );
+
+    // 6) Build inserts ONLY for KEEP=true (Option A)
+    const inserts = reviewed
+      .filter((r) => r.keep === true && r.ai)
+      .map((r) => {
+        const c = r.company;
+        const ai = r.ai;
+
+        return {
+          workspace_id: workspaceId,
+          source_type: "off_market",
+          external_source: "google_places",
+          external_id: c.externalId,
+          place_id: c.placeId,
+
+          company_name: c.name,
+          address: c.address,
+          phone: c.phone,
+          website: c.website,
+          lat: c.lat,
+          lng: c.lng,
+          rating: c.rating,
+          ratings_total: c.ratingsTotal,
+
+          tier: ai.tier,
+          tier_reason: {
+            reasons: ai.reasons,
+            red_flags: ai.red_flags,
+            inputs: { industry, location, radius_miles: radiusMiles },
+          },
+
+          // IMPORTANT: never auto-save (user must click Save)
+          is_saved: false,
+        };
+      });
+
+    if (inserts.length === 0) {
+      return NextResponse.json({
+        success: true,
+        count: 0,
+        companies: [],
+        note: "No companies passed filters (hard + AI).",
+      });
+    }
+
+    // 7) Upsert into companies (dedupe per workspace + external ids)
+    const { data: saved, error: upsertErr } = await supabase
+      .from("companies")
+      .upsert(inserts, {
+        onConflict: "workspace_id,external_source,external_id",
+      })
+      .select("id, company_name, address, phone, website, tier, is_saved, created_at, place_id");
+
+    if (upsertErr) {
+      return NextResponse.json({ success: false, error: upsertErr.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, count: saved?.length ?? 0, companies: saved ?? [] });
+  } catch (e: any) {
+    return NextResponse.json({ success: false, error: e?.message ?? "Unknown error" }, { status: 500 });
+  }
+}
