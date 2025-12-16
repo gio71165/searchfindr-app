@@ -107,8 +107,9 @@ const prompt =
   '  "location_state": "",\n' +
   '  "industry": ""\n' +
   "}\n\n" +
-  `Company:\n- Name: ${company_name || ""}\n- URL: ${url}\n\n` +
-  `Listing:\n"""${text}"""\n`;
+  "Company:\n- Name: " + (company_name || "") + "\n- URL: " + url + "\n\n" +
+  'Listing:\n"""' + text + '"""\n';
+
 `;
     const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
