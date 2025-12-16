@@ -75,47 +75,40 @@ export async function POST(req: Request) {
     const company_name = title || null;
 
     // 5) AI prompt
-    const prompt = `
-You are helping a search fund / ETA buyer evaluate a lower middle market deal.
-
-Return a JSON object with the following shape:
-
-{
-  "ai_summary": "",
-  "ai_red_flags": "",
-  "financials": {
-    "revenue": "",
-    "ebitda": "",
-    "margin": "",
-    "customer_concentration": ""
-  },
-  "scoring": {
-    "succession_risk": "",
-    "succession_risk_reason": "",
-    "industry_fit": "",
-    "industry_fit_reason": "",
-    "geography_fit": "",
-    "geography_fit_reason": "",
-    "final_tier": "",
-    "final_tier_reason": ""
-  },
-  "criteria_match": {
-    "deal_size": "",
-    "business_model": "",
-    "owner_profile": "",
-    "notes_for_searcher": ""
-  },
-  "location_city": "",
-  "location_state": "",
-  "industry": ""
-}
-
-Company:
-- Name: ${company_name || ""}
-- URL: ${url}
-
-Listing:
-"""${text}"""
+const prompt =
+  "You are helping a search fund / ETA buyer evaluate a lower middle market deal.\n\n" +
+  "Return a JSON object with the following shape:\n\n" +
+  '{\n' +
+  '  "ai_summary": "",\n' +
+  '  "ai_red_flags": "",\n' +
+  '  "financials": {\n' +
+  '    "revenue": "",\n' +
+  '    "ebitda": "",\n' +
+  '    "margin": "",\n' +
+  '    "customer_concentration": ""\n' +
+  '  },\n' +
+  '  "scoring": {\n' +
+  '    "succession_risk": "",\n' +
+  '    "succession_risk_reason": "",\n' +
+  '    "industry_fit": "",\n' +
+  '    "industry_fit_reason": "",\n' +
+  '    "geography_fit": "",\n' +
+  '    "geography_fit_reason": "",\n' +
+  '    "final_tier": "",\n' +
+  '    "final_tier_reason": ""\n' +
+  '  },\n' +
+  '  "criteria_match": {\n' +
+  '    "deal_size": "",\n' +
+  '    "business_model": "",\n' +
+  '    "owner_profile": "",\n' +
+  '    "notes_for_searcher": ""\n' +
+  '  },\n' +
+  '  "location_city": "",\n' +
+  '  "location_state": "",\n' +
+  '  "industry": ""\n' +
+  "}\n\n" +
+  `Company:\n- Name: ${company_name || ""}\n- URL: ${url}\n\n` +
+  `Listing:\n"""${text}"""\n`;
 `;
     const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
