@@ -13,7 +13,7 @@ export default function DealDetailPage() {
   const [deal, setDeal] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Existing AI (Chrome extension) states
+  // On-market AI states
   const [analyzing, setAnalyzing] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const autoTriggeredRef = useRef(false);
@@ -125,7 +125,7 @@ export default function DealDetailPage() {
     }
   };
 
-  // Auto-run AI for Chrome extension deals (NOT for CIM)
+  // Auto-run AI for non-CIM deals with no summary yet
   useEffect(() => {
     if (
       deal &&
@@ -271,32 +271,64 @@ export default function DealDetailPage() {
 const normalizeRedFlags = (raw: any): string[] => {
   if (!raw) return [];
 
-  // Already an array
   if (Array.isArray(raw)) {
     return raw.map(String).filter(Boolean);
   }
 
-  // JSON string or plain string
   if (typeof raw === 'string') {
-    // Try to parse JSON array from string: '["flag1","flag2"]'
     try {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
         return parsed.map(String).filter(Boolean);
       }
     } catch {
-      // Not valid JSON, fall through to treat it as plain text
+      // ignore
     }
-
-    // Single string case
     const trimmed = raw.trim();
     return trimmed ? [trimmed] : [];
   }
 
-  // Anything else – coerce to string
   const asString = String(raw).trim();
   return asString ? [asString] : [];
 };
+
+// Small shared visual helpers
+function SourceBadge({ source }: { source: string | null }) {
+  if (!source) return null;
+
+  const label =
+    source === 'on_market'
+      ? 'On-market'
+      : source === 'off_market'
+      ? 'Off-market'
+      : source === 'cim_pdf'
+      ? 'CIM (PDF)'
+      : source;
+
+  const tone =
+    source === 'on_market'
+      ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/40'
+      : source === 'off_market'
+      ? 'bg-sky-500/10 text-sky-600 border-sky-500/40'
+      : 'bg-purple-500/10 text-purple-600 border-purple-500/40';
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide ${tone}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function TierBadge({ tier }: { tier: string | null }) {
+  if (!tier) return null;
+  return (
+    <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide bg-amber-500/5 border-amber-500/40 text-amber-700">
+      Tier {tier}
+    </span>
+  );
+}
 
 // ====================================================================================
 // ON-MARKET DEAL VIEW (Chrome extension)
@@ -318,8 +350,11 @@ function OnMarketDealView({
   const scoring = deal.ai_scoring_json || {};
   const fin = deal.ai_financials_json || {};
   const criteria = deal.criteria_match_json || {};
-
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
+
+  const createdLabel = deal.created_at
+    ? new Date(deal.created_at).toLocaleDateString()
+    : null;
 
   return (
     <main className="min-h-screen">
@@ -333,9 +368,9 @@ function OnMarketDealView({
           <h1 className="text-3xl font-semibold mb-1">
             {deal.company_name || 'Untitled Company'}
           </h1>
-          <p className="text-sm">
+          <p className="text-sm text-muted-foreground">
             {deal.location_city && `${deal.location_city}, `}
-            {deal.location_state} • Source: {deal.source_type}
+            {deal.location_state}
             {deal.listing_url && (
               <>
                 {' • '}
@@ -350,12 +385,22 @@ function OnMarketDealView({
               </>
             )}
           </p>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <SourceBadge source={deal.source_type} />
+            <TierBadge tier={deal.final_tier} />
+            {createdLabel && (
+              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                Added {createdLabel}
+              </span>
+            )}
+          </div>
         </section>
 
         {/* AI Summary + Run AI */}
         <section className="card-section">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold">AI Summary</h2>
+            <h2 className="text-lg font-semibold">AI Investment Summary</h2>
             <button
               onClick={onRunAnalysis}
               disabled={analyzing}
@@ -373,7 +418,7 @@ function OnMarketDealView({
             <p className="text-xs text-red-500 mb-1">{aiError}</p>
           )}
 
-          <p className="whitespace-pre-line text-sm">
+          <p className="whitespace-pre-line text-sm leading-relaxed">
             {deal.ai_summary ||
               'No AI summary available yet. Run AI to generate one.'}
           </p>
@@ -427,7 +472,7 @@ function OnMarketDealView({
                 <div>
                   <p className="font-semibold">Succession Risk</p>
                   <p>{scoring.succession_risk}</p>
-                  <p className="text-xs">
+                  <p className="text-xs text-muted-foreground">
                     {scoring.succession_risk_reason}
                   </p>
                 </div>
@@ -437,7 +482,7 @@ function OnMarketDealView({
                 <div>
                   <p className="font-semibold">Industry Fit</p>
                   <p>{scoring.industry_fit}</p>
-                  <p className="text-xs">
+                  <p className="text-xs text-muted-foreground">
                     {scoring.industry_fit_reason}
                   </p>
                 </div>
@@ -447,7 +492,7 @@ function OnMarketDealView({
                 <div>
                   <p className="font-semibold">Geography Fit</p>
                   <p>{scoring.geography_fit}</p>
-                  <p className="text-xs">
+                  <p className="text-xs text-muted-foreground">
                     {scoring.geography_fit_reason}
                   </p>
                 </div>
@@ -457,7 +502,7 @@ function OnMarketDealView({
                 <div className="md:col-span-2">
                   <p className="font-semibold">Final Tier</p>
                   <p>{scoring.final_tier}</p>
-                  <p className="text-xs">
+                  <p className="text-xs text-muted-foreground">
                     {scoring.final_tier_reason}
                   </p>
                 </div>
@@ -518,7 +563,7 @@ function OnMarketDealView({
 }
 
 // ====================================================================================
-// CIM DEAL VIEW (PDF CIM) – richer layout
+// CIM DEAL VIEW (PDF CIM)
 // ====================================================================================
 
 function CimDealView({
@@ -540,27 +585,82 @@ function CimDealView({
   const criteria = deal.criteria_match_json || {};
   const finRaw = deal.ai_financials_json || {};
 
-  // Normalize financials for CIM shape
+  // 🔧 FIX: be very forgiving with key names so values actually show up
   const fin = {
+    // TTM / latest revenue
     revenue:
       finRaw.revenue ??
+      finRaw.ttm_revenue ??
       finRaw.revenue_ttm ??
-      finRaw.revenue_1y_ago ??
+      finRaw.ttmRevenue ??
+      finRaw.latest_revenue ??
       null,
-    ebitda: finRaw.ebitda ?? finRaw.ebitda_ttm ?? null,
-    margin: finRaw.margin ?? finRaw.ebitda_margin_ttm ?? null,
-    customer_concentration: finRaw.customer_concentration ?? null,
-    revenue_1y_ago: finRaw.revenue_1y_ago ?? null,
-    revenue_2y_ago: finRaw.revenue_2y_ago ?? null,
-    revenue_cagr_3y: finRaw.revenue_cagr_3y ?? null,
-    capex_intensity: finRaw.capex_intensity ?? null,
-    working_capital_needs: finRaw.working_capital_needs ?? null,
+
+    // TTM / latest EBITDA
+    ebitda:
+      finRaw.ebitda ??
+      finRaw.ttm_ebitda ??
+      finRaw.ebitda_ttm ??
+      finRaw.ttmEbitda ??
+      finRaw.latest_ebitda ??
+      null,
+
+    // EBITDA margin
+    margin:
+      finRaw.ebitda_margin ??
+      finRaw.ebitda_margin_ttm ??
+      finRaw.margin ??
+      finRaw.ebitdaMargin ??
+      null,
+
+    // Customer concentration
+    customer_concentration:
+      finRaw.customer_concentration ??
+      finRaw.customer_conc ??
+      finRaw.customer_concentration_summary ??
+      null,
+
+    // Historical revenue
+    revenue_1y_ago:
+      finRaw.revenue_1y_ago ??
+      finRaw.revenue_last_year ??
+      finRaw.revenue_fy1 ??
+      null,
+
+    revenue_2y_ago:
+      finRaw.revenue_2y_ago ??
+      finRaw.revenue_two_years_ago ??
+      finRaw.revenue_fy2 ??
+      null,
+
+    // 3-year revenue CAGR
+    revenue_cagr_3y:
+      finRaw.revenue_cagr_3y ??
+      finRaw.revenue_3yr_cagr ??
+      finRaw.revenue_cagr_3yr ??
+      finRaw.rev_cagr_3y ??
+      null,
+
+    // Capex / working capital
+    capex_intensity:
+      finRaw.capex_intensity ??
+      finRaw.capex_pct_revenue ??
+      null,
+
+    working_capital_needs:
+      finRaw.working_capital_needs ??
+      finRaw.working_capital_profile ??
+      null,
   };
 
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
   const ddChecklist: string[] = Array.isArray(criteria.dd_checklist)
     ? criteria.dd_checklist.map(String)
     : [];
+
+  const createdLabel = deal.created_at
+    ? new Date(deal.created_at).toLocaleDateString()
+    : null;
 
   return (
     <main className="min-h-screen">
@@ -574,28 +674,17 @@ function CimDealView({
           <h1 className="text-3xl font-semibold mb-1">
             {deal.company_name || 'CIM Deal'}
           </h1>
-          <p className="text-sm">
+          <p className="text-sm text-muted-foreground">
             {deal.location_city && `${deal.location_city}, `}
-            {deal.location_state || 'Location unknown'} • Source: CIM (PDF)
+            {deal.location_state || 'Location unknown'}
           </p>
 
           <div className="flex flex-wrap gap-2 mt-2 text-xs">
-            <span className="px-2 py-1 rounded-full border">
-              Recurring revenue
-            </span>
-            {fin.customer_concentration && (
-              <span className="px-2 py-1 rounded-full border">
-                Low concentration
-              </span>
-            )}
-            {fin.margin && (
-              <span className="px-2 py-1 rounded-full border">
-                EBITDA margin {fin.margin}
-              </span>
-            )}
-            {scoring.final_tier && (
-              <span className="px-2 py-1 rounded-full border">
-                Tier {scoring.final_tier}
+            <SourceBadge source={deal.source_type} />
+            <TierBadge tier={scoring.final_tier || deal.final_tier} />
+            {createdLabel && (
+              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                Added {createdLabel}
               </span>
             )}
           </div>
@@ -606,7 +695,7 @@ function CimDealView({
               <div>
                 <h2 className="text-sm font-semibold">CIM Processing</h2>
                 <p className="text-xs text-muted-foreground">
-                  Upload and re-run AI analysis on the original CIM PDF.
+                  Re-run AI analysis on the original CIM PDF.
                 </p>
               </div>
               <button
@@ -645,7 +734,9 @@ function CimDealView({
 
           {/* Financial Snapshot */}
           <div className="card-section space-y-3 text-sm">
-            <h2 className="text-lg font-semibold mb-2">Financial Snapshot</h2>
+            <h2 className="text-lg font-semibold mb-2">
+              Financial Snapshot
+            </h2>
 
             <div>
               <p className="text-xs uppercase">TTM Revenue</p>
@@ -727,13 +818,15 @@ function CimDealView({
         {/* Scoring + Platform Fit */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="card-section text-sm space-y-4">
-            <h2 className="text-lg font-semibold mb-1">Scoring Breakdown</h2>
+            <h2 className="text-lg font-semibold mb-1">
+              Scoring Breakdown
+            </h2>
 
             {scoring.succession_risk && (
               <div>
                 <p className="font-semibold">Succession Risk</p>
                 <p>{scoring.succession_risk}</p>
-                <p className="text-xs">
+                <p className="text-xs text-muted-foreground">
                   {scoring.succession_risk_reason}
                 </p>
               </div>
@@ -743,7 +836,7 @@ function CimDealView({
               <div>
                 <p className="font-semibold">Industry Fit</p>
                 <p>{scoring.industry_fit}</p>
-                <p className="text-xs">
+                <p className="text-xs text-muted-foreground">
                   {scoring.industry_fit_reason}
                 </p>
               </div>
@@ -753,7 +846,7 @@ function CimDealView({
               <div>
                 <p className="font-semibold">Geography Fit</p>
                 <p>{scoring.geography_fit}</p>
-                <p className="text-xs">
+                <p className="text-xs text-muted-foreground">
                   {scoring.geography_fit_reason}
                 </p>
               </div>
@@ -763,7 +856,7 @@ function CimDealView({
               <div>
                 <p className="font-semibold">Financial Quality</p>
                 <p>{scoring.financial_quality}</p>
-                <p className="text-xs">
+                <p className="text-xs text-muted-foreground">
                   {scoring.financial_quality_reason}
                 </p>
               </div>
@@ -773,7 +866,7 @@ function CimDealView({
               <div>
                 <p className="font-semibold">Final Tier</p>
                 <p>{scoring.final_tier}</p>
-                <p className="text-xs">
+                <p className="text-xs text-muted-foreground">
                   {scoring.final_tier_reason}
                 </p>
               </div>
@@ -845,7 +938,8 @@ function CimDealView({
             </h2>
             {ddChecklist.length === 0 ? (
               <p className="text-sm">
-                No checklist generated yet. Re-run AI on CIM to populate this.
+                No checklist generated yet. Re-run AI on CIM to populate
+                this.
               </p>
             ) : (
               <ul className="list-disc list-inside space-y-1 text-sm">

@@ -40,7 +40,9 @@ function formatLocation(city: string | null, state: string | null): string {
 }
 
 // helper: colSpan per view
-function getColSpanForView(view: 'all' | 'on_market' | 'off_market' | 'cim_pdf') {
+function getColSpanForView(
+  view: 'all' | 'on_market' | 'off_market' | 'cim_pdf'
+) {
   switch (view) {
     case 'on_market':
       // Company, Location, Industry, Tier, Created, Actions
@@ -58,11 +60,21 @@ function getColSpanForView(view: 'all' | 'on_market' | 'off_market' | 'cim_pdf')
   }
 }
 
+function TierPill({ tier }: { tier: string | null }) {
+  if (!tier) return null;
+  return (
+    <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide bg-amber-500/5 border-amber-500/40 text-amber-700">
+      Tier {tier}
+    </span>
+  );
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   const [loadingDeals, setLoadingDeals] = useState(true);
   const [deals, setDeals] = useState<Company[]>([]);
@@ -80,27 +92,44 @@ export default function DashboardPage() {
   >('idle');
 
   useEffect(() => {
-    const init = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+const init = async () => {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-      if (!user) {
-        router.replace('/');
-        return;
-      }
+    if (!user) {
+      router.replace('/');
+      return;
+    }
 
-      setEmail(user.email ?? null);
-      setUserId(user.id);
-      setCheckingAuth(false);
+    setEmail(user.email ?? null);
+    setUserId(user.id);
 
-      setLoadingDeals(true);
-      setErrorMsg(null);
+    // IMPORTANT: never get stuck on "Checking your session…"
+    setCheckingAuth(false);
 
-      const { data, error } = await supabase
-        .from('companies')
-        .select(
-          `
+    setLoadingDeals(true);
+    setErrorMsg(null);
+
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('workspace_id')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile?.workspace_id) {
+      console.error('profileError:', profileError);
+      setErrorMsg('Missing workspace. Please contact support.');
+      return;
+    }
+
+    setWorkspaceId(profile.workspace_id);
+
+    const { data, error } = await supabase
+      .from('companies')
+      .select(
+        `
           id,
           company_name,
           location_city,
@@ -112,18 +141,22 @@ export default function DashboardPage() {
           listing_url,
           created_at
         `
-        )
-        .order('created_at', { ascending: false });
+      )
+      .eq('workspace_id', profile.workspace_id)
+      .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error(error);
-        setErrorMsg('Failed to load deals.');
-      } else if (data) {
-        setDeals(data as Company[]);
-      }
+    if (error) {
+      console.error('companies error:', error);
+      setErrorMsg('Failed to load deals.');
+      return;
+    }
 
-      setLoadingDeals(false);
-    };
+    setDeals((data ?? []) as Company[]);
+  } finally {
+    setLoadingDeals(false);
+  }
+};
+
 
     init();
   }, [router]);
@@ -133,33 +166,25 @@ export default function DashboardPage() {
     router.replace('/');
   };
 
-  const handleDelete = async (id: string) => {
-    const yes = window.confirm('Delete this deal? This cannot be undone.');
-    if (!yes) return;
+const handleDelete = async (id: string) => {
+  const yes = window.confirm('Delete this deal? This cannot be undone.');
+  if (!yes) return;
 
-    setErrorMsg(null);
+  setErrorMsg(null);
 
-    try {
-      const res = await fetch('/api/delete-deal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id }),
-      });
+  const { error } = await supabase
+    .from('companies')
+    .delete()
+    .eq('id', id);
 
-      const json = await res.json();
+  if (error) {
+    console.error('Delete error:', error);
+    setErrorMsg(error.message || 'Failed to delete deal.');
+    return;
+  }
 
-      if (!res.ok) {
-        console.error('Delete error:', json);
-        setErrorMsg(json.error || 'Failed to delete deal.');
-        return;
-      }
-
-      setDeals((prev) => prev.filter((d) => d.id !== id));
-    } catch (err) {
-      console.error(err);
-      setErrorMsg('Unexpected error deleting deal.');
-    }
-  };
+  setDeals((prev) => prev.filter((d) => d.id !== id));
+};
 
   const filteredDeals =
     selectedView === 'all'
@@ -367,7 +392,9 @@ export default function DashboardPage() {
                 <button
                   key={view}
                   onClick={() => setSelectedView(view)}
-                  className={`view-pill ${isActive ? 'view-pill--active' : ''}`}
+                  className={`view-pill ${
+                    isActive ? 'view-pill--active' : ''
+                  }`}
                 >
                   {label}
                 </button>
@@ -471,7 +498,10 @@ export default function DashboardPage() {
                     {selectedView === 'all' && (
                       <>
                         <td className="px-2 py-2">
-                          <Link href={`/deals/${deal.id}`} className="underline">
+                          <Link
+                            href={`/deals/${deal.id}`}
+                            className="underline"
+                          >
                             {deal.company_name || 'Untitled'}
                           </Link>
                         </td>
@@ -480,7 +510,9 @@ export default function DashboardPage() {
                         </td>
                         <td className="px-2 py-2">
                           {deal.created_at
-                            ? new Date(deal.created_at).toLocaleDateString()
+                            ? new Date(
+                                deal.created_at
+                              ).toLocaleDateString()
                             : ''}
                         </td>
                         <td className="px-2 py-2 text-right">
@@ -501,22 +533,30 @@ export default function DashboardPage() {
                     {selectedView === 'on_market' && (
                       <>
                         <td className="px-2 py-2">
-                          <Link href={`/deals/${deal.id}`} className="underline">
+                          <Link
+                            href={`/deals/${deal.id}`}
+                            className="underline"
+                          >
                             {deal.company_name || 'Untitled'}
                           </Link>
                         </td>
                         <td className="px-2 py-2">
-                          {formatLocation(deal.location_city, deal.location_state)}
+                          {formatLocation(
+                            deal.location_city,
+                            deal.location_state
+                          )}
                         </td>
                         <td className="px-2 py-2">
                           {deal.industry || ''}
                         </td>
                         <td className="px-2 py-2">
-                          {deal.final_tier ? `Tier ${deal.final_tier}` : ''}
+                          <TierPill tier={deal.final_tier} />
                         </td>
                         <td className="px-2 py-2">
                           {deal.created_at
-                            ? new Date(deal.created_at).toLocaleDateString()
+                            ? new Date(
+                                deal.created_at
+                              ).toLocaleDateString()
                             : ''}
                         </td>
                         <td className="px-2 py-2 text-right">
@@ -537,7 +577,10 @@ export default function DashboardPage() {
                     {selectedView === 'off_market' && (
                       <>
                         <td className="px-2 py-2">
-                          <Link href={`/deals/${deal.id}`} className="underline">
+                          <Link
+                            href={`/deals/${deal.id}`}
+                            className="underline"
+                          >
                             {deal.company_name || 'Untitled'}
                           </Link>
                         </td>
@@ -546,7 +589,9 @@ export default function DashboardPage() {
                         </td>
                         <td className="px-2 py-2">
                           {deal.created_at
-                            ? new Date(deal.created_at).toLocaleDateString()
+                            ? new Date(
+                                deal.created_at
+                              ).toLocaleDateString()
                             : ''}
                         </td>
                         <td className="px-2 py-2 text-right">
@@ -567,16 +612,21 @@ export default function DashboardPage() {
                     {selectedView === 'cim_pdf' && (
                       <>
                         <td className="px-2 py-2">
-                          <Link href={`/deals/${deal.id}`} className="underline">
+                          <Link
+                            href={`/deals/${deal.id}`}
+                            className="underline"
+                          >
                             {deal.company_name || 'Untitled'}
                           </Link>
                         </td>
                         <td className="px-2 py-2">
-                          {deal.final_tier ? `Tier ${deal.final_tier}` : ''}
+                          <TierPill tier={deal.final_tier} />
                         </td>
                         <td className="px-2 py-2">
                           {deal.created_at
-                            ? new Date(deal.created_at).toLocaleDateString()
+                            ? new Date(
+                                deal.created_at
+                              ).toLocaleDateString()
                             : ''}
                         </td>
                         <td className="px-2 py-2 text-right">

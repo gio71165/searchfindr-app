@@ -1,3 +1,4 @@
+```ts
 // app/api/capture-deal/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -5,9 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
   process.env.SUPABASE_SERVICE_ROLE_KEY as string,
-  {
-    auth: { persistSession: false },
-  }
+  { auth: { persistSession: false } }
 );
 
 const corsHeaders = {
@@ -17,17 +16,13 @@ const corsHeaders = {
 };
 
 export async function OPTIONS() {
-  return new NextResponse(null, {
-    status: 200,
-    headers: corsHeaders,
-  });
+  return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
 
 export async function POST(req: Request) {
   try {
     // 1) Read API key
     const apiKey = req.headers.get("x-searchfindr-key");
-
     if (!apiKey) {
       return NextResponse.json(
         { error: "Missing X-Searchfindr-Key header." },
@@ -42,7 +37,7 @@ export async function POST(req: Request) {
       .eq("api_key", apiKey)
       .single();
 
-    if (keyError || !keyRow) {
+    if (keyError || !keyRow?.user_id) {
       return NextResponse.json(
         { error: "Invalid API key." },
         { status: 401, headers: corsHeaders }
@@ -51,7 +46,23 @@ export async function POST(req: Request) {
 
     const ownerUserId = keyRow.user_id;
 
-    // 3) Extract data from extension
+    // 3) Resolve workspace_id for that user (NEW)
+    const { data: profileRow, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("workspace_id")
+      .eq("id", ownerUserId)
+      .single();
+
+    if (profileError || !profileRow?.workspace_id) {
+      return NextResponse.json(
+        { error: "User has no workspace/profile configured." },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    const workspaceId = profileRow.workspace_id;
+
+    // 4) Extract data from extension
     const { url, title, text } = await req.json();
 
     if (!url || !text) {
@@ -63,7 +74,7 @@ export async function POST(req: Request) {
 
     const company_name = title || null;
 
-    // 4) AI prompt
+    // 5) AI prompt
     const prompt = `
 You are helping a search fund / ETA buyer evaluate a lower middle market deal.
 
@@ -106,7 +117,7 @@ Company:
 Listing:
 """${text}"""
 `;
-
+return NextResponse.json({ ok: true, version: "vTEST-123" }, { status: 200, headers: corsHeaders });
     const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -124,18 +135,19 @@ Listing:
       }),
     });
 
-    if (!aiResponse.ok) {
-      console.error("OpenAI error:", await aiResponse.text());
-      return NextResponse.json(
-        { error: "OpenAI error" },
-        { status: 500, headers: corsHeaders }
-      );
-    }
+  if (!aiResponse.ok) {
+  const errText = await aiResponse.text();
+  console.error("OpenAI RAW ERROR:", errText);
+  return NextResponse.json(
+    { error: errText },
+    { status: 500, headers: corsHeaders }
+  );
+}
+
 
     const aiJSON = await aiResponse.json();
     const parsed = JSON.parse(aiJSON.choices[0].message.content);
 
-    // Extract fields
     const {
       ai_summary,
       ai_red_flags,
@@ -147,15 +159,16 @@ Listing:
       industry,
     } = parsed;
 
-    // Numeric score for dashboard
-    let score = null;
-    if (scoring.final_tier === "A") score = 85;
-    else if (scoring.final_tier === "B") score = 75;
-    else if (scoring.final_tier === "C") score = 65;
+    // Numeric score for dashboard (keep for now if your UI expects it)
+    let score: number | null = null;
+    if (scoring?.final_tier === "A") score = 85;
+    else if (scoring?.final_tier === "B") score = 75;
+    else if (scoring?.final_tier === "C") score = 65;
 
-    // 5) Insert deal for this user
+    // 6) Insert deal (NEW: workspace_id)
     const { error: insertError } = await supabaseAdmin.from("companies").insert({
-      user_id: ownerUserId,
+      workspace_id: workspaceId, // NEW
+      user_id: ownerUserId,      // keep as created_by / audit
       company_name,
       listing_url: url,
       raw_listing_text: text,
@@ -163,13 +176,13 @@ Listing:
       location_city,
       location_state,
       industry,
-      final_tier: scoring.final_tier,
+      final_tier: scoring?.final_tier ?? null,
       score,
-      ai_summary,
-      ai_red_flags,
-      ai_financials_json: financials,
-      ai_scoring_json: scoring,
-      criteria_match_json: criteria_match,
+      ai_summary: ai_summary ?? null,
+      ai_red_flags: ai_red_flags ?? null,
+      ai_financials_json: financials ?? null,
+      ai_scoring_json: scoring ?? null,
+      criteria_match_json: criteria_match ?? null,
     });
 
     if (insertError) {
@@ -180,12 +193,16 @@ Listing:
       );
     }
 
-    return NextResponse.json({ success: true }, { status: 200, headers: corsHeaders });
+    return NextResponse.json(
+      { success: true },
+      { status: 200, headers: corsHeaders }
+    );
   } catch (err: any) {
     console.error("capture-deal error:", err);
     return NextResponse.json(
-      { error: err.message },
+      { error: err?.message || "Unknown error" },
       { status: 500, headers: corsHeaders }
     );
   }
 }
+```
