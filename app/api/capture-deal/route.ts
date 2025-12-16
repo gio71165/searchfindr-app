@@ -1,4 +1,5 @@
 ```ts
+// app/api/capture-deal/route.ts
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -29,10 +30,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2) Lookup user_id (and workspace_id) for this API key
+    // 2) Lookup user_id for this API key
     const { data: keyRow, error: keyError } = await supabaseAdmin
       .from("user_api_keys")
-      .select("user_id, workspace_id")
+      .select("user_id")
       .eq("api_key", apiKey)
       .single();
 
@@ -43,33 +44,26 @@ export async function POST(req: Request) {
       );
     }
 
-    const ownerUserId = keyRow.user_id as string;
+    const ownerUserId = keyRow.user_id;
 
-    // Prefer workspace_id stored on user_api_keys, else fall back to profiles lookup
-    let workspaceId = keyRow.workspace_id as string | null;
+    // 3) Resolve workspace_id for that user (NEW)
+    const { data: profileRow, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("workspace_id")
+      .eq("id", ownerUserId)
+      .single();
 
-    if (!workspaceId) {
-      const { data: profileRow, error: profileError } = await supabaseAdmin
-        .from("profiles")
-        .select("workspace_id")
-        .eq("id", ownerUserId)
-        .single();
-
-      if (profileError || !profileRow?.workspace_id) {
-        return NextResponse.json(
-          { error: "User has no workspace/profile configured." },
-          { status: 400, headers: corsHeaders }
-        );
-      }
-
-      workspaceId = profileRow.workspace_id;
+    if (profileError || !profileRow?.workspace_id) {
+      return NextResponse.json(
+        { error: "User has no workspace/profile configured." },
+        { status: 400, headers: corsHeaders }
+      );
     }
 
-    // 3) Extract data from extension
-    const body = await req.json().catch(() => ({}));
-    const url = body?.url;
-    const title = body?.title;
-    const text = body?.text;
+    const workspaceId = profileRow.workspace_id;
+
+    // 4) Extract data from extension
+    const { url, title, text } = await req.json();
 
     if (!url || !text) {
       return NextResponse.json(
@@ -80,49 +74,49 @@ export async function POST(req: Request) {
 
     const company_name = title || null;
 
-    // 4) Prompt (NO backticks to avoid build issues)
-    const prompt =
-      "You are helping a search fund / ETA buyer evaluate a lower middle market deal.\n\n" +
-      "Return a JSON object with the following shape:\n\n" +
-      '{\n' +
-      '  "ai_summary": "",\n' +
-      '  "ai_red_flags": "",\n' +
-      '  "financials": {\n' +
-      '    "revenue": "",\n' +
-      '    "ebitda": "",\n' +
-      '    "margin": "",\n' +
-      '    "customer_concentration": ""\n' +
-      "  },\n" +
-      '  "scoring": {\n' +
-      '    "succession_risk": "",\n' +
-      '    "succession_risk_reason": "",\n' +
-      '    "industry_fit": "",\n' +
-      '    "industry_fit_reason": "",\n' +
-      '    "geography_fit": "",\n' +
-      '    "geography_fit_reason": "",\n' +
-      '    "final_tier": "",\n' +
-      '    "final_tier_reason": ""\n' +
-      "  },\n" +
-      '  "criteria_match": {\n' +
-      '    "deal_size": "",\n' +
-      '    "business_model": "",\n' +
-      '    "owner_profile": "",\n' +
-      '    "notes_for_searcher": ""\n' +
-      "  },\n" +
-      '  "location_city": "",\n' +
-      '  "location_state": "",\n' +
-      '  "industry": ""\n' +
-      "}\n\n" +
-      "Company:\n- Name: " +
-      (company_name || "") +
-      "\n- URL: " +
-      url +
-      "\n\n" +
-      'Listing:\n"""' +
-      text +
-      '"""\n';
+    // 5) AI prompt
+    const prompt = `
+"You are helping a search fund / ETA buyer evaluate a lower middle market deal.
 
-    // 5) OpenAI call
+Return a JSON object with the following shape:
+
+{
+  "ai_summary": "",
+  "ai_red_flags": "",
+  "financials": {
+    "revenue": "",
+    "ebitda": "",
+    "margin": "",
+    "customer_concentration": ""
+  },
+  "scoring": {
+    "succession_risk": "",
+    "succession_risk_reason": "",
+    "industry_fit": "",
+    "industry_fit_reason": "",
+    "geography_fit": "",
+    "geography_fit_reason": "",
+    "final_tier": "",
+    "final_tier_reason": ""
+  },
+  "criteria_match": {
+    "deal_size": "",
+    "business_model": "",
+    "owner_profile": "",
+    "notes_for_searcher": ""
+  },
+  "location_city": "",
+  "location_state": "",
+  "industry": ""
+}
+
+Company:
+- Name: ${company_name || ""}
+- URL: ${url}
+
+Listing:
+"""${text}"""
+`;
     const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -140,14 +134,15 @@ export async function POST(req: Request) {
       }),
     });
 
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("OpenAI RAW ERROR:", errText);
-      return NextResponse.json(
-        { error: errText },
-        { status: 500, headers: corsHeaders }
-      );
-    }
+  if (!aiResponse.ok) {
+  const errText = await aiResponse.text();
+  console.error("OpenAI RAW ERROR:", errText);
+  return NextResponse.json(
+    { error: errText },
+    { status: 500, headers: corsHeaders }
+  );
+}
+
 
     const aiJSON = await aiResponse.json();
     const parsed = JSON.parse(aiJSON.choices[0].message.content);
@@ -163,23 +158,23 @@ export async function POST(req: Request) {
       industry,
     } = parsed;
 
-    // Numeric score for dashboard (keep if your UI expects it)
+    // Numeric score for dashboard (keep for now if your UI expects it)
     let score: number | null = null;
     if (scoring?.final_tier === "A") score = 85;
     else if (scoring?.final_tier === "B") score = 75;
     else if (scoring?.final_tier === "C") score = 65;
 
-    // 6) Insert deal (workspace scoped)
+    // 6) Insert deal (NEW: workspace_id)
     const { error: insertError } = await supabaseAdmin.from("companies").insert({
-      workspace_id: workspaceId,
-      user_id: ownerUserId,
+      workspace_id: workspaceId, // NEW
+      user_id: ownerUserId,      // keep as created_by / audit
       company_name,
       listing_url: url,
       raw_listing_text: text,
       source_type: "on_market",
-      location_city: location_city ?? null,
-      location_state: location_state ?? null,
-      industry: industry ?? null,
+      location_city,
+      location_state,
+      industry,
       final_tier: scoring?.final_tier ?? null,
       score,
       ai_summary: ai_summary ?? null,
