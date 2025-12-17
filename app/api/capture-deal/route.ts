@@ -18,21 +18,6 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
 
-function normalizeTier(raw: any): "A" | "B" | "C" | null {
-  const s = (raw ?? "").toString().trim().toUpperCase();
-  if (!s) return null;
-
-  // direct
-  if (s === "A" || s === "B" || s === "C") return s;
-
-  // common variants
-  if (s.includes("CAUTION") || s === "TIER 3" || s === "3") return "C";
-  if (s === "TIER 2" || s === "2") return "B";
-  if (s === "TIER 1" || s === "1") return "A";
-
-  return null;
-}
-
 export async function POST(req: Request) {
   try {
     // 1) API key
@@ -92,10 +77,9 @@ export async function POST(req: Request) {
 
     const company_name = title || null;
 
-    // 4) Prompt (NO backticks) + STRICT tier rule
+    // 4) Prompt (NO backticks)
     const prompt =
       "You are helping a search fund / ETA buyer evaluate a lower middle market deal.\n\n" +
-      'IMPORTANT: final_tier MUST be exactly one of: "A", "B", "C". Do not output Tier 1/2/3 or words like Caution.\n\n' +
       "Return a JSON object with the following shape:\n\n" +
       '{\n' +
       '  "ai_summary": "",\n' +
@@ -113,7 +97,7 @@ export async function POST(req: Request) {
       '    "industry_fit_reason": "",\n' +
       '    "geography_fit": "",\n' +
       '    "geography_fit_reason": "",\n' +
-      '    "final_tier": "A|B|C",\n' +
+      '    "final_tier": "",\n' +
       '    "final_tier_reason": ""\n' +
       "  },\n" +
       '  "criteria_match": {\n' +
@@ -155,7 +139,10 @@ export async function POST(req: Request) {
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      return NextResponse.json({ error: errText }, { status: 500, headers: corsHeaders });
+      return NextResponse.json(
+        { error: errText },
+        { status: 500, headers: corsHeaders }
+      );
     }
 
     const aiJSON = await aiResponse.json();
@@ -172,14 +159,10 @@ export async function POST(req: Request) {
       industry,
     } = parsed;
 
-    // ✅ Normalize tier to ONLY A/B/C
-    const tier = normalizeTier(scoring?.final_tier);
-
-    // score based on normalized tier
     let score: number | null = null;
-    if (tier === "A") score = 85;
-    else if (tier === "B") score = 75;
-    else if (tier === "C") score = 65;
+    if (scoring?.final_tier === "A") score = 85;
+    else if (scoring?.final_tier === "B") score = 75;
+    else if (scoring?.final_tier === "C") score = 65;
 
     // 6) Insert
     const { error: insertError } = await supabaseAdmin.from("companies").insert({
@@ -192,7 +175,7 @@ export async function POST(req: Request) {
       location_city: location_city ?? null,
       location_state: location_state ?? null,
       industry: industry ?? null,
-      final_tier: tier, // ✅ ALWAYS A/B/C (or null)
+      final_tier: scoring?.final_tier ?? null,
       score,
       ai_summary: ai_summary ?? null,
       ai_red_flags: ai_red_flags ?? null,
@@ -208,7 +191,10 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({ success: true }, { status: 200, headers: corsHeaders });
+    return NextResponse.json(
+      { success: true },
+      { status: 200, headers: corsHeaders }
+    );
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message || "Unknown error" },
