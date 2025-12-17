@@ -382,13 +382,13 @@ export default function DashboardPage() {
       const { data: insertData, error: insertError } = await supabase
         .from('companies')
         .insert({
-          company_name: cimNameWithoutExt || 'CIM Deal',
-          source_type: 'cim_pdf',
-          // if you added this column:
-          cim_storage_path: storageData?.path || filePath,
-          user_id: userId,
-          is_saved: false,
-        })
+  company_name: cimNameWithoutExt || 'CIM Deal',
+  source_type: 'cim_pdf',
+  cim_storage_path: storageData?.path || filePath,
+  user_id: userId,
+  workspace_id: workspaceId, // ✅ REQUIRED for new users
+})
+
         .select('id')
         .single();
 
