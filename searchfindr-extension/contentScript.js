@@ -1,3 +1,4 @@
+console.log("[SearchFindr] content script injected on", location.href);
 (function () {
   try {
     let sessionStr = null;
