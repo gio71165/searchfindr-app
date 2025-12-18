@@ -20,41 +20,46 @@ export async function OPTIONS() {
 
 export async function POST(req: Request) {
   try {
-    // 1) API key
-    const apiKey = req.headers.get("x-searchfindr-key");
-    if (!apiKey) {
+    // 1) Authorization (Supabase Bearer token)
+    const authHeader = req.headers.get("authorization");
+    const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+    if (!token) {
       return NextResponse.json(
-        { error: "Missing X-Searchfindr-Key header." },
+        { error: "Missing Authorization Bearer token." },
         { status: 401, headers: corsHeaders }
       );
     }
 
-    // 2) Resolve user + workspace
-    const { data: keyRow, error: keyError } = await supabaseAdmin
-      .from("user_api_keys")
-      .select("user_id, workspace_id")
-      .eq("api_key", apiKey)
+    // 2) Verify token -> user
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+
+    if (userError || !userData?.user) {
+      return NextResponse.json(
+        { error: "Invalid or expired token." },
+        { status: 401, headers: corsHeaders }
+      );
+    }
+
+    const ownerUserId = userData.user.id as string;
+
+    // 3) Resolve workspace from profiles
+    const { data: profile, error: profileError } = await supabaseAdmin
+      .from("profiles")
+      .select("workspace_id")
+      .eq("id", ownerUserId)
       .single();
 
-    if (keyError || !keyRow?.user_id) {
+    if (profileError || !profile?.workspace_id) {
       return NextResponse.json(
-        { error: "Invalid API key." },
-        { status: 401, headers: corsHeaders }
+        { error: "Missing workspace for user." },
+        { status: 400, headers: corsHeaders }
       );
     }
 
-const ownerUserId = keyRow.user_id as string | null;
-const workspaceId = keyRow.workspace_id as string;
+    const workspaceId = profile.workspace_id as string;
 
-if (!workspaceId) {
-  return NextResponse.json(
-    { error: "API key missing workspace_id." },
-    { status: 401, headers: corsHeaders }
-  );
-}
-
-
-    // 3) Body
+    // 4) Body
     const body = await req.json();
     const url = body?.url;
     const title = body?.title;
@@ -69,7 +74,7 @@ if (!workspaceId) {
 
     const company_name = title || null;
 
-    // 4) Prompt (NO backticks)
+    // 5) Prompt (NO backticks)
     const prompt =
       "You are helping a search fund / ETA buyer evaluate a lower middle market deal.\n\n" +
       "Return a JSON object with the following shape:\n\n" +
@@ -111,7 +116,7 @@ if (!workspaceId) {
       text +
       '"""\n';
 
-    // 5) OpenAI
+    // 6) OpenAI
     const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -131,10 +136,7 @@ if (!workspaceId) {
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      return NextResponse.json(
-        { error: errText },
-        { status: 500, headers: corsHeaders }
-      );
+      return NextResponse.json({ error: errText }, { status: 500, headers: corsHeaders });
     }
 
     const aiJSON = await aiResponse.json();
@@ -156,7 +158,7 @@ if (!workspaceId) {
     else if (scoring?.final_tier === "B") score = 75;
     else if (scoring?.final_tier === "C") score = 65;
 
-    // 6) Insert
+    // 7) Insert
     const { error: insertError } = await supabaseAdmin.from("companies").insert({
       workspace_id: workspaceId,
       user_id: ownerUserId ?? null,
@@ -183,10 +185,7 @@ if (!workspaceId) {
       );
     }
 
-    return NextResponse.json(
-      { success: true },
-      { status: 200, headers: corsHeaders }
-    );
+    return NextResponse.json({ success: true }, { status: 200, headers: corsHeaders });
   } catch (err: any) {
     return NextResponse.json(
       { error: err?.message || "Unknown error" },
