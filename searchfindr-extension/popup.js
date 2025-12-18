@@ -1,12 +1,8 @@
-// popup.js — multi-user with API key
-console.log("SearchFindr popup v11 loaded");
+// popup.js — multi-user with Supabase Bearer token (no API key)
+console.log("SearchFindr popup v12 loaded");
 
 // 🔥 Your LIVE API endpoint
 const API_URL = "https://searchfindr-app.vercel.app/api/capture-deal";
-
-// 👇 Put YOUR personal API key from the user_api_keys table here
-// e.g. "sfk_your_key_1"
-const API_KEY = "sfk_your_dev_key_1";
 
 const sendButton = document.getElementById("sendButton");
 const statusEl = document.getElementById("status");
@@ -59,31 +55,38 @@ function handleClick() {
 
         setStatus("Sending to SearchFindr…");
 
-        // 3) Send to your live API with API key header
-        fetch(API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Searchfindr-Key": API_KEY,
-          },
-          body: JSON.stringify({ url, title, text: pageText }),
-        })
-          .then((res) => {
-            return res.text().then((body) => {
-              console.log("RAW API RESPONSE:", body);
-              console.log("STATUS:", res.status, "OK?", res.ok);
+        // 3) Load token from chrome.storage and send Authorization header
+        chrome.storage.sync.get(["sf_access_token"], ({ sf_access_token }) => {
+          if (!sf_access_token) {
+            setStatus("Not logged in. Go to SearchFindr → /extension/callback", true);
+            return;
+          }
 
-              if (!res.ok) {
-                setStatus("API error (see console).", true);
-              } else {
-                setStatus("Deal saved to SearchFindr ✓");
-              }
-            });
+          fetch(API_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${sf_access_token}`,
+            },
+            body: JSON.stringify({ url, title, text: pageText }),
           })
-          .catch((err) => {
-            console.error("Extension fetch error:", err);
-            setStatus("Unexpected error.", true);
-          });
+            .then((res) => {
+              return res.text().then((body) => {
+                console.log("RAW API RESPONSE:", body);
+                console.log("STATUS:", res.status, "OK?", res.ok);
+
+                if (!res.ok) {
+                  setStatus("API error (see console).", true);
+                } else {
+                  setStatus("Deal saved to SearchFindr ✓");
+                }
+              });
+            })
+            .catch((err) => {
+              console.error("Extension fetch error:", err);
+              setStatus("Unexpected error.", true);
+            });
+        });
       }
     );
   });
