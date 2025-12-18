@@ -8,7 +8,6 @@ console.log("[SearchFindr] content script injected on", location.href);
       const k = localStorage.key(i);
       if (k && k.startsWith("sb-") && k.endsWith("-auth-token")) {
         sessionStr = localStorage.getItem(k);
-        console.log("[SearchFindr] Found supabase key:", k);
         break;
       }
     }
