@@ -84,47 +84,30 @@ export async function POST(req: Request) {
     /* ===============================
        4) OPENAI PROMPT
     ================================ */
-    const prompt =
-      "You are helping a search fund / ETA buyer evaluate a lower middle market deal.\n\n" +
-      "Return a JSON object with the following shape:\n\n" +
-      '{\n' +
-      '  "ai_summary": "",\n' +
-      '  "ai_red_flags": "",\n' +
-      '  "financials": {\n' +
-      '    "revenue": "",\n' +
-      '    "ebitda": "",\n' +
-      '    "margin": "",\n' +
-      '    "customer_concentration": ""\n' +
-      "  },\n" +
-      '  "scoring": {\n' +
-      '    "succession_risk": "",\n' +
-      '    "succession_risk_reason": "",\n' +
-      '    "industry_fit": "",\n' +
-      '    "industry_fit_reason": "",\n' +
-      '    "geography_fit": "",\n' +
-      '    "geography_fit_reason": "",\n' +
-      '    "final_tier": "",\n' +
-      '    "final_tier_reason": ""\n' +
-      "  },\n" +
-      '  "criteria_match": {\n' +
-      '    "deal_size": "",\n' +
-      '    "business_model": "",\n' +
-      '    "owner_profile": "",\n' +
-      '    "notes_for_searcher": ""\n' +
-      "  },\n" +
-      '  "location_city": "",\n' +
-      '  "location_state": "",\n' +
-      '  "industry": ""\n' +
-      "}\n\n" +
-      "Company:\n- Name: " +
-      (company_name || "") +
-      "\n- URL: " +
-      url +
-      "\n\n" +
-      'Listing:\n"""' +
-      text +
-      '"""\n';
-
+const prompt =
+  "You are helping a search fund / ETA buyer evaluate a lower middle market deal.\n\n" +
+  "IMPORTANT: final_tier must be exactly one of: A, B, or C. Do not use any other labels.\n\n" +
+  "Return a JSON object with the following shape:\n\n" +
+  '{\n' +
+  '  "ai_summary": "",\n' +
+  '  "ai_red_flags": "",\n' +
+  '  "financials": {\n' +
+  '    "revenue": "",\n' +
+  '    "ebitda": "",\n' +
+  '    "margin": "",\n' +
+  '    "customer_concentration": ""\n' +
+  "  },\n" +
+  '  "scoring": {\n' +
+  '    "succession_risk": "",\n' +
+  '    "succession_risk_reason": "",\n' +
+  '    "industry_fit": "",\n' +
+  '    "industry_fit_reason": "",\n' +
+  '    "geography_fit": "",\n' +
+  '    "geography_fit_reason": "",\n' +
+  '    "final_tier": "",\n' +
+  '    "final_tier_reason": ""\n' +
+  "  },\n" +
+  ...
     /* ===============================
        5) OPENAI CALL
     ================================ */
