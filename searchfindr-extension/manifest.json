@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": ["https://searchfindr-app.vercel.app/*"],
+  "action": {
+    "default_popup": "popup.html"
+  },
   "content_scripts": [
     {
       "matches": ["https://searchfindr-app.vercel.app/extension/callback*"],
