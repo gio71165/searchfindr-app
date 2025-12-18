@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "SearchFindr On-Market Capture",
-  "version": "0.1",
-  "description": "Send the current listing page to SearchFindr for AI analysis.",
-  "permissions": ["scripting", "activeTab"],
-  "host_permissions": ["<all_urls>"],
-  "action": {
-    "default_title": "Send to SearchFindr",
-    "default_popup": "popup.html"
-  }
+  "name": "SearchFindr",
+  "version": "1.0.0",
+  "permissions": ["storage"],
+  "host_permissions": ["https://searchfindr-app.vercel.app/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://searchfindr-app.vercel.app/extension/callback*"],
+      "js": ["contentScript.js"]
+    }
+  ]
 }

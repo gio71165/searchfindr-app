@@ -11,7 +11,7 @@ const supabaseAdmin = createClient(
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, X-Searchfindr-Key",
+  "Access-Control-Allow-Headers": "Content-Type, X-Searchfindr-Key, Authorization",
 };
 
 export async function OPTIONS() {
@@ -43,24 +43,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const ownerUserId = keyRow.user_id as string;
-    let workspaceId = keyRow.workspace_id as string | null;
+const ownerUserId = keyRow.user_id as string | null;
+const workspaceId = keyRow.workspace_id as string;
 
-    if (!workspaceId) {
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
-        .select("workspace_id")
-        .eq("id", ownerUserId)
-        .single();
+if (!workspaceId) {
+  return NextResponse.json(
+    { error: "API key missing workspace_id." },
+    { status: 401, headers: corsHeaders }
+  );
+}
 
-      if (!profile?.workspace_id) {
-        return NextResponse.json(
-          { error: "Missing workspace for user." },
-          { status: 400, headers: corsHeaders }
-        );
-      }
-      workspaceId = profile.workspace_id;
-    }
 
     // 3) Body
     const body = await req.json();
@@ -167,7 +159,7 @@ export async function POST(req: Request) {
     // 6) Insert
     const { error: insertError } = await supabaseAdmin.from("companies").insert({
       workspace_id: workspaceId,
-      user_id: ownerUserId,
+      user_id: ownerUserId ?? null,
       company_name,
       listing_url: url,
       raw_listing_text: text,
