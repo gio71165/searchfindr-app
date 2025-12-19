@@ -141,7 +141,9 @@ async function runInitialDiligenceAI(input: {
     ? `User's off-market search context (if any):
 - Industries searched: ${(input.searchInputs.industries ?? []).join(", ") || "Unknown"}
 - Search location: ${input.searchInputs.location ?? "Unknown"}
-- Search radius: ${typeof input.searchInputs.radius_miles === "number" ? input.searchInputs.radius_miles : "Unknown"}`
+- Search radius: ${
+        typeof input.searchInputs.radius_miles === "number" ? input.searchInputs.radius_miles : "Unknown"
+      }`
     : `User's off-market search context: Unknown`;
 
   const prompt = `
@@ -215,7 +217,10 @@ Return ONLY valid JSON in this exact schema:
 
   const res = await fetch(`${OPENAI_BASE_URL}/v1/chat/completions`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       model: "gpt-4o-mini",
       temperature: 0.2,
@@ -237,12 +242,18 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   try {
     if (!OPENAI_API_KEY) {
-      return NextResponse.json({ success: false, error: "Missing OPENAI_API_KEY" }, { status: 500, headers: corsHeaders });
+      return NextResponse.json(
+        { success: false, error: "Missing OPENAI_API_KEY" },
+        { status: 500, headers: corsHeaders }
+      );
     }
 
     const { workspaceId } = await getAuthedUserAndWorkspace(req);
     if (!workspaceId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401, headers: corsHeaders }
+      );
     }
 
     const body = (await req.json()) as Body;
@@ -250,7 +261,10 @@ export async function POST(req: NextRequest) {
     const force = Boolean(body.force);
 
     if (!companyId) {
-      return NextResponse.json({ success: false, error: "Missing companyId" }, { status: 400, headers: corsHeaders });
+      return NextResponse.json(
+        { success: false, error: "Missing companyId" },
+        { status: 400, headers: corsHeaders }
+      );
     }
 
     type CompanyRow = {
@@ -290,25 +304,47 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (loadErr || !data) {
-      return NextResponse.json({ success: false, error: "Company not found" }, { status: 404, headers: corsHeaders });
+      return NextResponse.json(
+        { success: false, error: "Company not found" },
+        { status: 404, headers: corsHeaders }
+      );
     }
 
-    const company = data as CompanyRow;
+    // ✅ Narrow the unknown/GenericStringError union at runtime before casting
+    if (typeof data !== "object" || data === null || !("workspace_id" in (data as any))) {
+      return NextResponse.json(
+        { success: false, error: "Company not found" },
+        { status: 404, headers: corsHeaders }
+      );
+    }
+
+    const company = data as unknown as CompanyRow;
 
     if (company.workspace_id !== workspaceId) {
-      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403, headers: corsHeaders });
+      return NextResponse.json(
+        { success: false, error: "Forbidden" },
+        { status: 403, headers: corsHeaders }
+      );
     }
 
     if (company.source_type !== "off_market") {
-      return NextResponse.json({ success: false, error: "Not an off-market company" }, { status: 400, headers: corsHeaders });
+      return NextResponse.json(
+        { success: false, error: "Not an off-market company" },
+        { status: 400, headers: corsHeaders }
+      );
     }
 
     if (!company.website) {
-      return NextResponse.json({ success: false, error: "No website to analyze" }, { status: 400, headers: corsHeaders });
+      return NextResponse.json(
+        { success: false, error: "No website to analyze" },
+        { status: 400, headers: corsHeaders }
+      );
     }
 
     const cached = company.initial_diligence_json;
-    const updatedAt = company.initial_diligence_updated_at ? new Date(company.initial_diligence_updated_at) : null;
+    const updatedAt = company.initial_diligence_updated_at
+      ? new Date(company.initial_diligence_updated_at)
+      : null;
 
     if (!force && cached && updatedAt) {
       const ageMs = Date.now() - updatedAt.getTime();
@@ -322,7 +358,10 @@ export async function POST(req: NextRequest) {
     }
 
     const searchInputs =
-      (company.tier_reason && typeof company.tier_reason === "object" && (company.tier_reason as any).inputs) || null;
+      (company.tier_reason &&
+        typeof company.tier_reason === "object" &&
+        (company.tier_reason as any).inputs) ||
+      null;
 
     const bundle = await fetchWebsiteTextBundle(company.website);
     if (!bundle.combined) {
@@ -344,9 +383,17 @@ export async function POST(req: NextRequest) {
       searchInputs:
         searchInputs && typeof searchInputs === "object"
           ? {
-              industries: Array.isArray((searchInputs as any).industries) ? (searchInputs as any).industries : undefined,
-              location: typeof (searchInputs as any).location === "string" ? (searchInputs as any).location : undefined,
-              radius_miles: typeof (searchInputs as any).radius_miles === "number" ? (searchInputs as any).radius_miles : undefined,
+              industries: Array.isArray((searchInputs as any).industries)
+                ? (searchInputs as any).industries
+                : undefined,
+              location:
+                typeof (searchInputs as any).location === "string"
+                  ? (searchInputs as any).location
+                  : undefined,
+              radius_miles:
+                typeof (searchInputs as any).radius_miles === "number"
+                  ? (searchInputs as any).radius_miles
+                  : undefined,
             }
           : null,
     });
@@ -380,8 +427,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ success: true, cached: false, ...payloadToStore }, { headers: corsHeaders });
+    return NextResponse.json(
+      { success: true, cached: false, ...payloadToStore },
+      { headers: corsHeaders }
+    );
   } catch (e: any) {
-    return NextResponse.json({ success: false, error: e?.message ?? "Unknown error" }, { status: 500, headers: corsHeaders });
+    return NextResponse.json(
+      { success: false, error: e?.message ?? "Unknown error" },
+      { status: 500, headers: corsHeaders }
+    );
   }
 }
