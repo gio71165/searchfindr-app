@@ -81,10 +81,12 @@ export default function DashboardPage() {
   const [deals, setDeals] = useState<Company[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // ✅ default tab is Saved Companies
-  const [selectedView, setSelectedView] = useState<
-    'saved' | 'on_market' | 'off_market' | 'cim_pdf'
-  >('saved');
+const [selectedView, setSelectedView] = useState<
+  'saved' | 'on_market' | 'off_market' | 'cim_pdf'
+>(() => {
+  if (typeof window === 'undefined') return 'saved';
+  return (localStorage.getItem('dashboard_view') as any) || 'saved';
+});
 
   // CIM upload state
   const [cimFile, setCimFile] = useState<File | null>(null);
