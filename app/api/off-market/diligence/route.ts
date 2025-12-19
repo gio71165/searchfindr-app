@@ -1,4 +1,4 @@
-// app/api/run-initial-diligence/route.ts
+// app/api/off-market/diligence/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -14,7 +14,7 @@ const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com";
 
 type Body = {
   companyId: string;
-  force?: boolean; // ✅ re-run even if cached
+  force?: boolean;
 };
 
 const corsHeaders = {
@@ -65,9 +65,7 @@ async function fetchTextWithTimeout(url: string, timeoutMs: number) {
     const res = await fetch(url, {
       redirect: "follow",
       signal: controller.signal,
-      headers: {
-        "User-Agent": "SearchFindrBot/1.0 (+https://searchfindr.local)",
-      },
+      headers: { "User-Agent": "SearchFindrBot/1.0 (+https://searchfindr.local)" },
     });
 
     if (!res.ok) return "";
@@ -104,11 +102,9 @@ async function fetchWebsiteTextBundle(website: string) {
   const uniq = Array.from(new Set(candidates)).slice(0, 6);
 
   const texts: { url: string; text: string }[] = [];
-
   for (const url of uniq) {
     const raw = await fetchTextWithTimeout(url, 9000);
     if (!raw) continue;
-
     const clipped = raw.slice(0, 4500);
     if (clipped) texts.push({ url, text: clipped });
   }
@@ -139,11 +135,7 @@ async function runInitialDiligenceAI(input: {
   ratingsTotal: number | null;
   websiteText: string;
   sources: string[];
-  searchInputs?: {
-    industries?: string[];
-    location?: string;
-    radius_miles?: number;
-  } | null;
+  searchInputs?: { industries?: string[]; location?: string; radius_miles?: number } | null;
 }) {
   const searched = input.searchInputs
     ? `User's off-market search context (if any):
@@ -223,10 +215,7 @@ Return ONLY valid JSON in this exact schema:
 
   const res = await fetch(`${OPENAI_BASE_URL}/v1/chat/completions`, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
+    headers: { Authorization: `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       model: "gpt-4o-mini",
       temperature: 0.2,
@@ -235,15 +224,10 @@ Return ONLY valid JSON in this exact schema:
   });
 
   const json = await res.json();
-
-  if (!res.ok) {
-    throw new Error(json?.error?.message || "OpenAI request failed");
-  }
+  if (!res.ok) throw new Error(json?.error?.message || "OpenAI request failed");
 
   const contentRaw = json?.choices?.[0]?.message?.content ?? "";
-  const content = stripCodeFencesToJson(contentRaw);
-
-  return JSON.parse(content);
+  return JSON.parse(stripCodeFencesToJson(contentRaw));
 }
 
 export async function OPTIONS() {
@@ -253,18 +237,12 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   try {
     if (!OPENAI_API_KEY) {
-      return NextResponse.json(
-        { success: false, error: "Missing OPENAI_API_KEY" },
-        { status: 500, headers: corsHeaders }
-      );
+      return NextResponse.json({ success: false, error: "Missing OPENAI_API_KEY" }, { status: 500, headers: corsHeaders });
     }
 
     const { workspaceId } = await getAuthedUserAndWorkspace(req);
     if (!workspaceId) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401, headers: corsHeaders }
-      );
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     }
 
     const body = (await req.json()) as Body;
@@ -272,13 +250,9 @@ export async function POST(req: NextRequest) {
     const force = Boolean(body.force);
 
     if (!companyId) {
-      return NextResponse.json(
-        { success: false, error: "Missing companyId" },
-        { status: 400, headers: corsHeaders }
-      );
+      return NextResponse.json({ success: false, error: "Missing companyId" }, { status: 400, headers: corsHeaders });
     }
 
-    // ✅ IMPORTANT: explicit type so TS doesn't infer GenericStringError union
     type CompanyRow = {
       id: string;
       workspace_id: string;
@@ -316,69 +290,42 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (loadErr || !data) {
-      return NextResponse.json(
-        { success: false, error: "Company not found" },
-        { status: 404, headers: corsHeaders }
-      );
+      return NextResponse.json({ success: false, error: "Company not found" }, { status: 404, headers: corsHeaders });
     }
 
     const company = data as CompanyRow;
 
     if (company.workspace_id !== workspaceId) {
-      return NextResponse.json(
-        { success: false, error: "Forbidden" },
-        { status: 403, headers: corsHeaders }
-      );
+      return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403, headers: corsHeaders });
     }
 
     if (company.source_type !== "off_market") {
-      return NextResponse.json(
-        { success: false, error: "Not an off-market company" },
-        { status: 400, headers: corsHeaders }
-      );
+      return NextResponse.json({ success: false, error: "Not an off-market company" }, { status: 400, headers: corsHeaders });
     }
 
     if (!company.website) {
-      return NextResponse.json(
-        { success: false, error: "No website to analyze" },
-        { status: 400, headers: corsHeaders }
-      );
+      return NextResponse.json({ success: false, error: "No website to analyze" }, { status: 400, headers: corsHeaders });
     }
 
-    // ✅ Cache check
     const cached = company.initial_diligence_json;
-    const updatedAt = company.initial_diligence_updated_at
-      ? new Date(company.initial_diligence_updated_at)
-      : null;
+    const updatedAt = company.initial_diligence_updated_at ? new Date(company.initial_diligence_updated_at) : null;
 
     if (!force && cached && updatedAt) {
       const ageMs = Date.now() - updatedAt.getTime();
       const ttlMs = CACHE_TTL_DAYS * 24 * 60 * 60 * 1000;
-
       if (ageMs <= ttlMs) {
         return NextResponse.json(
-          {
-            success: true,
-            cached: true,
-            cached_at: updatedAt.toISOString(),
-            ...cached,
-          },
+          { success: true, cached: true, cached_at: updatedAt.toISOString(), ...cached },
           { headers: corsHeaders }
         );
       }
     }
 
-    // Pull optional search inputs from tier_reason.inputs
     const searchInputs =
-      (company.tier_reason &&
-        typeof company.tier_reason === "object" &&
-        (company.tier_reason as any).inputs) ||
-      null;
+      (company.tier_reason && typeof company.tier_reason === "object" && (company.tier_reason as any).inputs) || null;
 
     const bundle = await fetchWebsiteTextBundle(company.website);
-    const websiteText = bundle.combined;
-
-    if (!websiteText) {
+    if (!bundle.combined) {
       return NextResponse.json(
         { success: false, error: "Could not fetch website text for analysis" },
         { status: 400, headers: corsHeaders }
@@ -392,22 +339,14 @@ export async function POST(req: NextRequest) {
       phone: company.phone ?? null,
       rating: company.rating ?? null,
       ratingsTotal: company.ratings_total ?? null,
-      websiteText,
+      websiteText: bundle.combined,
       sources: bundle.sources,
       searchInputs:
         searchInputs && typeof searchInputs === "object"
           ? {
-              industries: Array.isArray((searchInputs as any).industries)
-                ? (searchInputs as any).industries
-                : undefined,
-              location:
-                typeof (searchInputs as any).location === "string"
-                  ? (searchInputs as any).location
-                  : undefined,
-              radius_miles:
-                typeof (searchInputs as any).radius_miles === "number"
-                  ? (searchInputs as any).radius_miles
-                  : undefined,
+              industries: Array.isArray((searchInputs as any).industries) ? (searchInputs as any).industries : undefined,
+              location: typeof (searchInputs as any).location === "string" ? (searchInputs as any).location : undefined,
+              radius_miles: typeof (searchInputs as any).radius_miles === "number" ? (searchInputs as any).radius_miles : undefined,
             }
           : null,
     });
@@ -441,14 +380,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      { success: true, cached: false, ...payloadToStore },
-      { headers: corsHeaders }
-    );
+    return NextResponse.json({ success: true, cached: false, ...payloadToStore }, { headers: corsHeaders });
   } catch (e: any) {
-    return NextResponse.json(
-      { success: false, error: e?.message ?? "Unknown error" },
-      { status: 500, headers: corsHeaders }
-    );
+    return NextResponse.json({ success: false, error: e?.message ?? "Unknown error" }, { status: 500, headers: corsHeaders });
   }
 }
