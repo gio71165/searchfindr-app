@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, useRef, type ChangeEvent } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../supabaseClient';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -23,6 +23,13 @@ type Company = {
   owner_name?: string | null;
 };
 
+type DashboardView = 'saved' | 'on_market' | 'off_market' | 'cim_pdf';
+const DEFAULT_VIEW: DashboardView = 'saved';
+
+function isDashboardView(v: any): v is DashboardView {
+  return v === 'saved' || v === 'on_market' || v === 'off_market' || v === 'cim_pdf';
+}
+
 // helper: nicer source label
 function formatSource(source: string | null): string {
   if (!source) return '';
@@ -41,9 +48,7 @@ function formatLocation(city: string | null, state: string | null): string {
 }
 
 // helper: colSpan per view
-function getColSpanForView(
-  view: 'saved' | 'on_market' | 'off_market' | 'cim_pdf'
-) {
+function getColSpanForView(view: DashboardView) {
   switch (view) {
     case 'on_market':
       // Company, Location, Industry, Tier, Created, Actions
@@ -72,6 +77,8 @@ function TierPill({ tier }: { tier: string | null }) {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -81,12 +88,44 @@ export default function DashboardPage() {
   const [deals, setDeals] = useState<Company[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-const [selectedView, setSelectedView] = useState<
-  'saved' | 'on_market' | 'off_market' | 'cim_pdf'
->(() => {
-  if (typeof window === 'undefined') return 'saved';
-  return (localStorage.getItem('dashboard_view') as any) || 'saved';
-});
+  // ✅ View state (fixed)
+  const [selectedView, setSelectedView] = useState<DashboardView>(DEFAULT_VIEW);
+
+  // ✅ On first mount: pick view from URL ?view=... then localStorage, else default.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const urlView = searchParams?.get('view');
+    if (isDashboardView(urlView)) {
+      setSelectedView(urlView);
+      localStorage.setItem('dashboard_view', urlView);
+      return;
+    }
+
+    const stored = localStorage.getItem('dashboard_view');
+    if (isDashboardView(stored)) {
+      setSelectedView(stored);
+      // also keep URL in sync so browser back/forward behaves nicely
+      router.replace(`/dashboard?view=${stored}`);
+      return;
+    }
+
+    // default
+    localStorage.setItem('dashboard_view', DEFAULT_VIEW);
+    router.replace(`/dashboard?view=${DEFAULT_VIEW}`);
+  }, []); // intentionally only once
+
+  // ✅ Change view: update state + localStorage + URL
+  const changeView = (view: DashboardView) => {
+    setSelectedView(view);
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('dashboard_view', view);
+    }
+
+    // keep current tab in URL so returning keeps same tab
+    router.replace(`/dashboard?view=${view}`);
+  };
 
   // CIM upload state
   const [cimFile, setCimFile] = useState<File | null>(null);
@@ -384,13 +423,12 @@ const [selectedView, setSelectedView] = useState<
       const { data: insertData, error: insertError } = await supabase
         .from('companies')
         .insert({
-  company_name: cimNameWithoutExt || 'CIM Deal',
-  source_type: 'cim_pdf',
-  cim_storage_path: storageData?.path || filePath,
-  user_id: userId,
-  workspace_id: workspaceId, // ✅ REQUIRED for new users
-})
-
+          company_name: cimNameWithoutExt || 'CIM Deal',
+          source_type: 'cim_pdf',
+          cim_storage_path: storageData?.path || filePath,
+          user_id: userId,
+          workspace_id: workspaceId, // ✅ REQUIRED for new users
+        })
         .select('id')
         .single();
 
@@ -494,50 +532,40 @@ const [selectedView, setSelectedView] = useState<
           <p className="text-xs">
             CIM selected: <span className="font-medium">{cimFile.name}</span>{' '}
             {cimUploadStatus === 'uploading' && (
-              <span className="text-[11px] text-muted-foreground">
-                (uploading…)
-              </span>
+              <span className="text-[11px] text-muted-foreground">(uploading…)</span>
             )}
             {cimUploadStatus === 'uploaded' && (
-              <span className="text-[11px] text-green-600">
-                {' '}
-                – uploaded & deal created
-              </span>
+              <span className="text-[11px] text-green-600"> – uploaded & deal created</span>
             )}
             {cimUploadStatus === 'error' && (
-              <span className="text-[11px] text-red-600">
-                {' '}
-                – upload failed
-              </span>
+              <span className="text-[11px] text-red-600"> – upload failed</span>
             )}
           </p>
         )}
 
         {/* View selector buttons */}
         <div className="flex flex-wrap gap-3 pt-2 text-xs">
-          {(['saved', 'on_market', 'off_market', 'cim_pdf'] as const).map(
-            (view) => {
-              const isActive = selectedView === view;
-              const label =
-                view === 'saved'
-                  ? 'Saved Companies'
-                  : view === 'on_market'
-                  ? 'On-market'
-                  : view === 'off_market'
-                  ? 'Off-market'
-                  : 'CIMs';
+          {(['saved', 'on_market', 'off_market', 'cim_pdf'] as const).map((view) => {
+            const isActive = selectedView === view;
+            const label =
+              view === 'saved'
+                ? 'Saved Companies'
+                : view === 'on_market'
+                ? 'On-market'
+                : view === 'off_market'
+                ? 'Off-market'
+                : 'CIMs';
 
-              return (
-                <button
-                  key={view}
-                  onClick={() => setSelectedView(view)}
-                  className={`view-pill ${isActive ? 'view-pill--active' : ''}`}
-                >
-                  {label}
-                </button>
-              );
-            }
-          )}
+            return (
+              <button
+                key={view}
+                onClick={() => changeView(view)}
+                className={`view-pill ${isActive ? 'view-pill--active' : ''}`}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -586,17 +614,11 @@ const [selectedView, setSelectedView] = useState<
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              className="btn-main"
-              onClick={handleOffMarketSearch}
-              disabled={offSearching}
-            >
+            <button className="btn-main" onClick={handleOffMarketSearch} disabled={offSearching}>
               {offSearching ? 'Searching…' : 'Search'}
             </button>
 
-            {offSearchStatus && (
-              <span className="text-xs opacity-80">{offSearchStatus}</span>
-            )}
+            {offSearchStatus && <span className="text-xs opacity-80">{offSearchStatus}</span>}
           </div>
         </section>
       )}
@@ -611,9 +633,7 @@ const [selectedView, setSelectedView] = useState<
             <p className="text-xs">Loading…</p>
           ) : (
             <p className="text-xs">
-              {filteredDeals.length === 0
-                ? 'No companies yet.'
-                : `${filteredDeals.length} company(s) shown.`}
+              {filteredDeals.length === 0 ? 'No companies yet.' : `${filteredDeals.length} company(s) shown.`}
             </p>
           )}
         </div>
@@ -624,7 +644,6 @@ const [selectedView, setSelectedView] = useState<
           <table className="min-w-full text-left text-xs">
             <thead className="table-header">
               <tr>
-                {/* SAVED: Company / Source / Created / Actions */}
                 {selectedView === 'saved' && (
                   <>
                     <th className="px-2 py-1.5 font-medium">Company</th>
@@ -634,7 +653,6 @@ const [selectedView, setSelectedView] = useState<
                   </>
                 )}
 
-                {/* ON-MARKET: Company / Location / Industry / Tier / Created / Actions */}
                 {selectedView === 'on_market' && (
                   <>
                     <th className="px-2 py-1.5 font-medium">Company</th>
@@ -646,7 +664,6 @@ const [selectedView, setSelectedView] = useState<
                   </>
                 )}
 
-                {/* OFF-MARKET: Company / Owner / Created / Actions */}
                 {selectedView === 'off_market' && (
                   <>
                     <th className="px-2 py-1.5 font-medium">Company</th>
@@ -656,7 +673,6 @@ const [selectedView, setSelectedView] = useState<
                   </>
                 )}
 
-                {/* CIMs: Company / Tier / Created / Actions */}
                 {selectedView === 'cim_pdf' && (
                   <>
                     <th className="px-2 py-1.5 font-medium">Company</th>
@@ -667,22 +683,17 @@ const [selectedView, setSelectedView] = useState<
                 )}
               </tr>
             </thead>
+
             <tbody>
               {loadingDeals ? (
                 <tr>
-                  <td
-                    className="px-2 py-3"
-                    colSpan={getColSpanForView(selectedView)}
-                  >
+                  <td className="px-2 py-3" colSpan={getColSpanForView(selectedView)}>
                     Loading…
                   </td>
                 </tr>
               ) : filteredDeals.length === 0 ? (
                 <tr>
-                  <td
-                    className="px-2 py-3 italic"
-                    colSpan={getColSpanForView(selectedView)}
-                  >
+                  <td className="px-2 py-3 italic" colSpan={getColSpanForView(selectedView)}>
                     {selectedView === 'saved'
                       ? 'No saved companies yet. Save from On-market, Off-market, or CIMs.'
                       : 'No companies yet.'}
@@ -695,17 +706,16 @@ const [selectedView, setSelectedView] = useState<
                     {selectedView === 'saved' && (
                       <>
                         <td className="px-2 py-2">
-                          <Link href={`/deals/${deal.id}`} className="underline">
+                          <Link
+                            href={`/deals/${deal.id}?from_view=${selectedView}`}
+                            className="underline"
+                          >
                             {deal.company_name || 'Untitled'}
                           </Link>
                         </td>
+                        <td className="px-2 py-2">{formatSource(deal.source_type)}</td>
                         <td className="px-2 py-2">
-                          {formatSource(deal.source_type)}
-                        </td>
-                        <td className="px-2 py-2">
-                          {deal.created_at
-                            ? new Date(deal.created_at).toLocaleDateString()
-                            : ''}
+                          {deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}
                         </td>
                         <td className="px-2 py-2 text-right">
                           <button
@@ -725,7 +735,10 @@ const [selectedView, setSelectedView] = useState<
                     {selectedView === 'on_market' && (
                       <>
                         <td className="px-2 py-2">
-                          <Link href={`/deals/${deal.id}`} className="underline">
+                          <Link
+                            href={`/deals/${deal.id}?from_view=${selectedView}`}
+                            className="underline"
+                          >
                             {deal.company_name || 'Untitled'}
                           </Link>
                         </td>
@@ -737,9 +750,7 @@ const [selectedView, setSelectedView] = useState<
                           <TierPill tier={deal.final_tier} />
                         </td>
                         <td className="px-2 py-2">
-                          {deal.created_at
-                            ? new Date(deal.created_at).toLocaleDateString()
-                            : ''}
+                          {deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}
                         </td>
                         <td className="px-2 py-2 text-right space-x-3">
                           {deal.is_saved ? null : (
@@ -770,15 +781,16 @@ const [selectedView, setSelectedView] = useState<
                     {selectedView === 'off_market' && (
                       <>
                         <td className="px-2 py-2">
-                          <Link href={`/deals/${deal.id}`} className="underline">
+                          <Link
+                            href={`/deals/${deal.id}?from_view=${selectedView}`}
+                            className="underline"
+                          >
                             {deal.company_name || 'Untitled'}
                           </Link>
                         </td>
                         <td className="px-2 py-2">{deal.owner_name || ''}</td>
                         <td className="px-2 py-2">
-                          {deal.created_at
-                            ? new Date(deal.created_at).toLocaleDateString()
-                            : ''}
+                          {deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}
                         </td>
                         <td className="px-2 py-2 text-right space-x-3">
                           {deal.is_saved ? null : (
@@ -809,7 +821,10 @@ const [selectedView, setSelectedView] = useState<
                     {selectedView === 'cim_pdf' && (
                       <>
                         <td className="px-2 py-2">
-                          <Link href={`/deals/${deal.id}`} className="underline">
+                          <Link
+                            href={`/deals/${deal.id}?from_view=${selectedView}`}
+                            className="underline"
+                          >
                             {deal.company_name || 'Untitled'}
                           </Link>
                         </td>
@@ -817,9 +832,7 @@ const [selectedView, setSelectedView] = useState<
                           <TierPill tier={deal.final_tier} />
                         </td>
                         <td className="px-2 py-2">
-                          {deal.created_at
-                            ? new Date(deal.created_at).toLocaleDateString()
-                            : ''}
+                          {deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}
                         </td>
                         <td className="px-2 py-2 text-right space-x-3">
                           {deal.is_saved ? null : (
