@@ -1,384 +1,36 @@
 // app/deals/[id]/page.tsx
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { supabase } from '../../supabaseClient';
-import { useSearchParams } from 'next/navigation';
-
-
-export default function DealDetailPage() {
-  const searchParams = useSearchParams();
-  const from = searchParams.get('from'); // 'off_market' | 'on_market' | 'cim_pdf' | 'saved'
-  const router = useRouter();
-  const params = useParams<{ id: string }>();
-  const id = params?.id as string | undefined;
-
-  const [deal, setDeal] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  // On-market AI states
-  const [analyzing, setAnalyzing] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const autoTriggeredRef = useRef(false);
-
-  // Off-market AI states
-  const [runningOffMarketDD, setRunningOffMarketDD] = useState(false);
-  const [offMarketError, setOffMarketError] = useState<string | null>(null);
-
-  // CIM AI states
-  const [processingCim, setProcessingCim] = useState(false);
-  const [cimError, setCimError] = useState<string | null>(null);
-  const [cimSuccess, setCimSuccess] = useState(false);
-
-  // ------------------------------------------------------------------------------------
-  // Load deal from Supabase
-  // ------------------------------------------------------------------------------------
-  useEffect(() => {
-    if (!id) return;
-
-    const loadDeal = async () => {
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) {
-        console.error('Error loading deal:', error);
-      } else {
-        setDeal(data);
-      }
-      setLoading(false);
-    };
-
-    loadDeal();
-  }, [id]);
-
-  // ------------------------------------------------------------------------------------
-  // On-market AI analysis (Chrome extension listings)
-  // ------------------------------------------------------------------------------------
-  const runAnalysis = async () => {
-    if (!id || !deal) return;
-
-    if (!deal.raw_listing_text) {
-      setAiError('This deal has no listing text stored yet.');
-      return;
-    }
-
-    setAnalyzing(true);
-    setAiError(null);
-
-    try {
-      const res = await fetch('/api/analyze-deal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          listingText: deal.raw_listing_text,
-          companyName: deal.company_name,
-          city: deal.location_city,
-          state: deal.location_state,
-          sourceType: deal.source_type,
-          listingUrl: deal.listing_url,
-        }),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok) {
-        throw new Error(json.error || 'Failed to analyze deal.');
-      }
-
-      const { ai_summary, ai_red_flags, financials, scoring, criteria_match } =
-        json;
-
-      const { error: updateError } = await supabase
-        .from('companies')
-        .update({
-          ai_summary,
-          ai_red_flags,
-          ai_financials_json: financials,
-          ai_scoring_json: scoring,
-          criteria_match_json: criteria_match,
-        })
-        .eq('id', id);
-
-      if (updateError) {
-        console.error('Supabase update error:', updateError);
-        throw new Error('Failed to save AI result: ' + updateError.message);
-      }
-
-      setDeal((prev: any) =>
-        prev
-          ? {
-              ...prev,
-              ai_summary,
-              ai_red_flags,
-              ai_financials_json: financials,
-              ai_scoring_json: scoring,
-              criteria_match_json: criteria_match,
-            }
-          : prev
-      );
-    } catch (err: any) {
-      console.error('runAnalysis error', err);
-      setAiError(err.message || 'Something went wrong running AI.');
-    } finally {
-      setAnalyzing(false);
-    }
-  };
-
-  // ✅ Auto-run AI ONLY for on-market deals (NOT off-market, NOT CIM)
-  useEffect(() => {
-    if (
-      deal &&
-      deal.source_type === 'on_market' &&
-      !deal.ai_summary &&
-      !autoTriggeredRef.current
-    ) {
-      autoTriggeredRef.current = true;
-      runAnalysis();
-    }
-  }, [deal]);
-
-  // ------------------------------------------------------------------------------------
-  // Off-market: Run Initial Diligence (website-based)
-  // ------------------------------------------------------------------------------------
-  const runOffMarketInitialDiligence = async () => {
-    if (!deal?.id || deal.source_type !== 'off_market') return;
-
-    if (!deal.website) {
-      setOffMarketError('This off-market company has no website to analyze.');
-      return;
-    }
-
-    setRunningOffMarketDD(true);
-    setOffMarketError(null);
-
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-
-      if (!token) {
-        setOffMarketError('Not signed in.');
-        setRunningOffMarketDD(false);
-        return;
-      }
-
-      const res = await fetch('/api/off-market/diligence', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          companyId: deal.id,
-        }),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok || !json.success) {
-        throw new Error(json.error || 'Failed to run initial diligence.');
-      }
-
-      const { ai_summary, ai_red_flags, financials, scoring, criteria_match } =
-        json;
-
-      const { error: updateError } = await supabase
-        .from('companies')
-        .update({
-          ai_summary,
-          ai_red_flags,
-          ai_financials_json: financials,
-          ai_scoring_json: scoring,
-          criteria_match_json: criteria_match,
-        })
-        .eq('id', deal.id);
-
-      if (updateError) {
-        console.error('Supabase update error (Off-market):', updateError);
-        throw new Error('Failed to save AI result: ' + updateError.message);
-      }
-
-      setDeal((prev: any) =>
-        prev
-          ? {
-              ...prev,
-              ai_summary,
-              ai_red_flags,
-              ai_financials_json: financials,
-              ai_scoring_json: scoring,
-              criteria_match_json: criteria_match,
-            }
-          : prev
-      );
-    } catch (err: any) {
-      console.error('runOffMarketInitialDiligence error', err);
-      setOffMarketError(err.message || 'Something went wrong.');
-    } finally {
-      setRunningOffMarketDD(false);
-    }
-  };
-
-  // ------------------------------------------------------------------------------------
-  // CIM: Run AI on PDF
-  // ------------------------------------------------------------------------------------
-  const runCimAnalysis = async () => {
-    if (!deal?.cim_storage_path || deal.source_type !== 'cim_pdf') {
-      setCimError('This is not a CIM deal or the file path is missing.');
-      return;
-    }
-
-    setProcessingCim(true);
-    setCimError(null);
-    setCimSuccess(false);
-
-    try {
-      const res = await fetch('/api/process-cim', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyId: deal.id,
-          cimStoragePath: deal.cim_storage_path,
-          companyName: deal.company_name,
-        }),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok || !json.success) {
-        console.error('process-cim status:', res.status);
-        console.error('process-cim json:', json);
-        setCimError(json.error || 'Failed to process CIM.');
-        setProcessingCim(false);
-        return;
-      }
-
-      const { ai_summary, ai_red_flags, financials, scoring, criteria_match } =
-        json;
-
-      const { error: updateError } = await supabase
-        .from('companies')
-        .update({
-          ai_summary,
-          ai_red_flags,
-          ai_financials_json: financials,
-          ai_scoring_json: scoring,
-          criteria_match_json: criteria_match,
-        })
-        .eq('id', deal.id);
-
-      if (updateError) {
-        console.error('Supabase update error (CIM):', updateError);
-        setCimError('CIM processed, but failed to save AI result.');
-        setProcessingCim(false);
-        return;
-      }
-
-      setDeal((prev: any) =>
-        prev
-          ? {
-              ...prev,
-              ai_summary,
-              ai_red_flags,
-              ai_financials_json: financials,
-              ai_scoring_json: scoring,
-              criteria_match_json: criteria_match,
-            }
-          : prev
-      );
-
-      setCimSuccess(true);
-    } catch (err) {
-      console.error(err);
-      setCimError('Unexpected error processing CIM.');
-    }
-
-    setProcessingCim(false);
-  };
-
-  // ------------------------------------------------------------------------------------
-  // Page states
-  // ------------------------------------------------------------------------------------
-  if (!id) {
-    return <main className="py-10 text-center">Loading deal…</main>;
-  }
-
-  if (loading) {
-    return <main className="py-10 text-center">Loading deal details…</main>;
-  }
-
-  if (!deal) {
-    return <main className="py-10 text-center text-red-600">Deal not found.</main>;
-  }
-
-  // Branch: CIM vs Off-market vs On-market
-  if (deal.source_type === 'cim_pdf') {
-    return (
-      <CimDealView
-        deal={deal}
-        onBack={() => router.push(from ? `/dashboard?view=${from}` : '/dashboard')}
-        processingCim={processingCim}
-        cimError={cimError}
-        cimSuccess={cimSuccess}
-        onRunCim={runCimAnalysis}
-      />
-    );
-  }
-
-  if (deal.source_type === 'off_market') {
-    return (
-      <OffMarketDealView
-        deal={deal}
-        onBack={() => router.push(from ? `/dashboard?view=${from}` : '/dashboard')}
-        running={runningOffMarketDD}
-        error={offMarketError}
-        onRunInitialDiligence={runOffMarketInitialDiligence}
-      />
-    );
-  }
-
-  return (
-    <OnMarketDealView
-      deal={deal}
-      onBack={() => router.push(from ? `/dashboard?view=${from}` : '/dashboard')}
-      analyzing={analyzing}
-      aiError={aiError}
-      onRunAnalysis={runAnalysis}
-    />
-  );
-}
 
 // ====================================================================================
 // Shared helper: normalize red flags from JSON/string/array → string[]
 // ====================================================================================
-
 const normalizeRedFlags = (raw: any): string[] => {
   if (!raw) return [];
-
-  if (Array.isArray(raw)) {
-    return raw.map(String).filter(Boolean);
-  }
+  if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
 
   if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
     try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        return parsed.map(String).filter(Boolean);
-      }
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
     } catch {
       // ignore
     }
-    const trimmed = raw.trim();
-    return trimmed ? [trimmed] : [];
+    return [trimmed];
   }
 
   const asString = String(raw).trim();
   return asString ? [asString] : [];
 };
 
+// ====================================================================================
 // Small shared visual helpers
+// ====================================================================================
 function SourceBadge({ source }: { source: string | null }) {
   if (!source) return null;
 
@@ -416,10 +68,367 @@ function TierBadge({ tier }: { tier: string | null }) {
   );
 }
 
+export default function DealDetailPage() {
+  const router = useRouter();
+  const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+
+  const id = (params?.id as string | undefined) ?? undefined;
+
+  // support both query names
+  const fromView =
+    searchParams.get('from_view') ||
+    searchParams.get('from') ||
+    searchParams.get('view') ||
+    null;
+
+  const [deal, setDeal] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // On-market AI states
+  const [analyzing, setAnalyzing] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const autoTriggeredRef = useRef(false);
+
+  // Off-market AI states
+  const [runningOffMarketDD, setRunningOffMarketDD] = useState(false);
+  const [offMarketError, setOffMarketError] = useState<string | null>(null);
+
+  // CIM AI states
+  const [processingCim, setProcessingCim] = useState(false);
+  const [cimError, setCimError] = useState<string | null>(null);
+  const [cimSuccess, setCimSuccess] = useState(false);
+
+  // ------------------------------------------------------------------------------------
+  // Load deal from Supabase
+  // ------------------------------------------------------------------------------------
+  useEffect(() => {
+    if (!id) return;
+
+    const loadDeal = async () => {
+      setLoading(true);
+      setAiError(null);
+      setOffMarketError(null);
+      setCimError(null);
+      setCimSuccess(false);
+
+      const { data, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) {
+        console.error('Error loading deal:', error);
+        setDeal(null);
+      } else {
+        setDeal(data);
+      }
+      setLoading(false);
+    };
+
+    loadDeal();
+  }, [id]);
+
+  // ------------------------------------------------------------------------------------
+  // On-market: Run Initial Diligence (listing-text based)
+  // ------------------------------------------------------------------------------------
+  const runOnMarketInitialDiligence = async () => {
+    if (!id || !deal) return;
+
+    // Guard: this should only run for on-market
+    if (deal.source_type !== 'on_market') {
+      setAiError('Initial diligence (on-market) can only run for on-market deals.');
+      return;
+    }
+
+    if (!deal.raw_listing_text) {
+      setAiError('This deal has no listing text stored yet.');
+      return;
+    }
+
+    setAnalyzing(true);
+    setAiError(null);
+
+    try {
+      const res = await fetch('/api/analyze-deal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          listingText: deal.raw_listing_text,
+          companyName: deal.company_name,
+          city: deal.location_city,
+          state: deal.location_state,
+          sourceType: deal.source_type,
+          listingUrl: deal.listing_url,
+        }),
+      });
+
+      const text = await res.text();
+      let json: any = null;
+      try {
+        json = JSON.parse(text);
+      } catch {
+        // non-json response
+      }
+
+      if (!res.ok || !json?.ai_summary) {
+        console.error('analyze status:', res.status);
+        console.error('analyze raw:', text);
+        throw new Error(json?.error || `Failed to run on-market diligence (HTTP ${res.status})`);
+      }
+
+      const { ai_summary, ai_red_flags, financials, scoring, criteria_match } = json;
+
+      const { error: updateError } = await supabase
+        .from('companies')
+        .update({
+          ai_summary,
+          ai_red_flags,
+          ai_financials_json: financials,
+          ai_scoring_json: scoring,
+          criteria_match_json: criteria_match,
+        })
+        .eq('id', id);
+
+      if (updateError) throw new Error('Failed to save AI result: ' + updateError.message);
+
+      setDeal((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              ai_summary,
+              ai_red_flags,
+              ai_financials_json: financials,
+              ai_scoring_json: scoring,
+              criteria_match_json: criteria_match,
+            }
+          : prev
+      );
+    } catch (err: any) {
+      console.error('runOnMarketInitialDiligence error', err);
+      setAiError(err?.message || 'Something went wrong running AI.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  // ✅ Auto-run ONLY for on-market deals (only once)
+  useEffect(() => {
+    if (
+      deal &&
+      deal.source_type === 'on_market' &&
+      !deal.ai_summary &&
+      !autoTriggeredRef.current
+    ) {
+      autoTriggeredRef.current = true;
+      runOnMarketInitialDiligence();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deal]);
+
+  // ------------------------------------------------------------------------------------
+  // Off-market: Run Initial Diligence (website-based)
+  // ------------------------------------------------------------------------------------
+  const runOffMarketInitialDiligence = async () => {
+    if (!id || !deal) return;
+
+    // Guard: do not allow this endpoint for on-market/cim
+    if (deal.source_type !== 'off_market') {
+      setOffMarketError('Initial diligence (off-market) can only run for off-market companies.');
+      return;
+    }
+
+    setRunningOffMarketDD(true);
+    setOffMarketError(null);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('Not signed in.');
+
+      const res = await fetch('/api/off-market/diligence', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ companyId: id, force: true }),
+      });
+
+      const text = await res.text();
+      let json: any = null;
+      try {
+        json = JSON.parse(text);
+      } catch {
+        // non-json response (route mismatch, html, etc.)
+      }
+
+      if (!res.ok || !json?.success) {
+        console.error('diligence status:', res.status);
+        console.error('diligence raw:', text);
+        throw new Error(json?.error || `Failed to run initial diligence (HTTP ${res.status})`);
+      }
+
+      // Normalize payload (your API returns these keys)
+      const ai_summary = json.ai_summary ?? json?.initial_diligence_json?.ai_summary ?? '';
+      const ai_red_flags = json.ai_red_flags ?? json?.initial_diligence_json?.ai_red_flags ?? [];
+      const financials = json.financials ?? json?.initial_diligence_json?.financials ?? {};
+      const scoring = json.scoring ?? json?.initial_diligence_json?.scoring ?? {};
+      const criteria_match =
+        json.criteria_match ?? json?.initial_diligence_json?.criteria_match ?? {};
+
+      // Save to companies columns your UI already renders
+      const { error: updateError } = await supabase
+        .from('companies')
+        .update({
+          ai_summary,
+          ai_red_flags,
+          ai_financials_json: financials,
+          ai_scoring_json: scoring,
+          criteria_match_json: criteria_match,
+        })
+        .eq('id', id);
+
+      if (updateError) throw new Error('Failed to save diligence: ' + updateError.message);
+
+      setDeal((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              ai_summary,
+              ai_red_flags,
+              ai_financials_json: financials,
+              ai_scoring_json: scoring,
+              criteria_match_json: criteria_match,
+            }
+          : prev
+      );
+    } catch (e: any) {
+      console.error('runOffMarketInitialDiligence error:', e);
+      setOffMarketError(e?.message || 'Failed to run initial diligence.');
+    } finally {
+      setRunningOffMarketDD(false);
+    }
+  };
+
+  // ------------------------------------------------------------------------------------
+  // CIM: Run AI on PDF
+  // ------------------------------------------------------------------------------------
+  const runCimAnalysis = async () => {
+    if (!id || !deal) return;
+
+    // Guard: only for cim_pdf
+    if (deal.source_type !== 'cim_pdf') {
+      setCimError('CIM analysis can only run for CIM (PDF) deals.');
+      return;
+    }
+
+    setProcessingCim(true);
+    setCimError(null);
+    setCimSuccess(false);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('Not signed in.');
+
+      const res = await fetch('/api/process-cim', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ companyId: id }),
+      });
+
+      const text = await res.text();
+      let json: any = null;
+      try {
+        json = JSON.parse(text);
+      } catch {}
+
+      if (!res.ok || !json?.success) {
+        console.error('process-cim status:', res.status);
+        console.error('process-cim raw:', text);
+        throw new Error(json?.error || `Failed to process CIM (HTTP ${res.status}).`);
+      }
+
+      // If your /api/process-cim already updates the row, just reload the deal
+      const { data: refreshed } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (refreshed) setDeal(refreshed);
+
+      setCimSuccess(true);
+    } catch (e: any) {
+      console.error('runCimAnalysis error:', e);
+      setCimError(e?.message || 'Failed to process CIM.');
+    } finally {
+      setProcessingCim(false);
+    }
+  };
+
+  // ------------------------------------------------------------------------------------
+  // Page states
+  // ------------------------------------------------------------------------------------
+  if (!id) {
+    return <main className="py-10 text-center">Loading deal…</main>;
+  }
+
+  if (loading) {
+    return <main className="py-10 text-center">Loading deal details…</main>;
+  }
+
+  if (!deal) {
+    return <main className="py-10 text-center text-red-600">Deal not found.</main>;
+  }
+
+  const backHref = fromView ? `/dashboard?view=${encodeURIComponent(fromView)}` : '/dashboard';
+
+  // Branch: CIM vs Off-market vs On-market
+  if (deal.source_type === 'cim_pdf') {
+    return (
+      <CimDealView
+        deal={deal}
+        onBack={() => router.push(backHref)}
+        processingCim={processingCim}
+        cimError={cimError}
+        cimSuccess={cimSuccess}
+        onRunCim={runCimAnalysis}
+      />
+    );
+  }
+
+  if (deal.source_type === 'off_market') {
+    return (
+      <OffMarketDealView
+        deal={deal}
+        onBack={() => router.push(backHref)}
+        running={runningOffMarketDD}
+        error={offMarketError}
+        onRunInitialDiligence={runOffMarketInitialDiligence}
+      />
+    );
+  }
+
+  return (
+    <OnMarketDealView
+      deal={deal}
+      onBack={() => router.push(backHref)}
+      analyzing={analyzing}
+      aiError={aiError}
+      onRunInitialDiligence={runOnMarketInitialDiligence}
+    />
+  );
+}
+
 // ====================================================================================
 // OFF-MARKET DEAL VIEW (Google Places)
 // ====================================================================================
-
 function OffMarketDealView({
   deal,
   onBack,
@@ -436,19 +445,16 @@ function OffMarketDealView({
   const fin = deal.ai_financials_json || {};
   const scoring = deal.ai_scoring_json || {};
   const criteria = deal.criteria_match_json || {};
-  const ownerSignals = criteria?.owner_signals || null; // ✅ NEW
+  const ownerSignals = criteria?.owner_signals || null;
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
 
-  const createdLabel = deal.created_at
-    ? new Date(deal.created_at).toLocaleDateString()
-    : null;
+  const createdLabel = deal.created_at ? new Date(deal.created_at).toLocaleDateString() : null;
 
   const ratingLine =
     deal.rating || deal.ratings_total
       ? `${deal.rating ?? '—'} (${deal.ratings_total ?? '—'} reviews)`
       : null;
 
-  // tier_reason is stored as object; show reasons if present
   const tierReasons: string[] = Array.isArray(deal?.tier_reason?.reasons)
     ? deal.tier_reason.reasons.map(String)
     : [];
@@ -465,23 +471,15 @@ function OffMarketDealView({
           ← Back to dashboard
         </button>
 
-        {/* Header */}
         <section>
-          <h1 className="text-3xl font-semibold mb-1">
-            {deal.company_name || 'Untitled Company'}
-          </h1>
+          <h1 className="text-3xl font-semibold mb-1">{deal.company_name || 'Untitled Company'}</h1>
 
           <p className="text-sm text-muted-foreground">
             {deal.address || ''}
             {deal.website && (
               <>
                 {' • '}
-                <a
-                  href={deal.website}
-                  className="underline"
-                  target="_blank"
-                  rel="noreferrer"
-                >
+                <a href={deal.website} className="underline" target="_blank" rel="noreferrer">
                   Visit website
                 </a>
               </>
@@ -504,7 +502,6 @@ function OffMarketDealView({
           </div>
         </section>
 
-        {/* Initial Diligence */}
         <section className="card-section">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold">Initial Diligence</h2>
@@ -513,11 +510,7 @@ function OffMarketDealView({
               disabled={running}
               className="text-xs px-2 py-1 border rounded"
             >
-              {running
-                ? 'Running…'
-                : deal.ai_summary
-                ? 'Re-run Initial Diligence'
-                : 'Run Initial Diligence'}
+              {running ? 'Running…' : deal.ai_summary ? 'Re-run Initial Diligence' : 'Run Initial Diligence'}
             </button>
           </div>
 
@@ -529,12 +522,9 @@ function OffMarketDealView({
           </p>
         </section>
 
-        {/* ✅ Owner Signals (Probabilistic) */}
         {ownerSignals && (
           <section className="card-section">
-            <h2 className="text-lg font-semibold mb-2">
-              Owner Signals (Probabilistic)
-            </h2>
+            <h2 className="text-lg font-semibold mb-2">Owner Signals (Probabilistic)</h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
@@ -542,10 +532,7 @@ function OffMarketDealView({
                 <p className="font-medium">
                   {ownerSignals.likely_owner_operated ? 'Yes' : 'No'}
                   {confidencePct !== null && (
-                    <span className="text-xs text-muted-foreground">
-                      {' '}
-                      ({confidencePct}%)
-                    </span>
+                    <span className="text-xs text-muted-foreground"> ({confidencePct}%)</span>
                   )}
                 </p>
               </div>
@@ -555,65 +542,51 @@ function OffMarketDealView({
                 <p className="font-medium">
                   {ownerSignals.owner_named_on_site ? 'Yes' : 'No'}
                   {ownerSignals.owner_named_on_site && ownerSignals.owner_name ? (
-                    <span className="text-xs text-muted-foreground">
-                      {' '}
-                      — {ownerSignals.owner_name}
-                    </span>
+                    <span className="text-xs text-muted-foreground"> — {ownerSignals.owner_name}</span>
                   ) : null}
                 </p>
               </div>
 
               <div>
                 <p className="text-xs uppercase">Generation hint</p>
-                <p className="font-medium">
-                  {ownerSignals.generation_hint || 'unknown'}
-                </p>
+                <p className="font-medium">{ownerSignals.generation_hint || 'unknown'}</p>
               </div>
 
               <div>
                 <p className="text-xs uppercase">Owner dependency risk</p>
-                <p className="font-medium">
-                  {ownerSignals.owner_dependency_risk || 'Unknown'}
-                </p>
+                <p className="font-medium">{ownerSignals.owner_dependency_risk || 'Unknown'}</p>
               </div>
 
               <div className="sm:col-span-2">
                 <p className="text-xs uppercase">Years in business</p>
-                <p className="font-medium">
-                  {ownerSignals.years_in_business || 'Unknown'}
-                </p>
+                <p className="font-medium">{ownerSignals.years_in_business || 'Unknown'}</p>
               </div>
             </div>
 
-            {Array.isArray(ownerSignals.evidence) &&
-              ownerSignals.evidence.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-xs uppercase mb-1">Evidence</p>
-                  <ul className="list-disc list-inside space-y-1 text-sm">
-                    {ownerSignals.evidence.slice(0, 6).map((e: string, idx: number) => (
-                      <li key={idx}>{e}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+            {Array.isArray(ownerSignals.evidence) && ownerSignals.evidence.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs uppercase mb-1">Evidence</p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  {ownerSignals.evidence.slice(0, 6).map((e: string, idx: number) => (
+                    <li key={idx}>{e}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-            {Array.isArray(ownerSignals.missing_info) &&
-              ownerSignals.missing_info.length > 0 && (
-                <div className="mt-4">
-                  <p className="text-xs uppercase mb-1">Missing info</p>
-                  <ul className="list-disc list-inside space-y-1 text-sm">
-                    {ownerSignals.missing_info
-                      .slice(0, 6)
-                      .map((m: string, idx: number) => (
-                        <li key={idx}>{m}</li>
-                      ))}
-                  </ul>
-                </div>
-              )}
+            {Array.isArray(ownerSignals.missing_info) && ownerSignals.missing_info.length > 0 && (
+              <div className="mt-4">
+                <p className="text-xs uppercase mb-1">Missing info</p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  {ownerSignals.missing_info.slice(0, 6).map((m: string, idx: number) => (
+                    <li key={idx}>{m}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </section>
         )}
 
-        {/* Quick signals (from discovery tier) */}
         {tierReasons.length > 0 && (
           <section className="card-section">
             <h2 className="text-lg font-semibold mb-2">Discovery Signals</h2>
@@ -625,17 +598,13 @@ function OffMarketDealView({
           </section>
         )}
 
-        {/* Financials (usually unknown for off-market) */}
         <section className="card-section">
-          <h2 className="text-lg font-semibold mb-3">
-            Financials (if available)
-          </h2>
+          <h2 className="text-lg font-semibold mb-3">Financials (if available)</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
             <div>
               <p className="text-xs uppercase">Revenue</p>
               <p className="font-medium">{fin.revenue || 'Unknown'}</p>
             </div>
-
             <div>
               <p className="text-xs uppercase">EBITDA</p>
               <p className="font-medium">{fin.ebitda || 'Unknown'}</p>
@@ -643,7 +612,6 @@ function OffMarketDealView({
           </div>
         </section>
 
-        {/* Scoring + Fit */}
         <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="card-section text-sm space-y-4">
             <h2 className="text-lg font-semibold mb-1">Scoring Breakdown</h2>
@@ -656,39 +624,28 @@ function OffMarketDealView({
                   <div>
                     <p className="font-semibold">Succession Risk</p>
                     <p>{scoring.succession_risk}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {scoring.succession_risk_reason}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{scoring.succession_risk_reason}</p>
                   </div>
                 )}
-
                 {scoring.industry_fit && (
                   <div>
                     <p className="font-semibold">Industry Fit</p>
                     <p>{scoring.industry_fit}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {scoring.industry_fit_reason}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{scoring.industry_fit_reason}</p>
                   </div>
                 )}
-
                 {scoring.geography_fit && (
                   <div>
                     <p className="font-semibold">Geography Fit</p>
                     <p>{scoring.geography_fit}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {scoring.geography_fit_reason}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{scoring.geography_fit_reason}</p>
                   </div>
                 )}
-
                 {scoring.final_tier && (
                   <div>
                     <p className="font-semibold">Final Tier</p>
                     <p>{scoring.final_tier}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {scoring.final_tier_reason}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{scoring.final_tier_reason}</p>
                   </div>
                 )}
               </>
@@ -696,9 +653,7 @@ function OffMarketDealView({
           </div>
 
           <div className="card-section text-sm space-y-3">
-            <h2 className="text-lg font-semibold mb-1">
-              Fit with Search Criteria
-            </h2>
+            <h2 className="text-lg font-semibold mb-1">Fit with Search Criteria</h2>
 
             {Object.keys(criteria).length === 0 ? (
               <p className="text-sm">No criteria analysis yet.</p>
@@ -723,7 +678,6 @@ function OffMarketDealView({
           </div>
         </section>
 
-        {/* Red Flags */}
         <section className="card-red">
           <h2 className="text-lg font-semibold mb-2">Red Flags</h2>
           {redFlags.length === 0 ? (
@@ -741,32 +695,28 @@ function OffMarketDealView({
   );
 }
 
-
 // ====================================================================================
 // ON-MARKET DEAL VIEW (Chrome extension)
 // ====================================================================================
-
 function OnMarketDealView({
   deal,
   onBack,
   analyzing,
   aiError,
-  onRunAnalysis,
+  onRunInitialDiligence,
 }: {
   deal: any;
   onBack: () => void;
   analyzing: boolean;
   aiError: string | null;
-  onRunAnalysis: () => void;
+  onRunInitialDiligence: () => void;
 }) {
   const scoring = deal.ai_scoring_json || {};
   const fin = deal.ai_financials_json || {};
   const criteria = deal.criteria_match_json || {};
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
 
-  const createdLabel = deal.created_at
-    ? new Date(deal.created_at).toLocaleDateString()
-    : null;
+  const createdLabel = deal.created_at ? new Date(deal.created_at).toLocaleDateString() : null;
 
   return (
     <main className="min-h-screen">
@@ -775,23 +725,15 @@ function OnMarketDealView({
           ← Back to dashboard
         </button>
 
-        {/* Header */}
         <section>
-          <h1 className="text-3xl font-semibold mb-1">
-            {deal.company_name || 'Untitled Company'}
-          </h1>
+          <h1 className="text-3xl font-semibold mb-1">{deal.company_name || 'Untitled Company'}</h1>
           <p className="text-sm text-muted-foreground">
             {deal.location_city && `${deal.location_city}, `}
             {deal.location_state}
             {deal.listing_url && (
               <>
                 {' • '}
-                <a
-                  href={deal.listing_url}
-                  className="underline"
-                  target="_blank"
-                  rel="noreferrer"
-                >
+                <a href={deal.listing_url} className="underline" target="_blank" rel="noreferrer">
                   View listing
                 </a>
               </>
@@ -809,28 +751,25 @@ function OnMarketDealView({
           </div>
         </section>
 
-        {/* AI Summary + Run AI */}
         <section className="card-section">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="text-lg font-semibold">AI Investment Summary</h2>
+            <h2 className="text-lg font-semibold">Initial Diligence</h2>
             <button
-              onClick={onRunAnalysis}
+              onClick={onRunInitialDiligence}
               disabled={analyzing}
               className="text-xs px-2 py-1 border rounded"
             >
-              {analyzing ? 'Analyzing…' : deal.ai_summary ? 'Re-run AI' : 'Run AI'}
+              {analyzing ? 'Running…' : deal.ai_summary ? 'Re-run Initial Diligence' : 'Run Initial Diligence'}
             </button>
           </div>
 
           {aiError && <p className="text-xs text-red-500 mb-1">{aiError}</p>}
 
           <p className="whitespace-pre-line text-sm leading-relaxed">
-            {deal.ai_summary ||
-              'No AI summary available yet. Run AI to generate one.'}
+            {deal.ai_summary || 'No diligence memo available yet. Run Initial Diligence to generate one.'}
           </p>
         </section>
 
-        {/* Financials */}
         <section className="card-section">
           <h2 className="text-lg font-semibold mb-3">Financials</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
@@ -860,7 +799,6 @@ function OnMarketDealView({
           </div>
         </section>
 
-        {/* Scoring */}
         <section className="card-section">
           <h2 className="text-lg font-semibold mb-3">Scoring Breakdown</h2>
 
@@ -872,9 +810,7 @@ function OnMarketDealView({
                 <div>
                   <p className="font-semibold">Succession Risk</p>
                   <p>{scoring.succession_risk}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {scoring.succession_risk_reason}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{scoring.succession_risk_reason}</p>
                 </div>
               )}
 
@@ -882,9 +818,7 @@ function OnMarketDealView({
                 <div>
                   <p className="font-semibold">Industry Fit</p>
                   <p>{scoring.industry_fit}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {scoring.industry_fit_reason}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{scoring.industry_fit_reason}</p>
                 </div>
               )}
 
@@ -892,9 +826,7 @@ function OnMarketDealView({
                 <div>
                   <p className="font-semibold">Geography Fit</p>
                   <p>{scoring.geography_fit}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {scoring.geography_fit_reason}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{scoring.geography_fit_reason}</p>
                 </div>
               )}
 
@@ -902,16 +834,13 @@ function OnMarketDealView({
                 <div className="md:col-span-2">
                   <p className="font-semibold">Final Tier</p>
                   <p>{scoring.final_tier}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {scoring.final_tier_reason}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{scoring.final_tier_reason}</p>
                 </div>
               )}
             </div>
           )}
         </section>
 
-        {/* Red Flags */}
         <section className="card-red">
           <h2 className="text-lg font-semibold mb-2">Red Flags</h2>
           {redFlags.length === 0 ? (
@@ -925,7 +854,6 @@ function OnMarketDealView({
           )}
         </section>
 
-        {/* Criteria Match */}
         <section className="card-section">
           <h2 className="text-lg font-semibold mb-3">Fit with Search Criteria</h2>
 
@@ -961,9 +889,8 @@ function OnMarketDealView({
 }
 
 // ====================================================================================
-// CIM DEAL VIEW (PDF CIM)  (UNCHANGED)
+// CIM DEAL VIEW (PDF CIM)
 // ====================================================================================
-
 function CimDealView({
   deal,
   onBack,
@@ -1009,16 +936,9 @@ function CimDealView({
       finRaw.customer_conc ??
       finRaw.customer_concentration_summary ??
       null,
-    revenue_1y_ago:
-      finRaw.revenue_1y_ago ??
-      finRaw.revenue_last_year ??
-      finRaw.revenue_fy1 ??
-      null,
+    revenue_1y_ago: finRaw.revenue_1y_ago ?? finRaw.revenue_last_year ?? finRaw.revenue_fy1 ?? null,
     revenue_2y_ago:
-      finRaw.revenue_2y_ago ??
-      finRaw.revenue_two_years_ago ??
-      finRaw.revenue_fy2 ??
-      null,
+      finRaw.revenue_2y_ago ?? finRaw.revenue_two_years_ago ?? finRaw.revenue_fy2 ?? null,
     revenue_cagr_3y:
       finRaw.revenue_cagr_3y ??
       finRaw.revenue_3yr_cagr ??
@@ -1026,8 +946,7 @@ function CimDealView({
       finRaw.rev_cagr_3y ??
       null,
     capex_intensity: finRaw.capex_intensity ?? finRaw.capex_pct_revenue ?? null,
-    working_capital_needs:
-      finRaw.working_capital_needs ?? finRaw.working_capital_profile ?? null,
+    working_capital_needs: finRaw.working_capital_needs ?? finRaw.working_capital_profile ?? null,
   };
 
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
@@ -1035,9 +954,7 @@ function CimDealView({
     ? criteria.dd_checklist.map(String)
     : [];
 
-  const createdLabel = deal.created_at
-    ? new Date(deal.created_at).toLocaleDateString()
-    : null;
+  const createdLabel = deal.created_at ? new Date(deal.created_at).toLocaleDateString() : null;
 
   return (
     <main className="min-h-screen">
@@ -1047,9 +964,7 @@ function CimDealView({
         </button>
 
         <section className="flex flex-col gap-2">
-          <h1 className="text-3xl font-semibold mb-1">
-            {deal.company_name || 'CIM Deal'}
-          </h1>
+          <h1 className="text-3xl font-semibold mb-1">{deal.company_name || 'CIM Deal'}</h1>
           <p className="text-sm text-muted-foreground">
             {deal.location_city && `${deal.location_city}, `}
             {deal.location_state || 'Location unknown'}
@@ -1069,9 +984,7 @@ function CimDealView({
             <div className="flex items-center justify-between gap-2">
               <div>
                 <h2 className="text-sm font-semibold">CIM Processing</h2>
-                <p className="text-xs text-muted-foreground">
-                  Re-run AI analysis on the original CIM PDF.
-                </p>
+                <p className="text-xs text-muted-foreground">Re-run AI analysis on the original CIM PDF.</p>
               </div>
               <button
                 onClick={onRunCim}
@@ -1085,9 +998,7 @@ function CimDealView({
             {cimError && <p className="text-xs text-red-500 mt-1">{cimError}</p>}
 
             {cimSuccess && (
-              <p className="text-xs text-green-600 mt-1">
-                CIM processed successfully. Analysis is up to date.
-              </p>
+              <p className="text-xs text-green-600 mt-1">CIM processed successfully. Analysis is up to date.</p>
             )}
           </div>
         </section>
@@ -1096,8 +1007,7 @@ function CimDealView({
           <div className="lg:col-span-2 card-section">
             <h2 className="text-lg font-semibold mb-2">AI Investment Memo (CIM)</h2>
             <p className="whitespace-pre-line text-sm leading-relaxed">
-              {deal.ai_summary ||
-                'No AI summary available yet. Run AI on CIM to generate an investment memo.'}
+              {deal.ai_summary || 'No AI summary available yet. Run AI on CIM to generate an investment memo.'}
             </p>
           </div>
 
@@ -1173,9 +1083,7 @@ function CimDealView({
               <div>
                 <p className="font-semibold">Succession Risk</p>
                 <p>{scoring.succession_risk}</p>
-                <p className="text-xs text-muted-foreground">
-                  {scoring.succession_risk_reason}
-                </p>
+                <p className="text-xs text-muted-foreground">{scoring.succession_risk_reason}</p>
               </div>
             )}
 
@@ -1183,9 +1091,7 @@ function CimDealView({
               <div>
                 <p className="font-semibold">Industry Fit</p>
                 <p>{scoring.industry_fit}</p>
-                <p className="text-xs text-muted-foreground">
-                  {scoring.industry_fit_reason}
-                </p>
+                <p className="text-xs text-muted-foreground">{scoring.industry_fit_reason}</p>
               </div>
             )}
 
@@ -1193,9 +1099,7 @@ function CimDealView({
               <div>
                 <p className="font-semibold">Geography Fit</p>
                 <p>{scoring.geography_fit}</p>
-                <p className="text-xs text-muted-foreground">
-                  {scoring.geography_fit_reason}
-                </p>
+                <p className="text-xs text-muted-foreground">{scoring.geography_fit_reason}</p>
               </div>
             )}
 
@@ -1203,9 +1107,7 @@ function CimDealView({
               <div>
                 <p className="font-semibold">Financial Quality</p>
                 <p>{scoring.financial_quality}</p>
-                <p className="text-xs text-muted-foreground">
-                  {scoring.financial_quality_reason}
-                </p>
+                <p className="text-xs text-muted-foreground">{scoring.financial_quality_reason}</p>
               </div>
             )}
 
@@ -1213,9 +1115,7 @@ function CimDealView({
               <div>
                 <p className="font-semibold">Final Tier</p>
                 <p>{scoring.final_tier}</p>
-                <p className="text-xs text-muted-foreground">
-                  {scoring.final_tier_reason}
-                </p>
+                <p className="text-xs text-muted-foreground">{scoring.final_tier_reason}</p>
               </div>
             )}
           </div>
@@ -1277,9 +1177,7 @@ function CimDealView({
           <div className="card-section">
             <h2 className="text-lg font-semibold mb-2">Due Diligence Checklist</h2>
             {ddChecklist.length === 0 ? (
-              <p className="text-sm">
-                No checklist generated yet. Re-run AI on CIM to populate this.
-              </p>
+              <p className="text-sm">No checklist generated yet. Re-run AI on CIM to populate this.</p>
             ) : (
               <ul className="list-disc list-inside space-y-1 text-sm">
                 {ddChecklist.map((item, idx) => (

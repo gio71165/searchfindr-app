@@ -1,440 +1,351 @@
-// app/api/off-market/diligence/route.ts
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
+  process.env.SUPABASE_SERVICE_ROLE_KEY as string,
+  { auth: { persistSession: false } }
 );
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com";
-
-type Body = {
-  companyId: string;
-  force?: boolean;
-};
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
-
-const CACHE_TTL_DAYS = 14;
-
-async function getAuthedUserAndWorkspace(req: NextRequest) {
-  const authHeader = req.headers.get("authorization") || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-
-  if (!token) return { userId: null, workspaceId: null };
-
-  const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-  if (userErr || !userData?.user?.id) return { userId: null, workspaceId: null };
-
-  const userId = userData.user.id;
-
-  const { data: profile, error: profErr } = await supabase
-    .from("profiles")
-    .select("workspace_id")
-    .eq("id", userId)
-    .single();
-
-  if (profErr || !profile?.workspace_id) return { userId, workspaceId: null };
-
-  return { userId, workspaceId: profile.workspace_id as string };
+function getBearerToken(req: NextRequest) {
+  const authHeader = req.headers.get('authorization') || '';
+  if (!authHeader.startsWith('Bearer ')) return null;
+  return authHeader.slice(7);
 }
 
-function tryBuildUrl(base: string, path: string) {
-  try {
-    const u = new URL(base);
-    const baseFixed = u.origin;
-    return new URL(path, baseFixed).toString();
-  } catch {
-    return null;
-  }
+async function resolveWorkspaceId(userId: string): Promise<string | null> {
+  // Option A: profiles.workspace_id
+  const prof = await supabaseAdmin
+    .from('profiles')
+    .select('workspace_id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (prof.data?.workspace_id) return prof.data.workspace_id;
+
+  // Option B: workspace_members table
+  const mem = await supabaseAdmin
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (mem.data?.workspace_id) return mem.data.workspace_id;
+
+  return null;
 }
 
-async function fetchTextWithTimeout(url: string, timeoutMs: number) {
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const res = await fetch(url, {
-      redirect: "follow",
-      signal: controller.signal,
-      headers: { "User-Agent": "SearchFindrBot/1.0 (+https://searchfindr.local)" },
-    });
-
-    if (!res.ok) return "";
-
-    const html = await res.text();
-    const cleaned = html
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-
-    return cleaned;
-  } catch {
-    return "";
-  } finally {
-    clearTimeout(t);
-  }
-}
-
-async function fetchWebsiteTextBundle(website: string) {
-  const candidates = [
-    website,
-    tryBuildUrl(website, "/about"),
-    tryBuildUrl(website, "/about-us"),
-    tryBuildUrl(website, "/our-story"),
-    tryBuildUrl(website, "/team"),
-    tryBuildUrl(website, "/leadership"),
-    tryBuildUrl(website, "/services"),
-    tryBuildUrl(website, "/locations"),
-    tryBuildUrl(website, "/contact"),
-  ].filter(Boolean) as string[];
-
-  const uniq = Array.from(new Set(candidates)).slice(0, 6);
-
-  const texts: { url: string; text: string }[] = [];
-  for (const url of uniq) {
-    const raw = await fetchTextWithTimeout(url, 9000);
-    if (!raw) continue;
-    const clipped = raw.slice(0, 4500);
-    if (clipped) texts.push({ url, text: clipped });
-  }
-
-  const combined = texts
-    .map((t) => `SOURCE: ${t.url}\n${t.text}`)
-    .join("\n\n---\n\n")
-    .slice(0, 14000);
-
-  return { combined, sources: texts.map((t) => t.url) };
-}
-
-function stripCodeFencesToJson(s: string) {
-  return (s ?? "")
-    .trim()
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/```$/i, "")
+function cleanText(s: string) {
+  return s
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
-async function runInitialDiligenceAI(input: {
-  companyName: string;
-  website: string;
-  address: string | null;
-  phone: string | null;
-  rating: number | null;
-  ratingsTotal: number | null;
-  websiteText: string;
-  sources: string[];
-  searchInputs?: { industries?: string[]; location?: string; radius_miles?: number } | null;
-}) {
-  const searched = input.searchInputs
-    ? `User's off-market search context (if any):
-- Industries searched: ${(input.searchInputs.industries ?? []).join(", ") || "Unknown"}
-- Search location: ${input.searchInputs.location ?? "Unknown"}
-- Search radius: ${
-        typeof input.searchInputs.radius_miles === "number" ? input.searchInputs.radius_miles : "Unknown"
-      }`
-    : `User's off-market search context: Unknown`;
+async function fetchWebsiteText(url: string) {
+  // Normalize: if user stored without scheme
+  const normalized =
+    url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
 
-  const prompt = `
-You are SearchFindr, an acquisition support system for search funds / ETA buyers.
-
-You are generating "Initial Diligence" from ONLY:
-(1) public company website text (limited pages)
-(2) basic Google business info (address/phone/rating)
-
-Hard rules:
-- Do NOT invent numbers or facts.
-- If financials are not present, use null or "Unknown".
-- Owner inference should be probabilistic: output a confidence from 0.0 to 1.0.
-- If evidence is weak, set likely_owner_operated=false and confidence <= 0.55.
-- For every red flag and every owner signal, include evidence that quotes/paraphrases what you saw in the website text.
-
-Company:
-- Name: ${input.companyName}
-- Website: ${input.website}
-- Address: ${input.address ?? ""}
-- Phone: ${input.phone ?? ""}
-- Google rating: ${input.rating ?? ""}
-- Ratings count: ${input.ratingsTotal ?? ""}
-
-${searched}
-
-Sources scanned:
-${input.sources.join(", ")}
-
-Website text:
-${input.websiteText}
-
-Return ONLY valid JSON in this exact schema:
-{
-  "ai_summary": "string",
-  "ai_red_flags": ["string"],
-  "financials": {
-    "revenue": "string|null",
-    "ebitda": "string|null",
-    "margin": "string|null",
-    "customer_concentration": "string|null"
-  },
-  "scoring": {
-    "succession_risk": "Low|Medium|High",
-    "succession_risk_reason": "string",
-    "industry_fit": "High|Medium|Low",
-    "industry_fit_reason": "string",
-    "geography_fit": "High|Medium|Low",
-    "geography_fit_reason": "string",
-    "final_tier": "A|B|C",
-    "final_tier_reason": "string"
-  },
-  "criteria_match": {
-    "business_model": "string",
-    "owner_profile": "string",
-    "notes_for_searcher": "string",
-    "owner_signals": {
-      "likely_owner_operated": boolean,
-      "confidence": number,
-      "owner_name": "string|null",
-      "owner_named_on_site": boolean,
-      "years_in_business": "string|null",
-      "generation_hint": "founder_led|family_owned|second_gen|unknown",
-      "owner_dependency_risk": "Low|Medium|High",
-      "evidence": ["string"],
-      "missing_info": ["string"]
-    }
-  }
-}
-`.trim();
-
-  const res = await fetch(`${OPENAI_BASE_URL}/v1/chat/completions`, {
-    method: "POST",
+  const res = await fetch(normalized, {
+    method: 'GET',
+    redirect: 'follow',
     headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
+      'User-Agent':
+        'Mozilla/5.0 (compatible; SearchFindrBot/1.0; +https://searchfindr.example)',
+      Accept: 'text/html,application/xhtml+xml',
+    },
+  });
+
+  const html = await res.text();
+  // Keep it bounded — OpenAI doesn’t need 2MB
+  const text = cleanText(html).slice(0, 12000);
+
+  return { normalizedUrl: normalized, status: res.status, text };
+}
+
+async function runOpenAI(prompt: string) {
+  const apiKey = process.env.OPENAI_API_KEY;
+  const baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com';
+
+  if (!apiKey) throw new Error('OPENAI_API_KEY is not set.');
+
+  const resp = await fetch(`${baseUrl}/v1/chat/completions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
+      model: 'gpt-4.1-mini',
       temperature: 0.2,
-      messages: [{ role: "user", content: prompt }],
+      response_format: { type: 'json_object' },
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are an investment analyst for SMB acquisitions. Return ONLY valid JSON.',
+        },
+        { role: 'user', content: prompt },
+      ],
     }),
   });
 
-  const json = await res.json();
-  if (!res.ok) throw new Error(json?.error?.message || "OpenAI request failed");
+  const raw = await resp.text();
+  let json: any = null;
+  try {
+    json = JSON.parse(raw);
+  } catch {
+    throw new Error(`OpenAI returned non-JSON: ${raw.slice(0, 300)}`);
+  }
 
-  const contentRaw = json?.choices?.[0]?.message?.content ?? "";
-  return JSON.parse(stripCodeFencesToJson(contentRaw));
-}
+  if (!resp.ok) {
+    throw new Error(json?.error?.message || `OpenAI error HTTP ${resp.status}`);
+  }
 
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 200, headers: corsHeaders });
+  const content = json?.choices?.[0]?.message?.content;
+  if (!content) throw new Error('OpenAI returned empty content.');
+
+  let parsed: any = null;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error(`Model output was not JSON: ${content.slice(0, 300)}`);
+  }
+
+  return parsed;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    if (!OPENAI_API_KEY) {
+    const token = getBearerToken(req);
+    if (!token) {
       return NextResponse.json(
-        { success: false, error: "Missing OPENAI_API_KEY" },
-        { status: 500, headers: corsHeaders }
+        { success: false, error: 'Missing Bearer token.' },
+        { status: 401 }
       );
     }
 
-    const { workspaceId } = await getAuthedUserAndWorkspace(req);
-    if (!workspaceId) {
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
+    if (userErr || !userData?.user) {
       return NextResponse.json(
-        { success: false, error: "Unauthorized" },
-        { status: 401, headers: corsHeaders }
+        { success: false, error: 'Invalid session.' },
+        { status: 401 }
       );
     }
 
-    const body = (await req.json()) as Body;
-    const companyId = (body.companyId || "").trim();
-    const force = Boolean(body.force);
+    const userId = userData.user.id;
+
+    const body = await req.json().catch(() => ({}));
+    const companyId = body?.companyId as string | undefined;
 
     if (!companyId) {
       return NextResponse.json(
-        { success: false, error: "Missing companyId" },
-        { status: 400, headers: corsHeaders }
+        { success: false, error: 'Missing companyId.' },
+        { status: 400 }
       );
     }
 
-    type CompanyRow = {
-      id: string;
-      workspace_id: string;
-      source_type: string | null;
-      company_name: string | null;
-      website: string | null;
-      address: string | null;
-      phone: string | null;
-      rating: number | null;
-      ratings_total: number | null;
-      tier_reason: any | null;
-      initial_diligence_json: any | null;
-      initial_diligence_updated_at: string | null;
-    };
-
-    const { data, error: loadErr } = await supabase
-      .from("companies")
-      .select(
-        [
-          "id",
-          "workspace_id",
-          "source_type",
-          "company_name",
-          "website",
-          "address",
-          "phone",
-          "rating",
-          "ratings_total",
-          "tier_reason",
-          "initial_diligence_json",
-          "initial_diligence_updated_at",
-        ].join(", ")
-      )
-      .eq("id", companyId)
-      .single();
-
-    if (loadErr || !data) {
+    const workspaceId = await resolveWorkspaceId(userId);
+    if (!workspaceId) {
       return NextResponse.json(
-        { success: false, error: "Company not found" },
-        { status: 404, headers: corsHeaders }
+        { success: false, error: 'No workspace found for user.' },
+        { status: 403 }
       );
     }
 
-    // ✅ Narrow the unknown/GenericStringError union at runtime before casting
-    if (typeof data !== "object" || data === null || !("workspace_id" in (data as any))) {
-      return NextResponse.json(
-        { success: false, error: "Company not found" },
-        { status: 404, headers: corsHeaders }
-      );
-    }
+    // Fetch company (workspace safe; fallback for legacy rows)
+    let company: any | null = null;
 
-    const company = data as unknown as CompanyRow;
+    const primary = await supabaseAdmin
+      .from('companies')
+      .select('*')
+      .eq('id', companyId)
+      .eq('workspace_id', workspaceId)
+      .maybeSingle();
 
-    if (company.workspace_id !== workspaceId) {
-      return NextResponse.json(
-        { success: false, error: "Forbidden" },
-        { status: 403, headers: corsHeaders }
-      );
-    }
+    if (primary.data) company = primary.data;
 
-    if (company.source_type !== "off_market") {
-      return NextResponse.json(
-        { success: false, error: "Not an off-market company" },
-        { status: 400, headers: corsHeaders }
-      );
-    }
+    if (!company) {
+      const fallback = await supabaseAdmin
+        .from('companies')
+        .select('*')
+        .eq('id', companyId)
+        .maybeSingle();
 
-    if (!company.website) {
-      return NextResponse.json(
-        { success: false, error: "No website to analyze" },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    const cached = company.initial_diligence_json;
-    const updatedAt = company.initial_diligence_updated_at
-      ? new Date(company.initial_diligence_updated_at)
-      : null;
-
-    if (!force && cached && updatedAt) {
-      const ageMs = Date.now() - updatedAt.getTime();
-      const ttlMs = CACHE_TTL_DAYS * 24 * 60 * 60 * 1000;
-      if (ageMs <= ttlMs) {
+      if (!fallback.data) {
         return NextResponse.json(
-          { success: true, cached: true, cached_at: updatedAt.toISOString(), ...cached },
-          { headers: corsHeaders }
+          { success: false, error: 'Company not found.' },
+          { status: 404 }
+        );
+      }
+
+      company = fallback.data;
+
+      if (!company.workspace_id) {
+        const attach = await supabaseAdmin
+          .from('companies')
+          .update({ workspace_id: workspaceId })
+          .eq('id', companyId);
+
+        if (attach.error) {
+          return NextResponse.json(
+            { success: false, error: `Failed to attach workspace_id: ${attach.error.message}` },
+            { status: 500 }
+          );
+        }
+        company.workspace_id = workspaceId;
+      } else if (company.workspace_id !== workspaceId) {
+        return NextResponse.json(
+          { success: false, error: 'Company not found in your workspace.' },
+          { status: 404 }
         );
       }
     }
 
-    const searchInputs =
-      (company.tier_reason &&
-        typeof company.tier_reason === "object" &&
-        (company.tier_reason as any).inputs) ||
-      null;
-
-    const bundle = await fetchWebsiteTextBundle(company.website);
-    if (!bundle.combined) {
+    if (company.source_type && company.source_type !== 'off_market') {
       return NextResponse.json(
-        { success: false, error: "Could not fetch website text for analysis" },
-        { status: 400, headers: corsHeaders }
+        { success: false, error: 'This endpoint is only for off-market companies.' },
+        { status: 400 }
       );
     }
 
-    const result = await runInitialDiligenceAI({
-      companyName: company.company_name || "Unknown",
-      website: company.website,
-      address: company.address ?? null,
-      phone: company.phone ?? null,
-      rating: company.rating ?? null,
-      ratingsTotal: company.ratings_total ?? null,
-      websiteText: bundle.combined,
-      sources: bundle.sources,
-      searchInputs:
-        searchInputs && typeof searchInputs === "object"
-          ? {
-              industries: Array.isArray((searchInputs as any).industries)
-                ? (searchInputs as any).industries
-                : undefined,
-              location:
-                typeof (searchInputs as any).location === "string"
-                  ? (searchInputs as any).location
-                  : undefined,
-              radius_miles:
-                typeof (searchInputs as any).radius_miles === "number"
-                  ? (searchInputs as any).radius_miles
-                  : undefined,
-            }
-          : null,
-    });
+    const website = company.website as string | null;
+    if (!website) {
+      return NextResponse.json(
+        { success: false, error: 'Company has no website stored. Cannot run off-market diligence.' },
+        { status: 400 }
+      );
+    }
 
-    const payloadToStore = {
-      ai_summary: result.ai_summary ?? "",
-      ai_red_flags: result.ai_red_flags ?? [],
-      financials: result.financials ?? {},
-      scoring: result.scoring ?? {},
-      criteria_match: result.criteria_match ?? {},
-      meta: {
-        sources: bundle.sources,
-        analyzed_website: company.website,
-        analyzed_at: new Date().toISOString(),
-      },
-    };
+    // 1) Pull website text
+    const { normalizedUrl, status, text } = await fetchWebsiteText(website);
 
-    const { error: saveErr } = await supabase
-      .from("companies")
+    if (!text || text.length < 200) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Could not extract enough website content (HTTP ${status}).`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // 2) Ask model for diligence output (JSON)
+    const prompt = `
+Company:
+- name: ${company.company_name || ''}
+- address: ${company.address || ''}
+- city/state: ${company.location_city || ''}, ${company.location_state || ''}
+- website: ${normalizedUrl}
+- google_rating: ${company.rating ?? ''}
+- ratings_total: ${company.ratings_total ?? ''}
+
+Website extracted text:
+"""${text}"""
+
+Task:
+Return a JSON object with EXACT keys:
+{
+  "ai_summary": string (8-14 bullet lines, concise, investor memo),
+  "ai_red_flags": string[] (0-10 items),
+  "financials": {
+    "revenue": string|null,
+    "ebitda": string|null,
+    "margin": string|null,
+    "customer_concentration": string|null
+  },
+  "scoring": {
+    "succession_risk": "Low"|"Medium"|"High"|null,
+    "succession_risk_reason": string|null,
+    "industry_fit": "Tier A"|"Tier B"|"Tier C"|null,
+    "industry_fit_reason": string|null,
+    "geography_fit": "Tier A"|"Tier B"|"Tier C"|null,
+    "geography_fit_reason": string|null,
+    "final_tier": "A"|"B"|"C"|null,
+    "final_tier_reason": string|null
+  },
+  "criteria_match": {
+    "business_model": string|null,
+    "owner_profile": string|null,
+    "notes_for_searcher": string|null,
+    "owner_signals": {
+      "likely_owner_operated": boolean|null,
+      "confidence": number|null,
+      "owner_named_on_site": boolean|null,
+      "owner_name": string|null,
+      "generation_hint": string|null,
+      "owner_dependency_risk": string|null,
+      "years_in_business": string|null,
+      "evidence": string[],
+      "missing_info": string[]
+    }
+  }
+}
+
+Rules:
+- If financials are not explicitly stated, set them to null (do NOT hallucinate numbers).
+- Keep "final_tier" as "A"/"B"/"C" ONLY.
+- Use plain language, no marketing fluff.
+`;
+
+    const out = await runOpenAI(prompt);
+
+    const ai_summary = String(out?.ai_summary || '').trim();
+    const ai_red_flags = Array.isArray(out?.ai_red_flags) ? out.ai_red_flags.map(String) : [];
+    const financials = typeof out?.financials === 'object' && out.financials ? out.financials : {};
+    const scoring = typeof out?.scoring === 'object' && out.scoring ? out.scoring : {};
+    const criteria_match =
+      typeof out?.criteria_match === 'object' && out.criteria_match ? out.criteria_match : {};
+
+    if (!ai_summary) {
+      return NextResponse.json(
+        { success: false, error: 'AI returned empty summary.' },
+        { status: 500 }
+      );
+    }
+
+    // 3) Save to companies
+    const upd = await supabaseAdmin
+      .from('companies')
       .update({
-        initial_diligence_json: payloadToStore,
-        initial_diligence_updated_at: new Date().toISOString(),
+        ai_summary,
+        ai_red_flags,
+        ai_financials_json: financials,
+        ai_scoring_json: scoring,
+        criteria_match_json: criteria_match,
       })
-      .eq("id", companyId)
-      .eq("workspace_id", workspaceId);
+      .eq('id', companyId)
+      .eq('workspace_id', workspaceId);
 
-    if (saveErr) {
+    if (upd.error) {
       return NextResponse.json(
-        { success: false, error: `Failed to save diligence: ${saveErr.message}` },
-        { status: 500, headers: corsHeaders }
+        { success: false, error: `Failed to save diligence: ${upd.error.message}` },
+        { status: 500 }
       );
     }
 
-    return NextResponse.json(
-      { success: true, cached: false, ...payloadToStore },
-      { headers: corsHeaders }
-    );
+    return NextResponse.json({
+      success: true,
+      ai_summary,
+      ai_red_flags,
+      financials,
+      scoring,
+      criteria_match,
+    });
   } catch (e: any) {
+    console.error('off-market diligence route error:', e);
     return NextResponse.json(
-      { success: false, error: e?.message ?? "Unknown error" },
-      { status: 500, headers: corsHeaders }
+      { success: false, error: e?.message || 'Server error.' },
+      { status: 500 }
     );
   }
 }

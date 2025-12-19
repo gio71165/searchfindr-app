@@ -1,4 +1,4 @@
-// app/api/off-market-search/route.ts
+// app/api/off-market/search/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
