@@ -88,7 +88,9 @@ export default function DashboardPage() {
   const [deals, setDeals] = useState<Company[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // ✅ View state (fixed)
+  const [refreshing, setRefreshing] = useState(false);
+
+  // ✅ View state
   const [selectedView, setSelectedView] = useState<DashboardView>(DEFAULT_VIEW);
 
   // ✅ On first mount: pick view from URL ?view=... then localStorage, else default.
@@ -105,12 +107,10 @@ export default function DashboardPage() {
     const stored = localStorage.getItem('dashboard_view');
     if (isDashboardView(stored)) {
       setSelectedView(stored);
-      // also keep URL in sync so browser back/forward behaves nicely
       router.replace(`/dashboard?view=${stored}`);
       return;
     }
 
-    // default
     localStorage.setItem('dashboard_view', DEFAULT_VIEW);
     router.replace(`/dashboard?view=${DEFAULT_VIEW}`);
   }, []); // intentionally only once
@@ -123,7 +123,6 @@ export default function DashboardPage() {
       localStorage.setItem('dashboard_view', view);
     }
 
-    // keep current tab in URL so returning keeps same tab
     router.replace(`/dashboard?view=${view}`);
   };
 
@@ -140,6 +139,44 @@ export default function DashboardPage() {
   const [offRadiusMiles, setOffRadiusMiles] = useState<number>(10);
   const [offSearching, setOffSearching] = useState(false);
   const [offSearchStatus, setOffSearchStatus] = useState<string | null>(null);
+
+  // ✅ helper: refresh deals (used by refresh button + off-market search)
+  const refreshDeals = async () => {
+    if (!workspaceId) return;
+
+    setErrorMsg(null);
+    setRefreshing(true);
+
+    const { data, error } = await supabase
+      .from('companies')
+      .select(
+        `
+          id,
+          company_name,
+          location_city,
+          location_state,
+          industry,
+          source_type,
+          score,
+          final_tier,
+          listing_url,
+          created_at,
+          is_saved
+        `
+      )
+      .eq('workspace_id', workspaceId)
+      .order('created_at', { ascending: false });
+
+    setRefreshing(false);
+
+    if (error) {
+      console.error('refreshDeals error:', error);
+      setErrorMsg('Failed to refresh deals.');
+      return;
+    }
+
+    setDeals((data ?? []) as Company[]);
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -238,10 +275,7 @@ export default function DashboardPage() {
   const handleSave = async (id: string) => {
     setErrorMsg(null);
 
-    const { error } = await supabase
-      .from('companies')
-      .update({ is_saved: true })
-      .eq('id', id);
+    const { error } = await supabase.from('companies').update({ is_saved: true }).eq('id', id);
 
     if (error) {
       console.error('Save error:', error);
@@ -249,19 +283,14 @@ export default function DashboardPage() {
       return;
     }
 
-    setDeals((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, is_saved: true } : d))
-    );
+    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, is_saved: true } : d)));
   };
 
   // ✅ remove from saved (NOT delete)
   const handleRemoveFromSaved = async (id: string) => {
     setErrorMsg(null);
 
-    const { error } = await supabase
-      .from('companies')
-      .update({ is_saved: false })
-      .eq('id', id);
+    const { error } = await supabase.from('companies').update({ is_saved: false }).eq('id', id);
 
     if (error) {
       console.error('Unsave error:', error);
@@ -269,9 +298,7 @@ export default function DashboardPage() {
       return;
     }
 
-    setDeals((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, is_saved: false } : d))
-    );
+    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, is_saved: false } : d)));
   };
 
   const filteredDeals =
@@ -286,40 +313,7 @@ export default function DashboardPage() {
     cimInputRef.current?.click();
   };
 
-  // helper: refresh deals (used after off-market search)
-  const refreshDeals = async () => {
-    if (!workspaceId) return;
-
-    const { data, error } = await supabase
-      .from('companies')
-      .select(
-        `
-          id,
-          company_name,
-          location_city,
-          location_state,
-          industry,
-          source_type,
-          score,
-          final_tier,
-          listing_url,
-          created_at,
-          is_saved
-        `
-      )
-      .eq('workspace_id', workspaceId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('refreshDeals error:', error);
-      setErrorMsg('Failed to refresh deals.');
-      return;
-    }
-
-    setDeals((data ?? []) as Company[]);
-  };
-
-  // Off-market search: industry + location + radius → API → save (as off_market, not saved) → refresh
+  // Off-market search: industry + location + radius → API → save → refresh
   const handleOffMarketSearch = async () => {
     setErrorMsg(null);
     setOffSearchStatus(null);
@@ -379,7 +373,6 @@ export default function DashboardPage() {
   // upload + create companies row (not saved by default)
   const handleCimFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
-
     if (!file) return;
 
     if (file.type !== 'application/pdf') {
@@ -427,7 +420,7 @@ export default function DashboardPage() {
           source_type: 'cim_pdf',
           cim_storage_path: storageData?.path || filePath,
           user_id: userId,
-          workspace_id: workspaceId, // ✅ REQUIRED for new users
+          workspace_id: workspaceId,
         })
         .select('id')
         .single();
@@ -440,7 +433,6 @@ export default function DashboardPage() {
 
       const newId = insertData.id as string;
 
-      // Update local state so it shows up in the table without reload
       setDeals((prev) => [
         {
           id: newId,
@@ -465,6 +457,11 @@ export default function DashboardPage() {
       setErrorMsg('Unexpected error uploading CIM.');
       setCimUploadStatus('error');
     }
+  };
+
+  const handleConnectExtension = () => {
+    // send them to the callback page that verifies login + provides token flow
+    window.location.href = 'https://searchfindr-app.vercel.app/extension/callback';
   };
 
   if (checkingAuth) {
@@ -515,17 +512,15 @@ export default function DashboardPage() {
             onChange={handleCimFileChange}
           />
 
-          {/* keep button (disabled) */}
-          <button className="btn-main" disabled>
-            Add off-market company
+          {/* ✅ new */}
+          <button className="btn-main" onClick={handleConnectExtension}>
+            Connect to Chrome extension
           </button>
 
-          <a
-            href="https://qcqhmoshjlxiuhgwpfca.supabase.co/storage/v1/object/public/extensions/searchfindr-extension-uncle.zip"
-            className="btn-main"
-          >
-            Download Chrome extension
-          </a>
+          {/* ✅ new */}
+          <button className="btn-main" onClick={refreshDeals} disabled={refreshing || loadingDeals || !workspaceId}>
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
         </div>
 
         {cimFile && (
@@ -567,6 +562,10 @@ export default function DashboardPage() {
             );
           })}
         </div>
+
+        {refreshing && (
+          <p className="text-[11px] opacity-70">Refreshing deals…</p>
+        )}
       </div>
 
       {/* Off-market search panel (only when Off-market tab is selected) */}
@@ -706,10 +705,7 @@ export default function DashboardPage() {
                     {selectedView === 'saved' && (
                       <>
                         <td className="px-2 py-2">
-                          <Link
-                            href={`/deals/${deal.id}?from_view=${selectedView}`}
-                            className="underline"
-                          >
+                          <Link href={`/deals/${deal.id}?from_view=${selectedView}`} className="underline">
                             {deal.company_name || 'Untitled'}
                           </Link>
                         </td>
@@ -735,16 +731,11 @@ export default function DashboardPage() {
                     {selectedView === 'on_market' && (
                       <>
                         <td className="px-2 py-2">
-                          <Link
-                            href={`/deals/${deal.id}?from_view=${selectedView}`}
-                            className="underline"
-                          >
+                          <Link href={`/deals/${deal.id}?from_view=${selectedView}`} className="underline">
                             {deal.company_name || 'Untitled'}
                           </Link>
                         </td>
-                        <td className="px-2 py-2">
-                          {formatLocation(deal.location_city, deal.location_state)}
-                        </td>
+                        <td className="px-2 py-2">{formatLocation(deal.location_city, deal.location_state)}</td>
                         <td className="px-2 py-2">{deal.industry || ''}</td>
                         <td className="px-2 py-2">
                           <TierPill tier={deal.final_tier} />
@@ -781,10 +772,7 @@ export default function DashboardPage() {
                     {selectedView === 'off_market' && (
                       <>
                         <td className="px-2 py-2">
-                          <Link
-                            href={`/deals/${deal.id}?from_view=${selectedView}`}
-                            className="underline"
-                          >
+                          <Link href={`/deals/${deal.id}?from_view=${selectedView}`} className="underline">
                             {deal.company_name || 'Untitled'}
                           </Link>
                         </td>
@@ -821,10 +809,7 @@ export default function DashboardPage() {
                     {selectedView === 'cim_pdf' && (
                       <>
                         <td className="px-2 py-2">
-                          <Link
-                            href={`/deals/${deal.id}?from_view=${selectedView}`}
-                            className="underline"
-                          >
+                          <Link href={`/deals/${deal.id}?from_view=${selectedView}`} className="underline">
                             {deal.company_name || 'Untitled'}
                           </Link>
                         </td>
