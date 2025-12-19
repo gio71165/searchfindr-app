@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState, useRef, type ChangeEvent } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../supabaseClient';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -14,12 +14,11 @@ type Company = {
   location_state: string | null;
   industry: string | null;
   source_type: string | null;
-  score: number | null; // kept in type, but no longer displayed
+  score: number | null;
   final_tier: string | null;
   created_at: string | null;
   listing_url: string | null;
   is_saved: boolean | null;
-  // planning ahead for off-market:
   owner_name?: string | null;
 };
 
@@ -30,7 +29,6 @@ function isDashboardView(v: any): v is DashboardView {
   return v === 'saved' || v === 'on_market' || v === 'off_market' || v === 'cim_pdf';
 }
 
-// helper: nicer source label
 function formatSource(source: string | null): string {
   if (!source) return '';
   if (source === 'on_market') return 'On-market';
@@ -39,7 +37,6 @@ function formatSource(source: string | null): string {
   return source;
 }
 
-// helper: location formatter without '—'
 function formatLocation(city: string | null, state: string | null): string {
   if (city && state) return `${city}, ${state}`;
   if (city) return city;
@@ -47,21 +44,16 @@ function formatLocation(city: string | null, state: string | null): string {
   return '';
 }
 
-// helper: colSpan per view
 function getColSpanForView(view: DashboardView) {
   switch (view) {
     case 'on_market':
-      // Company, Location, Industry, Tier, Created, Actions
       return 6;
     case 'off_market':
-      // Company, Owner, Created, Actions
       return 4;
     case 'cim_pdf':
-      // Company, Tier, Created, Actions
       return 4;
     case 'saved':
     default:
-      // Company, Source, Created, Actions
       return 4;
   }
 }
@@ -77,7 +69,6 @@ function TierPill({ tier }: { tier: string | null }) {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
@@ -90,14 +81,15 @@ export default function DashboardPage() {
 
   const [refreshing, setRefreshing] = useState(false);
 
-  // ✅ View state
   const [selectedView, setSelectedView] = useState<DashboardView>(DEFAULT_VIEW);
 
-  // ✅ On first mount: pick view from URL ?view=... then localStorage, else default.
+  // ✅ read view from URL + localStorage WITHOUT useSearchParams (avoids Suspense build error)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const urlView = searchParams?.get('view');
+    const params = new URLSearchParams(window.location.search);
+    const urlView = params.get('view');
+
     if (isDashboardView(urlView)) {
       setSelectedView(urlView);
       localStorage.setItem('dashboard_view', urlView);
@@ -113,16 +105,13 @@ export default function DashboardPage() {
 
     localStorage.setItem('dashboard_view', DEFAULT_VIEW);
     router.replace(`/dashboard?view=${DEFAULT_VIEW}`);
-  }, []); // intentionally only once
+  }, [router]);
 
-  // ✅ Change view: update state + localStorage + URL
   const changeView = (view: DashboardView) => {
     setSelectedView(view);
-
     if (typeof window !== 'undefined') {
       localStorage.setItem('dashboard_view', view);
     }
-
     router.replace(`/dashboard?view=${view}`);
   };
 
@@ -140,7 +129,7 @@ export default function DashboardPage() {
   const [offSearching, setOffSearching] = useState(false);
   const [offSearchStatus, setOffSearchStatus] = useState<string | null>(null);
 
-  // ✅ helper: refresh deals (used by refresh button + off-market search)
+  // ✅ refresh button uses this
   const refreshDeals = async () => {
     if (!workspaceId) return;
 
@@ -193,9 +182,7 @@ export default function DashboardPage() {
         setEmail(user.email ?? null);
         setUserId(user.id);
 
-        // IMPORTANT: never get stuck on "Checking your session…"
         setCheckingAuth(false);
-
         setLoadingDeals(true);
         setErrorMsg(null);
 
@@ -253,7 +240,6 @@ export default function DashboardPage() {
     router.replace('/');
   };
 
-  // ✅ hard delete (still allowed in non-saved tabs)
   const handleDelete = async (id: string) => {
     const yes = window.confirm('Delete this deal? This cannot be undone.');
     if (!yes) return;
@@ -271,7 +257,6 @@ export default function DashboardPage() {
     setDeals((prev) => prev.filter((d) => d.id !== id));
   };
 
-  // ✅ save toggle
   const handleSave = async (id: string) => {
     setErrorMsg(null);
 
@@ -286,7 +271,6 @@ export default function DashboardPage() {
     setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, is_saved: true } : d)));
   };
 
-  // ✅ remove from saved (NOT delete)
   const handleRemoveFromSaved = async (id: string) => {
     setErrorMsg(null);
 
@@ -313,7 +297,6 @@ export default function DashboardPage() {
     cimInputRef.current?.click();
   };
 
-  // Off-market search: industry + location + radius → API → save → refresh
   const handleOffMarketSearch = async () => {
     setErrorMsg(null);
     setOffSearchStatus(null);
@@ -370,7 +353,6 @@ export default function DashboardPage() {
     }
   };
 
-  // upload + create companies row (not saved by default)
   const handleCimFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     if (!file) return;
@@ -396,7 +378,6 @@ export default function DashboardPage() {
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
       const filePath = `${userId}/${fileName}`;
 
-      // 1) Upload to Storage
       const { data: storageData, error: storageError } = await supabase.storage
         .from('cims')
         .upload(filePath, file);
@@ -410,7 +391,6 @@ export default function DashboardPage() {
 
       setCimUploadStatus('uploaded');
 
-      // 2) Create a new company row with source_type = 'cim_pdf'
       const cimNameWithoutExt = file.name.replace(/\.pdf$/i, '');
 
       const { data: insertData, error: insertError } = await supabase
@@ -460,7 +440,6 @@ export default function DashboardPage() {
   };
 
   const handleConnectExtension = () => {
-    // send them to the callback page that verifies login + provides token flow
     window.location.href = 'https://searchfindr-app.vercel.app/extension/callback';
   };
 
@@ -474,7 +453,6 @@ export default function DashboardPage() {
 
   return (
     <main className="space-y-6 py-6 px-4">
-      {/* Header / Nav */}
       <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My Deals</h1>
@@ -488,16 +466,13 @@ export default function DashboardPage() {
               Signed in as <span className="font-mono">{email}</span>
             </span>
           )}
-
           <ThemeToggle />
-
           <button onClick={handleLogout} className="btn-main">
             Log out
           </button>
         </div>
       </header>
 
-      {/* Top actions */}
       <div className="space-y-3">
         <div className="flex flex-wrap gap-3 items-center">
           <button className="btn-main" onClick={handleCimButtonClick}>
@@ -512,13 +487,15 @@ export default function DashboardPage() {
             onChange={handleCimFileChange}
           />
 
-          {/* ✅ new */}
           <button className="btn-main" onClick={handleConnectExtension}>
             Connect to Chrome extension
           </button>
 
-          {/* ✅ new */}
-          <button className="btn-main" onClick={refreshDeals} disabled={refreshing || loadingDeals || !workspaceId}>
+          <button
+            className="btn-main"
+            onClick={refreshDeals}
+            disabled={refreshing || loadingDeals || !workspaceId}
+          >
             {refreshing ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
@@ -538,7 +515,6 @@ export default function DashboardPage() {
           </p>
         )}
 
-        {/* View selector buttons */}
         <div className="flex flex-wrap gap-3 pt-2 text-xs">
           {(['saved', 'on_market', 'off_market', 'cim_pdf'] as const).map((view) => {
             const isActive = selectedView === view;
@@ -562,13 +538,8 @@ export default function DashboardPage() {
             );
           })}
         </div>
-
-        {refreshing && (
-          <p className="text-[11px] opacity-70">Refreshing deals…</p>
-        )}
       </div>
 
-      {/* Off-market search panel (only when Off-market tab is selected) */}
       {selectedView === 'off_market' && (
         <section className="card-table p-4 space-y-3">
           <div>
@@ -622,7 +593,6 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* Deals table */}
       <section className="mt-4 card-table">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-sm font-semibold">
@@ -632,7 +602,9 @@ export default function DashboardPage() {
             <p className="text-xs">Loading…</p>
           ) : (
             <p className="text-xs">
-              {filteredDeals.length === 0 ? 'No companies yet.' : `${filteredDeals.length} company(s) shown.`}
+              {filteredDeals.length === 0
+                ? 'No companies yet.'
+                : `${filteredDeals.length} company(s) shown.`}
             </p>
           )}
         </div>
@@ -701,7 +673,6 @@ export default function DashboardPage() {
               ) : (
                 filteredDeals.map((deal) => (
                   <tr key={deal.id} className="table-row">
-                    {/* SAVED ROW */}
                     {selectedView === 'saved' && (
                       <>
                         <td className="px-2 py-2">
@@ -727,7 +698,6 @@ export default function DashboardPage() {
                       </>
                     )}
 
-                    {/* ON-MARKET ROW */}
                     {selectedView === 'on_market' && (
                       <>
                         <td className="px-2 py-2">
@@ -768,7 +738,6 @@ export default function DashboardPage() {
                       </>
                     )}
 
-                    {/* OFF-MARKET ROW */}
                     {selectedView === 'off_market' && (
                       <>
                         <td className="px-2 py-2">
@@ -805,7 +774,6 @@ export default function DashboardPage() {
                       </>
                     )}
 
-                    {/* CIM ROW */}
                     {selectedView === 'cim_pdf' && (
                       <>
                         <td className="px-2 py-2">
