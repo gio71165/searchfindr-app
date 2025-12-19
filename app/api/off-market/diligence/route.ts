@@ -101,7 +101,6 @@ async function fetchWebsiteTextBundle(website: string) {
     tryBuildUrl(website, "/contact"),
   ].filter(Boolean) as string[];
 
-  // V1 cap, but a bit more helpful than before
   const uniq = Array.from(new Set(candidates)).slice(0, 6);
 
   const texts: { url: string; text: string }[] = [];
@@ -110,7 +109,6 @@ async function fetchWebsiteTextBundle(website: string) {
     const raw = await fetchTextWithTimeout(url, 9000);
     if (!raw) continue;
 
-    // per-page cap
     const clipped = raw.slice(0, 4500);
     if (clipped) texts.push({ url, text: clipped });
   }
@@ -124,14 +122,12 @@ async function fetchWebsiteTextBundle(website: string) {
 }
 
 function stripCodeFencesToJson(s: string) {
-  const content = (s ?? "")
+  return (s ?? "")
     .trim()
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/```$/i, "")
     .trim();
-
-  return content;
 }
 
 async function runInitialDiligenceAI(input: {
@@ -143,8 +139,6 @@ async function runInitialDiligenceAI(input: {
   ratingsTotal: number | null;
   websiteText: string;
   sources: string[];
-
-  // ✅ Optional: tie “fit” to what the user searched for originally (if available)
   searchInputs?: {
     industries?: string[];
     location?: string;
@@ -284,8 +278,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Load company + cached diligence (add these columns in DB, or adjust to your schema)
-    const { data: company, error: loadErr } = await supabase
+    // ✅ IMPORTANT: explicit type so TS doesn't infer GenericStringError union
+    type CompanyRow = {
+      id: string;
+      workspace_id: string;
+      source_type: string | null;
+      company_name: string | null;
+      website: string | null;
+      address: string | null;
+      phone: string | null;
+      rating: number | null;
+      ratings_total: number | null;
+      tier_reason: any | null;
+      initial_diligence_json: any | null;
+      initial_diligence_updated_at: string | null;
+    };
+
+    const { data, error: loadErr } = await supabase
       .from("companies")
       .select(
         [
@@ -306,12 +315,14 @@ export async function POST(req: NextRequest) {
       .eq("id", companyId)
       .single();
 
-    if (loadErr || !company) {
+    if (loadErr || !data) {
       return NextResponse.json(
         { success: false, error: "Company not found" },
         { status: 404, headers: corsHeaders }
       );
     }
+
+    const company = data as CompanyRow;
 
     if (company.workspace_id !== workspaceId) {
       return NextResponse.json(
@@ -337,7 +348,7 @@ export async function POST(req: NextRequest) {
     // ✅ Cache check
     const cached = company.initial_diligence_json;
     const updatedAt = company.initial_diligence_updated_at
-      ? new Date(company.initial_diligence_updated_at as string)
+      ? new Date(company.initial_diligence_updated_at)
       : null;
 
     if (!force && cached && updatedAt) {
@@ -345,7 +356,6 @@ export async function POST(req: NextRequest) {
       const ttlMs = CACHE_TTL_DAYS * 24 * 60 * 60 * 1000;
 
       if (ageMs <= ttlMs) {
-        // return cached
         return NextResponse.json(
           {
             success: true,
@@ -358,14 +368,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Pull optional search inputs (industries/location/radius) from tier_reason.inputs
+    // Pull optional search inputs from tier_reason.inputs
     const searchInputs =
       (company.tier_reason &&
         typeof company.tier_reason === "object" &&
         (company.tier_reason as any).inputs) ||
       null;
 
-    // Fetch site bundle
     const bundle = await fetchWebsiteTextBundle(company.website);
     const websiteText = bundle.combined;
 
@@ -388,15 +397,21 @@ export async function POST(req: NextRequest) {
       searchInputs:
         searchInputs && typeof searchInputs === "object"
           ? {
-              industries: Array.isArray((searchInputs as any).industries) ? (searchInputs as any).industries : undefined,
-              location: typeof (searchInputs as any).location === "string" ? (searchInputs as any).location : undefined,
+              industries: Array.isArray((searchInputs as any).industries)
+                ? (searchInputs as any).industries
+                : undefined,
+              location:
+                typeof (searchInputs as any).location === "string"
+                  ? (searchInputs as any).location
+                  : undefined,
               radius_miles:
-                typeof (searchInputs as any).radius_miles === "number" ? (searchInputs as any).radius_miles : undefined,
+                typeof (searchInputs as any).radius_miles === "number"
+                  ? (searchInputs as any).radius_miles
+                  : undefined,
             }
           : null,
     });
 
-    // ✅ Persist result for caching + UX
     const payloadToStore = {
       ai_summary: result.ai_summary ?? "",
       ai_red_flags: result.ai_red_flags ?? [],
@@ -427,11 +442,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json(
-      {
-        success: true,
-        cached: false,
-        ...payloadToStore,
-      },
+      { success: true, cached: false, ...payloadToStore },
       { headers: corsHeaders }
     );
   } catch (e: any) {
