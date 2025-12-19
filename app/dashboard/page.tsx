@@ -67,6 +67,77 @@ function TierPill({ tier }: { tier: string | null }) {
   );
 }
 
+const US_STATES = [
+  { abbr: 'AL', name: 'Alabama' },
+  { abbr: 'AK', name: 'Alaska' },
+  { abbr: 'AZ', name: 'Arizona' },
+  { abbr: 'AR', name: 'Arkansas' },
+  { abbr: 'CA', name: 'California' },
+  { abbr: 'CO', name: 'Colorado' },
+  { abbr: 'CT', name: 'Connecticut' },
+  { abbr: 'DE', name: 'Delaware' },
+  { abbr: 'FL', name: 'Florida' },
+  { abbr: 'GA', name: 'Georgia' },
+  { abbr: 'HI', name: 'Hawaii' },
+  { abbr: 'ID', name: 'Idaho' },
+  { abbr: 'IL', name: 'Illinois' },
+  { abbr: 'IN', name: 'Indiana' },
+  { abbr: 'IA', name: 'Iowa' },
+  { abbr: 'KS', name: 'Kansas' },
+  { abbr: 'KY', name: 'Kentucky' },
+  { abbr: 'LA', name: 'Louisiana' },
+  { abbr: 'ME', name: 'Maine' },
+  { abbr: 'MD', name: 'Maryland' },
+  { abbr: 'MA', name: 'Massachusetts' },
+  { abbr: 'MI', name: 'Michigan' },
+  { abbr: 'MN', name: 'Minnesota' },
+  { abbr: 'MS', name: 'Mississippi' },
+  { abbr: 'MO', name: 'Missouri' },
+  { abbr: 'MT', name: 'Montana' },
+  { abbr: 'NE', name: 'Nebraska' },
+  { abbr: 'NV', name: 'Nevada' },
+  { abbr: 'NH', name: 'New Hampshire' },
+  { abbr: 'NJ', name: 'New Jersey' },
+  { abbr: 'NM', name: 'New Mexico' },
+  { abbr: 'NY', name: 'New York' },
+  { abbr: 'NC', name: 'North Carolina' },
+  { abbr: 'ND', name: 'North Dakota' },
+  { abbr: 'OH', name: 'Ohio' },
+  { abbr: 'OK', name: 'Oklahoma' },
+  { abbr: 'OR', name: 'Oregon' },
+  { abbr: 'PA', name: 'Pennsylvania' },
+  { abbr: 'RI', name: 'Rhode Island' },
+  { abbr: 'SC', name: 'South Carolina' },
+  { abbr: 'SD', name: 'South Dakota' },
+  { abbr: 'TN', name: 'Tennessee' },
+  { abbr: 'TX', name: 'Texas' },
+  { abbr: 'UT', name: 'Utah' },
+  { abbr: 'VT', name: 'Vermont' },
+  { abbr: 'VA', name: 'Virginia' },
+  { abbr: 'WA', name: 'Washington' },
+  { abbr: 'WV', name: 'West Virginia' },
+  { abbr: 'WI', name: 'Wisconsin' },
+  { abbr: 'WY', name: 'Wyoming' },
+];
+
+const OFFMARKET_INDUSTRIES = [
+  'HVAC',
+  'Electrical',
+  'Plumbing',
+  'Roofing',
+  'Landscaping',
+  'Pest Control',
+  'Commercial Cleaning',
+  'Auto Repair',
+  'Home Health',
+  'Dental / Medical',
+  'Logistics / Trucking',
+  'Light Manufacturing',
+  'Specialty Construction',
+];
+
+const ALLOWED_RADIUS = [5, 10, 15, 25, 50, 75, 100];
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -83,7 +154,6 @@ export default function DashboardPage() {
 
   const [selectedView, setSelectedView] = useState<DashboardView>(DEFAULT_VIEW);
 
-  // ✅ read view from URL + localStorage WITHOUT useSearchParams (avoids Suspense build error)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -118,18 +188,29 @@ export default function DashboardPage() {
   // CIM upload state
   const [cimFile, setCimFile] = useState<File | null>(null);
   const cimInputRef = useRef<HTMLInputElement | null>(null);
-  const [cimUploadStatus, setCimUploadStatus] = useState<
-    'idle' | 'uploading' | 'uploaded' | 'error'
-  >('idle');
+  const [cimUploadStatus, setCimUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
 
-  // Off-market search state (V1 minimal)
-  const [offIndustry, setOffIndustry] = useState('');
-  const [offLocation, setOffLocation] = useState('');
+  // ✅ Off-market search state (dropdown + add/remove)
+  const [offIndustries, setOffIndustries] = useState<string[]>([]);
+  const [offIndustryToAdd, setOffIndustryToAdd] = useState<string>(OFFMARKET_INDUSTRIES[0] ?? 'HVAC');
+
+  const [offCity, setOffCity] = useState('');
+  const [offState, setOffState] = useState('TX');
   const [offRadiusMiles, setOffRadiusMiles] = useState<number>(10);
+
   const [offSearching, setOffSearching] = useState(false);
   const [offSearchStatus, setOffSearchStatus] = useState<string | null>(null);
 
-  // ✅ refresh button uses this
+  const addIndustry = () => {
+    setOffIndustries((prev) => (prev.includes(offIndustryToAdd) ? prev : [...prev, offIndustryToAdd]));
+  };
+
+  const removeIndustry = (ind: string) => {
+    setOffIndustries((prev) => prev.filter((x) => x !== ind));
+  };
+
+  const locationString = `${offCity.trim()}, ${offState}`;
+
   const refreshDeals = async () => {
     if (!workspaceId) return;
 
@@ -301,12 +382,25 @@ export default function DashboardPage() {
     setErrorMsg(null);
     setOffSearchStatus(null);
 
-    const industry = offIndustry.trim();
-    const location = offLocation.trim();
+    const industries = offIndustries;
+    const city = offCity.trim();
+    const state = offState.trim();
     const radius = Number(offRadiusMiles);
 
-    if (!industry || !location || !Number.isFinite(radius) || radius <= 0) {
-      setOffSearchStatus('Please enter industry, location, and a radius > 0.');
+    if (industries.length === 0) {
+      setOffSearchStatus('Please add at least one industry.');
+      return;
+    }
+    if (!city) {
+      setOffSearchStatus('Please enter a city.');
+      return;
+    }
+    if (!state || state.length !== 2) {
+      setOffSearchStatus('Please select a state.');
+      return;
+    }
+    if (!ALLOWED_RADIUS.includes(radius)) {
+      setOffSearchStatus('Please select a valid radius.');
       return;
     }
 
@@ -328,8 +422,8 @@ export default function DashboardPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          industry,
-          location,
+          industries,
+          location: `${city}, ${state}`,
           radius_miles: radius,
         }),
       });
@@ -378,9 +472,7 @@ export default function DashboardPage() {
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
       const filePath = `${userId}/${fileName}`;
 
-      const { data: storageData, error: storageError } = await supabase.storage
-        .from('cims')
-        .upload(filePath, file);
+      const { data: storageData, error: storageError } = await supabase.storage.from('cims').upload(filePath, file);
 
       if (storageError) {
         console.error('CIM upload error:', storageError);
@@ -456,9 +548,7 @@ export default function DashboardPage() {
       <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My Deals</h1>
-          <p className="text-sm">
-            Search + early diligence workspace. Nothing is “Saved” unless you explicitly save it.
-          </p>
+          <p className="text-sm">Search + early diligence workspace. Nothing is “Saved” unless you explicitly save it.</p>
         </div>
         <div className="flex items-center gap-3">
           {email && (
@@ -479,23 +569,13 @@ export default function DashboardPage() {
             Upload CIM (PDF)
           </button>
 
-          <input
-            ref={cimInputRef}
-            type="file"
-            accept="application/pdf"
-            className="hidden"
-            onChange={handleCimFileChange}
-          />
+          <input ref={cimInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleCimFileChange} />
 
           <button className="btn-main" onClick={handleConnectExtension}>
             Connect to Chrome extension
           </button>
 
-          <button
-            className="btn-main"
-            onClick={refreshDeals}
-            disabled={refreshing || loadingDeals || !workspaceId}
-          >
+          <button className="btn-main" onClick={refreshDeals} disabled={refreshing || loadingDeals || !workspaceId}>
             {refreshing ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
@@ -503,15 +583,9 @@ export default function DashboardPage() {
         {cimFile && (
           <p className="text-xs">
             CIM selected: <span className="font-medium">{cimFile.name}</span>{' '}
-            {cimUploadStatus === 'uploading' && (
-              <span className="text-[11px] text-muted-foreground">(uploading…)</span>
-            )}
-            {cimUploadStatus === 'uploaded' && (
-              <span className="text-[11px] text-green-600"> – uploaded & deal created</span>
-            )}
-            {cimUploadStatus === 'error' && (
-              <span className="text-[11px] text-red-600"> – upload failed</span>
-            )}
+            {cimUploadStatus === 'uploading' && <span className="text-[11px] text-muted-foreground">(uploading…)</span>}
+            {cimUploadStatus === 'uploaded' && <span className="text-[11px] text-green-600"> – uploaded & deal created</span>}
+            {cimUploadStatus === 'error' && <span className="text-[11px] text-red-600"> – upload failed</span>}
           </p>
         )}
 
@@ -528,11 +602,7 @@ export default function DashboardPage() {
                 : 'CIMs';
 
             return (
-              <button
-                key={view}
-                onClick={() => changeView(view)}
-                className={`view-pill ${isActive ? 'view-pill--active' : ''}`}
-              >
+              <button key={view} onClick={() => changeView(view)} className={`view-pill ${isActive ? 'view-pill--active' : ''}`}>
                 {label}
               </button>
             );
@@ -545,41 +615,88 @@ export default function DashboardPage() {
           <div>
             <h2 className="text-sm font-semibold">Off-market discovery</h2>
             <p className="text-xs opacity-80">
-              Search by industry + location + radius. Results appear in Off-market, then you decide what to save.
+              Add industries from the dropdown + enter city/state + choose radius. Results appear in Off-market, then you decide what to save.
             </p>
+          </div>
+
+          {/* ✅ Industry dropdown + Add button + selected chips */}
+          <div className="space-y-1">
+            <label className="text-xs opacity-80">Industries</label>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <select
+                  className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm"
+                  value={offIndustryToAdd}
+                  onChange={(e) => setOffIndustryToAdd(e.target.value)}
+                >
+                  {OFFMARKET_INDUSTRIES.map((ind) => (
+                    <option key={ind} value={ind}>
+                      {ind}
+                    </option>
+                  ))}
+                </select>
+
+                <button type="button" className="btn-main" onClick={addIndustry}>
+                  Add
+                </button>
+              </div>
+
+              {offIndustries.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {offIndustries.map((ind) => (
+                    <span key={ind} className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs">
+                      {ind}
+                      <button type="button" className="text-[11px] underline" onClick={() => removeIndustry(ind)}>
+                        remove
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs opacity-70">Add at least one industry to search.</p>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="space-y-1">
-              <label className="text-xs opacity-80">Industry</label>
+              <label className="text-xs opacity-80">City</label>
               <input
                 className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm"
-                value={offIndustry}
-                onChange={(e) => setOffIndustry(e.target.value)}
-                placeholder="e.g. HVAC, Plumbing, Commercial Cleaning"
+                value={offCity}
+                onChange={(e) => setOffCity(e.target.value)}
+                placeholder="e.g. Austin"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs opacity-80">Location</label>
-              <input
+              <label className="text-xs opacity-80">State</label>
+              <select
                 className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm"
-                value={offLocation}
-                onChange={(e) => setOffLocation(e.target.value)}
-                placeholder='e.g. "Austin, TX"'
-              />
+                value={offState}
+                onChange={(e) => setOffState(e.target.value)}
+              >
+                {US_STATES.map((s) => (
+                  <option key={s.abbr} value={s.abbr}>
+                    {s.abbr} — {s.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="space-y-1">
               <label className="text-xs opacity-80">Radius (miles)</label>
-              <input
+              <select
                 className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm"
-                type="number"
-                min={1}
-                max={50}
                 value={offRadiusMiles}
                 onChange={(e) => setOffRadiusMiles(Number(e.target.value))}
-              />
+              >
+                {ALLOWED_RADIUS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -588,6 +705,8 @@ export default function DashboardPage() {
               {offSearching ? 'Searching…' : 'Search'}
             </button>
 
+            <span className="text-xs opacity-80">Location: {locationString}</span>
+
             {offSearchStatus && <span className="text-xs opacity-80">{offSearchStatus}</span>}
           </div>
         </section>
@@ -595,16 +714,12 @@ export default function DashboardPage() {
 
       <section className="mt-4 card-table">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">
-            {selectedView === 'saved' ? 'Saved companies' : 'Companies'}
-          </h2>
+          <h2 className="text-sm font-semibold">{selectedView === 'saved' ? 'Saved companies' : 'Companies'}</h2>
           {loadingDeals ? (
             <p className="text-xs">Loading…</p>
           ) : (
             <p className="text-xs">
-              {filteredDeals.length === 0
-                ? 'No companies yet.'
-                : `${filteredDeals.length} company(s) shown.`}
+              {filteredDeals.length === 0 ? 'No companies yet.' : `${filteredDeals.length} company(s) shown.`}
             </p>
           )}
         </div>
@@ -681,9 +796,7 @@ export default function DashboardPage() {
                           </Link>
                         </td>
                         <td className="px-2 py-2">{formatSource(deal.source_type)}</td>
-                        <td className="px-2 py-2">
-                          {deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}
-                        </td>
+                        <td className="px-2 py-2">{deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}</td>
                         <td className="px-2 py-2 text-right">
                           <button
                             onClick={(e) => {
@@ -710,9 +823,7 @@ export default function DashboardPage() {
                         <td className="px-2 py-2">
                           <TierPill tier={deal.final_tier} />
                         </td>
-                        <td className="px-2 py-2">
-                          {deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}
-                        </td>
+                        <td className="px-2 py-2">{deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}</td>
                         <td className="px-2 py-2 text-right space-x-3">
                           {deal.is_saved ? null : (
                             <button
@@ -746,9 +857,7 @@ export default function DashboardPage() {
                           </Link>
                         </td>
                         <td className="px-2 py-2">{deal.owner_name || ''}</td>
-                        <td className="px-2 py-2">
-                          {deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}
-                        </td>
+                        <td className="px-2 py-2">{deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}</td>
                         <td className="px-2 py-2 text-right space-x-3">
                           {deal.is_saved ? null : (
                             <button
@@ -784,9 +893,7 @@ export default function DashboardPage() {
                         <td className="px-2 py-2">
                           <TierPill tier={deal.final_tier} />
                         </td>
-                        <td className="px-2 py-2">
-                          {deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}
-                        </td>
+                        <td className="px-2 py-2">{deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}</td>
                         <td className="px-2 py-2 text-right space-x-3">
                           {deal.is_saved ? null : (
                             <button

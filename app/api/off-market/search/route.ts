@@ -1,3 +1,4 @@
+// app/api/off-market-search/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -15,10 +16,23 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com";
 
 type Body = {
-  industry: string;
+  industries: string[]; // ✅ multi-select
   location: string; // e.g. "Austin, TX"
   radius_miles: number; // e.g. 10
 };
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+const ALLOWED_RADIUS_MILES = [5, 10, 15, 25, 50, 75, 100];
+
+function isCityState(s: string) {
+  // Accept "City, ST" (ST = 2 letters)
+  return /^[^,]+,\s*[A-Za-z]{2}$/.test(s.trim());
+}
 
 function milesToMeters(mi: number) {
   return Math.round(mi * 1609.344);
@@ -28,12 +42,29 @@ function toTextSafe(s: any) {
   return typeof s === "string" ? s : "";
 }
 
+// Expand industry to multiple keywords so Places returns more
+const INDUSTRY_SYNONYMS: Record<string, string[]> = {
+  hvac: ["hvac", "heating", "air conditioning", "mechanical contractor"],
+  electrical: ["electrical", "electrician", "electrical contractor"],
+  plumbing: ["plumbing", "plumber", "plumbing contractor"],
+  roofing: ["roofing", "roofer", "roof repair"],
+  landscaping: ["landscaping", "lawn care", "landscape services"],
+  cleaning: ["cleaning", "janitorial", "commercial cleaning"],
+  "pest control": ["pest control", "exterminator", "termite"],
+  "auto repair": ["auto repair", "auto service", "mechanic"],
+  "home health": ["home health", "home care", "caregiver services"],
+};
+
+function expandIndustryQueries(industry: string) {
+  const key = industry.trim().toLowerCase();
+  return INDUSTRY_SYNONYMS[key] ?? [industry];
+}
+
 // Very V1: hard filters that eliminate obvious noise BEFORE AI
 function failsHardFilter(input: {
   name: string | null;
   website: string | null;
   address: string | null;
-  industryQuery: string;
 }) {
   // Require a website (key V1 rule to avoid directory noise)
   if (!input.website) return { fail: true, reason: "No website" };
@@ -54,11 +85,8 @@ function failsHardFilter(input: {
     "fund",
     "investments",
     "group",
-    "llc", // optional: can be too aggressive; leaving here is ok but comment out if you want
+    "llc", // optional: can be too aggressive; disabled below
   ];
-
-  // NOTE: "llc" is super common for true SMBs; if you see this filtering too much, remove it.
-  // I'd personally remove "llc" later if it hurts recall.
 
   for (const kw of excludeKeywords) {
     if (kw === "llc") continue; // disabled by default (too aggressive)
@@ -105,11 +133,16 @@ async function googleGeocode(location: string) {
   return json.results[0].geometry.location as { lat: number; lng: number };
 }
 
-async function googlePlacesNearby(params: { lat: number; lng: number; radiusMeters: number; keyword: string }) {
+async function googlePlacesNearby(params: {
+  lat: number;
+  lng: number;
+  radiusMeters: number;
+  keyword: string;
+}) {
   const url = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json");
   url.searchParams.set("location", `${params.lat},${params.lng}`);
   url.searchParams.set("radius", String(params.radiusMeters));
-  url.searchParams.set("keyword", params.keyword);
+  url.searchParams.set("keyword", `${params.keyword} contractor`);
   url.searchParams.set("key", GOOGLE_KEY!);
 
   const res = await fetch(url.toString());
@@ -176,7 +209,7 @@ async function fetchHomepageText(urlStr: string) {
 }
 
 async function openAIKeepOrReject(input: {
-  industry: string;
+  industries: string[];
   location: string;
   radiusMiles: number;
   companyName: string;
@@ -194,7 +227,7 @@ You are SearchFindr, helping a search fund / ETA buyer find owner-operated small
 Decide whether to KEEP this company as an off-market candidate.
 
 Search criteria:
-- Industry: ${input.industry}
+- Industries: ${input.industries.join(", ")}
 - Geography: ${input.location} within ${input.radiusMiles} miles
 - Must be plausibly owner-operated SMB (not a chain, not franchise-heavy, not PE/VC/holding-company branded)
 - Prefer local service businesses with real operations
@@ -241,51 +274,92 @@ Return ONLY valid JSON in this exact schema:
   }
 
   const content = json?.choices?.[0]?.message?.content ?? "";
-  // Parse strict JSON
   const parsed = JSON.parse(content);
 
-  // small validation
   if (typeof parsed?.keep !== "boolean") throw new Error("Bad AI response: keep missing");
   if (!["A", "B", "C"].includes(parsed?.tier)) throw new Error("Bad AI response: tier invalid");
   if (!Array.isArray(parsed?.reasons)) parsed.reasons = [];
   if (!Array.isArray(parsed?.red_flags)) parsed.red_flags = [];
 
-  return parsed as { keep: boolean; tier: "A" | "B" | "C"; reasons: string[]; red_flags: string[] };
+  return parsed as {
+    keep: boolean;
+    tier: "A" | "B" | "C";
+    reasons: string[];
+    red_flags: string[];
+  };
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
 
 export async function POST(req: NextRequest) {
   try {
     if (!GOOGLE_KEY) {
-      return NextResponse.json({ success: false, error: "Missing GOOGLE_MAPS_API_KEY" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "Missing GOOGLE_MAPS_API_KEY" }, { status: 500, headers: corsHeaders });
     }
     if (!OPENAI_API_KEY) {
-      return NextResponse.json({ success: false, error: "Missing OPENAI_API_KEY" }, { status: 500 });
+      return NextResponse.json({ success: false, error: "Missing OPENAI_API_KEY" }, { status: 500, headers: corsHeaders });
     }
 
     const { userId, workspaceId } = await getAuthedUserAndWorkspace(req);
     if (!userId || !workspaceId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401, headers: corsHeaders });
     }
 
     const body = (await req.json()) as Body;
-    const industry = toTextSafe(body.industry).trim();
+
+    const industries = Array.isArray(body.industries)
+      ? body.industries.map(toTextSafe).map((s) => s.trim()).filter(Boolean)
+      : [];
+
     const location = toTextSafe(body.location).trim();
     const radiusMiles = Number(body.radius_miles);
 
-    if (!industry || !location || !Number.isFinite(radiusMiles) || radiusMiles <= 0) {
-      return NextResponse.json({ success: false, error: "Invalid inputs" }, { status: 400 });
+    if (industries.length === 0) {
+      return NextResponse.json({ success: false, error: "Select at least one industry" }, { status: 400, headers: corsHeaders });
+    }
+    if (!location || !isCityState(location)) {
+      return NextResponse.json(
+        { success: false, error: "Location must be 'City, ST' (e.g. 'Austin, TX')" },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+    if (!Number.isFinite(radiusMiles) || !ALLOWED_RADIUS_MILES.includes(radiusMiles)) {
+      return NextResponse.json({ success: false, error: "Invalid radius" }, { status: 400, headers: corsHeaders });
     }
 
     // 1) Geocode the location
     const { lat, lng } = await googleGeocode(location);
 
-    // 2) Nearby search by keyword within radius
+    // 2) Places search for each industry (plus synonyms), merge + dedupe
     const radiusMeters = milesToMeters(radiusMiles);
-    const results = await googlePlacesNearby({ lat, lng, radiusMeters, keyword: industry });
 
-    // 3) Fetch details
+    const keywords = industries.flatMap(expandIndustryQueries);
+
+    // Guardrail: don't explode requests if user selects many industries
+    const KEYWORD_CAP = 8;
+    const keywordSlice = keywords.slice(0, KEYWORD_CAP);
+
+    const resultsByKeyword = await Promise.all(
+      keywordSlice.map((kw) => googlePlacesNearby({ lat, lng, radiusMeters, keyword: kw }))
+    );
+
+    const mergedResults = resultsByKeyword.flat();
+
+    const seenPlaceIds = new Set<string>();
+    const results = mergedResults.filter((r) => {
+      const pid = r.place_id as string | undefined;
+      if (!pid) return false;
+      if (seenPlaceIds.has(pid)) return false;
+      seenPlaceIds.add(pid);
+      return true;
+    });
+
+    // 3) Fetch details (cap raw candidates to keep it sane)
+    const DETAIL_CAP = 35;
     const detailed = await Promise.all(
-      results.slice(0, 20).map(async (r) => {
+      results.slice(0, DETAIL_CAP).map(async (r) => {
         const placeId = r.place_id as string | undefined;
         const details = placeId ? await googlePlaceDetails(placeId) : null;
 
@@ -323,26 +397,21 @@ export async function POST(req: NextRequest) {
         name: c.name,
         website: c.website,
         address: c.address,
-        industryQuery: industry,
       });
       return !hard.fail;
     });
 
     // 5) AI review ONLY on survivors (cap for cost control)
-    const AI_CAP = 8; // V1 cost guardrail
+    const AI_CAP = 12; // slightly higher for recall; adjust as needed
     const toReview = survivors.slice(0, AI_CAP);
 
     const reviewed = await Promise.all(
       toReview.map(async (c) => {
         const homepageText = c.website ? await fetchHomepageText(c.website) : "";
 
-        // If we can’t fetch any homepage text, reject (V1 noise control)
-        if (!homepageText) {
-          return { keep: false as const, company: c, ai: null as any };
-        }
-
+        // More lenient: still run AI even if homepage text is empty
         const ai = await openAIKeepOrReject({
-          industry,
+          industries,
           location,
           radiusMiles,
           companyName: c.name ?? "Unknown",
@@ -351,14 +420,14 @@ export async function POST(req: NextRequest) {
           phone: c.phone,
           rating: c.rating,
           ratingsTotal: c.ratingsTotal,
-          homepageText,
+          homepageText: homepageText || "(no homepage text available)",
         });
 
         return { keep: ai.keep, company: c, ai };
       })
     );
 
-    // 6) Build inserts ONLY for KEEP=true (Option A)
+    // 6) Build inserts ONLY for KEEP=true
     const inserts = reviewed
       .filter((r) => r.keep === true && r.ai)
       .map((r) => {
@@ -385,7 +454,7 @@ export async function POST(req: NextRequest) {
           tier_reason: {
             reasons: ai.reasons,
             red_flags: ai.red_flags,
-            inputs: { industry, location, radius_miles: radiusMiles },
+            inputs: { industries, location, radius_miles: radiusMiles },
           },
 
           // IMPORTANT: never auto-save (user must click Save)
@@ -394,12 +463,15 @@ export async function POST(req: NextRequest) {
       });
 
     if (inserts.length === 0) {
-      return NextResponse.json({
-        success: true,
-        count: 0,
-        companies: [],
-        note: "No companies passed filters (hard + AI).",
-      });
+      return NextResponse.json(
+        {
+          success: true,
+          count: 0,
+          companies: [],
+          note: "No companies passed filters (hard + AI).",
+        },
+        { headers: corsHeaders }
+      );
     }
 
     // 7) Upsert into companies (dedupe per workspace + external ids)
@@ -411,11 +483,17 @@ export async function POST(req: NextRequest) {
       .select("id, company_name, address, phone, website, tier, is_saved, created_at, place_id");
 
     if (upsertErr) {
-      return NextResponse.json({ success: false, error: upsertErr.message }, { status: 500 });
+      return NextResponse.json({ success: false, error: upsertErr.message }, { status: 500, headers: corsHeaders });
     }
 
-    return NextResponse.json({ success: true, count: saved?.length ?? 0, companies: saved ?? [] });
+    return NextResponse.json(
+      { success: true, count: saved?.length ?? 0, companies: saved ?? [] },
+      { headers: corsHeaders }
+    );
   } catch (e: any) {
-    return NextResponse.json({ success: false, error: e?.message ?? "Unknown error" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: e?.message ?? "Unknown error" },
+      { status: 500, headers: corsHeaders }
+    );
   }
 }
