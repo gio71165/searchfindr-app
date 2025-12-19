@@ -50,6 +50,8 @@ const INDUSTRY_SYNONYMS: Record<string, string[]> = {
   roofing: ["roofing", "roofer", "roof repair"],
   landscaping: ["landscaping", "lawn care", "landscape services"],
   cleaning: ["cleaning", "janitorial", "commercial cleaning"],
+  "commercial cleaning": ["commercial cleaning", "janitorial", "cleaning service"],
+  janitorial: ["janitorial", "commercial cleaning", "cleaning service"],
   "pest control": ["pest control", "exterminator", "termite"],
   "auto repair": ["auto repair", "auto service", "mechanic"],
   "home health": ["home health", "home care", "caregiver services"],
@@ -61,11 +63,7 @@ function expandIndustryQueries(industry: string) {
 }
 
 // Very V1: hard filters that eliminate obvious noise BEFORE AI
-function failsHardFilter(input: {
-  name: string | null;
-  website: string | null;
-  address: string | null;
-}) {
+function failsHardFilter(input: { name: string | null; website: string | null; address: string | null }) {
   // Require a website (key V1 rule to avoid directory noise)
   if (!input.website) return { fail: true, reason: "No website" };
 
@@ -133,16 +131,16 @@ async function googleGeocode(location: string) {
   return json.results[0].geometry.location as { lat: number; lng: number };
 }
 
-async function googlePlacesNearby(params: {
-  lat: number;
-  lng: number;
-  radiusMeters: number;
-  keyword: string;
-}) {
+async function googlePlacesNearby(params: { lat: number; lng: number; radiusMeters: number; keyword: string }) {
   const url = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json");
   url.searchParams.set("location", `${params.lat},${params.lng}`);
   url.searchParams.set("radius", String(params.radiusMeters));
-  url.searchParams.set("keyword", `${params.keyword} contractor`);
+
+  // ✅ Key improvement: make keyword less brittle for contractor/service SMBs
+  const kw = params.keyword.trim();
+  const kwPlus = /cleaning|janitorial/i.test(kw) ? `${kw} service` : `${kw} contractor`;
+  url.searchParams.set("keyword", kwPlus);
+
   url.searchParams.set("key", GOOGLE_KEY!);
 
   const res = await fetch(url.toString());
@@ -185,15 +183,12 @@ async function fetchHomepageText(urlStr: string) {
   try {
     const res = await fetch(urlStr, {
       redirect: "follow",
-      headers: {
-        "User-Agent": "SearchFindrBot/1.0 (+https://searchfindr.local)",
-      },
+      headers: { "User-Agent": "SearchFindrBot/1.0 (+https://searchfindr.local)" },
     });
 
     if (!res.ok) return "";
 
     const html = await res.text();
-    // Cheap strip (no dependencies): remove scripts/styles, collapse whitespace
     const cleaned = html
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
       .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -201,7 +196,6 @@ async function fetchHomepageText(urlStr: string) {
       .replace(/\s+/g, " ")
       .trim();
 
-    // cap to keep token + cost stable
     return cleaned.slice(0, 6000);
   } catch {
     return "";
@@ -220,7 +214,6 @@ async function openAIKeepOrReject(input: {
   ratingsTotal: number | null;
   homepageText: string;
 }) {
-  // V1 prompt: strict JSON output, no extra text
   const prompt = `
 You are SearchFindr, helping a search fund / ETA buyer find owner-operated small businesses.
 
@@ -251,7 +244,7 @@ Return ONLY valid JSON in this exact schema:
   "reasons": string[],
   "red_flags": string[]
 }
-`;
+`.trim();
 
   const res = await fetch(`${OPENAI_BASE_URL}/v1/chat/completions`, {
     method: "POST",
@@ -273,7 +266,14 @@ Return ONLY valid JSON in this exact schema:
     throw new Error(msg);
   }
 
-  const content = json?.choices?.[0]?.message?.content ?? "";
+  const contentRaw = json?.choices?.[0]?.message?.content ?? "";
+  const content = contentRaw
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+
   const parsed = JSON.parse(content);
 
   if (typeof parsed?.keep !== "boolean") throw new Error("Bad AI response: keep missing");
@@ -281,12 +281,7 @@ Return ONLY valid JSON in this exact schema:
   if (!Array.isArray(parsed?.reasons)) parsed.reasons = [];
   if (!Array.isArray(parsed?.red_flags)) parsed.red_flags = [];
 
-  return parsed as {
-    keep: boolean;
-    tier: "A" | "B" | "C";
-    reasons: string[];
-    red_flags: string[];
-  };
+  return parsed as { keep: boolean; tier: "A" | "B" | "C"; reasons: string[]; red_flags: string[] };
 }
 
 export async function OPTIONS() {
@@ -296,10 +291,16 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   try {
     if (!GOOGLE_KEY) {
-      return NextResponse.json({ success: false, error: "Missing GOOGLE_MAPS_API_KEY" }, { status: 500, headers: corsHeaders });
+      return NextResponse.json(
+        { success: false, error: "Missing GOOGLE_MAPS_API_KEY" },
+        { status: 500, headers: corsHeaders }
+      );
     }
     if (!OPENAI_API_KEY) {
-      return NextResponse.json({ success: false, error: "Missing OPENAI_API_KEY" }, { status: 500, headers: corsHeaders });
+      return NextResponse.json(
+        { success: false, error: "Missing OPENAI_API_KEY" },
+        { status: 500, headers: corsHeaders }
+      );
     }
 
     const { userId, workspaceId } = await getAuthedUserAndWorkspace(req);
@@ -317,7 +318,10 @@ export async function POST(req: NextRequest) {
     const radiusMiles = Number(body.radius_miles);
 
     if (industries.length === 0) {
-      return NextResponse.json({ success: false, error: "Select at least one industry" }, { status: 400, headers: corsHeaders });
+      return NextResponse.json(
+        { success: false, error: "Select at least one industry" },
+        { status: 400, headers: corsHeaders }
+      );
     }
     if (!location || !isCityState(location)) {
       return NextResponse.json(
@@ -337,7 +341,7 @@ export async function POST(req: NextRequest) {
 
     const keywords = industries.flatMap(expandIndustryQueries);
 
-    // Guardrail: don't explode requests if user selects many industries
+    // Guardrail: don't explode requests if user selects many industries / synonyms
     const KEYWORD_CAP = 8;
     const keywordSlice = keywords.slice(0, KEYWORD_CAP);
 
@@ -356,7 +360,7 @@ export async function POST(req: NextRequest) {
       return true;
     });
 
-    // 3) Fetch details (cap raw candidates to keep it sane)
+    // 3) Fetch details (cap raw candidates)
     const DETAIL_CAP = 35;
     const detailed = await Promise.all(
       results.slice(0, DETAIL_CAP).map(async (r) => {
@@ -391,18 +395,14 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    // 4) Hard filter (free) — eliminate noise BEFORE AI
+    // 4) Hard filter (free)
     const survivors = detailed.filter((c) => {
-      const hard = failsHardFilter({
-        name: c.name,
-        website: c.website,
-        address: c.address,
-      });
+      const hard = failsHardFilter({ name: c.name, website: c.website, address: c.address });
       return !hard.fail;
     });
 
     // 5) AI review ONLY on survivors (cap for cost control)
-    const AI_CAP = 12; // slightly higher for recall; adjust as needed
+    const AI_CAP = 12;
     const toReview = survivors.slice(0, AI_CAP);
 
     const reviewed = await Promise.all(
@@ -464,12 +464,7 @@ export async function POST(req: NextRequest) {
 
     if (inserts.length === 0) {
       return NextResponse.json(
-        {
-          success: true,
-          count: 0,
-          companies: [],
-          note: "No companies passed filters (hard + AI).",
-        },
+        { success: true, count: 0, companies: [], note: "No companies passed filters (hard + AI)." },
         { headers: corsHeaders }
       );
     }
@@ -477,19 +472,14 @@ export async function POST(req: NextRequest) {
     // 7) Upsert into companies (dedupe per workspace + external ids)
     const { data: saved, error: upsertErr } = await supabase
       .from("companies")
-      .upsert(inserts, {
-        onConflict: "workspace_id,external_source,external_id",
-      })
+      .upsert(inserts, { onConflict: "workspace_id,external_source,external_id" })
       .select("id, company_name, address, phone, website, tier, is_saved, created_at, place_id");
 
     if (upsertErr) {
       return NextResponse.json({ success: false, error: upsertErr.message }, { status: 500, headers: corsHeaders });
     }
 
-    return NextResponse.json(
-      { success: true, count: saved?.length ?? 0, companies: saved ?? [] },
-      { headers: corsHeaders }
-    );
+    return NextResponse.json({ success: true, count: saved?.length ?? 0, companies: saved ?? [] }, { headers: corsHeaders });
   } catch (e: any) {
     return NextResponse.json(
       { success: false, error: e?.message ?? "Unknown error" },
