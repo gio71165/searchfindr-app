@@ -143,6 +143,7 @@ export async function POST(req: NextRequest) {
     );
 
     // 4) System instructions: strict, buyer-protective, ETA/search & capital-advisor focused
+    // ✅ CHANGE: added QoE section + added top-level qoe schema (clean separation)
     const instructions = `
 You are a buy-side M&A associate serving:
 - ETA/search-fund buyers,
@@ -254,6 +255,43 @@ Ranges:
 If a metric is not provided anywhere in the CIM:
 - Set the relevant field to null or "unknown".
 - DO NOT infer or approximate.
+
+============================================================
+QUALITY OF EARNINGS / ADDBACKS (QoE) — STRICT (ADDED)
+============================================================
+You MUST populate the top-level "qoe" object.
+
+Goals:
+- Make EBITDA reliability obvious.
+- Classify addbacks, do NOT accept them at face value.
+- Provide a normalized EBITDA RANGE as strings (not precise numbers unless explicitly given).
+
+Rules:
+- If the CIM provides an "Adjusted EBITDA" and an addback schedule, you MUST extract:
+  - reported_ebitda_basis (e.g., "Adjusted EBITDA", "EBITDA", "Pro forma EBITDA")
+  - reported_ebitda_value (string, e.g., "$1.2M")
+  - addbacks_total (string or null)
+- For each addback item, you MUST output:
+  - label
+  - amount (string or null)
+  - category: "Clean" | "Maybe" | "Aggressive" | "unknown"
+  - confidence: "Low" | "Medium" | "High" | "unknown"
+  - reason (1 short sentence)
+- If addbacks are not detailed, set addbacks to [] and addbacks_total to null, and state the problem in addback_quality_summary.
+
+Classification guide:
+- Clean: clearly one-time, clearly non-recurring, well-described (e.g., one-time legal settlement) with support implied.
+- Maybe: plausible but needs proof (e.g., owner comp normalization with unclear market rate, discretionary spend without detail).
+- Aggressive: likely recurring or marketing-fluff (e.g., "synergies", "run-rate savings", vague "one-time" with no support).
+
+Normalized EBITDA range:
+- normalized_ebitda_low / normalized_ebitda_high MUST be strings.
+- If you can estimate a range from clean addbacks, do it conservatively.
+- If you cannot, set them to null or "unknown" and explain why in addback_quality_summary.
+
+You MUST include addback_quality_summary as 1 line, like:
+- "Addbacks are aggressive and poorly supported; normalized EBITDA is unreliable without QoE."
+- "Addbacks appear mostly clean but still require verification; EBITDA range depends on proof."
 
 ============================================================
 RECURRING REVENUE & RENEWALS (STRICT)
@@ -501,6 +539,25 @@ You MUST return JSON ONLY, matching this schema exactly:
     "working_capital_needs": "string | null"
   },
 
+  "qoe": {
+    "reported_ebitda_basis": "string | null",
+    "reported_ebitda_value": "string | null",
+    "addbacks_total": "string | null",
+    "addbacks": [
+      {
+        "label": "string",
+        "amount": "string | null",
+        "category": "Clean | Maybe | Aggressive | unknown",
+        "confidence": "Low | Medium | High | unknown",
+        "reason": "string | null"
+      }
+    ],
+    "clean_addbacks_estimate": "string | null",
+    "normalized_ebitda_low": "string | null",
+    "normalized_ebitda_high": "string | null",
+    "addback_quality_summary": "string | null"
+  },
+
   "scoring": {
     "succession_risk": "Low | Medium | High | unknown",
     "succession_risk_reason": "string | null",
@@ -553,6 +610,7 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
     `.trim();
 
     // 5) Call OpenAI Responses API with the file_id and strict instructions
+    // ✅ CHANGE: enforce strict JSON output in the API call
     const responsesRes = await fetch(`${OPENAI_BASE_URL}/v1/responses`, {
       method: 'POST',
       headers: {
@@ -562,6 +620,7 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
       body: JSON.stringify({
         model: 'gpt-4.1',
         instructions,
+        response_format: { type: 'json_object' },
         input: [
           {
             role: 'user',
@@ -617,6 +676,7 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
       ai_summary: string;
       ai_red_flags: string[];
       financials: any;
+      qoe: any; // ✅ CHANGE: top-level qoe
       scoring: any;
       criteria_match: any;
     };
@@ -635,6 +695,13 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
       );
     }
 
+    // ✅ CHANGE: persist QoE without DB migration
+    // We keep your existing columns, and embed qoe under criteria_match_json.qoe
+    const criteriaToStore =
+      parsed.criteria_match && typeof parsed.criteria_match === 'object'
+        ? { ...parsed.criteria_match, qoe: parsed.qoe ?? null }
+        : { qoe: parsed.qoe ?? null };
+
     // ✅ WRITE RESULTS TO DB (THIS IS THE FIX)
     const { error: updateErr } = await supabaseAdmin
       .from('companies')
@@ -645,7 +712,7 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
           : null,
         ai_financials_json: parsed.financials ?? null,
         ai_scoring_json: parsed.scoring ?? null,
-        criteria_match_json: parsed.criteria_match ?? null,
+        criteria_match_json: criteriaToStore ?? null,
         final_tier: parsed?.scoring?.final_tier ?? null,
       })
       .eq('id', companyId);
@@ -653,7 +720,11 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
     if (updateErr) {
       console.error('process-cim: DB update error:', updateErr);
       return NextResponse.json(
-        { success: false, error: 'Failed to persist AI results to DB.', details: updateErr.message },
+        {
+          success: false,
+          error: 'Failed to persist AI results to DB.',
+          details: updateErr.message,
+        },
         { status: 500 }
       );
     }
@@ -665,8 +736,9 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
       ai_summary: parsed.ai_summary,
       ai_red_flags: parsed.ai_red_flags,
       financials: parsed.financials,
+      qoe: parsed.qoe, // ✅ return qoe too
       scoring: parsed.scoring,
-      criteria_match: parsed.criteria_match,
+      criteria_match: criteriaToStore,
     });
   } catch (err) {
     console.error('Unexpected error in process-cim:', err);
