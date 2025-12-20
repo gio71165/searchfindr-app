@@ -1,350 +1,271 @@
+// app/api/process-cim/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-  process.env.SUPABASE_SERVICE_ROLE_KEY as string,
-  { auth: { persistSession: false } }
-);
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? 'https://api.openai.com';
 
-function getBearerToken(req: NextRequest) {
-  const authHeader = req.headers.get('authorization') || '';
-  if (!authHeader.startsWith('Bearer ')) return null;
-  return authHeader.slice(7);
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
+
+// Server-side admin client (bypasses RLS for DB writes)
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false },
+});
+
+if (!OPENAI_API_KEY) {
+  console.warn('OPENAI_API_KEY is not set. /api/process-cim will fail until you set it.');
+}
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn(
+    'Missing Supabase env vars. Need NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
+  );
 }
 
-async function resolveWorkspaceId(userId: string): Promise<string | null> {
-  // Option A: profiles.workspace_id
-  const prof = await supabaseAdmin
-    .from('profiles')
-    .select('workspace_id')
-    .eq('id', userId)
-    .maybeSingle();
+// Helper: upload PDF bytes to OpenAI Files API and return file_id
+async function uploadPdfToOpenAI(pdfArrayBuffer: ArrayBuffer, filename: string) {
+  const pdfBlob = new Blob([pdfArrayBuffer], { type: 'application/pdf' });
 
-  if (prof.data?.workspace_id) return prof.data.workspace_id;
+  const formData = new FormData();
+  formData.append('file', pdfBlob, filename || 'cim.pdf');
+  formData.append('purpose', 'assistants');
 
-  // Option B: workspace_members table
-  const mem = await supabaseAdmin
-    .from('workspace_members')
-    .select('workspace_id')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  if (mem.data?.workspace_id) return mem.data.workspace_id;
-
-  return null;
-}
-
-function cleanText(s: string) {
-  return s
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
-    .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-async function fetchWebsiteText(url: string) {
-  // Normalize: if user stored without scheme
-  const normalized =
-    url.startsWith('http://') || url.startsWith('https://') ? url : `https://${url}`;
-
-  const res = await fetch(normalized, {
-    method: 'GET',
-    redirect: 'follow',
-    headers: {
-      'User-Agent':
-        'Mozilla/5.0 (compatible; SearchFindrBot/1.0; +https://searchfindr.example)',
-      Accept: 'text/html,application/xhtml+xml',
-    },
-  });
-
-  const html = await res.text();
-  // Keep it bounded — OpenAI doesn’t need 2MB
-  const text = cleanText(html).slice(0, 12000);
-
-  return { normalizedUrl: normalized, status: res.status, text };
-}
-
-async function runOpenAI(prompt: string) {
-  const apiKey = process.env.OPENAI_API_KEY;
-  const baseUrl = process.env.OPENAI_BASE_URL || 'https://api.openai.com';
-
-  if (!apiKey) throw new Error('OPENAI_API_KEY is not set.');
-
-  const resp = await fetch(`${baseUrl}/v1/chat/completions`, {
+  const res = await fetch(`${OPENAI_BASE_URL}/v1/files`, {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4.1-mini',
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'system',
-          content:
-            'You are an investment analyst for SMB acquisitions. Return ONLY valid JSON.',
-        },
-        { role: 'user', content: prompt },
-      ],
-    }),
+    headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
+    body: formData,
   });
 
-  const raw = await resp.text();
-  let json: any = null;
-  try {
-    json = JSON.parse(raw);
-  } catch {
-    throw new Error(`OpenAI returned non-JSON: ${raw.slice(0, 300)}`);
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error('OpenAI file upload error:', errorText);
+    throw new Error('Failed to upload CIM PDF to OpenAI');
   }
 
-  if (!resp.ok) {
-    throw new Error(json?.error?.message || `OpenAI error HTTP ${resp.status}`);
+  const json = await res.json();
+  console.log('process-cim: uploaded file id', json.id);
+  return json.id as string;
+}
+
+// Helper: sometimes model wraps JSON in ```json fences
+function stripCodeFences(s: string) {
+  const trimmed = (s ?? '').trim();
+  if (!trimmed) return trimmed;
+  if (trimmed.startsWith('```')) {
+    return trimmed.replace(/^```[a-zA-Z]*\n?/, '').replace(/```$/, '').trim();
   }
-
-  const content = json?.choices?.[0]?.message?.content;
-  if (!content) throw new Error('OpenAI returned empty content.');
-
-  let parsed: any = null;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    throw new Error(`Model output was not JSON: ${content.slice(0, 300)}`);
-  }
-
-  return parsed;
+  return trimmed;
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const token = getBearerToken(req);
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Missing Bearer token.' },
-        { status: 401 }
-      );
-    }
+    console.log('process-cim: received request');
 
-    const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
-    if (userErr || !userData?.user) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid session.' },
-        { status: 401 }
-      );
-    }
-
-    const userId = userData.user.id;
-
-    const body = await req.json().catch(() => ({}));
-    const companyId = body?.companyId as string | undefined;
+    const body = await req.json();
+    const companyId = body.companyId as string | undefined;
+    let cimStoragePath = body.cimStoragePath as string | undefined;
+    let companyName = (body.companyName as string | null) ?? null;
 
     if (!companyId) {
+      return NextResponse.json({ success: false, error: 'Missing companyId' }, { status: 400 });
+    }
+
+    if (!OPENAI_API_KEY) {
       return NextResponse.json(
-        { success: false, error: 'Missing companyId.' },
-        { status: 400 }
+        { success: false, error: 'OPENAI_API_KEY is not set on the server.' },
+        { status: 500 }
       );
     }
 
-    const workspaceId = await resolveWorkspaceId(userId);
-    if (!workspaceId) {
-      return NextResponse.json(
-        { success: false, error: 'No workspace found for user.' },
-        { status: 403 }
-      );
-    }
-
-    // Fetch company (workspace safe; fallback for legacy rows)
-    let company: any | null = null;
-
-    const primary = await supabaseAdmin
-      .from('companies')
-      .select('*')
-      .eq('id', companyId)
-      .eq('workspace_id', workspaceId)
-      .maybeSingle();
-
-    if (primary.data) company = primary.data;
-
-    if (!company) {
-      const fallback = await supabaseAdmin
-        .from('companies')
-        .select('*')
-        .eq('id', companyId)
-        .maybeSingle();
-
-      if (!fallback.data) {
-        return NextResponse.json(
-          { success: false, error: 'Company not found.' },
-          { status: 404 }
-        );
-      }
-
-      company = fallback.data;
-
-      if (!company.workspace_id) {
-        const attach = await supabaseAdmin
-          .from('companies')
-          .update({ workspace_id: workspaceId })
-          .eq('id', companyId);
-
-        if (attach.error) {
-          return NextResponse.json(
-            { success: false, error: `Failed to attach workspace_id: ${attach.error.message}` },
-            { status: 500 }
-          );
-        }
-        company.workspace_id = workspaceId;
-      } else if (company.workspace_id !== workspaceId) {
-        return NextResponse.json(
-          { success: false, error: 'Company not found in your workspace.' },
-          { status: 404 }
-        );
-      }
-    }
-
-    if (company.source_type && company.source_type !== 'off_market') {
-      return NextResponse.json(
-        { success: false, error: 'This endpoint is only for off-market companies.' },
-        { status: 400 }
-      );
-    }
-
-    const website = company.website as string | null;
-    if (!website) {
-      return NextResponse.json(
-        { success: false, error: 'Company has no website stored. Cannot run off-market diligence.' },
-        { status: 400 }
-      );
-    }
-
-    // 1) Pull website text
-    const { normalizedUrl, status, text } = await fetchWebsiteText(website);
-
-    if (!text || text.length < 200) {
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       return NextResponse.json(
         {
           success: false,
-          error: `Could not extract enough website content (HTTP ${status}).`,
+          error:
+            'Supabase server env not set. Need NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.',
         },
+        { status: 500 }
+      );
+    }
+
+    // If cimStoragePath wasn't provided, fetch it from the companies row.
+    if (!cimStoragePath || !companyName) {
+      const { data: companyRow, error: companyErr } = await supabaseAdmin
+        .from('companies')
+        .select('cim_storage_path, company_name')
+        .eq('id', companyId)
+        .single();
+
+      if (companyErr) {
+        console.error('process-cim: failed to load company row:', companyErr);
+        return NextResponse.json(
+          { success: false, error: 'Failed to load company row.', details: companyErr.message },
+          { status: 500 }
+        );
+      }
+
+      cimStoragePath = cimStoragePath || (companyRow?.cim_storage_path as string | undefined);
+      companyName = companyName || (companyRow?.company_name as string | null) || 'Unknown';
+    }
+
+    if (!cimStoragePath) {
+      return NextResponse.json(
+        { success: false, error: 'Missing cimStoragePath (not in request and not found on company row).' },
         { status: 400 }
       );
     }
 
-    // 2) Ask model for diligence output (JSON)
-    const prompt = `
-Company:
-- name: ${company.company_name || ''}
-- address: ${company.address || ''}
-- city/state: ${company.location_city || ''}, ${company.location_state || ''}
-- website: ${normalizedUrl}
-- google_rating: ${company.rating ?? ''}
-- ratings_total: ${company.ratings_total ?? ''}
+    // 1) Build public URL for the CIM PDF (bucket is public)
+    const { data: publicUrlData } = supabaseAdmin.storage.from('cims').getPublicUrl(cimStoragePath);
 
-Website extracted text:
-"""${text}"""
+    const publicUrl = publicUrlData?.publicUrl;
+    console.log('process-cim: publicUrl', publicUrl);
 
-Task:
-Return a JSON object with EXACT keys:
-{
-  "ai_summary": string (8-14 bullet lines, concise, investor memo),
-  "ai_red_flags": string[] (0-10 items),
-  "financials": {
-    "revenue": string|null,
-    "ebitda": string|null,
-    "margin": string|null,
-    "customer_concentration": string|null
-  },
-  "scoring": {
-    "succession_risk": "Low"|"Medium"|"High"|null,
-    "succession_risk_reason": string|null,
-    "industry_fit": "Tier A"|"Tier B"|"Tier C"|null,
-    "industry_fit_reason": string|null,
-    "geography_fit": "Tier A"|"Tier B"|"Tier C"|null,
-    "geography_fit_reason": string|null,
-    "final_tier": "A"|"B"|"C"|null,
-    "final_tier_reason": string|null
-  },
-  "criteria_match": {
-    "business_model": string|null,
-    "owner_profile": string|null,
-    "notes_for_searcher": string|null,
-    "owner_signals": {
-      "likely_owner_operated": boolean|null,
-      "confidence": number|null,
-      "owner_named_on_site": boolean|null,
-      "owner_name": string|null,
-      "generation_hint": string|null,
-      "owner_dependency_risk": string|null,
-      "years_in_business": string|null,
-      "evidence": string[],
-      "missing_info": string[]
-    }
-  }
-}
-
-Rules:
-- If financials are not explicitly stated, set them to null (do NOT hallucinate numbers).
-- Keep "final_tier" as "A"/"B"/"C" ONLY.
-- Use plain language, no marketing fluff.
-`;
-
-    const out = await runOpenAI(prompt);
-
-    const ai_summary = String(out?.ai_summary || '').trim();
-    const ai_red_flags = Array.isArray(out?.ai_red_flags) ? out.ai_red_flags.map(String) : [];
-    const financials = typeof out?.financials === 'object' && out.financials ? out.financials : {};
-    const scoring = typeof out?.scoring === 'object' && out.scoring ? out.scoring : {};
-    const criteria_match =
-      typeof out?.criteria_match === 'object' && out.criteria_match ? out.criteria_match : {};
-
-    if (!ai_summary) {
+    if (!publicUrl) {
       return NextResponse.json(
-        { success: false, error: 'AI returned empty summary.' },
+        { success: false, error: 'Failed to build public URL for CIM PDF.' },
         { status: 500 }
       );
     }
 
-    // 3) Save to companies
-    const upd = await supabaseAdmin
+    // 2) Download the PDF from Supabase
+    const pdfRes = await fetch(publicUrl);
+    console.log('process-cim: pdf fetch status', pdfRes.status, pdfRes.statusText);
+
+    if (!pdfRes.ok) {
+      const err = await pdfRes.text().catch(() => '');
+      console.error('Failed to fetch PDF from storage:', pdfRes.status, pdfRes.statusText, err);
+      return NextResponse.json(
+        { success: false, error: 'Failed to download CIM PDF from storage.' },
+        { status: 500 }
+      );
+    }
+
+    const pdfArrayBuffer = await pdfRes.arrayBuffer();
+
+    // 3) Upload PDF to OpenAI
+    const fileId = await uploadPdfToOpenAI(pdfArrayBuffer, `${companyName}.pdf`);
+
+    // 4) System instructions (PASTE YOUR FULL INSTRUCTIONS BLOCK HERE)
+    const instructions = `...PASTE YOUR FULL INSTRUCTIONS BLOCK HERE...`.trim();
+
+    const userText = `
+Company name: ${companyName}.
+
+Analyze the attached CIM PDF and populate the JSON schema from the instructions for a professional ETA/search-fund buyer and capital advisor. Return ONLY JSON, no additional commentary.
+    `.trim();
+
+    // 5) Call OpenAI Responses API
+    const responsesRes = await fetch(`${OPENAI_BASE_URL}/v1/responses`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4.1',
+        instructions,
+        input: [
+          {
+            role: 'user',
+            content: [
+              { type: 'input_file', file_id: fileId },
+              { type: 'input_text', text: userText },
+            ],
+          },
+        ],
+      }),
+    });
+
+    if (!responsesRes.ok) {
+      const errText = await responsesRes.text();
+      console.error('OpenAI Responses API error:', errText);
+      return NextResponse.json(
+        { success: false, error: 'OpenAI Responses API error', details: errText },
+        { status: 500 }
+      );
+    }
+
+    const responsesJson = await responsesRes.json();
+
+    const contentText: string =
+      responsesJson.output_text ?? responsesJson.output?.[0]?.content?.[0]?.text ?? '';
+
+    if (!contentText) {
+      console.error('No text content returned from OpenAI Responses API:', responsesJson);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'OpenAI Responses API did not return any text content. Check logs for details.',
+        },
+        { status: 500 }
+      );
+    }
+
+    let parsed: {
+      deal_verdict: string;
+      ai_summary: string;
+      ai_red_flags: string[];
+      financials: any;
+      scoring: any;
+      criteria_match: any;
+    };
+
+    try {
+      parsed = JSON.parse(stripCodeFences(contentText));
+    } catch (jsonErr) {
+      console.error('Failed to parse OpenAI JSON:', jsonErr, contentText);
+      return NextResponse.json(
+        { success: false, error: 'Failed to parse OpenAI response as JSON. Check logs.' },
+        { status: 500 }
+      );
+    }
+
+    // ✅ 6) Persist to companies (THIS is what makes the UI populate)
+    const updatePayload: any = {
+      ai_summary: parsed.ai_summary ?? null,
+      ai_red_flags: parsed.ai_red_flags ?? [],
+      ai_financials_json: parsed.financials ?? {},
+      ai_scoring_json: parsed.scoring ?? {},
+      criteria_match_json: parsed.criteria_match ?? {},
+    };
+
+    // Optional: if you store tier on companies.final_tier
+    if (parsed?.scoring?.final_tier) {
+      updatePayload.final_tier = parsed.scoring.final_tier;
+    }
+
+    const { error: updateErr } = await supabaseAdmin
       .from('companies')
-      .update({
-        ai_summary,
-        ai_red_flags,
-        ai_financials_json: financials,
-        ai_scoring_json: scoring,
-        criteria_match_json: criteria_match,
-      })
-      .eq('id', companyId)
-      .eq('workspace_id', workspaceId);
+      .update(updatePayload)
+      .eq('id', companyId);
 
-    if (upd.error) {
+    if (updateErr) {
+      console.error('process-cim: failed to update companies row:', updateErr);
       return NextResponse.json(
-        { success: false, error: `Failed to save diligence: ${upd.error.message}` },
+        { success: false, error: 'Failed to save CIM analysis to database.', details: updateErr.message },
         { status: 500 }
       );
     }
+
+    console.log('process-cim: saved analysis to companies', companyId);
 
     return NextResponse.json({
       success: true,
-      ai_summary,
-      ai_red_flags,
-      financials,
-      scoring,
-      criteria_match,
+      companyId,
+      deal_verdict: parsed.deal_verdict,
+      ai_summary: parsed.ai_summary,
+      ai_red_flags: parsed.ai_red_flags,
+      financials: parsed.financials,
+      scoring: parsed.scoring,
+      criteria_match: parsed.criteria_match,
     });
-  } catch (e: any) {
-    console.error('off-market diligence route error:', e);
+  } catch (err) {
+    console.error('Unexpected error in process-cim:', err);
     return NextResponse.json(
-      { success: false, error: e?.message || 'Server error.' },
+      { success: false, error: 'Unexpected server error in process-cim.' },
       { status: 500 }
     );
   }

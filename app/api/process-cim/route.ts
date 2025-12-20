@@ -1,16 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/app/supabaseClient';
+import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? 'https://api.openai.com';
 
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
+
 if (!OPENAI_API_KEY) {
   console.warn(
     'OPENAI_API_KEY is not set. /api/process-cim will fail until you set it in .env.local'
   );
 }
+
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn(
+    'Supabase server env vars missing. Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.'
+  );
+}
+
+// ✅ Server-side Supabase client (bypasses RLS). Never use this on the client.
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false },
+});
 
 // Helper: upload PDF bytes to OpenAI Files API and return file_id
 async function uploadPdfToOpenAI(pdfArrayBuffer: ArrayBuffer, filename: string) {
@@ -39,6 +53,29 @@ async function uploadPdfToOpenAI(pdfArrayBuffer: ArrayBuffer, filename: string) 
   return json.id as string;
 }
 
+function extractOutputText(responsesJson: any): string {
+  const t1 = responsesJson?.output_text;
+  if (typeof t1 === 'string' && t1.trim()) return t1.trim();
+
+  const out = responsesJson?.output;
+  if (Array.isArray(out)) {
+    for (const item of out) {
+      const content = item?.content;
+      if (!Array.isArray(content)) continue;
+      for (const c of content) {
+        const t = c?.text;
+        if (typeof t === 'string' && t.trim()) return t.trim();
+      }
+    }
+  }
+
+  // fallback to your original path (kept)
+  const t2 = responsesJson?.output?.[0]?.content?.[0]?.text;
+  if (typeof t2 === 'string' && t2.trim()) return t2.trim();
+
+  return '';
+}
+
 export async function POST(req: NextRequest) {
   try {
     console.log('process-cim: received request');
@@ -63,7 +100,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 1) Build public URL for the CIM PDF from Supabase Storage
-    const { data: publicUrlData } = supabase.storage
+    const { data: publicUrlData } = supabaseAdmin.storage
       .from('cims')
       .getPublicUrl(cimStoragePath);
 
@@ -201,7 +238,7 @@ Pro forma synergies / addbacks:
 - If adjusted EBITDA includes synergies, pro forma integration benefits, or large addbacks:
   - You MUST treat this as inflated EBITDA.
   - You MUST explicitly say that in ai_red_flags.
-  - You MUST set financial_quality to "Low" unless addbacks are fully detailed and modest.
+  - You MUST set financial_quality as "Low" unless addbacks are fully detailed and modest.
   - You MUST encourage a full QoE in dd_checklist.
 
 Revenue exclusions / "non-core":
@@ -558,10 +595,7 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
 
     const responsesJson = await responsesRes.json();
 
-    const contentText: string =
-      responsesJson.output_text ??
-      responsesJson.output?.[0]?.content?.[0]?.text ??
-      '';
+    const contentText: string = extractOutputText(responsesJson);
 
     if (!contentText) {
       console.error(
@@ -597,6 +631,29 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
           error:
             'Failed to parse OpenAI response as JSON. Check logs for content.',
         },
+        { status: 500 }
+      );
+    }
+
+    // ✅ WRITE RESULTS TO DB (THIS IS THE FIX)
+    const { error: updateErr } = await supabaseAdmin
+      .from('companies')
+      .update({
+        ai_summary: parsed.ai_summary ?? null,
+        ai_red_flags: Array.isArray(parsed.ai_red_flags)
+          ? parsed.ai_red_flags.join('\n')
+          : null,
+        ai_financials_json: parsed.financials ?? null,
+        ai_scoring_json: parsed.scoring ?? null,
+        criteria_match_json: parsed.criteria_match ?? null,
+        final_tier: parsed?.scoring?.final_tier ?? null,
+      })
+      .eq('id', companyId);
+
+    if (updateErr) {
+      console.error('process-cim: DB update error:', updateErr);
+      return NextResponse.json(
+        { success: false, error: 'Failed to persist AI results to DB.', details: updateErr.message },
         { status: 500 }
       );
     }

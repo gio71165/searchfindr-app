@@ -324,6 +324,13 @@ export default function DealDetailPage() {
       return;
     }
 
+    // ✅ IMPORTANT: API requires cimStoragePath in the request body
+    const cimStoragePath = deal.cim_storage_path as string | null | undefined;
+    if (!cimStoragePath) {
+      setCimError('Missing cim_storage_path on this company row. Re-upload the CIM or fix the stored path.');
+      return;
+    }
+
     setProcessingCim(true);
     setCimError(null);
     setCimSuccess(false);
@@ -339,7 +346,12 @@ export default function DealDetailPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ companyId: id }),
+        // ✅ FIX: send cimStoragePath + companyName (API expects these)
+        body: JSON.stringify({
+          companyId: id,
+          cimStoragePath,
+          companyName: deal.company_name ?? null,
+        }),
       });
 
       const text = await res.text();
