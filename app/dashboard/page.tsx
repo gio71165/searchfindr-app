@@ -67,6 +67,43 @@ function TierPill({ tier }: { tier: string | null }) {
   );
 }
 
+function EmptyStateCard({
+  title,
+  description,
+  primaryLabel,
+  onPrimary,
+  secondaryLabel,
+  onSecondary,
+}: {
+  title: string;
+  description: string;
+  primaryLabel: string;
+  onPrimary: () => void;
+  secondaryLabel?: string;
+  onSecondary?: () => void;
+}) {
+  return (
+    <div className="p-6">
+      <div className="rounded-xl border bg-transparent p-6">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        <p className="mt-1 text-xs opacity-80">{description}</p>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button className="btn-main" onClick={onPrimary}>
+            {primaryLabel}
+          </button>
+
+          {secondaryLabel && onSecondary ? (
+            <button className="text-xs underline opacity-80" onClick={onSecondary}>
+              {secondaryLabel}
+            </button>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const US_STATES = [
   { abbr: 'AL', name: 'Alabama' },
   { abbr: 'AK', name: 'Alaska' },
@@ -535,6 +572,63 @@ export default function DashboardPage() {
     window.location.href = 'https://searchfindr-app.vercel.app/extension/callback';
   };
 
+  const renderEmptyStateForView = () => {
+    if (selectedView === 'saved') {
+      return (
+        <EmptyStateCard
+          title="No saved deals yet"
+          description="Save deals from On-market, Off-market, or CIM uploads to build your pipeline."
+          primaryLabel="Go to On-market"
+          onPrimary={() => changeView('on_market')}
+          secondaryLabel="Go to Off-market"
+          onSecondary={() => changeView('off_market')}
+        />
+      );
+    }
+
+    if (selectedView === 'on_market') {
+      return (
+        <EmptyStateCard
+          title="No on-market deals yet"
+          description="Use the Chrome extension to analyze live listings and send them here."
+          primaryLabel="Connect Chrome extension"
+          onPrimary={handleConnectExtension}
+          secondaryLabel="Go to CIM upload"
+          onSecondary={() => changeView('cim_pdf')}
+        />
+      );
+    }
+
+    if (selectedView === 'off_market') {
+      return (
+        <EmptyStateCard
+          title="No off-market results yet"
+          description="Search by industry + geography to surface owner-operated SMBs."
+          primaryLabel="Run a search below"
+          onPrimary={() => {
+            // Nudge user to the search module area (no DOM assumptions)
+            // If they’re already on off-market, this just clears status and keeps them focused.
+            setOffSearchStatus(offSearchStatus ?? 'Add industries + city/state, then click Search.');
+          }}
+          secondaryLabel="Go to Saved"
+          onSecondary={() => changeView('saved')}
+        />
+      );
+    }
+
+    // cim_pdf
+    return (
+      <EmptyStateCard
+        title="No CIM uploads yet"
+        description="Upload a CIM to generate an AI investment memo."
+        primaryLabel="Upload CIM (PDF)"
+        onPrimary={handleCimButtonClick}
+        secondaryLabel="Go to On-market"
+        onSecondary={() => changeView('on_market')}
+      />
+    );
+  };
+
   if (checkingAuth) {
     return (
       <main className="py-12 text-center">
@@ -619,7 +713,6 @@ export default function DashboardPage() {
             </p>
           </div>
 
-          {/* ✅ Industry dropdown + Add button + selected chips */}
           <div className="space-y-1">
             <label className="text-xs opacity-80">Industries</label>
             <div className="flex flex-col gap-2">
@@ -671,11 +764,7 @@ export default function DashboardPage() {
 
             <div className="space-y-1">
               <label className="text-xs opacity-80">State</label>
-              <select
-                className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm"
-                value={offState}
-                onChange={(e) => setOffState(e.target.value)}
-              >
+              <select className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm" value={offState} onChange={(e) => setOffState(e.target.value)}>
                 {US_STATES.map((s) => (
                   <option key={s.abbr} value={s.abbr}>
                     {s.abbr} — {s.name}
@@ -713,7 +802,7 @@ export default function DashboardPage() {
       )}
 
       <section className="mt-4 card-table">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex items-center justify-between px-4 pt-4">
           <h2 className="text-sm font-semibold">{selectedView === 'saved' ? 'Saved companies' : 'Companies'}</h2>
           {loadingDeals ? (
             <p className="text-xs">Loading…</p>
@@ -724,69 +813,61 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {errorMsg && <p className="mb-2 text-xs text-red-600">{errorMsg}</p>}
+        {errorMsg && <p className="px-4 pb-2 text-xs text-red-600">{errorMsg}</p>}
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-xs">
-            <thead className="table-header">
-              <tr>
-                {selectedView === 'saved' && (
-                  <>
-                    <th className="px-2 py-1.5 font-medium">Company</th>
-                    <th className="px-2 py-1.5 font-medium">Source</th>
-                    <th className="px-2 py-1.5 font-medium">Created</th>
-                    <th className="px-2 py-1.5 font-medium text-right"></th>
-                  </>
-                )}
-
-                {selectedView === 'on_market' && (
-                  <>
-                    <th className="px-2 py-1.5 font-medium">Company</th>
-                    <th className="px-2 py-1.5 font-medium">Location</th>
-                    <th className="px-2 py-1.5 font-medium">Industry</th>
-                    <th className="px-2 py-1.5 font-medium">Tier</th>
-                    <th className="px-2 py-1.5 font-medium">Created</th>
-                    <th className="px-2 py-1.5 font-medium text-right"></th>
-                  </>
-                )}
-
-                {selectedView === 'off_market' && (
-                  <>
-                    <th className="px-2 py-1.5 font-medium">Company</th>
-                    <th className="px-2 py-1.5 font-medium">Owner</th>
-                    <th className="px-2 py-1.5 font-medium">Created</th>
-                    <th className="px-2 py-1.5 font-medium text-right"></th>
-                  </>
-                )}
-
-                {selectedView === 'cim_pdf' && (
-                  <>
-                    <th className="px-2 py-1.5 font-medium">Company</th>
-                    <th className="px-2 py-1.5 font-medium">Tier</th>
-                    <th className="px-2 py-1.5 font-medium">Created</th>
-                    <th className="px-2 py-1.5 font-medium text-right"></th>
-                  </>
-                )}
-              </tr>
-            </thead>
-
-            <tbody>
-              {loadingDeals ? (
+        {loadingDeals ? (
+          <div className="px-4 pb-4">
+            <div className="rounded-xl border p-4 text-xs opacity-80">Loading…</div>
+          </div>
+        ) : filteredDeals.length === 0 ? (
+          renderEmptyStateForView()
+        ) : (
+          <div className="overflow-x-auto px-4 pb-4">
+            <table className="min-w-full text-left text-xs">
+              <thead className="table-header">
                 <tr>
-                  <td className="px-2 py-3" colSpan={getColSpanForView(selectedView)}>
-                    Loading…
-                  </td>
+                  {selectedView === 'saved' && (
+                    <>
+                      <th className="px-2 py-1.5 font-medium">Company</th>
+                      <th className="px-2 py-1.5 font-medium">Source</th>
+                      <th className="px-2 py-1.5 font-medium">Created</th>
+                      <th className="px-2 py-1.5 font-medium text-right"></th>
+                    </>
+                  )}
+
+                  {selectedView === 'on_market' && (
+                    <>
+                      <th className="px-2 py-1.5 font-medium">Company</th>
+                      <th className="px-2 py-1.5 font-medium">Location</th>
+                      <th className="px-2 py-1.5 font-medium">Industry</th>
+                      <th className="px-2 py-1.5 font-medium">Tier</th>
+                      <th className="px-2 py-1.5 font-medium">Created</th>
+                      <th className="px-2 py-1.5 font-medium text-right"></th>
+                    </>
+                  )}
+
+                  {selectedView === 'off_market' && (
+                    <>
+                      <th className="px-2 py-1.5 font-medium">Company</th>
+                      <th className="px-2 py-1.5 font-medium">Owner</th>
+                      <th className="px-2 py-1.5 font-medium">Created</th>
+                      <th className="px-2 py-1.5 font-medium text-right"></th>
+                    </>
+                  )}
+
+                  {selectedView === 'cim_pdf' && (
+                    <>
+                      <th className="px-2 py-1.5 font-medium">Company</th>
+                      <th className="px-2 py-1.5 font-medium">Tier</th>
+                      <th className="px-2 py-1.5 font-medium">Created</th>
+                      <th className="px-2 py-1.5 font-medium text-right"></th>
+                    </>
+                  )}
                 </tr>
-              ) : filteredDeals.length === 0 ? (
-                <tr>
-                  <td className="px-2 py-3 italic" colSpan={getColSpanForView(selectedView)}>
-                    {selectedView === 'saved'
-                      ? 'No saved companies yet. Save from On-market, Off-market, or CIMs.'
-                      : 'No companies yet.'}
-                  </td>
-                </tr>
-              ) : (
-                filteredDeals.map((deal) => (
+              </thead>
+
+              <tbody>
+                {filteredDeals.map((deal) => (
                   <tr key={deal.id} className="table-row">
                     {selectedView === 'saved' && (
                       <>
@@ -919,11 +1000,11 @@ export default function DashboardPage() {
                       </>
                     )}
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </main>
   );
