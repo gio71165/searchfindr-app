@@ -1,3 +1,4 @@
+// app/api/process-cim/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
@@ -620,7 +621,7 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
       body: JSON.stringify({
         model: 'gpt-4.1',
         instructions,
-        response_format: { type: 'json_object' },
+        text: { format: { type: 'json_object' } },
         input: [
           {
             role: 'user',
