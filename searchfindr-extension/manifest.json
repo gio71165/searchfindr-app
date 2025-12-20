@@ -1,16 +1,23 @@
 {
   "manifest_version": 3,
   "name": "SearchFindr",
-  "version": "1.0.0",
+  "version": "1.0.1",
+  "description": "Capture on-market listings into your SearchFindr workspace.",
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": ["https://searchfindr-app.vercel.app/*"],
   "action": {
     "default_popup": "popup.html"
   },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "content_scripts": [
     {
       "matches": ["https://searchfindr-app.vercel.app/extension/callback*"],
-      "js": ["contentScript.js"]
+      "js": ["contentScript.js"],
+      "run_at": "document_start"
     }
   ]
 }
