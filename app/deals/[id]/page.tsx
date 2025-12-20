@@ -6,18 +6,20 @@ import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { supabase } from '../../supabaseClient';
 
 // ====================================================================================
-// Shared helper: normalize red flags from JSON/string/array → string[]
+// Shared helpers
 // ====================================================================================
-const normalizeRedFlags = (raw: any): string[] => {
+
+// normalize JSON/string/array -> string[]
+const normalizeStringArray = (raw: any): string[] => {
   if (!raw) return [];
-  if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
+  if (Array.isArray(raw)) return raw.map(String).map((s) => s.trim()).filter(Boolean);
 
   if (typeof raw === 'string') {
     const trimmed = raw.trim();
     if (!trimmed) return [];
     try {
       const parsed = JSON.parse(trimmed);
-      if (Array.isArray(parsed)) return parsed.map(String).filter(Boolean);
+      if (Array.isArray(parsed)) return parsed.map(String).map((s) => s.trim()).filter(Boolean);
     } catch {
       // ignore
     }
@@ -27,6 +29,82 @@ const normalizeRedFlags = (raw: any): string[] => {
   const asString = String(raw).trim();
   return asString ? [asString] : [];
 };
+
+// Backwards compatibility: keep name used in other views
+const normalizeRedFlags = (raw: any): string[] => normalizeStringArray(raw);
+
+function prettyDate(d: string | null | undefined) {
+  if (!d) return '';
+  try {
+    return new Date(d).toLocaleDateString();
+  } catch {
+    return '';
+  }
+}
+
+type MetricRow = {
+  year: string;
+  value: number | null;
+  unit?: string | null;
+  note?: string | null;
+};
+
+type MarginRow = {
+  type?: string | null;
+  year: string;
+  value_pct: number | null;
+  note?: string | null;
+};
+
+function normalizeMetricRows(raw: any): MetricRow[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((r: any) => ({
+      year: typeof r?.year === 'string' ? r.year : String(r?.year ?? '').trim(),
+      value: typeof r?.value === 'number' ? r.value : r?.value === null ? null : Number.isFinite(Number(r?.value)) ? Number(r?.value) : null,
+      unit: typeof r?.unit === 'string' ? r.unit : null,
+      note: typeof r?.note === 'string' ? r.note : null,
+    }))
+    .filter((r) => Boolean(r.year))
+    .slice(0, 30);
+}
+
+function normalizeMarginRows(raw: any): MarginRow[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((r: any) => ({
+      type: typeof r?.type === 'string' ? r.type : null,
+      year: typeof r?.year === 'string' ? r.year : String(r?.year ?? '').trim(),
+      value_pct: typeof r?.value_pct === 'number' ? r.value_pct : r?.value_pct === null ? null : Number.isFinite(Number(r?.value_pct)) ? Number(r?.value_pct) : null,
+      note: typeof r?.note === 'string' ? r.note : null,
+    }))
+    .filter((r) => Boolean(r.year))
+    .slice(0, 60);
+}
+
+function formatMoney(v: number | null | undefined) {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—';
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
+  } catch {
+    return `$${Math.round(v).toLocaleString()}`;
+  }
+}
+
+function formatPct(v: number | null | undefined) {
+  if (typeof v !== 'number' || !Number.isFinite(v)) return '—';
+  return `${v.toFixed(1)}%`;
+}
+
+function sortYearsLikeHuman(a: string, b: string) {
+  // try numeric year sort, fallback alpha
+  const an = parseInt(a, 10);
+  const bn = parseInt(b, 10);
+  const aOk = Number.isFinite(an) && String(an) === a.trim();
+  const bOk = Number.isFinite(bn) && String(bn) === b.trim();
+  if (aOk && bOk) return an - bn;
+  return a.localeCompare(b);
+}
 
 // ====================================================================================
 // Small shared visual helpers
@@ -41,6 +119,8 @@ function SourceBadge({ source }: { source: string | null }) {
       ? 'Off-market'
       : source === 'cim_pdf'
       ? 'CIM (PDF)'
+      : source === 'financials'
+      ? 'Financials'
       : source;
 
   const tone =
@@ -48,12 +128,12 @@ function SourceBadge({ source }: { source: string | null }) {
       ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/40'
       : source === 'off_market'
       ? 'bg-sky-500/10 text-sky-600 border-sky-500/40'
+      : source === 'financials'
+      ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/40'
       : 'bg-purple-500/10 text-purple-600 border-purple-500/40';
 
   return (
-    <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide ${tone}`}
-    >
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide ${tone}`}>
       {label}
     </span>
   );
@@ -68,6 +148,41 @@ function TierBadge({ tier }: { tier: string | null }) {
   );
 }
 
+function ConfidenceBadge({ confidence }: { confidence: string | null | undefined }) {
+  if (!confidence) return null;
+
+  const raw = String(confidence).trim();
+  const lower = raw.toLowerCase();
+
+  // Decide tone by worst-sounding term present
+  const isWeak =
+    lower.includes(" low") ||
+    lower.includes(":low") ||
+    lower.includes("weak") ||
+    lower.includes("poor");
+
+  const isMedium =
+    lower.includes(" medium") ||
+    lower.includes(":medium") ||
+    lower.includes("mixed") ||
+    lower.includes("moderate");
+
+  const tone = isWeak
+    ? "bg-red-500/10 text-red-700 border-red-500/40"
+    : isMedium
+    ? "bg-amber-500/10 text-amber-700 border-amber-500/40"
+    : "bg-emerald-500/10 text-emerald-700 border-emerald-500/40";
+
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${tone}`}>
+      {raw}
+    </span>
+  );
+}
+
+// ====================================================================================
+// Page
+// ====================================================================================
 export default function DealDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -76,11 +191,8 @@ export default function DealDetailPage() {
   const id = (params?.id as string | undefined) ?? undefined;
 
   // support both query names
-  const fromView =
-    searchParams.get('from_view') ||
-    searchParams.get('from') ||
-    searchParams.get('view') ||
-    null;
+  const fromView = searchParams.get('from_view') || searchParams.get('from') || searchParams.get('view') || null;
+  const backHref = fromView ? `/dashboard?view=${encodeURIComponent(fromView)}` : '/dashboard';
 
   const [deal, setDeal] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -99,6 +211,36 @@ export default function DealDetailPage() {
   const [cimError, setCimError] = useState<string | null>(null);
   const [cimSuccess, setCimSuccess] = useState(false);
 
+  // Financials AI states
+  const [finLoading, setFinLoading] = useState(false);
+  const [finRunning, setFinRunning] = useState(false);
+  const [finError, setFinError] = useState<string | null>(null);
+  const [finAnalysis, setFinAnalysis] = useState<any | null>(null);
+
+  const fetchLatestFinancialAnalysis = async (dealId: string) => {
+    setFinLoading(true);
+    setFinError(null);
+
+    const { data, error } = await supabase
+      .from('financial_analyses')
+      .select('*')
+      .eq('deal_id', dealId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) {
+      console.error('Error loading financial analysis:', error);
+      setFinAnalysis(null);
+      setFinError('Failed to load financial analysis.');
+      setFinLoading(false);
+      return;
+    }
+
+    const row = Array.isArray(data) && data.length > 0 ? data[0] : null;
+    setFinAnalysis(row);
+    setFinLoading(false);
+  };
+
   // ------------------------------------------------------------------------------------
   // Load deal from Supabase
   // ------------------------------------------------------------------------------------
@@ -112,19 +254,25 @@ export default function DealDetailPage() {
       setCimError(null);
       setCimSuccess(false);
 
-      const { data, error } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('id', id)
-        .single();
+      setFinError(null);
+      setFinAnalysis(null);
+
+      const { data, error } = await supabase.from('companies').select('*').eq('id', id).single();
 
       if (error) {
         console.error('Error loading deal:', error);
         setDeal(null);
-      } else {
-        setDeal(data);
+        setLoading(false);
+        return;
       }
+
+      setDeal(data);
       setLoading(false);
+
+      // If it's a financials deal, load latest analysis (if any)
+      if (data?.source_type === 'financials') {
+        await fetchLatestFinancialAnalysis(id);
+      }
     };
 
     loadDeal();
@@ -136,7 +284,6 @@ export default function DealDetailPage() {
   const runOnMarketInitialDiligence = async () => {
     if (!id || !deal) return;
 
-    // Guard: this should only run for on-market
     if (deal.source_type !== 'on_market') {
       setAiError('Initial diligence (on-market) can only run for on-market deals.');
       return;
@@ -215,12 +362,7 @@ export default function DealDetailPage() {
 
   // ✅ Auto-run ONLY for on-market deals (only once)
   useEffect(() => {
-    if (
-      deal &&
-      deal.source_type === 'on_market' &&
-      !deal.ai_summary &&
-      !autoTriggeredRef.current
-    ) {
+    if (deal && deal.source_type === 'on_market' && !deal.ai_summary && !autoTriggeredRef.current) {
       autoTriggeredRef.current = true;
       runOnMarketInitialDiligence();
     }
@@ -233,7 +375,6 @@ export default function DealDetailPage() {
   const runOffMarketInitialDiligence = async () => {
     if (!id || !deal) return;
 
-    // Guard: do not allow this endpoint for on-market/cim
     if (deal.source_type !== 'off_market') {
       setOffMarketError('Initial diligence (off-market) can only run for off-market companies.');
       return;
@@ -261,7 +402,7 @@ export default function DealDetailPage() {
       try {
         json = JSON.parse(text);
       } catch {
-        // non-json response (route mismatch, html, etc.)
+        // non-json response
       }
 
       if (!res.ok || !json?.success) {
@@ -270,15 +411,12 @@ export default function DealDetailPage() {
         throw new Error(json?.error || `Failed to run initial diligence (HTTP ${res.status})`);
       }
 
-      // Normalize payload (your API returns these keys)
       const ai_summary = json.ai_summary ?? json?.initial_diligence_json?.ai_summary ?? '';
       const ai_red_flags = json.ai_red_flags ?? json?.initial_diligence_json?.ai_red_flags ?? [];
       const financials = json.financials ?? json?.initial_diligence_json?.financials ?? {};
       const scoring = json.scoring ?? json?.initial_diligence_json?.scoring ?? {};
-      const criteria_match =
-        json.criteria_match ?? json?.initial_diligence_json?.criteria_match ?? {};
+      const criteria_match = json.criteria_match ?? json?.initial_diligence_json?.criteria_match ?? {};
 
-      // Save to companies columns your UI already renders
       const { error: updateError } = await supabase
         .from('companies')
         .update({
@@ -318,13 +456,11 @@ export default function DealDetailPage() {
   const runCimAnalysis = async () => {
     if (!id || !deal) return;
 
-    // Guard: only for cim_pdf
     if (deal.source_type !== 'cim_pdf') {
       setCimError('CIM analysis can only run for CIM (PDF) deals.');
       return;
     }
 
-    // ✅ IMPORTANT: API requires cimStoragePath in the request body
     const cimStoragePath = deal.cim_storage_path as string | null | undefined;
     if (!cimStoragePath) {
       setCimError('Missing cim_storage_path on this company row. Re-upload the CIM or fix the stored path.');
@@ -346,7 +482,6 @@ export default function DealDetailPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        // ✅ FIX: send cimStoragePath + companyName (API expects these)
         body: JSON.stringify({
           companyId: id,
           cimStoragePath,
@@ -366,13 +501,7 @@ export default function DealDetailPage() {
         throw new Error(json?.error || `Failed to process CIM (HTTP ${res.status}).`);
       }
 
-      // If your /api/process-cim already updates the row, just reload the deal
-      const { data: refreshed } = await supabase
-        .from('companies')
-        .select('*')
-        .eq('id', id)
-        .single();
-
+      const { data: refreshed } = await supabase.from('companies').select('*').eq('id', id).single();
       if (refreshed) setDeal(refreshed);
 
       setCimSuccess(true);
@@ -385,23 +514,81 @@ export default function DealDetailPage() {
   };
 
   // ------------------------------------------------------------------------------------
+  // Financials: Run AI from Deal page (NO UPLOAD HERE)
+  // ------------------------------------------------------------------------------------
+  const runFinancialAnalysis = async () => {
+    if (!id || !deal) return;
+
+    if (deal.source_type !== 'financials') {
+      setFinError('Financial analysis can only run for Financials deals.');
+      return;
+    }
+
+    if (!deal.financials_storage_path) {
+      setFinError('No financials file attached to this deal. Re-upload financials from the Dashboard.');
+      return;
+    }
+
+    setFinRunning(true);
+    setFinError(null);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('Not signed in.');
+
+      const res = await fetch('/api/process-financials', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ deal_id: id }),
+      });
+
+      const text = await res.text();
+      let json: any = null;
+      try {
+        json = JSON.parse(text);
+      } catch {}
+
+      if (!res.ok || !json?.ok) {
+        console.error('process-financials status:', res.status);
+        console.error('process-financials raw:', text);
+        throw new Error(json?.error || `Financial analysis failed (HTTP ${res.status}).`);
+      }
+
+      await fetchLatestFinancialAnalysis(id);
+    } catch (e: any) {
+      console.error('runFinancialAnalysis error:', e);
+      setFinError(e?.message || 'Failed to run financial analysis.');
+    } finally {
+      setFinRunning(false);
+    }
+  };
+
+  // ------------------------------------------------------------------------------------
   // Page states
   // ------------------------------------------------------------------------------------
-  if (!id) {
-    return <main className="py-10 text-center">Loading deal…</main>;
+  if (!id) return <main className="py-10 text-center">Loading deal…</main>;
+  if (loading) return <main className="py-10 text-center">Loading deal details…</main>;
+  if (!deal) return <main className="py-10 text-center text-red-600">Deal not found.</main>;
+
+  // Branch: Financials vs CIM vs Off-market vs On-market
+  if (deal.source_type === 'financials') {
+    return (
+      <FinancialsDealView
+        deal={deal}
+        onBack={() => router.push(backHref)}
+        loadingAnalysis={finLoading}
+        running={finRunning}
+        analysis={finAnalysis}
+        error={finError}
+        onRun={runFinancialAnalysis}
+      />
+    );
   }
 
-  if (loading) {
-    return <main className="py-10 text-center">Loading deal details…</main>;
-  }
-
-  if (!deal) {
-    return <main className="py-10 text-center text-red-600">Deal not found.</main>;
-  }
-
-  const backHref = fromView ? `/dashboard?view=${encodeURIComponent(fromView)}` : '/dashboard';
-
-  // Branch: CIM vs Off-market vs On-market
   if (deal.source_type === 'cim_pdf') {
     return (
       <CimDealView
@@ -439,6 +626,259 @@ export default function DealDetailPage() {
 }
 
 // ====================================================================================
+// FINANCIALS DEAL VIEW
+// ====================================================================================
+function FinancialsDealView({
+  deal,
+  onBack,
+  loadingAnalysis,
+  running,
+  analysis,
+  error,
+  onRun,
+}: {
+  deal: any;
+  onBack: () => void;
+  loadingAnalysis: boolean;
+  running: boolean;
+  analysis: any | null;
+  error: string | null;
+  onRun: () => void;
+}) {
+  const createdLabel = deal.created_at ? new Date(deal.created_at).toLocaleDateString() : null;
+
+  const confidence = analysis?.overall_confidence ?? null;
+  const redFlags = normalizeStringArray(analysis?.red_flags);
+  const greenFlags = normalizeStringArray(analysis?.green_flags);
+  const missingItems = normalizeStringArray(analysis?.missing_items);
+  const diligenceNotes = normalizeStringArray(analysis?.diligence_notes);
+
+  const extracted = analysis?.extracted_metrics ?? null;
+  const yoy = normalizeStringArray(extracted?.yoy_trends);
+
+  const revenueRows = normalizeMetricRows(extracted?.revenue);
+  const ebitdaRows = normalizeMetricRows(extracted?.ebitda);
+  const netIncomeRows = normalizeMetricRows(extracted?.net_income);
+  const marginRows = normalizeMarginRows(extracted?.margins);
+
+  const allYears = Array.from(
+    new Set([
+      ...revenueRows.map((r) => r.year),
+      ...ebitdaRows.map((r) => r.year),
+      ...netIncomeRows.map((r) => r.year),
+      ...marginRows.map((m) => m.year),
+    ])
+  ).sort(sortYearsLikeHuman);
+
+  const yearToRevenue = new Map(revenueRows.map((r) => [r.year, r]));
+  const yearToEbitda = new Map(ebitdaRows.map((r) => [r.year, r]));
+  const yearToNet = new Map(netIncomeRows.map((r) => [r.year, r]));
+
+  // pick up to 2 common margin types to display as rows (avoid overbuilding)
+  const marginTypes = Array.from(new Set(marginRows.map((m) => (m.type || 'unknown').trim()))).filter(Boolean).slice(0, 2);
+  const marginsByTypeYear = new Map<string, Map<string, MarginRow>>();
+  for (const mt of marginTypes) {
+    marginsByTypeYear.set(mt, new Map(marginRows.filter((m) => (m.type || 'unknown').trim() === mt).map((m) => [m.year, m])));
+  }
+
+  const fileName = (deal.financials_filename as string | null) || null;
+
+  return (
+    <main className="min-h-screen">
+      <div className="max-w-4xl mx-auto py-10 px-4 space-y-8">
+        <button onClick={onBack} className="text-xs underline">
+          ← Back to dashboard
+        </button>
+
+        <section>
+          <h1 className="text-3xl font-semibold mb-1">{deal.company_name || 'Financials'}</h1>
+          <p className="text-sm text-muted-foreground">
+            Run a financial quality analysis (risks, strengths, missing items). Results save to the deal and can be re-run anytime.
+          </p>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <SourceBadge source={deal.source_type} />
+            {createdLabel && (
+              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                Added {createdLabel}
+              </span>
+            )}
+            <ConfidenceBadge confidence={confidence} />
+            {fileName && (
+              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+                File: {fileName}
+              </span>
+            )}
+          </div>
+        </section>
+
+        <section className="card-section">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-semibold">Financial Analysis</h2>
+              <p className="text-xs text-muted-foreground">Click to run AI on the uploaded financials attached to this deal.</p>
+            </div>
+
+            <button onClick={onRun} disabled={running} className="text-xs px-3 py-1 border rounded">
+              {running ? 'Running…' : analysis ? 'Re-run Financial Analysis' : 'Run Financial Analysis'}
+            </button>
+          </div>
+
+          {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+
+          {loadingAnalysis ? (
+            <p className="text-sm mt-3">Loading analysis…</p>
+          ) : !analysis ? (
+            <p className="text-sm mt-3">No analysis yet. Click “Run Financial Analysis” to generate results.</p>
+          ) : null}
+        </section>
+
+        {analysis && (
+          <>
+            <section className="card-section">
+              <h2 className="text-lg font-semibold mb-2">Overall Confidence</h2>
+              {confidence ? (
+                <p className="text-sm">Confidence level: <span className="font-medium">{confidence}</span></p>
+              ) : (
+                <p className="text-sm">No confidence level returned.</p>
+              )}
+            </section>
+
+            {yoy.length > 0 && (
+              <section className="card-section">
+                <h2 className="text-lg font-semibold mb-2">YoY Trends</h2>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  {yoy.slice(0, 20).map((t: string, idx: number) => (
+                    <li key={idx}>{t}</li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            <section className="card-red">
+              <h2 className="text-lg font-semibold mb-2">Red Flags</h2>
+              {redFlags.length === 0 ? (
+                <p className="text-sm">No red flags returned.</p>
+              ) : (
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  {redFlags.map((x, idx) => (
+                    <li key={idx}>{x}</li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="card-section">
+              <h2 className="text-lg font-semibold mb-2">Green Flags</h2>
+              {greenFlags.length === 0 ? (
+                <p className="text-sm">No green flags returned.</p>
+              ) : (
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  {greenFlags.map((x, idx) => (
+                    <li key={idx}>{x}</li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="card-section">
+              <h2 className="text-lg font-semibold mb-2">Missing / Unclear Items</h2>
+              {missingItems.length === 0 ? (
+                <p className="text-sm">Nothing flagged as missing or unclear.</p>
+              ) : (
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  {missingItems.map((x, idx) => (
+                    <li key={idx}>{x}</li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="card-section">
+              <h2 className="text-lg font-semibold mb-2">Notes for Diligence</h2>
+              {diligenceNotes.length === 0 ? (
+                <p className="text-sm">No diligence notes returned.</p>
+              ) : (
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  {diligenceNotes.map((x, idx) => (
+                    <li key={idx}>{x}</li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="card-section">
+              <h2 className="text-lg font-semibold mb-2">Key Metrics</h2>
+
+              {allYears.length === 0 ? (
+                <p className="text-sm">No structured metrics extracted.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-left text-xs">
+                    <thead className="table-header">
+                      <tr>
+                        <th className="px-2 py-2 font-medium">Metric</th>
+                        {allYears.map((y) => (
+                          <th key={y} className="px-2 py-2 font-medium">
+                            {y}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="table-row">
+                        <td className="px-2 py-2 font-medium">Revenue</td>
+                        {allYears.map((y) => (
+                          <td key={y} className="px-2 py-2">
+                            {formatMoney(yearToRevenue.get(y)?.value ?? null)}
+                          </td>
+                        ))}
+                      </tr>
+
+                      <tr className="table-row">
+                        <td className="px-2 py-2 font-medium">EBITDA</td>
+                        {allYears.map((y) => (
+                          <td key={y} className="px-2 py-2">
+                            {formatMoney(yearToEbitda.get(y)?.value ?? null)}
+                          </td>
+                        ))}
+                      </tr>
+
+                      <tr className="table-row">
+                        <td className="px-2 py-2 font-medium">Net Income</td>
+                        {allYears.map((y) => (
+                          <td key={y} className="px-2 py-2">
+                            {formatMoney(yearToNet.get(y)?.value ?? null)}
+                          </td>
+                        ))}
+                      </tr>
+
+                      {marginTypes.map((mt) => {
+                        const map = marginsByTypeYear.get(mt);
+                        return (
+                          <tr key={mt} className="table-row">
+                            <td className="px-2 py-2 font-medium">{mt}</td>
+                            {allYears.map((y) => (
+                              <td key={y} className="px-2 py-2">
+                                {formatPct(map?.get(y)?.value_pct ?? null)}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </>
+        )}
+      </div>
+    </main>
+  );
+}
+
+// ====================================================================================
 // OFF-MARKET DEAL VIEW (Google Places)
 // ====================================================================================
 function OffMarketDealView({
@@ -463,18 +903,12 @@ function OffMarketDealView({
   const createdLabel = deal.created_at ? new Date(deal.created_at).toLocaleDateString() : null;
 
   const ratingLine =
-    deal.rating || deal.ratings_total
-      ? `${deal.rating ?? '—'} (${deal.ratings_total ?? '—'} reviews)`
-      : null;
+    deal.rating || deal.ratings_total ? `${deal.rating ?? '—'} (${deal.ratings_total ?? '—'} reviews)` : null;
 
-  const tierReasons: string[] = Array.isArray(deal?.tier_reason?.reasons)
-    ? deal.tier_reason.reasons.map(String)
-    : [];
+  const tierReasons: string[] = Array.isArray(deal?.tier_reason?.reasons) ? deal.tier_reason.reasons.map(String) : [];
 
   const confidencePct =
-    ownerSignals && typeof ownerSignals.confidence === 'number'
-      ? Math.round(ownerSignals.confidence * 100)
-      : null;
+    ownerSignals && typeof ownerSignals.confidence === 'number' ? Math.round(ownerSignals.confidence * 100) : null;
 
   return (
     <main className="min-h-screen">
@@ -517,11 +951,7 @@ function OffMarketDealView({
         <section className="card-section">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold">Initial Diligence</h2>
-            <button
-              onClick={onRunInitialDiligence}
-              disabled={running}
-              className="text-xs px-2 py-1 border rounded"
-            >
+            <button onClick={onRunInitialDiligence} disabled={running} className="text-xs px-2 py-1 border rounded">
               {running ? 'Running…' : deal.ai_summary ? 'Re-run Initial Diligence' : 'Run Initial Diligence'}
             </button>
           </div>
@@ -529,8 +959,7 @@ function OffMarketDealView({
           {error && <p className="text-xs text-red-500 mb-1">{error}</p>}
 
           <p className="whitespace-pre-line text-sm leading-relaxed">
-            {deal.ai_summary ||
-              'No diligence memo yet. Run Initial Diligence to generate one from the company website.'}
+            {deal.ai_summary || 'No diligence memo yet. Run Initial Diligence to generate one from the company website.'}
           </p>
         </section>
 
@@ -543,9 +972,7 @@ function OffMarketDealView({
                 <p className="text-xs uppercase">Likely owner-operated</p>
                 <p className="font-medium">
                   {ownerSignals.likely_owner_operated ? 'Yes' : 'No'}
-                  {confidencePct !== null && (
-                    <span className="text-xs text-muted-foreground"> ({confidencePct}%)</span>
-                  )}
+                  {confidencePct !== null && <span className="text-xs text-muted-foreground"> ({confidencePct}%)</span>}
                 </p>
               </div>
 
@@ -766,11 +1193,7 @@ function OnMarketDealView({
         <section className="card-section">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-lg font-semibold">Initial Diligence</h2>
-            <button
-              onClick={onRunInitialDiligence}
-              disabled={analyzing}
-              className="text-xs px-2 py-1 border rounded"
-            >
+            <button onClick={onRunInitialDiligence} disabled={analyzing} className="text-xs px-2 py-1 border rounded">
               {analyzing ? 'Running…' : deal.ai_summary ? 'Re-run Initial Diligence' : 'Run Initial Diligence'}
             </button>
           </div>
@@ -923,48 +1346,19 @@ function CimDealView({
   const finRaw = deal.ai_financials_json || {};
 
   const fin = {
-    revenue:
-      finRaw.revenue ??
-      finRaw.ttm_revenue ??
-      finRaw.revenue_ttm ??
-      finRaw.ttmRevenue ??
-      finRaw.latest_revenue ??
-      null,
-    ebitda:
-      finRaw.ebitda ??
-      finRaw.ttm_ebitda ??
-      finRaw.ebitda_ttm ??
-      finRaw.ttmEbitda ??
-      finRaw.latest_ebitda ??
-      null,
-    margin:
-      finRaw.ebitda_margin ??
-      finRaw.ebitda_margin_ttm ??
-      finRaw.margin ??
-      finRaw.ebitdaMargin ??
-      null,
-    customer_concentration:
-      finRaw.customer_concentration ??
-      finRaw.customer_conc ??
-      finRaw.customer_concentration_summary ??
-      null,
+    revenue: finRaw.revenue ?? finRaw.ttm_revenue ?? finRaw.revenue_ttm ?? finRaw.ttmRevenue ?? finRaw.latest_revenue ?? null,
+    ebitda: finRaw.ebitda ?? finRaw.ttm_ebitda ?? finRaw.ebitda_ttm ?? finRaw.ttmEbitda ?? finRaw.latest_ebitda ?? null,
+    margin: finRaw.ebitda_margin ?? finRaw.ebitda_margin_ttm ?? finRaw.margin ?? finRaw.ebitdaMargin ?? null,
+    customer_concentration: finRaw.customer_concentration ?? finRaw.customer_conc ?? finRaw.customer_concentration_summary ?? null,
     revenue_1y_ago: finRaw.revenue_1y_ago ?? finRaw.revenue_last_year ?? finRaw.revenue_fy1 ?? null,
-    revenue_2y_ago:
-      finRaw.revenue_2y_ago ?? finRaw.revenue_two_years_ago ?? finRaw.revenue_fy2 ?? null,
-    revenue_cagr_3y:
-      finRaw.revenue_cagr_3y ??
-      finRaw.revenue_3yr_cagr ??
-      finRaw.revenue_cagr_3yr ??
-      finRaw.rev_cagr_3y ??
-      null,
+    revenue_2y_ago: finRaw.revenue_2y_ago ?? finRaw.revenue_two_years_ago ?? finRaw.revenue_fy2 ?? null,
+    revenue_cagr_3y: finRaw.revenue_cagr_3y ?? finRaw.revenue_3yr_cagr ?? finRaw.revenue_cagr_3yr ?? finRaw.rev_cagr_3y ?? null,
     capex_intensity: finRaw.capex_intensity ?? finRaw.capex_pct_revenue ?? null,
     working_capital_needs: finRaw.working_capital_needs ?? finRaw.working_capital_profile ?? null,
   };
 
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
-  const ddChecklist: string[] = Array.isArray(criteria.dd_checklist)
-    ? criteria.dd_checklist.map(String)
-    : [];
+  const ddChecklist: string[] = Array.isArray(criteria.dd_checklist) ? criteria.dd_checklist.map(String) : [];
 
   const createdLabel = deal.created_at ? new Date(deal.created_at).toLocaleDateString() : null;
 
@@ -998,20 +1392,14 @@ function CimDealView({
                 <h2 className="text-sm font-semibold">CIM Processing</h2>
                 <p className="text-xs text-muted-foreground">Re-run AI analysis on the original CIM PDF.</p>
               </div>
-              <button
-                onClick={onRunCim}
-                disabled={processingCim}
-                className="text-xs px-3 py-1 border rounded"
-              >
+              <button onClick={onRunCim} disabled={processingCim} className="text-xs px-3 py-1 border rounded">
                 {processingCim ? 'Processing CIM…' : 'Run AI on CIM'}
               </button>
             </div>
 
             {cimError && <p className="text-xs text-red-500 mt-1">{cimError}</p>}
 
-            {cimSuccess && (
-              <p className="text-xs text-green-600 mt-1">CIM processed successfully. Analysis is up to date.</p>
-            )}
+            {cimSuccess && <p className="text-xs text-green-600 mt-1">CIM processed successfully. Analysis is up to date.</p>}
           </div>
         </section>
 

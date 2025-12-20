@@ -22,11 +22,11 @@ type Company = {
   owner_name?: string | null;
 };
 
-type DashboardView = 'saved' | 'on_market' | 'off_market' | 'cim_pdf';
+type DashboardView = 'saved' | 'on_market' | 'off_market' | 'cim_pdf' | 'financials';
 const DEFAULT_VIEW: DashboardView = 'saved';
 
 function isDashboardView(v: any): v is DashboardView {
-  return v === 'saved' || v === 'on_market' || v === 'off_market' || v === 'cim_pdf';
+  return v === 'saved' || v === 'on_market' || v === 'off_market' || v === 'cim_pdf' || v === 'financials';
 }
 
 function formatSource(source: string | null): string {
@@ -34,6 +34,7 @@ function formatSource(source: string | null): string {
   if (source === 'on_market') return 'On-market';
   if (source === 'off_market') return 'Off-market';
   if (source === 'cim_pdf') return 'CIM (PDF)';
+  if (source === 'financials') return 'Financials';
   return source;
 }
 
@@ -51,6 +52,8 @@ function getColSpanForView(view: DashboardView) {
     case 'off_market':
       return 4;
     case 'cim_pdf':
+      return 4;
+    case 'financials':
       return 4;
     case 'saved':
     default:
@@ -175,6 +178,23 @@ const OFFMARKET_INDUSTRIES = [
 
 const ALLOWED_RADIUS = [5, 10, 15, 25, 50, 75, 100];
 
+function isAllowedFinancialFile(file: File) {
+  const name = (file.name || '').toLowerCase();
+  const mime = file.type || '';
+  const isPdf = mime === 'application/pdf' || name.endsWith('.pdf');
+  const isCsv = mime === 'text/csv' || mime === 'application/csv' || name.endsWith('.csv');
+  const isXlsx =
+    mime === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    mime === 'application/vnd.ms-excel' ||
+    name.endsWith('.xlsx') ||
+    name.endsWith('.xls');
+  return isPdf || isCsv || isXlsx;
+}
+
+function stripExt(filename: string) {
+  return filename.replace(/\.(pdf|csv|xlsx|xls)$/i, '');
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -226,6 +246,12 @@ export default function DashboardPage() {
   const [cimFile, setCimFile] = useState<File | null>(null);
   const cimInputRef = useRef<HTMLInputElement | null>(null);
   const [cimUploadStatus, setCimUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
+
+  // Financials upload state (UPDATED - upload only, no AI)
+  const [finFile, setFinFile] = useState<File | null>(null);
+  const finInputRef = useRef<HTMLInputElement | null>(null);
+  const [finUploadStatus, setFinUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
+  const [finUploadMsg, setFinUploadMsg] = useState<string | null>(null);
 
   // ✅ Off-market search state (dropdown + add/remove)
   const [offIndustries, setOffIndustries] = useState<string[]>([]);
@@ -408,11 +434,16 @@ export default function DashboardPage() {
       ? deals.filter((d) => d.is_saved === true)
       : deals.filter((deal) => {
           if (selectedView === 'cim_pdf') return deal.source_type === 'cim_pdf';
+          if (selectedView === 'financials') return deal.source_type === 'financials';
           return deal.source_type === selectedView;
         });
 
   const handleCimButtonClick = () => {
     cimInputRef.current?.click();
+  };
+
+  const handleFinancialsButtonClick = () => {
+    finInputRef.current?.click();
   };
 
   const handleOffMarketSearch = async () => {
@@ -537,6 +568,16 @@ export default function DashboardPage() {
       if (insertError || !insertData) {
         console.error('Error inserting CIM company row:', insertError);
         setErrorMsg('CIM uploaded, but failed to create deal record.');
+        setCimUploadStatus('error');
+
+        // best-effort cleanup so you don't leave orphaned files
+        try {
+          const pathToRemove = storageData?.path || filePath;
+          await supabase.storage.from('cims').remove([pathToRemove]);
+        } catch (cleanupErr) {
+          console.warn('CIM cleanup failed:', cleanupErr);
+        }
+
         return;
       }
 
@@ -568,6 +609,117 @@ export default function DashboardPage() {
     }
   };
 
+  /**
+   * UPDATED: Financials upload should behave like CIM:
+   * - Upload to Supabase Storage bucket: `financials`
+   * - Insert/update a row in companies with file metadata (NO AI run here)
+   */
+  const handleFinancialsFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) return;
+
+    if (!isAllowedFinancialFile(file)) {
+      setErrorMsg('Please upload a PDF, CSV, or Excel file for Financials.');
+      setFinFile(null);
+      setFinUploadStatus('error');
+      setFinUploadMsg('Invalid file type.');
+      return;
+    }
+
+    if (!userId || !workspaceId) {
+      setErrorMsg('User/workspace not loaded yet. Please try again.');
+      setFinUploadStatus('error');
+      setFinUploadMsg('Missing user/workspace.');
+      return;
+    }
+
+    setErrorMsg(null);
+    setFinUploadMsg(null);
+    setFinFile(file);
+    setFinUploadStatus('uploading');
+
+    try {
+      const fileExt = (file.name.split('.').pop() || '').toLowerCase() || 'pdf';
+      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+      const filePath = `${userId}/${fileName}`;
+
+      // 1) Upload file bytes to Storage bucket: financials
+      const { data: storageData, error: storageError } = await supabase.storage.from('financials').upload(filePath, file);
+
+      if (storageError) {
+        console.error('Financials upload error:', storageError);
+        setErrorMsg('Failed to upload Financials. Please try again.');
+        setFinUploadStatus('error');
+        setFinUploadMsg(storageError.message || 'Upload failed.');
+        return;
+      }
+
+      const storedPath = storageData?.path || filePath;
+
+      // 2) Create the deal row (no AI run here)
+      const baseName = stripExt(file.name || 'Financials');
+      const dealName = baseName || 'Financials';
+
+      const { data: insertData, error: insertError } = await supabase
+        .from('companies')
+        .insert({
+          company_name: dealName,
+          source_type: 'financials',
+          financials_storage_path: storedPath,
+          financials_filename: file.name || null,
+          financials_mime: file.type || null,
+          user_id: userId,
+          workspace_id: workspaceId,
+        })
+        .select('id')
+        .single();
+
+      if (insertError || !insertData?.id) {
+        console.error('Error inserting Financials company row:', insertError);
+        setErrorMsg('Financials uploaded, but failed to create deal record.');
+        setFinUploadStatus('error');
+        setFinUploadMsg('Deal creation failed.');
+
+        // best-effort cleanup to avoid orphaned file
+        try {
+          await supabase.storage.from('financials').remove([storedPath]);
+        } catch (cleanupErr) {
+          console.warn('Financials cleanup failed:', cleanupErr);
+        }
+
+        return;
+      }
+
+      const newId = insertData.id as string;
+
+      // optimistic add to UI
+      setDeals((prev) => [
+        {
+          id: newId,
+          company_name: dealName,
+          location_city: null,
+          location_state: null,
+          industry: null,
+          source_type: 'financials',
+          score: null,
+          final_tier: null,
+          listing_url: null,
+          created_at: new Date().toISOString(),
+          is_saved: false,
+        },
+        ...prev,
+      ]);
+
+      setFinUploadStatus('uploaded');
+      setFinUploadMsg('Uploaded & deal created. Open the deal to run Financial Analysis.');
+      setFinFile(null);
+    } catch (err: any) {
+      console.error('Unexpected financials upload error:', err);
+      setFinUploadStatus('error');
+      setFinUploadMsg(err?.message || 'Unexpected error uploading financials.');
+    }
+  };
+
   const handleConnectExtension = () => {
     window.location.href = 'https://searchfindr-app.vercel.app/extension/callback';
   };
@@ -577,7 +729,7 @@ export default function DashboardPage() {
       return (
         <EmptyStateCard
           title="No saved deals yet"
-          description="Save deals from On-market, Off-market, or CIM uploads to build your pipeline."
+          description="Save deals from On-market, Off-market, CIM uploads, or Financials uploads to build your pipeline."
           primaryLabel="Go to On-market"
           onPrimary={() => changeView('on_market')}
           secondaryLabel="Go to Off-market"
@@ -606,12 +758,23 @@ export default function DashboardPage() {
           description="Search by industry + geography to surface owner-operated SMBs."
           primaryLabel="Run a search below"
           onPrimary={() => {
-            // Nudge user to the search module area (no DOM assumptions)
-            // If they’re already on off-market, this just clears status and keeps them focused.
             setOffSearchStatus(offSearchStatus ?? 'Add industries + city/state, then click Search.');
           }}
           secondaryLabel="Go to Saved"
           onSecondary={() => changeView('saved')}
+        />
+      );
+    }
+
+    if (selectedView === 'financials') {
+      return (
+        <EmptyStateCard
+          title="No financial uploads yet"
+          description="Upload financials and run a financial quality analysis (risks, strengths, missing items)."
+          primaryLabel="Upload Financials"
+          onPrimary={handleFinancialsButtonClick}
+          secondaryLabel="Go to CIM uploads"
+          onSecondary={() => changeView('cim_pdf')}
         />
       );
     }
@@ -665,6 +828,18 @@ export default function DashboardPage() {
 
           <input ref={cimInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleCimFileChange} />
 
+          <button className="btn-main" onClick={handleFinancialsButtonClick}>
+            Upload Financials
+          </button>
+
+          <input
+            ref={finInputRef}
+            type="file"
+            accept=".pdf,.csv,.xlsx,.xls,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+            className="hidden"
+            onChange={handleFinancialsFileChange}
+          />
+
           <button className="btn-main" onClick={handleConnectExtension}>
             Connect to Chrome extension
           </button>
@@ -683,8 +858,18 @@ export default function DashboardPage() {
           </p>
         )}
 
+        {finFile && (
+          <p className="text-xs">
+            Financials selected: <span className="font-medium">{finFile.name}</span>{' '}
+            {finUploadStatus === 'uploading' && <span className="text-[11px] text-muted-foreground">(uploading…)</span>}
+            {finUploadStatus === 'uploaded' && <span className="text-[11px] text-green-600"> – uploaded & deal created</span>}
+            {finUploadStatus === 'error' && <span className="text-[11px] text-red-600"> – upload failed</span>}
+            {finUploadMsg ? <span className="text-[11px] opacity-80"> — {finUploadMsg}</span> : null}
+          </p>
+        )}
+
         <div className="flex flex-wrap gap-3 pt-2 text-xs">
-          {(['saved', 'on_market', 'off_market', 'cim_pdf'] as const).map((view) => {
+          {(['saved', 'on_market', 'off_market', 'cim_pdf', 'financials'] as const).map((view) => {
             const isActive = selectedView === view;
             const label =
               view === 'saved'
@@ -693,7 +878,9 @@ export default function DashboardPage() {
                 ? 'On-market'
                 : view === 'off_market'
                 ? 'Off-market'
-                : 'CIMs';
+                : view === 'cim_pdf'
+                ? 'CIMs'
+                : 'Financials';
 
             return (
               <button key={view} onClick={() => changeView(view)} className={`view-pill ${isActive ? 'view-pill--active' : ''}`}>
@@ -807,9 +994,7 @@ export default function DashboardPage() {
           {loadingDeals ? (
             <p className="text-xs">Loading…</p>
           ) : (
-            <p className="text-xs">
-              {filteredDeals.length === 0 ? 'No companies yet.' : `${filteredDeals.length} company(s) shown.`}
-            </p>
+            <p className="text-xs">{filteredDeals.length === 0 ? 'No companies yet.' : `${filteredDeals.length} company(s) shown.`}</p>
           )}
         </div>
 
@@ -860,6 +1045,15 @@ export default function DashboardPage() {
                       <th className="px-2 py-1.5 font-medium">Company</th>
                       <th className="px-2 py-1.5 font-medium">Tier</th>
                       <th className="px-2 py-1.5 font-medium">Created</th>
+                      <th className="px-2 py-1.5 font-medium text-right"></th>
+                    </>
+                  )}
+
+                  {selectedView === 'financials' && (
+                    <>
+                      <th className="px-2 py-1.5 font-medium">Company</th>
+                      <th className="px-2 py-1.5 font-medium">Created</th>
+                      <th className="px-2 py-1.5 font-medium text-right"></th>
                       <th className="px-2 py-1.5 font-medium text-right"></th>
                     </>
                   )}
@@ -999,10 +1193,50 @@ export default function DashboardPage() {
                         </td>
                       </>
                     )}
+
+                    {selectedView === 'financials' && (
+                      <>
+                        <td className="px-2 py-2">
+                          <Link href={`/deals/${deal.id}?from_view=${selectedView}`} className="underline">
+                            {deal.company_name || 'Untitled'}
+                          </Link>
+                        </td>
+                        <td className="px-2 py-2">{deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}</td>
+                        <td className="px-2 py-2 text-right">
+                          {deal.is_saved ? null : (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSave(deal.id);
+                              }}
+                              className="text-[11px] underline"
+                            >
+                              Save
+                            </button>
+                          )}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(deal.id);
+                            }}
+                            className="text-red-500 text-[11px] underline"
+                          >
+                            Delete
+                          </button>
+                        </td>
+                      </>
+                    )}
                   </tr>
                 ))}
               </tbody>
             </table>
+
+            {/* if you ever want a “colspan” row later */}
+            <div className="hidden">
+              <span>{getColSpanForView(selectedView)}</span>
+            </div>
           </div>
         )}
       </section>
