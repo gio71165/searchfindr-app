@@ -11,15 +11,11 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
 
 if (!OPENAI_API_KEY) {
-  console.warn(
-    'OPENAI_API_KEY is not set. /api/process-cim will fail until you set it in .env.local'
-  );
+  console.warn('OPENAI_API_KEY is not set. /api/process-cim will fail until you set it in .env.local');
 }
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.warn(
-    'Supabase server env vars missing. Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.'
-  );
+  console.warn('Supabase server env vars missing. Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.');
 }
 
 // ✅ Server-side Supabase client (bypasses RLS). Never use this on the client.
@@ -77,6 +73,48 @@ function extractOutputText(responsesJson: any): string {
   return '';
 }
 
+// ✅ Force bullet formatting no matter what comes back
+function coerceRedFlagsToBulletedMarkdown(value: unknown): string | null {
+  // Case 1: array of strings
+  if (Array.isArray(value)) {
+    const items = value
+      .map((x) => (typeof x === 'string' ? x.trim() : ''))
+      .filter(Boolean)
+      .map((s) => s.replace(/^[-•*]\s+/, '').replace(/^\d+\.\s+/, '').trim())
+      .filter(Boolean);
+
+    if (items.length === 0) return null;
+    return items.map((s) => `- ${s}`).join('\n');
+  }
+
+  // Case 2: model returns a string blob
+  if (typeof value === 'string' && value.trim()) {
+    const raw = value.replace(/\r\n/g, '\n').trim();
+
+    // Split by newline first; if single line, split by sentence-ish boundaries
+    let parts = raw
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (parts.length <= 1) {
+      parts = raw
+        .split(/(?:\.\s+|;\s+|\n+)/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+
+    const items = parts
+      .map((s) => s.replace(/^[-•*]\s+/, '').replace(/^\d+\.\s+/, '').trim())
+      .filter(Boolean);
+
+    if (items.length === 0) return null;
+    return items.map((s) => `- ${s}`).join('\n');
+  }
+
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   try {
     console.log('process-cim: received request');
@@ -87,64 +125,38 @@ export async function POST(req: NextRequest) {
     const companyName = (body.companyName as string | null) ?? 'Unknown';
 
     if (!companyId || !cimStoragePath) {
-      return NextResponse.json(
-        { success: false, error: 'Missing companyId or cimStoragePath' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'Missing companyId or cimStoragePath' }, { status: 400 });
     }
 
     if (!OPENAI_API_KEY) {
-      return NextResponse.json(
-        { success: false, error: 'OPENAI_API_KEY is not set on the server.' },
-        { status: 500 }
-      );
+      return NextResponse.json({ success: false, error: 'OPENAI_API_KEY is not set on the server.' }, { status: 500 });
     }
 
     // 1) Build public URL for the CIM PDF from Supabase Storage
-    const { data: publicUrlData } = supabaseAdmin.storage
-      .from('cims')
-      .getPublicUrl(cimStoragePath);
+    const { data: publicUrlData } = supabaseAdmin.storage.from('cims').getPublicUrl(cimStoragePath);
 
     const publicUrl = publicUrlData?.publicUrl;
     console.log('process-cim: publicUrl', publicUrl);
 
     if (!publicUrl) {
-      return NextResponse.json(
-        { success: false, error: 'Failed to build public URL for CIM PDF.' },
-        { status: 500 }
-      );
+      return NextResponse.json({ success: false, error: 'Failed to build public URL for CIM PDF.' }, { status: 500 });
     }
 
     // 2) Download the PDF from Supabase
     const pdfRes = await fetch(publicUrl);
-    console.log(
-      'process-cim: pdf fetch status',
-      pdfRes.status,
-      pdfRes.statusText
-    );
+    console.log('process-cim: pdf fetch status', pdfRes.status, pdfRes.statusText);
 
     if (!pdfRes.ok) {
-      console.error(
-        'Failed to fetch PDF from storage:',
-        pdfRes.status,
-        pdfRes.statusText
-      );
-      return NextResponse.json(
-        { success: false, error: 'Failed to download CIM PDF from storage.' },
-        { status: 500 }
-      );
+      console.error('Failed to fetch PDF from storage:', pdfRes.status, pdfRes.statusText);
+      return NextResponse.json({ success: false, error: 'Failed to download CIM PDF from storage.' }, { status: 500 });
     }
 
     const pdfArrayBuffer = await pdfRes.arrayBuffer();
 
     // 3) Upload PDF directly to OpenAI so it can read the CIM itself
-    const fileId = await uploadPdfToOpenAI(
-      pdfArrayBuffer,
-      `${companyName}.pdf`
-    );
+    const fileId = await uploadPdfToOpenAI(pdfArrayBuffer, `${companyName}.pdf`);
 
     // 4) System instructions: strict, buyer-protective, ETA/search & capital-advisor focused
-    // ✅ CHANGE: added QoE section + added top-level qoe schema (clean separation)
     const instructions = `
 You are a buy-side M&A associate serving:
 - ETA/search-fund buyers,
@@ -611,7 +623,6 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
     `.trim();
 
     // 5) Call OpenAI Responses API with the file_id and strict instructions
-    // ✅ CHANGE: enforce strict JSON output in the API call
     const responsesRes = await fetch(`${OPENAI_BASE_URL}/v1/responses`, {
       method: 'POST',
       headers: {
@@ -626,14 +637,8 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
           {
             role: 'user',
             content: [
-              {
-                type: 'input_file',
-                file_id: fileId,
-              },
-              {
-                type: 'input_text',
-                text: userText,
-              },
+              { type: 'input_file', file_id: fileId },
+              { type: 'input_text', text: userText },
             ],
           },
         ],
@@ -644,29 +649,20 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
       const errText = await responsesRes.text();
       console.error('OpenAI Responses API error:', errText);
       return NextResponse.json(
-        {
-          success: false,
-          error: 'OpenAI Responses API error',
-          details: errText,
-        },
+        { success: false, error: 'OpenAI Responses API error', details: errText },
         { status: 500 }
       );
     }
 
     const responsesJson = await responsesRes.json();
-
     const contentText: string = extractOutputText(responsesJson);
 
     if (!contentText) {
-      console.error(
-        'No text content returned from OpenAI Responses API:',
-        responsesJson
-      );
+      console.error('No text content returned from OpenAI Responses API:', responsesJson);
       return NextResponse.json(
         {
           success: false,
-          error:
-            'OpenAI Responses API did not return any text content. Check logs for details.',
+          error: 'OpenAI Responses API did not return any text content. Check logs for details.',
         },
         { status: 500 }
       );
@@ -675,9 +671,9 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
     let parsed: {
       deal_verdict: string;
       ai_summary: string;
-      ai_red_flags: string[];
+      ai_red_flags: any; // allow string/array; we coerce it
       financials: any;
-      qoe: any; // ✅ CHANGE: top-level qoe
+      qoe: any;
       scoring: any;
       criteria_match: any;
     };
@@ -687,36 +683,25 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
     } catch (jsonErr) {
       console.error('Failed to parse OpenAI JSON:', jsonErr, contentText);
       return NextResponse.json(
-        {
-          success: false,
-          error:
-            'Failed to parse OpenAI response as JSON. Check logs for content.',
-        },
+        { success: false, error: 'Failed to parse OpenAI response as JSON. Check logs for content.' },
         { status: 500 }
       );
     }
 
-    // ✅ CHANGE: persist QoE without DB migration
-    // We keep your existing columns, and embed qoe under criteria_match_json.qoe
+    // Persist QoE without DB migration (unchanged behavior)
     const criteriaToStore =
       parsed.criteria_match && typeof parsed.criteria_match === 'object'
         ? { ...parsed.criteria_match, qoe: parsed.qoe ?? null }
         : { qoe: parsed.qoe ?? null };
 
-    // ✅ WRITE RESULTS TO DB (THIS IS THE FIX)
+    const redFlagsBulleted = coerceRedFlagsToBulletedMarkdown(parsed.ai_red_flags);
+
+    // ✅ WRITE RESULTS TO DB
     const { error: updateErr } = await supabaseAdmin
       .from('companies')
       .update({
         ai_summary: parsed.ai_summary ?? null,
-        ai_red_flags: Array.isArray(parsed.ai_red_flags)
-  ? parsed.ai_red_flags
-      .map((s) => (typeof s === 'string' ? s.trim() : ''))
-      .filter(Boolean)
-      .map((s) => s.replace(/^[-•*]\s+/, '').replace(/^\d+\.\s+/, '').trim())
-      .map((s) => `- ${s}`)
-      .join('\n')
-  : null,
-
+        ai_red_flags: redFlagsBulleted,
         ai_financials_json: parsed.financials ?? null,
         ai_scoring_json: parsed.scoring ?? null,
         criteria_match_json: criteriaToStore ?? null,
@@ -727,11 +712,7 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
     if (updateErr) {
       console.error('process-cim: DB update error:', updateErr);
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Failed to persist AI results to DB.',
-          details: updateErr.message,
-        },
+        { success: false, error: 'Failed to persist AI results to DB.', details: updateErr.message },
         { status: 500 }
       );
     }
@@ -743,15 +724,12 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
       ai_summary: parsed.ai_summary,
       ai_red_flags: parsed.ai_red_flags,
       financials: parsed.financials,
-      qoe: parsed.qoe, // ✅ return qoe too
+      qoe: parsed.qoe,
       scoring: parsed.scoring,
       criteria_match: criteriaToStore,
     });
   } catch (err) {
     console.error('Unexpected error in process-cim:', err);
-    return NextResponse.json(
-      { success: false, error: 'Unexpected server error in process-cim.' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: 'Unexpected server error in process-cim.' }, { status: 500 });
   }
 }

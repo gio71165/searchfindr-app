@@ -1370,7 +1370,65 @@ function CimDealView({
     working_capital_needs: finRaw.working_capital_needs ?? finRaw.working_capital_profile ?? null,
   };
 
-  const redFlags = normalizeRedFlags(deal.ai_red_flags);
+  // ✅ FIX: inline normalization so red flags ALWAYS become an array of bullet items
+  const redFlags: string[] = (() => {
+    const v = deal?.ai_red_flags;
+    if (!v) return [];
+
+    if (Array.isArray(v)) {
+      return v
+        .map((x) => (typeof x === 'string' ? x.trim() : ''))
+        .filter(Boolean);
+    }
+
+    if (typeof v === 'string') {
+      const raw = v.trim();
+      if (!raw) return [];
+
+      // If it's a JSON array string, parse it
+      if (raw.startsWith('[') && raw.endsWith(']')) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            return parsed
+              .map((x) => (typeof x === 'string' ? x.trim() : ''))
+              .filter(Boolean);
+          }
+        } catch {
+          // fall through to newline split
+        }
+      }
+
+      // Otherwise split by newline and strip leading bullets/numbers
+      return raw
+        .replace(/\r\n/g, '\n')
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => line.replace(/^[-•*]\s+/, '').replace(/^\d+\.\s+/, '').trim())
+        .filter(Boolean);
+    }
+
+    // object fallback (just in case)
+    if (typeof v === 'object') {
+      const maybe = (v as any)?.items ?? (v as any)?.red_flags ?? (v as any)?.ai_red_flags;
+      if (maybe) {
+        const asStr = Array.isArray(maybe) ? maybe : typeof maybe === 'string' ? maybe : '';
+        return Array.isArray(asStr)
+          ? asStr.map((x) => String(x).trim()).filter(Boolean)
+          : String(asStr)
+              .replace(/\r\n/g, '\n')
+              .split('\n')
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .map((s) => s.replace(/^[-•*]\s+/, '').replace(/^\d+\.\s+/, '').trim())
+              .filter(Boolean);
+      }
+    }
+
+    return [];
+  })();
+
   const ddChecklist: string[] = Array.isArray(criteria.dd_checklist) ? criteria.dd_checklist.map(String) : [];
 
   const createdLabel = deal.created_at ? new Date(deal.created_at).toLocaleDateString() : null;
