@@ -840,10 +840,6 @@ export default function DashboardPage() {
             onChange={handleFinancialsFileChange}
           />
 
-          <button className="btn-main" onClick={handleConnectExtension}>
-            Connect to Chrome extension
-          </button>
-
           <button className="btn-main" onClick={refreshDeals} disabled={refreshing || loadingDeals || !workspaceId}>
             {refreshing ? 'Refreshing…' : 'Refresh'}
           </button>
