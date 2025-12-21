@@ -129,8 +129,6 @@ function buildOffMarketConfidence(ai: any): {
 } {
   const dc = normalizeDataConfidence(ai?.scoring?.data_confidence) ?? "low";
 
-  // Make the wording unambiguous: this is INPUT/data confidence, not "AI is unsure"
-  // Keep it short but specific.
   const tierBasis = typeof ai?.scoring?.tier_basis === "string" ? ai.scoring.tier_basis.trim() : "";
   const evidenceCount = Array.isArray(ai?.business_model?.evidence) ? ai.business_model.evidence.length : 0;
 
@@ -144,8 +142,6 @@ function buildOffMarketConfidence(ai: any): {
   }
 
   if (tierBasis) {
-    // If tier_basis exists and is short, it usually explains why we capped it.
-    // Append lightly (no paragraphs).
     const short = tierBasis.length > 140 ? `${tierBasis.slice(0, 140)}…` : tierBasis;
     reason = `${reason} ${short}`;
   }
@@ -202,8 +198,7 @@ async function runOffMarketInitialDiligenceAI(input: {
 }) {
   const c = input.company;
 
-  const inputs =
-    c.tier_reason && typeof c.tier_reason === "object" ? (c.tier_reason as any).inputs ?? null : null;
+  const inputs = c.tier_reason && typeof c.tier_reason === "object" ? (c.tier_reason as any).inputs ?? null : null;
 
   const prompt = `
 You are SearchFindr running INITIAL OFF-MARKET DILIGENCE using ONLY:
@@ -314,7 +309,6 @@ ${input.homepageText || "(no homepage text available)"}
 
   const parsed: any = JSON.parse(content);
 
-  // Validation / normalization
   if (typeof parsed?.ai_summary !== "string") throw new Error("Bad AI response: ai_summary missing");
 
   if (!Array.isArray(parsed?.ai_red_flags)) parsed.ai_red_flags = [];
@@ -342,12 +336,10 @@ ${input.homepageText || "(no homepage text available)"}
     if (parsed.scoring.final_tier === "A") parsed.scoring.final_tier = "B";
     if (parsed.scoring.overall_score_0_100 > 69) parsed.scoring.overall_score_0_100 = 69;
     if (typeof parsed.scoring.tier_basis !== "string" || !parsed.scoring.tier_basis.trim()) {
-      parsed.scoring.tier_basis =
-        "Tier is capped because ownership could not be verified from the homepage text.";
+      parsed.scoring.tier_basis = "Tier is capped because ownership could not be verified from the homepage text.";
     }
   }
 
-  // Always populate UI summaries
   const services = Array.isArray(parsed?.business_model?.services) ? parsed.business_model.services : [];
 
   parsed.criteria_match.business_model =
@@ -391,10 +383,7 @@ export async function POST(req: NextRequest) {
       );
     }
     if (!OPENAI_API_KEY) {
-      return NextResponse.json(
-        { success: false, error: "Missing OPENAI_API_KEY" },
-        { status: 500, headers: corsHeaders }
-      );
+      return NextResponse.json({ success: false, error: "Missing OPENAI_API_KEY" }, { status: 500, headers: corsHeaders });
     }
 
     const { workspaceId } = await getAuthedUserAndWorkspace(req);
@@ -405,15 +394,12 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as Body;
 
     const companyId =
-      toTextSafe(body?.companyId).trim() ||
-      toTextSafe(body?.company_id).trim() ||
-      toTextSafe(body?.id).trim();
+      toTextSafe(body?.companyId).trim() || toTextSafe(body?.company_id).trim() || toTextSafe(body?.id).trim();
 
     if (!companyId) {
       return NextResponse.json({ success: false, error: "Missing company_id" }, { status: 400, headers: corsHeaders });
     }
 
-    // ✅ FIX: force 'company' to be a plain object type so TS stops unioning it with GenericStringError
     const { data, error } = await supabase
       .from("companies")
       .select("id, workspace_id, source_type, company_name, website, address, phone, rating, ratings_total, tier_reason")
@@ -443,10 +429,7 @@ export async function POST(req: NextRequest) {
 
     if (!website) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "Missing website for this off-market company. Add a website before running diligence.",
-        },
+        { success: false, error: "Missing website for this off-market company. Add a website before running diligence." },
         { status: 400, headers: corsHeaders }
       );
     }
@@ -466,7 +449,6 @@ export async function POST(req: NextRequest) {
       homepageText,
     });
 
-    // ✅ Standardized, dashboard-friendly confidence snapshot (DATA confidence)
     const confidenceJson = buildOffMarketConfidence(ai);
 
     const finalTier = (ai?.scoring?.final_tier || "").toUpperCase();
@@ -475,10 +457,9 @@ export async function POST(req: NextRequest) {
         ? clampScore(ai.scoring.overall_score_0_100)
         : tierToScore(finalTier) ?? null;
 
-    // Store red flags consistently (bulleted markdown like CIM)
     const redFlagsBulleted = bullets(ai.ai_red_flags);
 
-    // ✅ WRITE RESULTS TO DB (this is what you were missing)
+    // ✅ WRITE RESULTS TO DB (removed updated_at — your companies table doesn't have it)
     const { error: updateErr } = await supabase
       .from("companies")
       .update({
@@ -491,7 +472,7 @@ export async function POST(req: NextRequest) {
         final_tier: finalTier === "A" || finalTier === "B" || finalTier === "C" ? finalTier : null,
         score,
         ai_confidence_json: confidenceJson,
-        updated_at: new Date().toISOString(),
+        // ✅ removed: updated_at
       })
       .eq("id", companyId)
       .eq("workspace_id", workspaceId);

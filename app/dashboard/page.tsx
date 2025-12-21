@@ -30,9 +30,14 @@ type Company = {
   created_at: string | null;
   listing_url: string | null;
   is_saved: boolean | null;
+
+  // exists in DB, but we no longer show it on dashboard (off-market owner often unknown)
   owner_name?: string | null;
 
-  // ✅ NEW: single source of truth for dashboard confidence
+  // ✅ Used for “Why it matters” across modules (this is what updates after you run AI)
+  ai_summary?: string | null;
+
+  // ✅ Single source of truth for dashboard confidence
   ai_confidence_json?: AIConfidence;
 };
 
@@ -68,12 +73,22 @@ function formatCreated(created_at: string | null): string {
   }
 }
 
-function normalizeConfidence(
-  ai: AIConfidence
-): { icon: '⚠️' | '◑' | '●'; label: string; reason: string } | null {
+function clampText(s: string, max = 90) {
+  const t = (s || '').replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  if (t.length <= max) return t;
+  return t.slice(0, max - 1).trimEnd() + '…';
+}
+
+function isTierApplicableSource(source_type: string | null | undefined) {
+  return source_type === 'on_market' || source_type === 'off_market';
+}
+
+function normalizeConfidence(ai: AIConfidence): { icon: '⚠️' | '◑' | '●'; label: string; reason: string; level?: ConfidenceLevel } | null {
   if (!ai) return null;
 
   const lvl = (ai.level || '').toLowerCase() as ConfidenceLevel;
+
   const iconFromLevel: Record<ConfidenceLevel, '⚠️' | '◑' | '●'> = {
     low: '⚠️',
     medium: '◑',
@@ -81,8 +96,7 @@ function normalizeConfidence(
   };
 
   const icon = (ai.icon as any) || iconFromLevel[lvl] || '◑';
-  const label =
-    lvl === 'high' ? 'High' : lvl === 'medium' ? 'Medium' : lvl === 'low' ? 'Low' : 'Medium';
+  const labelCore = lvl === 'high' ? 'High' : lvl === 'medium' ? 'Medium' : lvl === 'low' ? 'Low' : 'Medium';
 
   const reason =
     (ai.summary && String(ai.summary).trim()) ||
@@ -92,40 +106,50 @@ function normalizeConfidence(
           .map((s) => `${s.label}: ${s.value}`)
           .join(' • ')
       : '') ||
-    'Confidence set by latest analysis run.';
+    'Based on completeness/quality of available inputs.';
 
-  return { icon, label: `${label} confidence`, reason };
+  return { icon, label: `Data confidence: ${labelCore}`, reason, level: lvl };
 }
 
 /**
- * ✅ Dashboard confidence (V1):
- * - If ai_confidence_json exists: show it (single source of truth)
- * - Else: "Not analyzed" (⚠️)
+ * ✅ Dashboard confidence:
+ * - If ai_confidence_json exists: show it (analyzed)
+ * - Else: Not analyzed (neutral & visually distinct from Medium)
  */
-function getDashboardConfidence(deal: Company): { icon: '⚠️' | '◑' | '●'; label: string; reason: string } {
+function getDashboardConfidence(deal: Company): {
+  icon: '⚠️' | '◑' | '●';
+  label: string;
+  reason: string;
+  level?: ConfidenceLevel;
+  analyzed: boolean;
+} {
   const normalized = normalizeConfidence(deal.ai_confidence_json ?? null);
-  if (normalized) return normalized;
+  if (normalized) return { ...normalized, analyzed: true };
 
   return {
-    icon: '⚠️',
-    label: 'Not analyzed',
+    icon: '◑', // neutral
+    label: 'Data confidence: Not analyzed',
     reason: 'No analysis run yet. Open the deal and click “Run AI” to generate signals.',
+    analyzed: false,
   };
 }
 
 function getDashboardWhyItMatters(deal: Company): string {
-  const tier = (deal.final_tier || '').toUpperCase();
+  // ✅ Primary: use ai_summary (this is what your backend updates after running AI)
+  const fromSummary = clampText(deal.ai_summary || '', 90);
+  if (fromSummary) return fromSummary;
 
-  // short, scan-friendly lines (no paragraphs)
-  if (!tier) {
-    if (deal.source_type === 'off_market') return 'Lead surfaced — open to review surface signals.';
-    if (deal.source_type === 'financials') return 'Upload received — open to run financial analysis.';
-    if (deal.source_type === 'cim_pdf') return 'CIM uploaded — open to generate memo + labels.';
-    if (deal.source_type === 'on_market') return 'Listing captured — open to screen risks + missing info.';
-    return 'Open to run analysis and generate prioritization signals.';
-  }
+  // Secondary: allow confidence summary if that's all we have
+  const fromConfidence = clampText(deal.ai_confidence_json?.summary || '', 90);
+  if (fromConfidence) return fromConfidence;
 
-  return `Tier ${tier} = priority for further review (not a recommendation).`;
+  // Fallbacks: action-oriented defaults
+  if (deal.source_type === 'off_market') return 'Lead surfaced — open to review surface signals.';
+  if (deal.source_type === 'financials') return 'Upload received — open the deal to run financial analysis.';
+  if (deal.source_type === 'cim_pdf') return 'CIM uploaded — open the deal to generate memo + labels.';
+  if (deal.source_type === 'on_market') return 'Listing captured — open to screen risks + missing info.';
+
+  return 'Open to run analysis and generate prioritization signals.';
 }
 
 function TierPill({ tier }: { tier: string | null }) {
@@ -141,18 +165,29 @@ function ConfidencePill({
   icon,
   label,
   title,
+  level,
+  analyzed,
 }: {
   icon: '⚠️' | '◑' | '●';
   label: string;
   title: string;
+  level?: ConfidenceLevel;
+  analyzed: boolean;
 }) {
   const base = 'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium';
-  const cls =
-    icon === '⚠️'
-      ? `${base} border-red-500/40 bg-red-500/5 text-red-700`
-      : icon === '●'
-      ? `${base} border-emerald-500/40 bg-emerald-500/5 text-emerald-700`
-      : `${base} border-slate-500/30 bg-slate-500/5 text-slate-700`;
+
+  // ✅ VISUAL FIX:
+  // - Not analyzed: neutral gray (distinct from Medium)
+  // - Medium: blue (so it does NOT look like Not analyzed)
+  // - Low: red
+  // - High: green
+  const cls = !analyzed
+    ? `${base} border-slate-500/30 bg-transparent text-slate-500`
+    : level === 'low' || icon === '⚠️'
+    ? `${base} border-red-500/40 bg-red-500/5 text-red-700`
+    : level === 'high' || icon === '●'
+    ? `${base} border-emerald-500/40 bg-emerald-500/5 text-emerald-700`
+    : `${base} border-blue-500/40 bg-blue-500/5 text-blue-700`;
 
   return (
     <span className={cls} title={title}>
@@ -296,7 +331,7 @@ function tierRank(tier: string | null | undefined): number {
   if (t === 'A') return 1;
   if (t === 'B') return 2;
   if (t === 'C') return 3;
-  return 999; // unrated last by default
+  return 999;
 }
 
 function normalizeName(s: string | null | undefined): string {
@@ -318,13 +353,15 @@ export default function DashboardPage() {
 
   const [selectedView, setSelectedView] = useState<DashboardView>(DEFAULT_VIEW);
 
-  // ✅ Bulk selection state
+  // Bulk selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
 
   // Dashboard triage controls
   const [tierFilter, setTierFilter] = useState<TierFilter>('all');
   const [sortKey, setSortKey] = useState<SortKey>('newest');
+
+  const tierControlsEnabled = selectedView === 'on_market' || selectedView === 'off_market' || selectedView === 'saved';
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -412,6 +449,7 @@ export default function DashboardPage() {
           created_at,
           is_saved,
           owner_name,
+          ai_summary,
           ai_confidence_json
         `
       )
@@ -478,6 +516,7 @@ export default function DashboardPage() {
               created_at,
               is_saved,
               owner_name,
+              ai_summary,
               ai_confidence_json
             `
           )
@@ -510,47 +549,63 @@ export default function DashboardPage() {
         });
   }, [deals, selectedView]);
 
-  // Apply tier filter + sort (client-side)
+  // Apply tier filter + sort
   const filteredDeals = useMemo(() => {
     let list = [...baseDealsForView];
 
-    if (tierFilter !== 'all') {
+    if (tierControlsEnabled && tierFilter !== 'all') {
       list = list.filter((d) => {
+        const tierApplicable = isTierApplicableSource(d.source_type);
         const t = (d.final_tier || '').toUpperCase();
-        if (tierFilter === 'unrated') return !t;
+
+        if (!tierApplicable && selectedView === 'saved') return true;
+
+        if (tierFilter === 'unrated') {
+          if (selectedView === 'saved') return !t || !tierApplicable;
+          return !t;
+        }
+
         return t === tierFilter;
       });
     }
 
+    const effectiveSortKey: SortKey =
+      !tierControlsEnabled && (sortKey === 'tier_high_to_low' || sortKey === 'tier_low_to_high') ? 'newest' : sortKey;
+
     list.sort((a, b) => {
-      if (sortKey === 'newest' || sortKey === 'oldest') {
+      if (effectiveSortKey === 'newest' || effectiveSortKey === 'oldest') {
         const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
         const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
-        return sortKey === 'newest' ? bd - ad : ad - bd;
+        return effectiveSortKey === 'newest' ? bd - ad : ad - bd;
       }
 
-      if (sortKey === 'tier_high_to_low' || sortKey === 'tier_low_to_high') {
-        const ar = tierRank(a.final_tier);
-        const br = tierRank(b.final_tier);
-        const primary = sortKey === 'tier_high_to_low' ? ar - br : br - ar;
+      if (effectiveSortKey === 'tier_high_to_low' || effectiveSortKey === 'tier_low_to_high') {
+        const aTierApplicable = isTierApplicableSource(a.source_type);
+        const bTierApplicable = isTierApplicableSource(b.source_type);
+
+        const ar = aTierApplicable ? tierRank(a.final_tier) : 998;
+        const br = bTierApplicable ? tierRank(b.final_tier) : 998;
+
+        const primary = effectiveSortKey === 'tier_high_to_low' ? ar - br : br - ar;
         if (primary !== 0) return primary;
+
         const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
         const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
         return bd - ad;
       }
 
-      if (sortKey === 'company_az' || sortKey === 'company_za') {
+      if (effectiveSortKey === 'company_az' || effectiveSortKey === 'company_za') {
         const an = normalizeName(a.company_name);
         const bn = normalizeName(b.company_name);
         const cmp = an.localeCompare(bn);
-        return sortKey === 'company_az' ? cmp : -cmp;
+        return effectiveSortKey === 'company_az' ? cmp : -cmp;
       }
 
       return 0;
     });
 
     return list;
-  }, [baseDealsForView, tierFilter, sortKey]);
+  }, [baseDealsForView, tierControlsEnabled, tierFilter, sortKey, selectedView]);
 
   useEffect(() => {
     const visible = new Set(filteredDeals.map((d) => d.id));
@@ -807,6 +862,7 @@ export default function DashboardPage() {
           created_at: new Date().toISOString(),
           is_saved: false,
           owner_name: null,
+          ai_summary: null,
           ai_confidence_json: null,
         },
         ...prev,
@@ -909,6 +965,7 @@ export default function DashboardPage() {
           created_at: new Date().toISOString(),
           is_saved: false,
           owner_name: null,
+          ai_summary: null,
           ai_confidence_json: null,
         },
         ...prev,
@@ -932,7 +989,7 @@ export default function DashboardPage() {
     if (selectedView === 'saved')
       return {
         title: 'Saved (Pipeline)',
-        subtitle: 'Your pipeline list. Use Tier sort/filter to prioritize review.',
+        subtitle: 'Your pipeline list. Use Tier sort/filter to prioritize review (tiers only apply to On/Off-market).',
       };
     if (selectedView === 'on_market')
       return {
@@ -942,8 +999,7 @@ export default function DashboardPage() {
     if (selectedView === 'off_market')
       return {
         title: 'Off-market (Targets)',
-        subtitle:
-          'Discovery results from your searches. Tiers are light surface signals — leads are not verified, you decide what to save.',
+        subtitle: 'Discovery results from your searches. Leads are not verified — you decide what to save.',
       };
     if (selectedView === 'cim_pdf')
       return {
@@ -952,8 +1008,7 @@ export default function DashboardPage() {
       };
     return {
       title: 'Financial Uploads',
-      subtitle:
-        'Uploads don’t get a Tier — you already prioritized them by uploading. Open a deal to run skeptical financial quality analysis.',
+      subtitle: 'Uploads don’t get a Tier — you already prioritized them by uploading. Open a deal to run financial quality analysis.',
     };
   }, [selectedView]);
 
@@ -1085,7 +1140,6 @@ export default function DashboardPage() {
     []
   );
 
-  // ✅ Tier should appear ONLY for On-market + Off-market (and Saved if they came from those)
   const showTierColumn = selectedView === 'on_market' || selectedView === 'off_market' || selectedView === 'saved';
 
   if (checkingAuth) {
@@ -1102,7 +1156,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My Deals</h1>
           <p className="text-sm">
-            Search + early diligence workspace. Tier = priority (not quality). Nothing is “Saved” unless you explicitly save it.
+            Search + early diligence workspace. Tier = priority (not quality). Data confidence = completeness/quality of inputs.
           </p>
         </div>
 
@@ -1131,11 +1185,7 @@ export default function DashboardPage() {
           {tabs.map((t) => {
             const isActive = selectedView === t.key;
             return (
-              <button
-                key={t.key}
-                onClick={() => changeView(t.key)}
-                className={`view-pill ${isActive ? 'view-pill--active' : ''}`}
-              >
+              <button key={t.key} onClick={() => changeView(t.key)} className={`view-pill ${isActive ? 'view-pill--active' : ''}`}>
                 {t.label}
               </button>
             );
@@ -1177,7 +1227,7 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Upload status messages only appear inside relevant views */}
+          {/* Upload status messages */}
           {selectedView === 'cim_pdf' && cimFile ? (
             <p className="mt-3 text-xs">
               CIM selected: <span className="font-medium">{cimFile.name}</span>{' '}
@@ -1260,11 +1310,7 @@ export default function DashboardPage() {
 
             <div className="space-y-1">
               <label className="text-xs opacity-80">State</label>
-              <select
-                className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm"
-                value={offState}
-                onChange={(e) => setOffState(e.target.value)}
-              >
+              <select className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm" value={offState} onChange={(e) => setOffState(e.target.value)}>
                 {US_STATES.map((s) => (
                   <option key={s.abbr} value={s.abbr}>
                     {s.abbr} — {s.name}
@@ -1309,43 +1355,41 @@ export default function DashboardPage() {
             {loadingDeals ? (
               <p className="text-xs">Loading…</p>
             ) : (
-              <p className="text-xs opacity-80">
-                {filteredDeals.length === 0 ? 'No companies yet.' : `${filteredDeals.length} company(s) shown.`}
-              </p>
+              <p className="text-xs opacity-80">{filteredDeals.length === 0 ? 'No companies yet.' : `${filteredDeals.length} company(s) shown.`}</p>
             )}
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-2">
               <span className="text-xs opacity-80">Sort</span>
-              <select
-                className="rounded-lg border px-3 py-2 bg-transparent text-xs"
-                value={sortKey}
-                onChange={(e) => setSortKey(e.target.value as SortKey)}
-              >
+              <select className="rounded-lg border px-3 py-2 bg-transparent text-xs" value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}>
                 <option value="newest">Newest</option>
                 <option value="oldest">Oldest</option>
-                <option value="tier_high_to_low">Tier (A → C)</option>
-                <option value="tier_low_to_high">Tier (C → A)</option>
+
+                {tierControlsEnabled ? (
+                  <>
+                    <option value="tier_high_to_low">Tier (A → C)</option>
+                    <option value="tier_low_to_high">Tier (C → A)</option>
+                  </>
+                ) : null}
+
                 <option value="company_az">Company (A → Z)</option>
                 <option value="company_za">Company (Z → A)</option>
               </select>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-xs opacity-80">Tier</span>
-              <select
-                className="rounded-lg border px-3 py-2 bg-transparent text-xs"
-                value={tierFilter}
-                onChange={(e) => setTierFilter(e.target.value as TierFilter)}
-              >
-                <option value="all">All</option>
-                <option value="A">Tier A</option>
-                <option value="B">Tier B</option>
-                <option value="C">Tier C</option>
-                <option value="unrated">Unrated</option>
-              </select>
-            </div>
+            {tierControlsEnabled ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs opacity-80">Tier</span>
+                <select className="rounded-lg border px-3 py-2 bg-transparent text-xs" value={tierFilter} onChange={(e) => setTierFilter(e.target.value as TierFilter)}>
+                  <option value="all">All</option>
+                  <option value="A">Tier A</option>
+                  <option value="B">Tier B</option>
+                  <option value="C">Tier C</option>
+                  <option value="unrated">Unrated</option>
+                </select>
+              </div>
+            ) : null}
 
             <button
               className="text-xs underline opacity-80"
@@ -1380,9 +1424,9 @@ export default function DashboardPage() {
                   {selectedView === 'on_market' && <th className="px-2 py-1.5 font-medium">Location</th>}
                   {selectedView === 'on_market' && <th className="px-2 py-1.5 font-medium">Industry</th>}
                   {showTierColumn && <th className="px-2 py-1.5 font-medium">Tier</th>}
-                  <th className="px-2 py-1.5 font-medium">Confidence</th>
+                  <th className="px-2 py-1.5 font-medium">Data confidence</th>
                   <th className="px-2 py-1.5 font-medium">Why it matters</th>
-                  {selectedView === 'off_market' && <th className="px-2 py-1.5 font-medium">Owner</th>}
+                  {/* ✅ REMOVED: Owner column (off-market owner often unknown / not reliable) */}
                   <th className="px-2 py-1.5 font-medium">Created</th>
                 </tr>
               </thead>
@@ -1391,6 +1435,7 @@ export default function DashboardPage() {
                 {filteredDeals.map((deal) => {
                   const conf = getDashboardConfidence(deal);
                   const why = getDashboardWhyItMatters(deal);
+                  const tierApplicableRow = isTierApplicableSource(deal.source_type);
 
                   return (
                     <tr key={deal.id} className="table-row">
@@ -1417,20 +1462,16 @@ export default function DashboardPage() {
                       {selectedView === 'on_market' && <td className="px-2 py-2">{deal.industry || ''}</td>}
 
                       {showTierColumn && (
-                        <td className="px-2 py-2">
-                          <TierPill tier={deal.final_tier} />
-                        </td>
+                        <td className="px-2 py-2">{tierApplicableRow ? <TierPill tier={deal.final_tier} /> : null}</td>
                       )}
 
                       <td className="px-2 py-2">
-                        <ConfidencePill icon={conf.icon} label={conf.label} title={conf.reason} />
+                        <ConfidencePill icon={conf.icon} label={conf.label} title={conf.reason} level={conf.level} analyzed={conf.analyzed} />
                       </td>
 
                       <td className="px-2 py-2">
                         <span className="opacity-90">{why}</span>
                       </td>
-
-                      {selectedView === 'off_market' && <td className="px-2 py-2">{deal.owner_name || ''}</td>}
 
                       <td className="px-2 py-2">{formatCreated(deal.created_at)}</td>
                     </tr>
@@ -1439,10 +1480,7 @@ export default function DashboardPage() {
               </tbody>
             </table>
 
-            {/* Global disclaimer */}
-            <div className="pt-3 text-[11px] opacity-70">
-              SearchFindr surfaces risk and prioritization signals. Final judgment remains with the buyer.
-            </div>
+            <div className="pt-3 text-[11px] opacity-70">SearchFindr surfaces risk and prioritization signals. Final judgment remains with the buyer.</div>
           </div>
         )}
       </section>
