@@ -709,8 +709,14 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
       .update({
         ai_summary: parsed.ai_summary ?? null,
         ai_red_flags: Array.isArray(parsed.ai_red_flags)
-          ? parsed.ai_red_flags.join('\n')
-          : null,
+  ? parsed.ai_red_flags
+      .map((s) => (typeof s === 'string' ? s.trim() : ''))
+      .filter(Boolean)
+      .map((s) => s.replace(/^[-•*]\s+/, '').replace(/^\d+\.\s+/, '').trim())
+      .map((s) => `- ${s}`)
+      .join('\n')
+  : null,
+
         ai_financials_json: parsed.financials ?? null,
         ai_scoring_json: parsed.scoring ?? null,
         criteria_match_json: criteriaToStore ?? null,
