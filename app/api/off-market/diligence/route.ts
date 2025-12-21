@@ -21,12 +21,10 @@ const corsHeaders = {
 };
 
 type Body = {
-  // your client sends these:
   companyId?: string;
   website?: string | null;
   force?: boolean;
 
-  // allow other shapes too:
   company_id?: string;
   id?: string;
 };
@@ -44,7 +42,6 @@ function stripHtmlToText(html: string) {
     .trim();
 }
 
-// V1: homepage only (no crawling)
 async function fetchHomepageText(urlStr: string) {
   try {
     const res = await fetch(urlStr, {
@@ -85,12 +82,6 @@ async function getAuthedUserAndWorkspace(req: NextRequest) {
   return { userId, workspaceId: profile.workspace_id as string };
 }
 
-/**
- * IMPORTANT CHANGES vs your old version:
- * - No "geography fit" or "industry fit" fluff.
- * - Tier/score MUST be justified by evidence. If ownership cannot be verified => cap tier/score.
- * - Always return business_model / owner_profile / notes_for_searcher.
- */
 async function runOffMarketInitialDiligenceAI(input: {
   company: {
     company_name: string | null;
@@ -99,13 +90,12 @@ async function runOffMarketInitialDiligenceAI(input: {
     phone: string | null;
     rating: number | null;
     ratings_total: number | null;
-    tier_reason: any | null; // may include inputs from search route
+    tier_reason: any | null;
   };
   homepageText: string;
 }) {
   const c = input.company;
 
-  // Pull original search criteria if you stored it in tier_reason.inputs during off-market/search
   const inputs =
     c.tier_reason && typeof c.tier_reason === "object" ? (c.tier_reason as any).inputs ?? null : null;
 
@@ -124,32 +114,32 @@ Very important: Tier and score MUST be EVIDENCE-BASED.
   - overall_score_0_100 must be <= 69
 - If the website text is thin/marketing-only and doesn't show real operations, be conservative.
 
-Do NOT include geography/industry fit scoring. Those are redundant because the user searched here.
+Do NOT include geography/industry fit scoring.
 
 Return ONLY valid JSON (no markdown) in this exact schema:
 
 {
   "ai_summary": "string (2-4 sentences, factual, no hype)",
-  "ai_red_flags": ["string (specific, actionable)"],
+  "ai_red_flags": ["string (>=3 items; evidence-based if possible, otherwise 'Unknown: ... Verify ...')"],
   "business_model": {
     "services": ["string"],
     "customer_types": ["string"],
-    "delivery_model": "string (how work is delivered: crews, field service, recurring contracts, etc.)",
+    "delivery_model": "string",
     "recurring_revenue_signals": ["string"],
     "differentiators": ["string"],
-    "evidence": ["string (directly derived from website text)"]
+    "evidence": ["string"]
   },
   "owner_profile": {
     "known": boolean,
     "owner_names": ["string"],
     "ownership_type": "Unknown|Owner-operated|Family-owned|Partnership|Other",
-    "evidence": ["string (directly derived from website text)"],
-    "assumptions": ["string (ONLY if you must infer; keep short)"]
+    "evidence": ["string"],
+    "assumptions": ["string"]
   },
   "notes_for_searcher": {
-    "what_to_verify_first": ["string (next steps to validate)"],
+    "what_to_verify_first": ["string"],
     "questions_to_ask_owner": ["string"],
-    "deal_angle": ["string (why this could be attractive IF confirmed)"]
+    "deal_angle": ["string"]
   },
   "financials": {
     "revenue_band_est": "Unknown|<$1M|$1–$3M|$3–$10M|$10M+",
@@ -157,7 +147,7 @@ Return ONLY valid JSON (no markdown) in this exact schema:
     "pricing_power": "Low|Medium|High|Unknown",
     "customer_concentration_risk": "Low|Medium|High|Unknown",
     "seasonality_risk": "Low|Medium|High|Unknown",
-    "evidence": ["string (why you chose these)"]
+    "evidence": ["string"]
   },
   "scoring": {
     "succession_risk": "Low|Medium|High|Unknown",
@@ -165,12 +155,12 @@ Return ONLY valid JSON (no markdown) in this exact schema:
     "data_confidence": "Low|Medium|High",
     "overall_score_0_100": 0,
     "final_tier": "A|B|C",
-    "tier_basis": "string (1 sentence explaining tier in plain English)"
+    "tier_basis": "string"
   },
   "criteria_match": {
-    "business_model": "string (short summary for UI)",
-    "owner_profile": "string (short summary for UI)",
-    "notes_for_searcher": "string (short summary for UI)",
+    "business_model": "string",
+    "owner_profile": "string",
+    "notes_for_searcher": "string",
     "source_inputs": ${inputs ? JSON.stringify(inputs) : "null"}
   }
 }
@@ -215,86 +205,64 @@ ${input.homepageText || "(no homepage text available)"}
     .replace(/```$/i, "")
     .trim();
 
-  const parsed = JSON.parse(content);
+  const parsed: any = JSON.parse(content);
 
-  // ---- hard validations + guardrails ----
+  // Validation / normalization
   if (typeof parsed?.ai_summary !== "string") throw new Error("Bad AI response: ai_summary missing");
 
   if (!Array.isArray(parsed?.ai_red_flags)) parsed.ai_red_flags = [];
-
-  // Ensure the UI fields exist
-  if (!parsed?.business_model || typeof parsed.business_model !== "object") {
-    parsed.business_model = {
-      services: [],
-      customer_types: [],
-      delivery_model: "Unknown",
-      recurring_revenue_signals: [],
-      differentiators: [],
-      evidence: [],
-    };
-  }
-  if (!parsed?.owner_profile || typeof parsed.owner_profile !== "object") {
-    parsed.owner_profile = {
-      known: false,
-      owner_names: [],
-      ownership_type: "Unknown",
-      evidence: [],
-      assumptions: [],
-    };
-  }
-  if (!parsed?.notes_for_searcher || typeof parsed.notes_for_searcher !== "object") {
-    parsed.notes_for_searcher = {
-      what_to_verify_first: [],
-      questions_to_ask_owner: [],
-      deal_angle: [],
-    };
+  // Ensure >= 3 red flags (unknown-risk if needed)
+  while (parsed.ai_red_flags.length < 3) {
+    parsed.ai_red_flags.push("Unknown: key risks not visible on homepage. Verify contracts, labor model, and customer concentration.");
   }
 
+  if (!parsed?.business_model || typeof parsed.business_model !== "object") parsed.business_model = {};
+  if (!parsed?.owner_profile || typeof parsed.owner_profile !== "object") parsed.owner_profile = {};
+  if (!parsed?.notes_for_searcher || typeof parsed.notes_for_searcher !== "object") parsed.notes_for_searcher = {};
   if (!parsed?.financials || typeof parsed.financials !== "object") parsed.financials = {};
-  if (!Array.isArray(parsed?.financials?.evidence)) parsed.financials.evidence = [];
-
   if (!parsed?.scoring || typeof parsed.scoring !== "object") parsed.scoring = {};
-  if (!["A", "B", "C"].includes(parsed?.scoring?.final_tier)) parsed.scoring.final_tier = "C";
+  if (!parsed?.criteria_match || typeof parsed.criteria_match !== "object") parsed.criteria_match = {};
 
+  const ownerKnown = Boolean(parsed?.owner_profile?.known);
   const scoreNum = Number(parsed?.scoring?.overall_score_0_100);
   parsed.scoring.overall_score_0_100 = Number.isFinite(scoreNum) ? scoreNum : 0;
 
-  // GUARDRail: If owner unknown => no A, score <= 69
-  const ownerKnown = Boolean(parsed?.owner_profile?.known);
+  if (!["A", "B", "C"].includes(parsed?.scoring?.final_tier)) parsed.scoring.final_tier = "C";
+
+  // Guardrail: owner unknown => no A, score <= 69
   if (!ownerKnown) {
     if (parsed.scoring.final_tier === "A") parsed.scoring.final_tier = "B";
     if (parsed.scoring.overall_score_0_100 > 69) parsed.scoring.overall_score_0_100 = 69;
     if (typeof parsed.scoring.tier_basis !== "string" || !parsed.scoring.tier_basis.trim()) {
       parsed.scoring.tier_basis =
-        "Tier is capped because ownership could not be verified from the website text.";
+        "Tier is capped because ownership could not be verified from the homepage text.";
     }
   }
 
-  // Ensure criteria_match contains the UI summaries (never blank)
-  if (!parsed?.criteria_match || typeof parsed.criteria_match !== "object") parsed.criteria_match = {};
+  // Always populate UI summaries
+  const services = Array.isArray(parsed?.business_model?.services) ? parsed.business_model.services : [];
   parsed.criteria_match.business_model =
     typeof parsed.criteria_match.business_model === "string" && parsed.criteria_match.business_model.trim()
       ? parsed.criteria_match.business_model
-      : `Services: ${(parsed.business_model.services ?? []).slice(0, 4).join(", ") || "Unknown"}.`;
+      : `Services: ${services.slice(0, 4).join(", ") || "Unknown"}.`;
 
   parsed.criteria_match.owner_profile =
     typeof parsed.criteria_match.owner_profile === "string" && parsed.criteria_match.owner_profile.trim()
       ? parsed.criteria_match.owner_profile
       : ownerKnown
-      ? `Owner/leadership identified: ${(parsed.owner_profile.owner_names ?? []).join(", ") || "Yes"}.`
+      ? `Owner/leadership identified: ${(parsed?.owner_profile?.owner_names ?? []).join(", ") || "Yes"}.`
       : "Owner not identified on website; treat as unknown until verified.";
 
   parsed.criteria_match.notes_for_searcher =
     typeof parsed.criteria_match.notes_for_searcher === "string" && parsed.criteria_match.notes_for_searcher.trim()
       ? parsed.criteria_match.notes_for_searcher
-      : `Verify: ${((parsed.notes_for_searcher.what_to_verify_first ?? []) as string[]).slice(0, 3).join(" • ") || "contracts, team size, recurring revenue"}.`;
+      : `Verify: ${((parsed?.notes_for_searcher?.what_to_verify_first ?? []) as string[])
+          .slice(0, 3)
+          .join(" • ") || "contracts, team size, recurring revenue"}.`;
 
   return parsed as {
     ai_summary: string;
     ai_red_flags: string[];
-    business_model: any;
-    owner_profile: any;
-    notes_for_searcher: any;
     financials: any;
     scoring: any;
     criteria_match: any;
@@ -308,16 +276,10 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   try {
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      return NextResponse.json(
-        { success: false, error: "Missing Supabase env vars" },
-        { status: 500, headers: corsHeaders }
-      );
+      return NextResponse.json({ success: false, error: "Missing Supabase env vars" }, { status: 500, headers: corsHeaders });
     }
     if (!OPENAI_API_KEY) {
-      return NextResponse.json(
-        { success: false, error: "Missing OPENAI_API_KEY" },
-        { status: 500, headers: corsHeaders }
-      );
+      return NextResponse.json({ success: false, error: "Missing OPENAI_API_KEY" }, { status: 500, headers: corsHeaders });
     }
 
     const { workspaceId } = await getAuthedUserAndWorkspace(req);
@@ -336,32 +298,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing company_id" }, { status: 400, headers: corsHeaders });
     }
 
-    const { data: company, error: companyErr } = await supabase
+    // ✅ FIX: force 'company' to be a plain object type so TS stops unioning it with GenericStringError
+    const { data, error } = await supabase
       .from("companies")
-      .select(
-        [
-          "id",
-          "workspace_id",
-          "source_type",
-          "company_name",
-          "website",
-          "address",
-          "phone",
-          "rating",
-          "ratings_total",
-          "tier_reason",
-        ].join(",")
-      )
+      .select("id, workspace_id, source_type, company_name, website, address, phone, rating, ratings_total, tier_reason")
       .eq("id", companyId)
       .eq("workspace_id", workspaceId)
-      .single();
+      .maybeSingle();
 
-    if (companyErr || !company) {
+    if (error || !data) {
       return NextResponse.json(
         { success: false, error: "Company not found (or not in your workspace)" },
         { status: 404, headers: corsHeaders }
       );
     }
+
+    const company = data as any;
 
     if (company.source_type !== "off_market") {
       return NextResponse.json(
@@ -396,7 +348,6 @@ export async function POST(req: NextRequest) {
       homepageText,
     });
 
-    // Return exactly what your client expects to save into the companies row
     return NextResponse.json(
       {
         success: true,
@@ -404,7 +355,7 @@ export async function POST(req: NextRequest) {
         ai_red_flags: ai.ai_red_flags,
         financials: ai.financials,
         scoring: ai.scoring,
-        criteria_match: ai.criteria_match, // now includes business_model/owner_profile/notes_for_searcher summaries
+        criteria_match: ai.criteria_match,
       },
       { headers: corsHeaders }
     );
