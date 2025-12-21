@@ -209,7 +209,11 @@ overall_confidence MUST be a dual-axis label, for example:
     }),
   });
 
-  if (!res.ok) throw new Error("OpenAI response failed");
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
+    throw new Error(`OpenAI response failed${t ? `: ${t}` : ""}`);
+  }
+
   const json = await res.json();
 
   const text =
@@ -234,71 +238,109 @@ overall_confidence MUST be a dual-axis label, for example:
 
 export async function POST(req: NextRequest) {
   try {
+    // Env sanity (prevents weird Vercel runtime confusion)
+    if (!SUPABASE_URL) {
+      return NextResponse.json({ error: "Missing NEXT_PUBLIC_SUPABASE_URL" }, { status: 500, headers: corsHeaders });
+    }
+    if (!SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ error: "Missing SUPABASE_SERVICE_ROLE_KEY" }, { status: 500, headers: corsHeaders });
+    }
+    if (!SUPABASE_ANON_KEY) {
+      return NextResponse.json({ error: "Missing NEXT_PUBLIC_SUPABASE_ANON_KEY" }, { status: 500, headers: corsHeaders });
+    }
+    if (!OPENAI_API_KEY) {
+      return NextResponse.json({ error: "Missing OPENAI_API_KEY" }, { status: 500, headers: corsHeaders });
+    }
+
     const auth = req.headers.get("authorization") || "";
     const jwt = auth.startsWith("Bearer ") ? auth.slice(7) : null;
-    if (!jwt) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!jwt) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
 
     const supabaseUser = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: false },
     });
 
-    const { data: userData } = await supabaseUser.auth.getUser(jwt);
+    const { data: userData, error: userErr } = await supabaseUser.auth.getUser(jwt);
     const userId = userData?.user?.id;
-    if (!userId) return NextResponse.json({ error: "Invalid auth" }, { status: 401 });
+    if (userErr || !userId) return NextResponse.json({ error: "Invalid auth" }, { status: 401, headers: corsHeaders });
 
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
     const dealId = body?.deal_id;
-    if (!dealId) return NextResponse.json({ error: "Missing deal_id" }, { status: 400 });
+    if (!dealId) return NextResponse.json({ error: "Missing deal_id" }, { status: 400, headers: corsHeaders });
 
-    const { data: profile } = await supabaseAdmin
+    const { data: profile, error: profErr } = await supabaseAdmin
       .from("profiles")
       .select("workspace_id")
       .eq("id", userId)
       .single();
 
     const workspaceId = profile?.workspace_id;
-    if (!workspaceId) return NextResponse.json({ error: "No workspace" }, { status: 403 });
+    if (profErr || !workspaceId) return NextResponse.json({ error: "No workspace" }, { status: 403, headers: corsHeaders });
 
-    const { data: company } = await supabaseAdmin
+    const { data: company, error: compErr } = await supabaseAdmin
       .from("companies")
       .select("id, workspace_id, source_type, financials_storage_path, financials_filename, financials_mime")
       .eq("id", dealId)
       .single();
 
-    if (!company || company.workspace_id !== workspaceId)
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    if (compErr || !company) return NextResponse.json({ error: "Deal not found" }, { status: 404, headers: corsHeaders });
+
+    if (company.workspace_id !== workspaceId)
+      return NextResponse.json({ error: "Access denied" }, { status: 403, headers: corsHeaders });
 
     if (company.source_type !== "financials")
-      return NextResponse.json({ error: "Not a financials deal" }, { status: 400 });
+      return NextResponse.json({ error: "Not a financials deal" }, { status: 400, headers: corsHeaders });
 
-    const { data: file } = await supabaseAdmin.storage
+    if (!company.financials_storage_path)
+      return NextResponse.json({ error: "Missing financials_storage_path" }, { status: 400, headers: corsHeaders });
+
+    const filename = company.financials_filename || "financials";
+    const mime = company.financials_mime || "";
+
+    const { data: file, error: dlErr } = await supabaseAdmin.storage
       .from("financials")
       .download(company.financials_storage_path);
 
+    if (dlErr) {
+      console.error("financials download error:", dlErr);
+      return NextResponse.json({ error: "Failed to download financials file." }, { status: 500, headers: corsHeaders });
+    }
+
+    if (!file) {
+      return NextResponse.json(
+        { error: "Financials file missing (download returned null)." },
+        { status: 500, headers: corsHeaders }
+      );
+    }
+
     const bytes = await file.arrayBuffer();
+
     let extractedText: string | undefined;
     let openaiFileId: string | undefined;
 
-    if (isXlsx(company.financials_mime, company.financials_filename))
-      extractedText = xlsxToCsvText(bytes);
-    else if (isCsv(company.financials_mime, company.financials_filename))
-      extractedText = new TextDecoder().decode(bytes);
-    else if (isPdf(company.financials_mime, company.financials_filename))
-      openaiFileId = await uploadToOpenAI(bytes, company.financials_filename);
+    if (isXlsx(mime, filename)) extractedText = xlsxToCsvText(bytes);
+    else if (isCsv(mime, filename)) extractedText = new TextDecoder().decode(bytes);
+    else if (isPdf(mime, filename)) openaiFileId = await uploadToOpenAI(bytes, filename);
+    else {
+      // default: try text decode, otherwise push file
+      const decoded = new TextDecoder().decode(bytes);
+      if (decoded?.trim()) extractedText = decoded.slice(0, 9000);
+      else openaiFileId = await uploadToOpenAI(bytes, filename);
+    }
 
     const analysis = await callOpenAIJson({
-      filename: company.financials_filename,
-      mime: company.financials_mime,
+      filename,
+      mime,
       extractedText,
       openaiFileId,
     });
 
     // 🔹 INSERT (history preserved)
-    await supabaseAdmin.from("financial_analyses").insert({
+    const { error: insertErr } = await supabaseAdmin.from("financial_analyses").insert({
       user_id: userId,
       workspace_id: workspaceId,
       deal_id: dealId,
-      source_filename: company.financials_filename,
+      source_filename: filename,
       overall_confidence: analysis.overall_confidence,
       extracted_metrics: analysis.extracted_metrics,
       red_flags: analysis.red_flags,
@@ -307,17 +349,27 @@ export async function POST(req: NextRequest) {
       diligence_notes: analysis.diligence_notes,
     });
 
+    if (insertErr) {
+      console.error("financial_analyses insert error:", insertErr);
+      return NextResponse.json({ error: "Failed to save financial analysis." }, { status: 500, headers: corsHeaders });
+    }
+
     // 🔹 UPDATE company confidence (dashboard + deal pages use this)
     const confidenceJson = buildConfidenceJson(analysis.overall_confidence);
 
-    await supabaseAdmin
+    const { error: updErr } = await supabaseAdmin
       .from("companies")
       .update({ ai_confidence_json: confidenceJson })
       .eq("id", dealId);
 
+    if (updErr) {
+      console.error("companies update ai_confidence_json error:", updErr);
+      return NextResponse.json({ error: "Failed to update company confidence." }, { status: 500, headers: corsHeaders });
+    }
+
     return NextResponse.json({ ok: true }, { status: 200, headers: corsHeaders });
   } catch (err: any) {
     console.error("process-financials error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
+    return NextResponse.json({ error: err?.message || "Unknown error" }, { status: 500, headers: corsHeaders });
   }
 }
