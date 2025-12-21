@@ -369,86 +369,99 @@ export default function DealDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deal]);
 
-  // ------------------------------------------------------------------------------------
-  // Off-market: Run Initial Diligence (website-based)
-  // ------------------------------------------------------------------------------------
-  const runOffMarketInitialDiligence = async () => {
-    if (!id || !deal) return;
+// ------------------------------------------------------------------------------------
+// Off-market: Run Initial Diligence (WEBSITE-BASED)
+// ------------------------------------------------------------------------------------
+const runOffMarketInitialDiligence = async () => {
+  if (!id || !deal) return;
 
-    if (deal.source_type !== 'off_market') {
-      setOffMarketError('Initial diligence (off-market) can only run for off-market companies.');
-      return;
-    }
+  if (deal.source_type !== 'off_market') {
+    setOffMarketError('Initial diligence (off-market) can only run for off-market companies.');
+    return;
+  }
 
-    setRunningOffMarketDD(true);
-    setOffMarketError(null);
+  setRunningOffMarketDD(true);
+  setOffMarketError(null);
 
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) throw new Error('Not signed in.');
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) throw new Error('Not signed in.');
 
-      const res = await fetch('/api/off-market/diligence', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ companyId: id, force: true }),
-      });
-
-      const text = await res.text();
-      let json: any = null;
-      try {
-        json = JSON.parse(text);
-      } catch {
-        // non-json response
-      }
-
-      if (!res.ok || !json?.success) {
-        console.error('diligence status:', res.status);
-        console.error('diligence raw:', text);
-        throw new Error(json?.error || `Failed to run initial diligence (HTTP ${res.status})`);
-      }
-
-      const ai_summary = json.ai_summary ?? json?.initial_diligence_json?.ai_summary ?? '';
-      const ai_red_flags = json.ai_red_flags ?? json?.initial_diligence_json?.ai_red_flags ?? [];
-      const financials = json.financials ?? json?.initial_diligence_json?.financials ?? {};
-      const scoring = json.scoring ?? json?.initial_diligence_json?.scoring ?? {};
-      const criteria_match = json.criteria_match ?? json?.initial_diligence_json?.criteria_match ?? {};
-
-      const { error: updateError } = await supabase
-        .from('companies')
-        .update({
-          ai_summary,
-          ai_red_flags,
-          ai_financials_json: financials,
-          ai_scoring_json: scoring,
-          criteria_match_json: criteria_match,
-        })
-        .eq('id', id);
-
-      if (updateError) throw new Error('Failed to save diligence: ' + updateError.message);
-
-      setDeal((prev: any) =>
-        prev
-          ? {
-              ...prev,
-              ai_summary,
-              ai_red_flags,
-              ai_financials_json: financials,
-              ai_scoring_json: scoring,
-              criteria_match_json: criteria_match,
-            }
-          : prev
+    const website = deal.website ?? null;
+    if (!website) {
+      throw new Error(
+        'Missing website for this off-market company. Add a website before running diligence.'
       );
-    } catch (e: any) {
-      console.error('runOffMarketInitialDiligence error:', e);
-      setOffMarketError(e?.message || 'Failed to run initial diligence.');
-    } finally {
-      setRunningOffMarketDD(false);
     }
-  };
+
+    const res = await fetch('/api/off-market/diligence', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        companyId: id,
+        website,
+        force: true,
+      }),
+    });
+
+    const text = await res.text();
+    let json: any = null;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      // non-json response
+    }
+
+    if (!res.ok || !json?.success) {
+      console.error('diligence status:', res.status);
+      console.error('diligence raw:', text);
+      throw new Error(json?.error || `Failed to run initial diligence (HTTP ${res.status})`);
+    }
+
+    const ai_summary = json.ai_summary ?? '';
+    const ai_red_flags = json.ai_red_flags ?? [];
+    const financials = json.financials ?? {};
+    const scoring = json.scoring ?? {};
+    const criteria_match = json.criteria_match ?? {};
+
+    const { error: updateError } = await supabase
+      .from('companies')
+      .update({
+        ai_summary,
+        ai_red_flags,
+        ai_financials_json: financials,
+        ai_scoring_json: scoring,
+        criteria_match_json: criteria_match,
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      throw new Error('Failed to save diligence: ' + updateError.message);
+    }
+
+    setDeal((prev: any) =>
+      prev
+        ? {
+            ...prev,
+            ai_summary,
+            ai_red_flags,
+            ai_financials_json: financials,
+            ai_scoring_json: scoring,
+            criteria_match_json: criteria_match,
+          }
+        : prev
+    );
+  } catch (e: any) {
+    console.error('runOffMarketInitialDiligence error:', e);
+    setOffMarketError(e?.message || 'Failed to run initial diligence.');
+  } finally {
+    setRunningOffMarketDD(false);
+  }
+};
 
   // ------------------------------------------------------------------------------------
   // CIM: Run AI on PDF

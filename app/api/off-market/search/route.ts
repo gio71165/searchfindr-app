@@ -7,7 +7,8 @@ export const runtime = "nodejs";
 // Server-side Supabase client (service role) so inserts work reliably under RLS design
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } }
 );
 
 const GOOGLE_KEY = process.env.GOOGLE_MAPS_API_KEY;
@@ -16,9 +17,9 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com";
 
 type Body = {
-  industries: string[]; // ✅ multi-select
-  location: string; // e.g. "Austin, TX"
-  radius_miles: number; // e.g. 10
+  industries: string[];
+  location: string; // "City, ST"
+  radius_miles: number;
 };
 
 const corsHeaders = {
@@ -29,8 +30,18 @@ const corsHeaders = {
 
 const ALLOWED_RADIUS_MILES = [5, 10, 15, 25, 50, 75, 100];
 
+// You asked: “max 25 companies”
+const TARGET_MAX_RESULTS = 15;
+
+// Cost / noise controls (tuned for “never 1–9 results” but still decent quality)
+const KEYWORD_CAP = 8; // how many industry keywords total (after synonyms)
+const DETAIL_CAP = 80; // how many places to fetch details for
+const SURVIVOR_CAP = 60; // how many website-having candidates to consider
+const AI_REVIEW_CAP = 30; // max AI evaluations per request (upper bound)
+const MIN_RATINGS_TOTAL = 3; // light prefilter; do not make this high
+const MIN_RATING = 3.6; // light prefilter; do not make this high
+
 function isCityState(s: string) {
-  // Accept "City, ST" (ST = 2 letters)
   return /^[^,]+,\s*[A-Za-z]{2}$/.test(s.trim());
 }
 
@@ -49,7 +60,7 @@ const INDUSTRY_SYNONYMS: Record<string, string[]> = {
   plumbing: ["plumbing", "plumber", "plumbing contractor"],
   roofing: ["roofing", "roofer", "roof repair"],
   landscaping: ["landscaping", "lawn care", "landscape services"],
-  cleaning: ["cleaning", "janitorial", "commercial cleaning"],
+  cleaning: ["cleaning", "janitorial", "commercial cleaning", "cleaning service"],
   "commercial cleaning": ["commercial cleaning", "janitorial", "cleaning service"],
   janitorial: ["janitorial", "commercial cleaning", "cleaning service"],
   "pest control": ["pest control", "exterminator", "termite"],
@@ -62,32 +73,27 @@ function expandIndustryQueries(industry: string) {
   return INDUSTRY_SYNONYMS[key] ?? [industry];
 }
 
-// Very V1: hard filters that eliminate obvious noise BEFORE AI
+// Hard filters (keep these light — your AI will do the real screening)
 function failsHardFilter(input: { name: string | null; website: string | null; address: string | null }) {
-  // Require a website (key V1 rule to avoid directory noise)
+  // You said: “still giving good companies, with websites”
   if (!input.website) return { fail: true, reason: "No website" };
 
   const name = (input.name ?? "").toLowerCase();
 
-  // Obvious “not a small owner-operator target” signals
   const excludeKeywords = [
     "franchise",
     "franchising",
-    "corporate",
-    "headquarters",
-    "hq",
-    "holdings",
     "private equity",
     "venture",
     "vc",
     "fund",
     "investments",
-    "group",
-    "llc", // optional: can be too aggressive; disabled below
+    "holdings",
+    "headquarters",
+    "hq",
   ];
 
   for (const kw of excludeKeywords) {
-    if (kw === "llc") continue; // disabled by default (too aggressive)
     if (name.includes(kw)) return { fail: true, reason: `Keyword: ${kw}` };
   }
 
@@ -131,26 +137,38 @@ async function googleGeocode(location: string) {
   return json.results[0].geometry.location as { lat: number; lng: number };
 }
 
-async function googlePlacesNearby(params: { lat: number; lng: number; radiusMeters: number; keyword: string }) {
-  const url = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json");
-  url.searchParams.set("location", `${params.lat},${params.lng}`);
-  url.searchParams.set("radius", String(params.radiusMeters));
+/**
+ * IMPORTANT: pagination support.
+ * Nearby Search returns multiple pages using next_page_token (needs a delay).
+ */
+async function googlePlacesNearbyAllPages(params: { lat: number; lng: number; radiusMeters: number; keyword: string }) {
+  const all: any[] = [];
+  let pageToken: string | null = null;
 
-  // ✅ Key improvement: make keyword less brittle for contractor/service SMBs
-  const kw = params.keyword.trim();
-  const kwPlus = /cleaning|janitorial/i.test(kw) ? `${kw} service` : `${kw} contractor`;
-  url.searchParams.set("keyword", kwPlus);
+  for (let page = 0; page < 3; page++) {
+    const url = new URL("https://maps.googleapis.com/maps/api/place/nearbysearch/json");
+    url.searchParams.set("location", `${params.lat},${params.lng}`);
+    url.searchParams.set("radius", String(params.radiusMeters));
+    url.searchParams.set("keyword", params.keyword);
+    if (pageToken) url.searchParams.set("pagetoken", pageToken);
+    url.searchParams.set("key", GOOGLE_KEY!);
 
-  url.searchParams.set("key", GOOGLE_KEY!);
+    // next_page_token requires a short delay to become active
+    if (pageToken) await new Promise((r) => setTimeout(r, 2000));
 
-  const res = await fetch(url.toString());
-  const json = await res.json();
+    const res = await fetch(url.toString());
+    const json = await res.json();
 
-  if (!res.ok || (json.status !== "OK" && json.status !== "ZERO_RESULTS")) {
-    throw new Error(`Places nearby failed: ${json.status || res.status}`);
+    if (!res.ok || (json.status !== "OK" && json.status !== "ZERO_RESULTS")) {
+      throw new Error(`Places nearby failed: ${json.status || res.status}`);
+    }
+
+    all.push(...(json.results ?? []));
+    pageToken = json.next_page_token ?? null;
+    if (!pageToken) break;
   }
 
-  return (json.results ?? []) as any[];
+  return all;
 }
 
 async function googlePlaceDetails(placeId: string) {
@@ -219,12 +237,15 @@ You are SearchFindr, helping a search fund / ETA buyer find owner-operated small
 
 Decide whether to KEEP this company as an off-market candidate.
 
-Search criteria:
+Rules:
+- Prefer real, local, owner-operated SMBs (not chains, not PE/holding branded).
+- If unsure, set keep=false.
+- Tier A is reserved for the best-looking businesses based on WEBSITE signals.
+- If the website is thin or generic, do not give Tier A.
+
+Search context:
 - Industries: ${input.industries.join(", ")}
-- Geography: ${input.location} within ${input.radiusMiles} miles
-- Must be plausibly owner-operated SMB (not a chain, not franchise-heavy, not PE/VC/holding-company branded)
-- Prefer local service businesses with real operations
-- If unsure, reject (KEEP=false) to reduce noise in V1
+- Location: ${input.location} within ${input.radiusMiles} miles
 
 Company:
 - Name: ${input.companyName}
@@ -237,7 +258,7 @@ Company:
 Homepage text (may be partial):
 ${input.homepageText}
 
-Return ONLY valid JSON in this exact schema:
+Return ONLY valid JSON:
 {
   "keep": boolean,
   "tier": "A" | "B" | "C",
@@ -318,10 +339,7 @@ export async function POST(req: NextRequest) {
     const radiusMiles = Number(body.radius_miles);
 
     if (industries.length === 0) {
-      return NextResponse.json(
-        { success: false, error: "Select at least one industry" },
-        { status: 400, headers: corsHeaders }
-      );
+      return NextResponse.json({ success: false, error: "Select at least one industry" }, { status: 400, headers: corsHeaders });
     }
     if (!location || !isCityState(location)) {
       return NextResponse.json(
@@ -333,26 +351,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Invalid radius" }, { status: 400, headers: corsHeaders });
     }
 
-    // 1) Geocode the location
+    // 1) Geocode
     const { lat, lng } = await googleGeocode(location);
-
-    // 2) Places search for each industry (plus synonyms), merge + dedupe
     const radiusMeters = milesToMeters(radiusMiles);
 
-    const keywords = industries.flatMap(expandIndustryQueries);
+    // 2) Build keywords (synonyms) but cap them
+    const keywords = industries.flatMap(expandIndustryQueries).slice(0, KEYWORD_CAP);
 
-    // Guardrail: don't explode requests if user selects many industries / synonyms
-    const KEYWORD_CAP = 8;
-    const keywordSlice = keywords.slice(0, KEYWORD_CAP);
+    // 3) For each keyword, run a couple “less brittle” variants to avoid starving results.
+    //    (This replaces the old “always append contractor/service” behavior.)
+    const keywordVariants: string[] = [];
+    for (const kw of keywords) {
+      const base = kw.trim();
+      if (!base) continue;
 
+      keywordVariants.push(base);
+
+      // Add one modifier variant but don’t overdo it
+      if (!/service|contractor|company|services/i.test(base)) {
+        if (/cleaning|janitorial/i.test(base)) keywordVariants.push(`${base} service`);
+        else keywordVariants.push(`${base} contractor`);
+      }
+    }
+
+    const uniqueVariants = Array.from(new Set(keywordVariants)).slice(0, Math.max(KEYWORD_CAP, 12));
+
+    // 4) Google Places nearby (with pagination)
     const resultsByKeyword = await Promise.all(
-      keywordSlice.map((kw) => googlePlacesNearby({ lat, lng, radiusMeters, keyword: kw }))
+      uniqueVariants.map((kw) => googlePlacesNearbyAllPages({ lat, lng, radiusMeters, keyword: kw }))
     );
 
     const mergedResults = resultsByKeyword.flat();
 
+    // 5) Dedupe by place_id
     const seenPlaceIds = new Set<string>();
-    const results = mergedResults.filter((r) => {
+    const deduped = mergedResults.filter((r) => {
       const pid = r.place_id as string | undefined;
       if (!pid) return false;
       if (seenPlaceIds.has(pid)) return false;
@@ -360,16 +393,14 @@ export async function POST(req: NextRequest) {
       return true;
     });
 
-    // 3) Fetch details (cap raw candidates)
-    const DETAIL_CAP = 35;
+    // 6) Fetch details (bigger cap)
     const detailed = await Promise.all(
-      results.slice(0, DETAIL_CAP).map(async (r) => {
+      deduped.slice(0, DETAIL_CAP).map(async (r) => {
         const placeId = r.place_id as string | undefined;
         const details = placeId ? await googlePlaceDetails(placeId) : null;
 
         const name = details?.name ?? r.name ?? null;
         const address = details?.formatted_address ?? r.vicinity ?? null;
-
         const phone = details?.formatted_phone_number ?? null;
         const website = details?.website ?? null;
 
@@ -395,81 +426,112 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    // 4) Hard filter (free)
-    const survivors = detailed.filter((c) => {
-      const hard = failsHardFilter({ name: c.name, website: c.website, address: c.address });
-      return !hard.fail;
+    // 7) Hard filter: website required + obvious excludes
+    const survivors = detailed
+      .filter((c) => {
+        const hard = failsHardFilter({ name: c.name, website: c.website, address: c.address });
+        return !hard.fail;
+      })
+      .slice(0, SURVIVOR_CAP);
+
+    // 8) Light “quality-ish” prefilter before AI (not strict)
+    //    Keep if it has SOME signal (rating/ratings) or we keep anyway if missing those.
+    const prefiltered = survivors.filter((c) => {
+      const rt = typeof c.ratingsTotal === "number" ? c.ratingsTotal : null;
+      const r = typeof c.rating === "number" ? c.rating : null;
+
+      // If missing both, still allow (don’t starve results)
+      if (rt === null && r === null) return true;
+
+      // Light bar only (don’t kill Tom’s River searches)
+      if (rt !== null && rt >= MIN_RATINGS_TOTAL) return true;
+      if (r !== null && r >= MIN_RATING) return true;
+
+      // otherwise drop
+      return false;
     });
 
-    // 5) AI review ONLY on survivors (cap for cost control)
-    const AI_CAP = 12;
-    const toReview = survivors.slice(0, AI_CAP);
+    // 9) AI review sequentially so we can STOP once we have 25 keepers (huge improvement)
+    const inserts: any[] = [];
+    let aiReviewed = 0;
 
-    const reviewed = await Promise.all(
-      toReview.map(async (c) => {
-        const homepageText = c.website ? await fetchHomepageText(c.website) : "";
+    for (const c of prefiltered) {
+      if (inserts.length >= TARGET_MAX_RESULTS) break;
+      if (aiReviewed >= AI_REVIEW_CAP) break;
 
-        // More lenient: still run AI even if homepage text is empty
-        const ai = await openAIKeepOrReject({
-          industries,
-          location,
-          radiusMiles,
-          companyName: c.name ?? "Unknown",
-          website: c.website!,
-          address: c.address,
-          phone: c.phone,
-          rating: c.rating,
-          ratingsTotal: c.ratingsTotal,
-          homepageText: homepageText || "(no homepage text available)",
-        });
+      // Website is required by design
+      if (!c.website) continue;
 
-        return { keep: ai.keep, company: c, ai };
-      })
-    );
+      const homepageText = await fetchHomepageText(c.website);
 
-    // 6) Build inserts ONLY for KEEP=true
-    const inserts = reviewed
-      .filter((r) => r.keep === true && r.ai)
-      .map((r) => {
-        const c = r.company;
-        const ai = r.ai;
-
-        return {
-          workspace_id: workspaceId,
-          source_type: "off_market",
-          external_source: "google_places",
-          external_id: c.externalId,
-          place_id: c.placeId,
-
-          company_name: c.name,
-          address: c.address,
-          phone: c.phone,
-          website: c.website,
-          lat: c.lat,
-          lng: c.lng,
-          rating: c.rating,
-          ratings_total: c.ratingsTotal,
-
-          tier: ai.tier,
-          tier_reason: {
-            reasons: ai.reasons,
-            red_flags: ai.red_flags,
-            inputs: { industries, location, radius_miles: radiusMiles },
-          },
-
-          // IMPORTANT: never auto-save (user must click Save)
-          is_saved: false,
-        };
+      const ai = await openAIKeepOrReject({
+        industries,
+        location,
+        radiusMiles,
+        companyName: c.name ?? "Unknown",
+        website: c.website,
+        address: c.address,
+        phone: c.phone,
+        rating: c.rating,
+        ratingsTotal: c.ratingsTotal,
+        homepageText: homepageText || "(no homepage text available)",
       });
+
+      aiReviewed++;
+
+      if (!ai.keep) continue;
+
+      inserts.push({
+        workspace_id: workspaceId,
+        source_type: "off_market",
+        external_source: "google_places",
+        external_id: c.externalId,
+        place_id: c.placeId,
+
+        company_name: c.name,
+        address: c.address,
+        phone: c.phone,
+        website: c.website,
+        lat: c.lat,
+        lng: c.lng,
+        rating: c.rating,
+        ratings_total: c.ratingsTotal,
+
+        tier: ai.tier,
+        tier_reason: {
+          reasons: ai.reasons,
+          red_flags: ai.red_flags,
+          inputs: { industries, location, radius_miles: radiusMiles },
+        },
+
+        // IMPORTANT: never auto-save
+        is_saved: false,
+      });
+    }
 
     if (inserts.length === 0) {
       return NextResponse.json(
-        { success: true, count: 0, companies: [], note: "No companies passed filters (hard + AI)." },
+        {
+          success: true,
+          count: 0,
+          companies: [],
+          note: "No companies passed filters (website + light prefilter + AI).",
+          debug: {
+            keywords_used: uniqueVariants,
+            merged_results: mergedResults.length,
+            deduped_results: deduped.length,
+            detailed: detailed.length,
+            survivors: survivors.length,
+            prefiltered: prefiltered.length,
+            ai_reviewed: aiReviewed,
+            kept: inserts.length,
+          },
+        },
         { headers: corsHeaders }
       );
     }
 
-    // 7) Upsert into companies (dedupe per workspace + external ids)
+    // 10) Upsert into companies (dedupe per workspace + external ids)
     const { data: saved, error: upsertErr } = await supabase
       .from("companies")
       .upsert(inserts, { onConflict: "workspace_id,external_source,external_id" })
@@ -479,7 +541,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: upsertErr.message }, { status: 500, headers: corsHeaders });
     }
 
-    return NextResponse.json({ success: true, count: saved?.length ?? 0, companies: saved ?? [] }, { headers: corsHeaders });
+    return NextResponse.json(
+      {
+        success: true,
+        count: saved?.length ?? 0,
+        companies: saved ?? [],
+        debug: {
+          keywords_used: uniqueVariants,
+          merged_results: mergedResults.length,
+          deduped_results: deduped.length,
+          detailed: detailed.length,
+          survivors: survivors.length,
+          prefiltered: prefiltered.length,
+          ai_reviewed: aiReviewed,
+          kept: inserts.length,
+        },
+      },
+      { headers: corsHeaders }
+    );
   } catch (e: any) {
     return NextResponse.json(
       { success: false, error: e?.message ?? "Unknown error" },

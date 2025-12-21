@@ -1,272 +1,417 @@
-// app/api/process-cim/route.ts
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+// app/api/off-market/diligence/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-export const runtime = 'nodejs';
-
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? 'https://api.openai.com';
+export const runtime = "nodejs";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
 
-// Server-side admin client (bypasses RLS for DB writes)
-const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com";
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-if (!OPENAI_API_KEY) {
-  console.warn('OPENAI_API_KEY is not set. /api/process-cim will fail until you set it.');
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+type Body = {
+  // your client sends these:
+  companyId?: string;
+  website?: string | null;
+  force?: boolean;
+
+  // allow other shapes too:
+  company_id?: string;
+  id?: string;
+};
+
+function toTextSafe(v: any) {
+  return typeof v === "string" ? v : "";
 }
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.warn(
-    'Missing Supabase env vars. Need NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
-  );
+
+function stripHtmlToText(html: string) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-// Helper: upload PDF bytes to OpenAI Files API and return file_id
-async function uploadPdfToOpenAI(pdfArrayBuffer: ArrayBuffer, filename: string) {
-  const pdfBlob = new Blob([pdfArrayBuffer], { type: 'application/pdf' });
+// V1: homepage only (no crawling)
+async function fetchHomepageText(urlStr: string) {
+  try {
+    const res = await fetch(urlStr, {
+      redirect: "follow",
+      headers: {
+        "User-Agent": "SearchFindrBot/1.0 (+https://searchfindr.local)",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      },
+    });
+    if (!res.ok) return "";
+    const html = await res.text();
+    const text = stripHtmlToText(html);
+    return text.slice(0, 9000);
+  } catch {
+    return "";
+  }
+}
 
-  const formData = new FormData();
-  formData.append('file', pdfBlob, filename || 'cim.pdf');
-  formData.append('purpose', 'assistants');
+async function getAuthedUserAndWorkspace(req: NextRequest) {
+  const authHeader = req.headers.get("authorization") || "";
+  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
-  const res = await fetch(`${OPENAI_BASE_URL}/v1/files`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
-    body: formData,
+  if (!token) return { userId: null as string | null, workspaceId: null as string | null };
+
+  const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+  if (userErr || !userData?.user?.id) return { userId: null, workspaceId: null };
+
+  const userId = userData.user.id;
+
+  const { data: profile, error: profErr } = await supabase
+    .from("profiles")
+    .select("workspace_id")
+    .eq("id", userId)
+    .single();
+
+  if (profErr || !profile?.workspace_id) return { userId, workspaceId: null };
+
+  return { userId, workspaceId: profile.workspace_id as string };
+}
+
+/**
+ * IMPORTANT CHANGES vs your old version:
+ * - No "geography fit" or "industry fit" fluff.
+ * - Tier/score MUST be justified by evidence. If ownership cannot be verified => cap tier/score.
+ * - Always return business_model / owner_profile / notes_for_searcher.
+ */
+async function runOffMarketInitialDiligenceAI(input: {
+  company: {
+    company_name: string | null;
+    website: string;
+    address: string | null;
+    phone: string | null;
+    rating: number | null;
+    ratings_total: number | null;
+    tier_reason: any | null; // may include inputs from search route
+  };
+  homepageText: string;
+}) {
+  const c = input.company;
+
+  // Pull original search criteria if you stored it in tier_reason.inputs during off-market/search
+  const inputs =
+    c.tier_reason && typeof c.tier_reason === "object" ? (c.tier_reason as any).inputs ?? null : null;
+
+  const prompt = `
+You are SearchFindr running INITIAL OFF-MARKET DILIGENCE using ONLY:
+- Google listing metadata we already have (rating/reviews/address/phone)
+- The company website homepage text pasted below (may be incomplete)
+
+Do NOT assume you know the owner. If the website DOES NOT explicitly show ownership signals
+(e.g., "owner", "founder", named people with titles, "family-owned" with specifics),
+then owner information is "Unknown".
+
+Very important: Tier and score MUST be EVIDENCE-BASED.
+- If ownership cannot be verified (no named owner/founder/leadership signals), you MUST cap the result:
+  - final_tier cannot be "A"
+  - overall_score_0_100 must be <= 69
+- If the website text is thin/marketing-only and doesn't show real operations, be conservative.
+
+Do NOT include geography/industry fit scoring. Those are redundant because the user searched here.
+
+Return ONLY valid JSON (no markdown) in this exact schema:
+
+{
+  "ai_summary": "string (2-4 sentences, factual, no hype)",
+  "ai_red_flags": ["string (specific, actionable)"],
+  "business_model": {
+    "services": ["string"],
+    "customer_types": ["string"],
+    "delivery_model": "string (how work is delivered: crews, field service, recurring contracts, etc.)",
+    "recurring_revenue_signals": ["string"],
+    "differentiators": ["string"],
+    "evidence": ["string (directly derived from website text)"]
+  },
+  "owner_profile": {
+    "known": boolean,
+    "owner_names": ["string"],
+    "ownership_type": "Unknown|Owner-operated|Family-owned|Partnership|Other",
+    "evidence": ["string (directly derived from website text)"],
+    "assumptions": ["string (ONLY if you must infer; keep short)"]
+  },
+  "notes_for_searcher": {
+    "what_to_verify_first": ["string (next steps to validate)"],
+    "questions_to_ask_owner": ["string"],
+    "deal_angle": ["string (why this could be attractive IF confirmed)"]
+  },
+  "financials": {
+    "revenue_band_est": "Unknown|<$1M|$1–$3M|$3–$10M|$10M+",
+    "ebitda_band_est": "Unknown|<$250k|$250k–$750k|$750k–$2M|$2M+",
+    "pricing_power": "Low|Medium|High|Unknown",
+    "customer_concentration_risk": "Low|Medium|High|Unknown",
+    "seasonality_risk": "Low|Medium|High|Unknown",
+    "evidence": ["string (why you chose these)"]
+  },
+  "scoring": {
+    "succession_risk": "Low|Medium|High|Unknown",
+    "operational_quality_signal": "Low|Medium|High|Unknown",
+    "data_confidence": "Low|Medium|High",
+    "overall_score_0_100": 0,
+    "final_tier": "A|B|C",
+    "tier_basis": "string (1 sentence explaining tier in plain English)"
+  },
+  "criteria_match": {
+    "business_model": "string (short summary for UI)",
+    "owner_profile": "string (short summary for UI)",
+    "notes_for_searcher": "string (short summary for UI)",
+    "source_inputs": ${inputs ? JSON.stringify(inputs) : "null"}
+  }
+}
+
+Company metadata:
+- Name: ${c.company_name ?? ""}
+- Website: ${c.website}
+- Address: ${c.address ?? ""}
+- Phone: ${c.phone ?? ""}
+- Google rating: ${c.rating ?? ""}
+- Ratings count: ${c.ratings_total ?? ""}
+
+Homepage text:
+${input.homepageText || "(no homepage text available)"}
+`.trim();
+
+  const res = await fetch(`${OPENAI_BASE_URL}/v1/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      temperature: 0.2,
+      messages: [{ role: "user", content: prompt }],
+    }),
   });
 
+  const json = await res.json();
+
   if (!res.ok) {
-    const errorText = await res.text();
-    console.error('OpenAI file upload error:', errorText);
-    throw new Error('Failed to upload CIM PDF to OpenAI');
+    const msg = json?.error?.message || "OpenAI error";
+    throw new Error(msg);
   }
 
-  const json = await res.json();
-  console.log('process-cim: uploaded file id', json.id);
-  return json.id as string;
+  const contentRaw = json?.choices?.[0]?.message?.content ?? "";
+  const content = contentRaw
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+
+  const parsed = JSON.parse(content);
+
+  // ---- hard validations + guardrails ----
+  if (typeof parsed?.ai_summary !== "string") throw new Error("Bad AI response: ai_summary missing");
+
+  if (!Array.isArray(parsed?.ai_red_flags)) parsed.ai_red_flags = [];
+
+  // Ensure the UI fields exist
+  if (!parsed?.business_model || typeof parsed.business_model !== "object") {
+    parsed.business_model = {
+      services: [],
+      customer_types: [],
+      delivery_model: "Unknown",
+      recurring_revenue_signals: [],
+      differentiators: [],
+      evidence: [],
+    };
+  }
+  if (!parsed?.owner_profile || typeof parsed.owner_profile !== "object") {
+    parsed.owner_profile = {
+      known: false,
+      owner_names: [],
+      ownership_type: "Unknown",
+      evidence: [],
+      assumptions: [],
+    };
+  }
+  if (!parsed?.notes_for_searcher || typeof parsed.notes_for_searcher !== "object") {
+    parsed.notes_for_searcher = {
+      what_to_verify_first: [],
+      questions_to_ask_owner: [],
+      deal_angle: [],
+    };
+  }
+
+  if (!parsed?.financials || typeof parsed.financials !== "object") parsed.financials = {};
+  if (!Array.isArray(parsed?.financials?.evidence)) parsed.financials.evidence = [];
+
+  if (!parsed?.scoring || typeof parsed.scoring !== "object") parsed.scoring = {};
+  if (!["A", "B", "C"].includes(parsed?.scoring?.final_tier)) parsed.scoring.final_tier = "C";
+
+  const scoreNum = Number(parsed?.scoring?.overall_score_0_100);
+  parsed.scoring.overall_score_0_100 = Number.isFinite(scoreNum) ? scoreNum : 0;
+
+  // GUARDRail: If owner unknown => no A, score <= 69
+  const ownerKnown = Boolean(parsed?.owner_profile?.known);
+  if (!ownerKnown) {
+    if (parsed.scoring.final_tier === "A") parsed.scoring.final_tier = "B";
+    if (parsed.scoring.overall_score_0_100 > 69) parsed.scoring.overall_score_0_100 = 69;
+    if (typeof parsed.scoring.tier_basis !== "string" || !parsed.scoring.tier_basis.trim()) {
+      parsed.scoring.tier_basis =
+        "Tier is capped because ownership could not be verified from the website text.";
+    }
+  }
+
+  // Ensure criteria_match contains the UI summaries (never blank)
+  if (!parsed?.criteria_match || typeof parsed.criteria_match !== "object") parsed.criteria_match = {};
+  parsed.criteria_match.business_model =
+    typeof parsed.criteria_match.business_model === "string" && parsed.criteria_match.business_model.trim()
+      ? parsed.criteria_match.business_model
+      : `Services: ${(parsed.business_model.services ?? []).slice(0, 4).join(", ") || "Unknown"}.`;
+
+  parsed.criteria_match.owner_profile =
+    typeof parsed.criteria_match.owner_profile === "string" && parsed.criteria_match.owner_profile.trim()
+      ? parsed.criteria_match.owner_profile
+      : ownerKnown
+      ? `Owner/leadership identified: ${(parsed.owner_profile.owner_names ?? []).join(", ") || "Yes"}.`
+      : "Owner not identified on website; treat as unknown until verified.";
+
+  parsed.criteria_match.notes_for_searcher =
+    typeof parsed.criteria_match.notes_for_searcher === "string" && parsed.criteria_match.notes_for_searcher.trim()
+      ? parsed.criteria_match.notes_for_searcher
+      : `Verify: ${((parsed.notes_for_searcher.what_to_verify_first ?? []) as string[]).slice(0, 3).join(" • ") || "contracts, team size, recurring revenue"}.`;
+
+  return parsed as {
+    ai_summary: string;
+    ai_red_flags: string[];
+    business_model: any;
+    owner_profile: any;
+    notes_for_searcher: any;
+    financials: any;
+    scoring: any;
+    criteria_match: any;
+  };
 }
 
-// Helper: sometimes model wraps JSON in ```json fences
-function stripCodeFences(s: string) {
-  const trimmed = (s ?? '').trim();
-  if (!trimmed) return trimmed;
-  if (trimmed.startsWith('```')) {
-    return trimmed.replace(/^```[a-zA-Z]*\n?/, '').replace(/```$/, '').trim();
-  }
-  return trimmed;
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
 
 export async function POST(req: NextRequest) {
   try {
-    console.log('process-cim: received request');
-
-    const body = await req.json();
-    const companyId = body.companyId as string | undefined;
-    let cimStoragePath = body.cimStoragePath as string | undefined;
-    let companyName = (body.companyName as string | null) ?? null;
-
-    if (!companyId) {
-      return NextResponse.json({ success: false, error: 'Missing companyId' }, { status: 400 });
-    }
-
-    if (!OPENAI_API_KEY) {
-      return NextResponse.json(
-        { success: false, error: 'OPENAI_API_KEY is not set on the server.' },
-        { status: 500 }
-      );
-    }
-
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
       return NextResponse.json(
-        {
-          success: false,
-          error:
-            'Supabase server env not set. Need NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.',
-        },
-        { status: 500 }
+        { success: false, error: "Missing Supabase env vars" },
+        { status: 500, headers: corsHeaders }
       );
     }
-
-    // If cimStoragePath wasn't provided, fetch it from the companies row.
-    if (!cimStoragePath || !companyName) {
-      const { data: companyRow, error: companyErr } = await supabaseAdmin
-        .from('companies')
-        .select('cim_storage_path, company_name')
-        .eq('id', companyId)
-        .single();
-
-      if (companyErr) {
-        console.error('process-cim: failed to load company row:', companyErr);
-        return NextResponse.json(
-          { success: false, error: 'Failed to load company row.', details: companyErr.message },
-          { status: 500 }
-        );
-      }
-
-      cimStoragePath = cimStoragePath || (companyRow?.cim_storage_path as string | undefined);
-      companyName = companyName || (companyRow?.company_name as string | null) || 'Unknown';
-    }
-
-    if (!cimStoragePath) {
+    if (!OPENAI_API_KEY) {
       return NextResponse.json(
-        { success: false, error: 'Missing cimStoragePath (not in request and not found on company row).' },
-        { status: 400 }
+        { success: false, error: "Missing OPENAI_API_KEY" },
+        { status: 500, headers: corsHeaders }
       );
     }
 
-    // 1) Build public URL for the CIM PDF (bucket is public)
-    const { data: publicUrlData } = supabaseAdmin.storage.from('cims').getPublicUrl(cimStoragePath);
+    const { workspaceId } = await getAuthedUserAndWorkspace(req);
+    if (!workspaceId) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401, headers: corsHeaders });
+    }
 
-    const publicUrl = publicUrlData?.publicUrl;
-    console.log('process-cim: publicUrl', publicUrl);
+    const body = (await req.json()) as Body;
 
-    if (!publicUrl) {
+    const companyId =
+      toTextSafe(body?.companyId).trim() ||
+      toTextSafe(body?.company_id).trim() ||
+      toTextSafe(body?.id).trim();
+
+    if (!companyId) {
+      return NextResponse.json({ success: false, error: "Missing company_id" }, { status: 400, headers: corsHeaders });
+    }
+
+    const { data: company, error: companyErr } = await supabase
+      .from("companies")
+      .select(
+        [
+          "id",
+          "workspace_id",
+          "source_type",
+          "company_name",
+          "website",
+          "address",
+          "phone",
+          "rating",
+          "ratings_total",
+          "tier_reason",
+        ].join(",")
+      )
+      .eq("id", companyId)
+      .eq("workspace_id", workspaceId)
+      .single();
+
+    if (companyErr || !company) {
       return NextResponse.json(
-        { success: false, error: 'Failed to build public URL for CIM PDF.' },
-        { status: 500 }
+        { success: false, error: "Company not found (or not in your workspace)" },
+        { status: 404, headers: corsHeaders }
       );
     }
 
-    // 2) Download the PDF from Supabase
-    const pdfRes = await fetch(publicUrl);
-    console.log('process-cim: pdf fetch status', pdfRes.status, pdfRes.statusText);
-
-    if (!pdfRes.ok) {
-      const err = await pdfRes.text().catch(() => '');
-      console.error('Failed to fetch PDF from storage:', pdfRes.status, pdfRes.statusText, err);
+    if (company.source_type !== "off_market") {
       return NextResponse.json(
-        { success: false, error: 'Failed to download CIM PDF from storage.' },
-        { status: 500 }
+        { success: false, error: "Initial diligence (off-market) can only run for off-market companies." },
+        { status: 400, headers: corsHeaders }
       );
     }
 
-    const pdfArrayBuffer = await pdfRes.arrayBuffer();
+    const websiteFromBody = toTextSafe(body?.website).trim();
+    const websiteFromDb = toTextSafe(company.website).trim();
+    const website = websiteFromBody || websiteFromDb;
 
-    // 3) Upload PDF to OpenAI
-    const fileId = await uploadPdfToOpenAI(pdfArrayBuffer, `${companyName}.pdf`);
+    if (!website) {
+      return NextResponse.json(
+        { success: false, error: "Missing website for this off-market company. Add a website before running diligence." },
+        { status: 400, headers: corsHeaders }
+      );
+    }
 
-    // 4) System instructions (PASTE YOUR FULL INSTRUCTIONS BLOCK HERE)
-    const instructions = `...PASTE YOUR FULL INSTRUCTIONS BLOCK HERE...`.trim();
+    const homepageText = await fetchHomepageText(website);
 
-    const userText = `
-Company name: ${companyName}.
-
-Analyze the attached CIM PDF and populate the JSON schema from the instructions for a professional ETA/search-fund buyer and capital advisor. Return ONLY JSON, no additional commentary.
-    `.trim();
-
-    // 5) Call OpenAI Responses API
-    const responsesRes = await fetch(`${OPENAI_BASE_URL}/v1/responses`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+    const ai = await runOffMarketInitialDiligenceAI({
+      company: {
+        company_name: company.company_name ?? null,
+        website,
+        address: company.address ?? null,
+        phone: company.phone ?? null,
+        rating: company.rating ?? null,
+        ratings_total: company.ratings_total ?? null,
+        tier_reason: company.tier_reason ?? null,
       },
-      body: JSON.stringify({
-        model: 'gpt-4.1',
-        instructions,
-        input: [
-          {
-            role: 'user',
-            content: [
-              { type: 'input_file', file_id: fileId },
-              { type: 'input_text', text: userText },
-            ],
-          },
-        ],
-      }),
+      homepageText,
     });
 
-    if (!responsesRes.ok) {
-      const errText = await responsesRes.text();
-      console.error('OpenAI Responses API error:', errText);
-      return NextResponse.json(
-        { success: false, error: 'OpenAI Responses API error', details: errText },
-        { status: 500 }
-      );
-    }
-
-    const responsesJson = await responsesRes.json();
-
-    const contentText: string =
-      responsesJson.output_text ?? responsesJson.output?.[0]?.content?.[0]?.text ?? '';
-
-    if (!contentText) {
-      console.error('No text content returned from OpenAI Responses API:', responsesJson);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'OpenAI Responses API did not return any text content. Check logs for details.',
-        },
-        { status: 500 }
-      );
-    }
-
-    let parsed: {
-      deal_verdict: string;
-      ai_summary: string;
-      ai_red_flags: string[];
-      financials: any;
-      scoring: any;
-      criteria_match: any;
-    };
-
-    try {
-      parsed = JSON.parse(stripCodeFences(contentText));
-    } catch (jsonErr) {
-      console.error('Failed to parse OpenAI JSON:', jsonErr, contentText);
-      return NextResponse.json(
-        { success: false, error: 'Failed to parse OpenAI response as JSON. Check logs.' },
-        { status: 500 }
-      );
-    }
-
-    // ✅ 6) Persist to companies (THIS is what makes the UI populate)
-    const updatePayload: any = {
-      ai_summary: parsed.ai_summary ?? null,
-      ai_red_flags: parsed.ai_red_flags ?? [],
-      ai_financials_json: parsed.financials ?? {},
-      ai_scoring_json: parsed.scoring ?? {},
-      criteria_match_json: parsed.criteria_match ?? {},
-    };
-
-    // Optional: if you store tier on companies.final_tier
-    if (parsed?.scoring?.final_tier) {
-      updatePayload.final_tier = parsed.scoring.final_tier;
-    }
-
-    const { error: updateErr } = await supabaseAdmin
-      .from('companies')
-      .update(updatePayload)
-      .eq('id', companyId);
-
-    if (updateErr) {
-      console.error('process-cim: failed to update companies row:', updateErr);
-      return NextResponse.json(
-        { success: false, error: 'Failed to save CIM analysis to database.', details: updateErr.message },
-        { status: 500 }
-      );
-    }
-
-    console.log('process-cim: saved analysis to companies', companyId);
-
-    return NextResponse.json({
-      success: true,
-      companyId,
-      deal_verdict: parsed.deal_verdict,
-      ai_summary: parsed.ai_summary,
-      ai_red_flags: parsed.ai_red_flags,
-      financials: parsed.financials,
-      scoring: parsed.scoring,
-      criteria_match: parsed.criteria_match,
-    });
-  } catch (err) {
-    console.error('Unexpected error in process-cim:', err);
+    // Return exactly what your client expects to save into the companies row
     return NextResponse.json(
-      { success: false, error: 'Unexpected server error in process-cim.' },
-      { status: 500 }
+      {
+        success: true,
+        ai_summary: ai.ai_summary,
+        ai_red_flags: ai.ai_red_flags,
+        financials: ai.financials,
+        scoring: ai.scoring,
+        criteria_match: ai.criteria_match, // now includes business_model/owner_profile/notes_for_searcher summaries
+      },
+      { headers: corsHeaders }
+    );
+  } catch (e: any) {
+    return NextResponse.json(
+      { success: false, error: e?.message ?? "Unknown error" },
+      { status: 500, headers: corsHeaders }
     );
   }
 }
