@@ -115,6 +115,108 @@ function coerceRedFlagsToBulletedMarkdown(value: unknown): string | null {
   return null;
 }
 
+/**
+ * ✅ NEW: Data confidence snapshot builder (for companies.ai_confidence_json)
+ * This is CONFIDENCE IN INPUTS / DISCLOSURE QUALITY — not "AI confidence".
+ */
+type DataConfidenceLevel = 'low' | 'medium' | 'high';
+
+function iconForLevel(level: DataConfidenceLevel): '⚠️' | '◑' | '●' {
+  if (level === 'high') return '●';
+  if (level === 'medium') return '◑';
+  return '⚠️';
+}
+
+function safeStr(v: any): string {
+  return typeof v === 'string' ? v : v == null ? '' : String(v);
+}
+
+function normalizeLMH(v: any): 'Low' | 'Medium' | 'High' | 'unknown' {
+  const s = safeStr(v).trim();
+  if (!s) return 'unknown';
+  const t = s.toLowerCase();
+  if (t === 'low') return 'Low';
+  if (t === 'medium') return 'Medium';
+  if (t === 'high') return 'High';
+  if (t === 'unknown') return 'unknown';
+  return 'unknown';
+}
+
+function countUnknownScoringFields(scoring: any): number {
+  const fields = [
+    scoring?.succession_risk,
+    scoring?.industry_fit,
+    scoring?.geography_fit,
+    scoring?.financial_quality,
+    scoring?.revenue_durability,
+    scoring?.customer_concentration_risk,
+    scoring?.capital_intensity,
+    scoring?.deal_complexity,
+  ];
+
+  let unknowns = 0;
+  for (const f of fields) {
+    if (normalizeLMH(f) === 'unknown') unknowns += 1;
+  }
+  return unknowns;
+}
+
+function countRedFlags(parsed: any): number {
+  const v = parsed?.ai_red_flags;
+  if (Array.isArray(v)) return v.filter((x) => typeof x === 'string' && x.trim()).length;
+  if (typeof v === 'string' && v.trim()) return v.split('\n').filter(Boolean).length;
+  return 0;
+}
+
+function buildCimDataConfidence(parsed: any) {
+  const scoring = parsed?.scoring ?? {};
+
+  const financialQuality = normalizeLMH(scoring?.financial_quality);
+  const revenueDurability = normalizeLMH(scoring?.revenue_durability);
+  const customerConc = normalizeLMH(scoring?.customer_concentration_risk);
+  const succession = normalizeLMH(scoring?.succession_risk);
+
+  const unknownCount = countUnknownScoringFields(scoring);
+  const redFlagsCount = countRedFlags(parsed);
+
+  // Conservative decision logic:
+  // - Low if financial quality is Low OR lots of unknowns
+  // - High only if financial quality is High AND very few unknowns AND modest red flags
+  let level: DataConfidenceLevel = 'medium';
+  if (financialQuality === 'Low' || unknownCount >= 3) level = 'low';
+  if (financialQuality === 'High' && unknownCount <= 1 && redFlagsCount <= 4) level = 'high';
+
+  // One-line reason (data confidence wording)
+  let summaryReason = 'inputs require verification';
+  if (financialQuality === 'Low') summaryReason = 'financial disclosures appear inconsistent or heavily adjusted';
+  else if (unknownCount >= 3) summaryReason = 'material disclosures are missing or unclear';
+  else if (level === 'high') summaryReason = 'disclosures appear internally consistent with reasonable detail';
+
+  const summary =
+    level === 'high'
+      ? `High data confidence — ${summaryReason}.`
+      : level === 'medium'
+      ? `Medium data confidence — ${summaryReason}.`
+      : `Low data confidence — ${summaryReason}.`;
+
+  const signals: Array<{ label: string; value: string }> = [
+    { label: 'Financial disclosure', value: financialQuality === 'unknown' ? 'Unknown' : financialQuality },
+    { label: 'Revenue durability', value: revenueDurability === 'unknown' ? 'Unknown' : revenueDurability },
+    { label: 'Customer concentration', value: customerConc === 'unknown' ? 'Unknown' : customerConc },
+    { label: 'Owner dependence', value: succession === 'unknown' ? 'Unknown' : succession },
+    { label: 'Data completeness', value: unknownCount >= 3 ? 'Weak' : unknownCount >= 1 ? 'Mixed' : 'Strong' },
+  ];
+
+  return {
+    level, // 'low' | 'medium' | 'high'
+    icon: iconForLevel(level),
+    summary,
+    signals,
+    source: 'cim_pdf',
+    updated_at: new Date().toISOString(),
+  };
+}
+
 export async function POST(req: NextRequest) {
   try {
     console.log('process-cim: received request');
@@ -648,10 +750,7 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
     if (!responsesRes.ok) {
       const errText = await responsesRes.text();
       console.error('OpenAI Responses API error:', errText);
-      return NextResponse.json(
-        { success: false, error: 'OpenAI Responses API error', details: errText },
-        { status: 500 }
-      );
+      return NextResponse.json({ success: false, error: 'OpenAI Responses API error', details: errText }, { status: 500 });
     }
 
     const responsesJson = await responsesRes.json();
@@ -696,6 +795,9 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
 
     const redFlagsBulleted = coerceRedFlagsToBulletedMarkdown(parsed.ai_red_flags);
 
+    // ✅ NEW: data confidence snapshot for dashboard/deal (companies.ai_confidence_json)
+    const cimDataConfidence = buildCimDataConfidence(parsed);
+
     // ✅ WRITE RESULTS TO DB
     const { error: updateErr } = await supabaseAdmin
       .from('companies')
@@ -706,6 +808,9 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
         ai_scoring_json: parsed.scoring ?? null,
         criteria_match_json: criteriaToStore ?? null,
         final_tier: parsed?.scoring?.final_tier ?? null,
+
+        // ✅ IMPORTANT: snapshot column for dashboard truth
+        ai_confidence_json: cimDataConfidence,
       })
       .eq('id', companyId);
 
@@ -727,6 +832,9 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
       qoe: parsed.qoe,
       scoring: parsed.scoring,
       criteria_match: criteriaToStore,
+
+      // ✅ helpful for UI debugging / dashboard
+      ai_confidence_json: cimDataConfidence,
     });
   } catch (err) {
     console.error('Unexpected error in process-cim:', err);

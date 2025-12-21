@@ -59,6 +59,134 @@ function normalizeFinalTier(input: unknown): "A" | "B" | "C" | null {
   return null;
 }
 
+// ✅ Normalize red flags into bulleted markdown (string or array)
+function coerceRedFlagsToBulletedMarkdown(value: unknown): string | null {
+  // Case 1: array of strings
+  if (Array.isArray(value)) {
+    const items = value
+      .map((x) => (typeof x === "string" ? x.trim() : ""))
+      .filter(Boolean)
+      .map((s) => s.replace(/^[-•*]\s+/, "").replace(/^\d+\.\s+/, "").trim())
+      .filter(Boolean);
+
+    if (items.length === 0) return null;
+    return items.map((s) => `- ${s}`).join("\n");
+  }
+
+  // Case 2: model returns a string blob
+  if (typeof value === "string" && value.trim()) {
+    const raw = value.replace(/\r\n/g, "\n").trim();
+
+    let parts = raw
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    if (parts.length <= 1) {
+      parts = raw
+        .split(/(?:\.\s+|;\s+|\n+)/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+
+    const items = parts
+      .map((s) => s.replace(/^[-•*]\s+/, "").replace(/^\d+\.\s+/, "").trim())
+      .filter(Boolean);
+
+    if (items.length === 0) return null;
+    return items.map((s) => `- ${s}`).join("\n");
+  }
+
+  return null;
+}
+
+/**
+ * ✅ Data confidence snapshot (companies.ai_confidence_json)
+ * This is confidence in the INPUTS / DISCLOSURE QUALITY of the LISTING TEXT,
+ * not "how confident the AI feels".
+ */
+type DataConfidenceLevel = "low" | "medium" | "high";
+
+function iconForLevel(level: DataConfidenceLevel): "⚠️" | "◑" | "●" {
+  if (level === "high") return "●";
+  if (level === "medium") return "◑";
+  return "⚠️";
+}
+
+function safeStr(v: any): string {
+  return typeof v === "string" ? v : v == null ? "" : String(v);
+}
+
+// Heuristic: on-market listings are usually thin; default is Medium unless clearly thin or clearly detailed.
+function buildOnMarketDataConfidence(args: {
+  listingText: string;
+  ai_summary?: any;
+  ai_red_flags?: any;
+  financials?: any;
+  criteria_match?: any;
+}) {
+  const listingText = (args.listingText || "").trim();
+  const textLen = listingText.length;
+
+  const fin = args.financials && typeof args.financials === "object" ? args.financials : {};
+  const revenue = safeStr(fin?.revenue).trim();
+  const ebitda = safeStr(fin?.ebitda).trim();
+  const margin = safeStr(fin?.margin).trim();
+  const conc = safeStr(fin?.customer_concentration).trim();
+
+  const hasAnyFinancial = !!(revenue || ebitda || margin || conc);
+
+  // "Thin listing" checks
+  const hasAsking = /\bask(ing)?\b|\basking price\b|\bprice\b|\b\$\s?\d/.test(listingText.toLowerCase());
+  const hasLocationHint = /\b[a-z]+,\s?[a-z]{2}\b/i.test(listingText) || /\bstate\b|\bcity\b/i.test(listingText);
+  const hasIndustryHint = /\bindustry\b|\bsector\b|\bservice\b|\bmanufactur|\bsaas\b|\bsoftware\b/i.test(
+    listingText.toLowerCase()
+  );
+
+  // red flags count (string or bullets)
+  const red = args.ai_red_flags;
+  const redCount = Array.isArray(red)
+    ? red.filter((x) => typeof x === "string" && x.trim()).length
+    : typeof red === "string" && red.trim()
+    ? red.split("\n").filter(Boolean).length
+    : 0;
+
+  // Base level selection
+  let level: DataConfidenceLevel = "medium";
+
+  // If listing is extremely short or missing most useful detail, downgrade to low.
+  const thinSignals =
+    (textLen > 0 && textLen < 900) || (!hasAnyFinancial && !hasAsking) || (!hasLocationHint && !hasIndustryHint);
+
+  if (thinSignals) level = "low";
+
+  // If listing is long and includes at least some financials, upgrade to high.
+  if (textLen >= 2200 && hasAnyFinancial) level = "high";
+
+  // If a lot of red flags exist, it often correlates with messy listing/claims → cap at medium.
+  if (level === "high" && redCount >= 6) level = "medium";
+
+  let summary = "Medium data confidence — listing details require verification.";
+  if (level === "low") summary = "Low data confidence — listing is thin or missing key disclosures.";
+  if (level === "high") summary = "High data confidence — listing contains meaningful detail and financial context.";
+
+  const signals: Array<{ label: string; value: string }> = [
+    { label: "Listing detail", value: textLen >= 2200 ? "Strong" : textLen >= 900 ? "Mixed" : "Thin" },
+    { label: "Financial disclosure", value: hasAnyFinancial ? "Present (unverified)" : "Not provided" },
+    { label: "Asking / price hints", value: hasAsking ? "Mentioned" : "Not mentioned" },
+    { label: "Basic context", value: hasIndustryHint || hasLocationHint ? "Some context" : "Sparse context" },
+  ];
+
+  return {
+    level,
+    icon: iconForLevel(level),
+    summary,
+    signals,
+    source: "on_market",
+    updated_at: new Date().toISOString(),
+  };
+}
+
 export async function OPTIONS() {
   return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
@@ -226,8 +354,6 @@ export async function POST(req: Request) {
     const normalizedTier = normalizeFinalTier(scoring?.final_tier);
 
     // Keep score mapping if you still use it elsewhere; otherwise it will remain null.
-    // (If your UI is showing "Tier 1 / Tier 2 / Caution", the root problem is tier labels,
-    //  not the numeric score.)
     let score: number | null = null;
     if (normalizedTier === "A") score = 85;
     else if (normalizedTier === "B") score = 75;
@@ -239,33 +365,60 @@ export async function POST(req: Request) {
         ? { ...scoring, final_tier: normalizedTier }
         : { final_tier: normalizedTier };
 
+    // ✅ Normalize red flags to bulleted markdown for consistent UI
+    const redFlagsBulleted = coerceRedFlagsToBulletedMarkdown(ai_red_flags);
+
+    // ✅ NEW: data confidence snapshot for dashboard/deal
+    const onMarketDataConfidence = buildOnMarketDataConfidence({
+      listingText: String(text || ""),
+      ai_summary,
+      ai_red_flags,
+      financials,
+      criteria_match,
+    });
+
     /* ===============================
        6) INSERT COMPANY
     ================================ */
-    const { error: insertError } = await supabaseAdmin.from("companies").insert({
-      workspace_id: workspaceId,
-      user_id: ownerUserId,
-      company_name,
-      listing_url: url,
-      raw_listing_text: text,
-      source_type: "on_market",
-      location_city: location_city ?? null,
-      location_state: location_state ?? null,
-      industry: industry ?? null,
-      final_tier: normalizedTier ?? null,
-      score,
-      ai_summary: ai_summary ?? null,
-      ai_red_flags: ai_red_flags ?? null,
-      ai_financials_json: financials ?? null,
-      ai_scoring_json: scoringToStore ?? null,
-      criteria_match_json: criteria_match ?? null,
-    });
+    const { data: inserted, error: insertError } = await supabaseAdmin
+      .from("companies")
+      .insert({
+        workspace_id: workspaceId,
+        user_id: ownerUserId,
+        company_name,
+        listing_url: url,
+        raw_listing_text: text,
+        source_type: "on_market",
+        location_city: location_city ?? null,
+        location_state: location_state ?? null,
+        industry: industry ?? null,
+        final_tier: normalizedTier ?? null,
+        score,
+        ai_summary: ai_summary ?? null,
+        ai_red_flags: redFlagsBulleted ?? null,
+        ai_financials_json: financials ?? null,
+        ai_scoring_json: scoringToStore ?? null,
+        criteria_match_json: criteria_match ?? null,
+
+        // ✅ IMPORTANT: this powers your dashboard "Data confidence"
+        ai_confidence_json: onMarketDataConfidence,
+      })
+      .select("id")
+      .single();
 
     if (insertError) {
       return json({ error: insertError.message }, 500);
     }
 
-    return json({ success: true }, 200);
+    return json(
+      {
+        success: true,
+        companyId: inserted?.id ?? null,
+        final_tier: normalizedTier,
+        ai_confidence_json: onMarketDataConfidence,
+      },
+      200
+    );
   } catch (err: any) {
     return json({ error: err?.message || "Unknown error" }, 500);
   }

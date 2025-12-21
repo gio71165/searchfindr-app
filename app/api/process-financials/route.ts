@@ -5,16 +5,20 @@ import * as XLSX from "xlsx";
 
 export const runtime = "nodejs";
 
+/* ───────────────────────── ENV ───────────────────────── */
+
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com";
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? "https://api.openai.com";
+/* ───────────────────────── CORS ───────────────────────── */
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,19 +30,7 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
 
-/**
- * We intentionally do NOT use a simple High/Medium/Low enum anymore.
- * We return a richer, sophisticated label string like:
- * "Data Consistency: High | Reporting Quality: Medium"
- * or
- * "Operational Performance: Strong | Financial Controls: Weak"
- */
-function clampConfidenceLabel(v: any): string {
-  if (typeof v !== "string") return "Data Consistency: Low | Reporting Quality: Low";
-  const s = v.trim();
-  if (!s) return "Data Consistency: Low | Reporting Quality: Low";
-  return s.slice(0, 120);
-}
+/* ───────────────────────── HELPERS ───────────────────────── */
 
 function clampStringArray(v: any): string[] {
   if (!Array.isArray(v)) return [];
@@ -47,6 +39,38 @@ function clampStringArray(v: any): string[] {
     .map((s) => s.trim())
     .filter(Boolean)
     .slice(0, 25);
+}
+
+function clampConfidenceLabel(v: any): string {
+  if (typeof v !== "string") return "Operational Performance: Unknown | Financial Controls: Unknown";
+  return v.trim().slice(0, 140);
+}
+
+/**
+ * Convert the model confidence string into structured JSON
+ * Example input:
+ * "Operational Performance: Mixed | Financial Controls: Weak"
+ */
+function buildConfidenceJson(label: string) {
+  const bullets: string[] = [];
+
+  const parts = label.split("|").map((p) => p.trim());
+  for (const p of parts) {
+    if (p) bullets.push(p);
+  }
+
+  // Pick a conservative top-level level
+  let level: "High" | "Medium" | "Low" = "Medium";
+  if (label.toLowerCase().includes("weak") || label.toLowerCase().includes("low")) level = "Low";
+  if (label.toLowerCase().includes("strong") || label.toLowerCase().includes("high")) level = "High";
+
+  return {
+    level,
+    label,
+    bullets,
+    source: "financial_analysis",
+    updated_at: new Date().toISOString(),
+  };
 }
 
 function isPdf(mime: string, filename: string) {
@@ -76,21 +100,19 @@ function xlsxToCsvText(buffer: ArrayBuffer): string {
 
   for (const sheetName of wb.SheetNames.slice(0, 6)) {
     const ws = wb.Sheets[sheetName];
-    const csv = XLSX.utils.sheet_to_csv(ws, { FS: ",", RS: "\n" });
-    const trimmed = (csv ?? "").trim();
-    if (trimmed) chunks.push(`### SHEET: ${sheetName}\n${trimmed}`);
+    const csv = XLSX.utils.sheet_to_csv(ws);
+    if (csv?.trim()) chunks.push(`### SHEET: ${sheetName}\n${csv.trim()}`);
   }
 
-  const out = chunks.join("\n\n").trim();
-  return out || "No readable sheets found.";
+  return chunks.join("\n\n") || "No readable sheets found.";
 }
 
-async function uploadToOpenAI(fileBytes: ArrayBuffer, filename: string) {
+async function uploadToOpenAI(bytes: ArrayBuffer, filename: string) {
   if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not set");
 
   const form = new FormData();
   form.append("purpose", "assistants");
-  form.append("file", new Blob([fileBytes]), filename);
+  form.append("file", new Blob([bytes]), filename);
 
   const res = await fetch(`${OPENAI_BASE_URL}/v1/files`, {
     method: "POST",
@@ -98,99 +120,76 @@ async function uploadToOpenAI(fileBytes: ArrayBuffer, filename: string) {
     body: form,
   });
 
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(`OpenAI file upload failed: ${t}`);
-  }
-
+  if (!res.ok) throw new Error("OpenAI file upload failed");
   const json = await res.json();
   return json.id as string;
 }
 
 function extractTextFromOutput(output: any[]): string | null {
-  try {
-    for (const item of output) {
-      const content = item?.content;
-      if (!Array.isArray(content)) continue;
-
-      for (const block of content) {
-        if (block?.type === "output_text" && typeof block?.text === "string") return block.text;
-        if (block?.type === "text" && typeof block?.text === "string") return block.text;
-      }
+  for (const item of output ?? []) {
+    for (const block of item?.content ?? []) {
+      if (typeof block?.text === "string") return block.text;
     }
-  } catch {
-    // ignore
   }
   return null;
 }
 
+/* ───────────────────────── OPENAI ───────────────────────── */
+
 async function callOpenAIJson(args: {
   filename: string;
   mime: string;
-  extractedText?: string; // for csv/xlsx
-  openaiFileId?: string; // for pdf
+  extractedText?: string;
+  openaiFileId?: string;
 }) {
   if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not set");
 
-  const system = `You are a financial screening analyst for SMB acquisitions.
+  const system = `
+You are a skeptical financial screening analyst for SMB acquisitions.
 Return STRICT JSON only. No markdown. No commentary.
-If something isn't present, list it under missing_items.
-Never invent numbers. If you estimate, label as estimate and explain why.
+Never invent numbers. If uncertain, say so.
 
-IMPORTANT: "overall_confidence" must NOT be a single High/Medium/Low.
-Use a dual-axis label so sophisticated users do not misinterpret it.
-Preferred format:
-"Data Consistency: High|Medium|Low | Reporting Quality: High|Medium|Low"
-If you can clearly distinguish operations vs controls, you may instead use:
-"Operational Performance: Strong|Mixed|Weak | Financial Controls: Strong|Mixed|Weak"
-Keep it short.`;
+overall_confidence MUST be a dual-axis label, for example:
+"Operational Performance: Mixed | Financial Controls: Weak"
+`;
 
-  const schemaHint = `Return JSON with this exact shape:
+  const schema = `
 {
-  "overall_confidence": "Data Consistency: High|Medium|Low | Reporting Quality: High|Medium|Low" 
-    OR "Operational Performance: Strong|Mixed|Weak | Financial Controls: Strong|Mixed|Weak",
+  "overall_confidence": string,
   "extracted_metrics": {
-    "revenue": [{"year": "YYYY or label", "value": number|null, "unit": "USD|unknown", "note": string}],
-    "ebitda": [{"year": "YYYY or label", "value": number|null, "unit": "USD|unknown", "note": string}],
-    "net_income": [{"year": "YYYY or label", "value": number|null, "unit": "USD|unknown", "note": string}],
-    "margins": [{"type":"EBITDA Margin|Net Margin|Gross Margin|unknown","year":"YYYY or label","value_pct": number|null,"note": string}],
+    "revenue": [{"year": string, "value": number|null, "unit": string, "note": string}],
+    "ebitda": [{"year": string, "value": number|null, "unit": string, "note": string}],
+    "net_income": [{"year": string, "value": number|null, "unit": string, "note": string}],
+    "margins": [{"type": string, "year": string, "value_pct": number|null, "note": string}],
     "yoy_trends": [string]
   },
   "red_flags": [string],
   "green_flags": [string],
   "missing_items": [string],
   "diligence_notes": [string]
-}`;
+}
+`;
 
-  const inputParts: any[] = [
+  const input: any[] = [
     { role: "system", content: system },
     {
       role: "user",
-      content: [
-        {
-          type: "input_text",
-          text: `Analyze these financials for deal screening.
-Filename: ${args.filename}
-MIME: ${args.mime}
-
-${schemaHint}`,
-        },
-      ],
+      content: [{ type: "input_text", text: `Analyze these financials.\n${schema}` }],
     },
   ];
 
   if (args.extractedText) {
-    inputParts.push({
+    input.push({
       role: "user",
-      content: [{ type: "input_text", text: `Extracted table/text content:\n\n${args.extractedText}` }],
+      content: [{ type: "input_text", text: args.extractedText }],
     });
   }
 
   if (args.openaiFileId) {
-    inputParts.push({
+    input.push({
       role: "user",
       content: [
-        { type: "input_text", text: "The financials are in the attached file. Extract what you can." },
+        { type: "input_text", text: "The financials are in the attached file." },
         { type: "input_file", file_id: args.openaiFileId },
       ],
     });
@@ -204,31 +203,22 @@ ${schemaHint}`,
     },
     body: JSON.stringify({
       model: "gpt-4.1-mini",
-      input: inputParts,
-      text: { format: { type: "json_object" } },
+      input,
       temperature: 0.2,
+      text: { format: { type: "json_object" } },
     }),
   });
 
-  if (!res.ok) {
-    const t = await res.text();
-    throw new Error(`OpenAI responses failed: ${t}`);
-  }
-
+  if (!res.ok) throw new Error("OpenAI response failed");
   const json = await res.json();
 
-  const outText =
-    (typeof json.output_text === "string" && json.output_text) ||
+  const text =
+    json.output_text ||
     (Array.isArray(json.output) ? extractTextFromOutput(json.output) : null);
 
-  if (!outText) throw new Error("No usable text output from OpenAI.");
+  if (!text) throw new Error("No usable model output");
 
-  let parsed: any;
-  try {
-    parsed = JSON.parse(outText);
-  } catch {
-    throw new Error("Model did not return valid JSON.");
-  }
+  const parsed = JSON.parse(text);
 
   return {
     overall_confidence: clampConfidenceLabel(parsed.overall_confidence),
@@ -240,161 +230,94 @@ ${schemaHint}`,
   };
 }
 
-async function downloadFromFinancialsBucket(storagePath: string): Promise<ArrayBuffer> {
-  const { data, error } = await supabaseAdmin.storage.from("financials").download(storagePath);
-  if (error || !data) throw new Error(error?.message || "Failed to download financials file.");
-
-  // supabase-js returns a Blob in node runtime too
-  // @ts-ignore
-  const ab = await data.arrayBuffer();
-  return ab as ArrayBuffer;
-}
+/* ───────────────────────── MAIN ───────────────────────── */
 
 export async function POST(req: NextRequest) {
   try {
-    // 1) Auth
-    const authHeader = req.headers.get("authorization") || "";
-    const jwt = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+    const auth = req.headers.get("authorization") || "";
+    const jwt = auth.startsWith("Bearer ") ? auth.slice(7) : null;
+    if (!jwt) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    if (!jwt) {
-      return NextResponse.json(
-        { error: "Missing Authorization bearer token." },
-        { status: 401, headers: corsHeaders }
-      );
-    }
-
-    const supabaseUserClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    const supabaseUser = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: false },
     });
 
-    const { data: userData, error: userErr } = await supabaseUserClient.auth.getUser(jwt);
-    if (userErr || !userData?.user) {
-      return NextResponse.json({ error: "Invalid auth." }, { status: 401, headers: corsHeaders });
-    }
+    const { data: userData } = await supabaseUser.auth.getUser(jwt);
+    const userId = userData?.user?.id;
+    if (!userId) return NextResponse.json({ error: "Invalid auth" }, { status: 401 });
 
-    const userId = userData.user.id;
+    const body = await req.json();
+    const dealId = body?.deal_id;
+    if (!dealId) return NextResponse.json({ error: "Missing deal_id" }, { status: 400 });
 
-    // 2) Body JSON: { deal_id }
-    let body: any = null;
-    try {
-      body = await req.json();
-    } catch {
-      return NextResponse.json({ error: "Invalid JSON body." }, { status: 400, headers: corsHeaders });
-    }
-
-    const dealId = typeof body?.deal_id === "string" ? body.deal_id : null;
-    if (!dealId) {
-      return NextResponse.json({ error: "Missing deal_id." }, { status: 400, headers: corsHeaders });
-    }
-
-    // 3) Determine user's workspace_id (profile) for access check
-    const { data: profile, error: profileErr } = await supabaseAdmin
+    const { data: profile } = await supabaseAdmin
       .from("profiles")
       .select("workspace_id")
       .eq("id", userId)
       .single();
 
-    if (profileErr || !profile?.workspace_id) {
-      return NextResponse.json({ error: "Missing workspace for user." }, { status: 403, headers: corsHeaders });
-    }
+    const workspaceId = profile?.workspace_id;
+    if (!workspaceId) return NextResponse.json({ error: "No workspace" }, { status: 403 });
 
-    const workspaceId = profile.workspace_id as string;
-
-    // 4) Load the company/deal row + validate access
-    const { data: company, error: companyErr } = await supabaseAdmin
+    const { data: company } = await supabaseAdmin
       .from("companies")
-      .select(
-        "id, workspace_id, user_id, source_type, company_name, financials_storage_path, financials_filename, financials_mime"
-      )
+      .select("id, workspace_id, source_type, financials_storage_path, financials_filename, financials_mime")
       .eq("id", dealId)
       .single();
 
-    if (companyErr || !company) {
-      return NextResponse.json({ error: "Deal not found." }, { status: 404, headers: corsHeaders });
-    }
+    if (!company || company.workspace_id !== workspaceId)
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
-    if (company.workspace_id !== workspaceId) {
-      return NextResponse.json(
-        { error: "You do not have access to this deal." },
-        { status: 403, headers: corsHeaders }
-      );
-    }
+    if (company.source_type !== "financials")
+      return NextResponse.json({ error: "Not a financials deal" }, { status: 400 });
 
-    if (company.source_type !== "financials") {
-      return NextResponse.json(
-        { error: "This deal is not a Financials deal." },
-        { status: 400, headers: corsHeaders }
-      );
-    }
+    const { data: file } = await supabaseAdmin.storage
+      .from("financials")
+      .download(company.financials_storage_path);
 
-    const storagePath = company.financials_storage_path as string | null;
-    if (!storagePath) {
-      return NextResponse.json(
-        { error: "No financials file found for this deal. Re-upload the financials." },
-        { status: 400, headers: corsHeaders }
-      );
-    }
-
-    // 5) Fetch file bytes from Storage
-    const filename = (company.financials_filename as string | null) || "financials";
-    const mime = (company.financials_mime as string | null) || "application/octet-stream";
-
-    const bytes = await downloadFromFinancialsBucket(storagePath);
-
-    // 6) Prepare model inputs
+    const bytes = await file.arrayBuffer();
     let extractedText: string | undefined;
     let openaiFileId: string | undefined;
 
-    if (isXlsx(mime, filename)) {
+    if (isXlsx(company.financials_mime, company.financials_filename))
       extractedText = xlsxToCsvText(bytes);
-    } else if (isCsv(mime, filename)) {
-      extractedText = new TextDecoder("utf-8").decode(bytes).slice(0, 250_000);
-    } else if (isPdf(mime, filename)) {
-      openaiFileId = await uploadToOpenAI(bytes, filename);
-    } else {
-      extractedText = new TextDecoder("utf-8").decode(bytes).slice(0, 250_000);
-    }
+    else if (isCsv(company.financials_mime, company.financials_filename))
+      extractedText = new TextDecoder().decode(bytes);
+    else if (isPdf(company.financials_mime, company.financials_filename))
+      openaiFileId = await uploadToOpenAI(bytes, company.financials_filename);
 
-    // 7) Run analysis
     const analysis = await callOpenAIJson({
-      filename,
-      mime,
+      filename: company.financials_filename,
+      mime: company.financials_mime,
       extractedText,
       openaiFileId,
     });
 
-    // 8) Upsert analysis (overwrite on rerun)
-    const { data: saved, error: saveErr } = await supabaseAdmin
-      .from("financial_analyses")
-      .upsert(
-        {
-          user_id: userId,
-          workspace_id: workspaceId,
-          deal_id: dealId,
-          source_filename: filename,
-          overall_confidence: analysis.overall_confidence,
-          extracted_metrics: analysis.extracted_metrics,
-          red_flags: analysis.red_flags,
-          green_flags: analysis.green_flags,
-          missing_items: analysis.missing_items,
-          diligence_notes: analysis.diligence_notes,
-        },
-        { onConflict: "deal_id" }
-      )
-      .select("*")
-      .single();
+    // 🔹 INSERT (history preserved)
+    await supabaseAdmin.from("financial_analyses").insert({
+      user_id: userId,
+      workspace_id: workspaceId,
+      deal_id: dealId,
+      source_filename: company.financials_filename,
+      overall_confidence: analysis.overall_confidence,
+      extracted_metrics: analysis.extracted_metrics,
+      red_flags: analysis.red_flags,
+      green_flags: analysis.green_flags,
+      missing_items: analysis.missing_items,
+      diligence_notes: analysis.diligence_notes,
+    });
 
-    if (saveErr) {
-      console.error("financial_analyses upsert error:", saveErr);
-      throw saveErr;
-    }
+    // 🔹 UPDATE company confidence (dashboard + deal pages use this)
+    const confidenceJson = buildConfidenceJson(analysis.overall_confidence);
 
-    return NextResponse.json({ ok: true, analysis: saved }, { status: 200, headers: corsHeaders });
+    await supabaseAdmin
+      .from("companies")
+      .update({ ai_confidence_json: confidenceJson })
+      .eq("id", dealId);
+
+    return NextResponse.json({ ok: true }, { status: 200, headers: corsHeaders });
   } catch (err: any) {
     console.error("process-financials error:", err);
-    return NextResponse.json(
-      { error: err?.message ?? "Unknown error" },
-      { status: 500, headers: corsHeaders }
-    );
+    return NextResponse.json({ error: err.message }, { status: 500, headers: corsHeaders });
   }
 }

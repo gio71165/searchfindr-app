@@ -60,6 +60,112 @@ async function fetchHomepageText(urlStr: string) {
   }
 }
 
+function bullets(value: any): string | null {
+  if (!value) return null;
+
+  // Array of strings
+  if (Array.isArray(value)) {
+    const items = value
+      .map((x) => (typeof x === "string" ? x.trim() : ""))
+      .filter(Boolean)
+      .map((s) => s.replace(/^[-•*]\s+/, "").replace(/^\d+\.\s+/, "").trim())
+      .filter(Boolean);
+
+    if (!items.length) return null;
+    return items.map((s) => `- ${s}`).join("\n");
+  }
+
+  // String blob
+  if (typeof value === "string" && value.trim()) {
+    const raw = value.replace(/\r\n/g, "\n").trim();
+    const parts = raw
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .map((s) => s.replace(/^[-•*]\s+/, "").replace(/^\d+\.\s+/, "").trim())
+      .filter(Boolean);
+
+    if (!parts.length) return null;
+    return parts.map((s) => `- ${s}`).join("\n");
+  }
+
+  return null;
+}
+
+function clampScore(n: number) {
+  if (!Number.isFinite(n)) return 0;
+  if (n < 0) return 0;
+  if (n > 100) return 100;
+  return Math.round(n);
+}
+
+function tierToScore(tier: string | null | undefined): number | null {
+  const t = (tier || "").toUpperCase();
+  if (t === "A") return 85;
+  if (t === "B") return 75;
+  if (t === "C") return 65;
+  return null;
+}
+
+function normalizeDataConfidence(v: any): "low" | "medium" | "high" | null {
+  const s = typeof v === "string" ? v.trim().toLowerCase() : "";
+  if (s === "low") return "low";
+  if (s === "medium") return "medium";
+  if (s === "high") return "high";
+  return null;
+}
+
+function confidenceIcon(level: "low" | "medium" | "high") {
+  return level === "high" ? "●" : level === "medium" ? "◑" : "⚠️";
+}
+
+function buildOffMarketConfidence(ai: any): {
+  level: "low" | "medium" | "high";
+  icon: "⚠️" | "◑" | "●";
+  summary: string;
+  signals: { label: string; value: string }[];
+  source: "off_market";
+  updated_at: string;
+} {
+  const dc = normalizeDataConfidence(ai?.scoring?.data_confidence) ?? "low";
+
+  // Make the wording unambiguous: this is INPUT/data confidence, not "AI is unsure"
+  // Keep it short but specific.
+  const tierBasis = typeof ai?.scoring?.tier_basis === "string" ? ai.scoring.tier_basis.trim() : "";
+  const evidenceCount = Array.isArray(ai?.business_model?.evidence) ? ai.business_model.evidence.length : 0;
+
+  let reason = "";
+  if (dc === "high") {
+    reason = "High data confidence — clear services + operational detail visible in available inputs.";
+  } else if (dc === "medium") {
+    reason = "Medium data confidence — some operational detail visible, but key details still need verification.";
+  } else {
+    reason = "Low data confidence — limited/marketing-only inputs; major facts require verification.";
+  }
+
+  if (tierBasis) {
+    // If tier_basis exists and is short, it usually explains why we capped it.
+    // Append lightly (no paragraphs).
+    const short = tierBasis.length > 140 ? `${tierBasis.slice(0, 140)}…` : tierBasis;
+    reason = `${reason} ${short}`;
+  }
+
+  const signals: { label: string; value: string }[] = [
+    { label: "Inputs", value: "Website homepage + Google listing metadata" },
+    { label: "Evidence density", value: evidenceCount >= 4 ? "Stronger" : evidenceCount >= 2 ? "Mixed" : "Thin" },
+    { label: "Owner signals", value: ai?.owner_profile?.known ? "Identified" : "Unknown" },
+  ];
+
+  return {
+    level: dc,
+    icon: confidenceIcon(dc),
+    summary: reason,
+    signals,
+    source: "off_market",
+    updated_at: new Date().toISOString(),
+  };
+}
+
 async function getAuthedUserAndWorkspace(req: NextRequest) {
   const authHeader = req.headers.get("authorization") || "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
@@ -187,6 +293,7 @@ ${input.homepageText || "(no homepage text available)"}
       model: "gpt-4o-mini",
       temperature: 0.2,
       messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
     }),
   });
 
@@ -211,9 +318,10 @@ ${input.homepageText || "(no homepage text available)"}
   if (typeof parsed?.ai_summary !== "string") throw new Error("Bad AI response: ai_summary missing");
 
   if (!Array.isArray(parsed?.ai_red_flags)) parsed.ai_red_flags = [];
-  // Ensure >= 3 red flags (unknown-risk if needed)
   while (parsed.ai_red_flags.length < 3) {
-    parsed.ai_red_flags.push("Unknown: key risks not visible on homepage. Verify contracts, labor model, and customer concentration.");
+    parsed.ai_red_flags.push(
+      "Unknown: key risks not visible on homepage. Verify contracts, labor model, and customer concentration."
+    );
   }
 
   if (!parsed?.business_model || typeof parsed.business_model !== "object") parsed.business_model = {};
@@ -225,7 +333,7 @@ ${input.homepageText || "(no homepage text available)"}
 
   const ownerKnown = Boolean(parsed?.owner_profile?.known);
   const scoreNum = Number(parsed?.scoring?.overall_score_0_100);
-  parsed.scoring.overall_score_0_100 = Number.isFinite(scoreNum) ? scoreNum : 0;
+  parsed.scoring.overall_score_0_100 = clampScore(scoreNum);
 
   if (!["A", "B", "C"].includes(parsed?.scoring?.final_tier)) parsed.scoring.final_tier = "C";
 
@@ -241,6 +349,7 @@ ${input.homepageText || "(no homepage text available)"}
 
   // Always populate UI summaries
   const services = Array.isArray(parsed?.business_model?.services) ? parsed.business_model.services : [];
+
   parsed.criteria_match.business_model =
     typeof parsed.criteria_match.business_model === "string" && parsed.criteria_match.business_model.trim()
       ? parsed.criteria_match.business_model
@@ -276,10 +385,16 @@ export async function OPTIONS() {
 export async function POST(req: NextRequest) {
   try {
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      return NextResponse.json({ success: false, error: "Missing Supabase env vars" }, { status: 500, headers: corsHeaders });
+      return NextResponse.json(
+        { success: false, error: "Missing Supabase env vars" },
+        { status: 500, headers: corsHeaders }
+      );
     }
     if (!OPENAI_API_KEY) {
-      return NextResponse.json({ success: false, error: "Missing OPENAI_API_KEY" }, { status: 500, headers: corsHeaders });
+      return NextResponse.json(
+        { success: false, error: "Missing OPENAI_API_KEY" },
+        { status: 500, headers: corsHeaders }
+      );
     }
 
     const { workspaceId } = await getAuthedUserAndWorkspace(req);
@@ -328,7 +443,10 @@ export async function POST(req: NextRequest) {
 
     if (!website) {
       return NextResponse.json(
-        { success: false, error: "Missing website for this off-market company. Add a website before running diligence." },
+        {
+          success: false,
+          error: "Missing website for this off-market company. Add a website before running diligence.",
+        },
         { status: 400, headers: corsHeaders }
       );
     }
@@ -348,21 +466,57 @@ export async function POST(req: NextRequest) {
       homepageText,
     });
 
+    // ✅ Standardized, dashboard-friendly confidence snapshot (DATA confidence)
+    const confidenceJson = buildOffMarketConfidence(ai);
+
+    const finalTier = (ai?.scoring?.final_tier || "").toUpperCase();
+    const score =
+      typeof ai?.scoring?.overall_score_0_100 === "number" && Number.isFinite(ai.scoring.overall_score_0_100)
+        ? clampScore(ai.scoring.overall_score_0_100)
+        : tierToScore(finalTier) ?? null;
+
+    // Store red flags consistently (bulleted markdown like CIM)
+    const redFlagsBulleted = bullets(ai.ai_red_flags);
+
+    // ✅ WRITE RESULTS TO DB (this is what you were missing)
+    const { error: updateErr } = await supabase
+      .from("companies")
+      .update({
+        website, // ensure saved if provided
+        ai_summary: ai.ai_summary ?? null,
+        ai_red_flags: redFlagsBulleted,
+        ai_financials_json: ai.financials ?? null,
+        ai_scoring_json: ai.scoring ?? null,
+        criteria_match_json: ai.criteria_match ?? null,
+        final_tier: finalTier === "A" || finalTier === "B" || finalTier === "C" ? finalTier : null,
+        score,
+        ai_confidence_json: confidenceJson,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", companyId)
+      .eq("workspace_id", workspaceId);
+
+    if (updateErr) {
+      return NextResponse.json(
+        { success: false, error: "Failed to persist off-market diligence results.", details: updateErr.message },
+        { status: 500, headers: corsHeaders }
+      );
+    }
+
     return NextResponse.json(
       {
         success: true,
+        companyId,
         ai_summary: ai.ai_summary,
         ai_red_flags: ai.ai_red_flags,
         financials: ai.financials,
         scoring: ai.scoring,
         criteria_match: ai.criteria_match,
+        ai_confidence_json: confidenceJson,
       },
       { headers: corsHeaders }
     );
   } catch (e: any) {
-    return NextResponse.json(
-      { success: false, error: e?.message ?? "Unknown error" },
-      { status: 500, headers: corsHeaders }
-    );
+    return NextResponse.json({ success: false, error: e?.message ?? "Unknown error" }, { status: 500, headers: corsHeaders });
   }
 }
