@@ -2,38 +2,50 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/app/supabaseClient";
 
-export default function ExtensionCallback() {
+type Props = {
+  searchParams?: Record<string, string | string[] | undefined>;
+};
+
+function firstString(v: string | string[] | undefined): string | null {
+  if (!v) return null;
+  return Array.isArray(v) ? (v[0] ?? null) : v;
+}
+
+function safeInternalPath(p: string | null, fallback: string): string {
+  if (!p) return fallback;
+  // only allow internal paths to prevent open redirects
+  if (!p.startsWith("/")) return fallback;
+  return p;
+}
+
+export default function ExtensionCallback({ searchParams }: Props) {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout> | null = null;
 
     (async () => {
       try {
-        // Where to send the user AFTER the extension has captured the token
-        const nextParam = searchParams?.get("next");
-        // Only allow internal paths to avoid open-redirect issues
-        const safeNext =
-          nextParam && nextParam.startsWith("/") ? nextParam : "/extension/success";
+        const nextParam = firstString(searchParams?.next);
+        const safeNext = safeInternalPath(nextParam, "/extension/success");
 
-        // 1) Check if user is logged in
+        // 1) Check login state
         const {
           data: { session },
           error,
         } = await supabase.auth.getSession();
 
-        // 2) If not logged in, send them to home/login AND guarantee return to callback
+        // 2) Not logged in → send to home with next back to THIS callback
         if (error || !session) {
-          // Preserve where we want to land after login (back to this callback)
-          router.replace(`/?next=${encodeURIComponent("/extension/callback?next=" + safeNext)}`);
+          const returnTo = `/extension/callback?next=${encodeURIComponent(safeNext)}`;
+          router.replace(`/?next=${encodeURIComponent(returnTo)}`);
           return;
         }
 
-        // 3) Logged in: give content script time to read Supabase localStorage and store token
+        // 3) Logged in → give content script time to read localStorage + store token
         timeout = setTimeout(() => {
           router.replace(safeNext);
         }, 900);
@@ -45,7 +57,9 @@ export default function ExtensionCallback() {
     return () => {
       if (timeout) clearTimeout(timeout);
     };
-  }, [router, searchParams]);
+    // Intentionally not depending on searchParams object identity
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
 
   return (
     <div style={{ padding: 40, fontFamily: "system-ui, sans-serif" }}>
