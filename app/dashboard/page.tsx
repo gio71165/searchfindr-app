@@ -1,7 +1,7 @@
 // app/dashboard/page.tsx
 'use client';
 
-import { useEffect, useState, useRef, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../supabaseClient';
@@ -43,22 +43,6 @@ function formatLocation(city: string | null, state: string | null): string {
   if (city) return city;
   if (state) return state;
   return '';
-}
-
-function getColSpanForView(view: DashboardView) {
-  switch (view) {
-    case 'on_market':
-      return 6;
-    case 'off_market':
-      return 4;
-    case 'cim_pdf':
-      return 4;
-    case 'financials':
-      return 4;
-    case 'saved':
-    default:
-      return 4;
-  }
 }
 
 function TierPill({ tier }: { tier: string | null }) {
@@ -206,10 +190,13 @@ export default function DashboardPage() {
   const [loadingDeals, setLoadingDeals] = useState(true);
   const [deals, setDeals] = useState<Company[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
   const [refreshing, setRefreshing] = useState(false);
 
   const [selectedView, setSelectedView] = useState<DashboardView>(DEFAULT_VIEW);
+
+  // ✅ Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -236,9 +223,8 @@ export default function DashboardPage() {
 
   const changeView = (view: DashboardView) => {
     setSelectedView(view);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('dashboard_view', view);
-    }
+    setSelectedIds(new Set()); // ✅ clear selection when switching views
+    if (typeof window !== 'undefined') localStorage.setItem('dashboard_view', view);
     router.replace(`/dashboard?view=${view}`);
   };
 
@@ -247,13 +233,13 @@ export default function DashboardPage() {
   const cimInputRef = useRef<HTMLInputElement | null>(null);
   const [cimUploadStatus, setCimUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
 
-  // Financials upload state (UPDATED - upload only, no AI)
+  // Financials upload state
   const [finFile, setFinFile] = useState<File | null>(null);
   const finInputRef = useRef<HTMLInputElement | null>(null);
   const [finUploadStatus, setFinUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
   const [finUploadMsg, setFinUploadMsg] = useState<string | null>(null);
 
-  // ✅ Off-market search state (dropdown + add/remove)
+  // Off-market search state
   const [offIndustries, setOffIndustries] = useState<string[]>([]);
   const [offIndustryToAdd, setOffIndustryToAdd] = useState<string>(OFFMARKET_INDUSTRIES[0] ?? 'HVAC');
 
@@ -379,72 +365,132 @@ export default function DashboardPage() {
     init();
   }, [router]);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.replace('/');
-  };
-
-  const handleDelete = async (id: string) => {
-    const yes = window.confirm('Delete this deal? This cannot be undone.');
-    if (!yes) return;
-
-    setErrorMsg(null);
-
-    const { error } = await supabase.from('companies').delete().eq('id', id);
-
-    if (error) {
-      console.error('Delete error:', error);
-      setErrorMsg(error.message || 'Failed to delete deal.');
-      return;
-    }
-
-    setDeals((prev) => prev.filter((d) => d.id !== id));
-  };
-
-  const handleSave = async (id: string) => {
-    setErrorMsg(null);
-
-    const { error } = await supabase.from('companies').update({ is_saved: true }).eq('id', id);
-
-    if (error) {
-      console.error('Save error:', error);
-      setErrorMsg(error.message || 'Failed to save company.');
-      return;
-    }
-
-    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, is_saved: true } : d)));
-  };
-
-  const handleRemoveFromSaved = async (id: string) => {
-    setErrorMsg(null);
-
-    const { error } = await supabase.from('companies').update({ is_saved: false }).eq('id', id);
-
-    if (error) {
-      console.error('Unsave error:', error);
-      setErrorMsg(error.message || 'Failed to remove from Saved Companies.');
-      return;
-    }
-
-    setDeals((prev) => prev.map((d) => (d.id === id ? { ...d, is_saved: false } : d)));
-  };
-
-  const filteredDeals =
-    selectedView === 'saved'
+  // ✅ If the table list changes (filter/view), keep selection only for visible rows
+  const filteredDeals = useMemo(() => {
+    return selectedView === 'saved'
       ? deals.filter((d) => d.is_saved === true)
       : deals.filter((deal) => {
           if (selectedView === 'cim_pdf') return deal.source_type === 'cim_pdf';
           if (selectedView === 'financials') return deal.source_type === 'financials';
           return deal.source_type === selectedView;
         });
+  }, [deals, selectedView]);
 
-  const handleCimButtonClick = () => {
-    cimInputRef.current?.click();
+  useEffect(() => {
+    // drop selections that are not in the current filtered list
+    const visible = new Set(filteredDeals.map((d) => d.id));
+    setSelectedIds((prev) => {
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (visible.has(id)) next.add(id);
+      });
+      return next;
+    });
+  }, [filteredDeals]);
+
+  const visibleIds = useMemo(() => filteredDeals.map((d) => d.id), [filteredDeals]);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+  const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
+  const selectedCount = selectedIds.size;
+
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
-  const handleFinancialsButtonClick = () => {
-    finInputRef.current?.click();
+  const selectAllVisible = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      visibleIds.forEach((id) => next.add(id));
+      return next;
+    });
   };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const toggleSelectAll = () => {
+    if (allVisibleSelected) clearSelection();
+    else selectAllVisible();
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.replace('/');
+  };
+
+  // ✅ Bulk actions
+  const bulkSaveSelected = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    setErrorMsg(null);
+    setBulkBusy(true);
+    try {
+      const { error } = await supabase.from('companies').update({ is_saved: true }).in('id', ids);
+      if (error) {
+        console.error('bulk save error:', error);
+        setErrorMsg(error.message || 'Failed to save selected companies.');
+        return;
+      }
+
+      setDeals((prev) => prev.map((d) => (selectedIds.has(d.id) ? { ...d, is_saved: true } : d)));
+      clearSelection();
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const bulkUnsaveSelected = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    setErrorMsg(null);
+    setBulkBusy(true);
+    try {
+      const { error } = await supabase.from('companies').update({ is_saved: false }).in('id', ids);
+      if (error) {
+        console.error('bulk unsave error:', error);
+        setErrorMsg(error.message || 'Failed to remove selected from Saved.');
+        return;
+      }
+
+      setDeals((prev) => prev.map((d) => (selectedIds.has(d.id) ? { ...d, is_saved: false } : d)));
+      clearSelection();
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const bulkDeleteSelected = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+
+    const yes = window.confirm(`Delete ${ids.length} deal(s)? This cannot be undone.`);
+    if (!yes) return;
+
+    setErrorMsg(null);
+    setBulkBusy(true);
+    try {
+      const { error } = await supabase.from('companies').delete().in('id', ids);
+      if (error) {
+        console.error('bulk delete error:', error);
+        setErrorMsg(error.message || 'Failed to delete selected deals.');
+        return;
+      }
+
+      setDeals((prev) => prev.filter((d) => !selectedIds.has(d.id)));
+      clearSelection();
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const handleCimButtonClick = () => cimInputRef.current?.click();
+  const handleFinancialsButtonClick = () => finInputRef.current?.click();
 
   const handleOffMarketSearch = async () => {
     setErrorMsg(null);
@@ -485,15 +531,8 @@ export default function DashboardPage() {
 
       const res = await fetch('/api/off-market/search', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          industries,
-          location: `${city}, ${state}`,
-          radius_miles: radius,
-        }),
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ industries, location: `${city}, ${state}`, radius_miles: radius }),
       });
 
       const json = await res.json();
@@ -526,8 +565,8 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!userId) {
-      setErrorMsg('User not loaded yet. Please try again.');
+    if (!userId || !workspaceId) {
+      setErrorMsg('User/workspace not loaded yet. Please try again.');
       return;
     }
 
@@ -541,15 +580,12 @@ export default function DashboardPage() {
       const filePath = `${userId}/${fileName}`;
 
       const { data: storageData, error: storageError } = await supabase.storage.from('cims').upload(filePath, file);
-
       if (storageError) {
         console.error('CIM upload error:', storageError);
         setErrorMsg('Failed to upload CIM. Please try again.');
         setCimUploadStatus('error');
         return;
       }
-
-      setCimUploadStatus('uploaded');
 
       const cimNameWithoutExt = file.name.replace(/\.pdf$/i, '');
 
@@ -570,7 +606,6 @@ export default function DashboardPage() {
         setErrorMsg('CIM uploaded, but failed to create deal record.');
         setCimUploadStatus('error');
 
-        // best-effort cleanup so you don't leave orphaned files
         try {
           const pathToRemove = storageData?.path || filePath;
           await supabase.storage.from('cims').remove([pathToRemove]);
@@ -609,11 +644,6 @@ export default function DashboardPage() {
     }
   };
 
-  /**
-   * UPDATED: Financials upload should behave like CIM:
-   * - Upload to Supabase Storage bucket: `financials`
-   * - Insert/update a row in companies with file metadata (NO AI run here)
-   */
   const handleFinancialsFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     if (!file) return;
@@ -643,9 +673,7 @@ export default function DashboardPage() {
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
       const filePath = `${userId}/${fileName}`;
 
-      // 1) Upload file bytes to Storage bucket: financials
       const { data: storageData, error: storageError } = await supabase.storage.from('financials').upload(filePath, file);
-
       if (storageError) {
         console.error('Financials upload error:', storageError);
         setErrorMsg('Failed to upload Financials. Please try again.');
@@ -656,7 +684,6 @@ export default function DashboardPage() {
 
       const storedPath = storageData?.path || filePath;
 
-      // 2) Create the deal row (no AI run here)
       const baseName = stripExt(file.name || 'Financials');
       const dealName = baseName || 'Financials';
 
@@ -680,7 +707,6 @@ export default function DashboardPage() {
         setFinUploadStatus('error');
         setFinUploadMsg('Deal creation failed.');
 
-        // best-effort cleanup to avoid orphaned file
         try {
           await supabase.storage.from('financials').remove([storedPath]);
         } catch (cleanupErr) {
@@ -692,7 +718,6 @@ export default function DashboardPage() {
 
       const newId = insertData.id as string;
 
-      // optimistic add to UI
       setDeals((prev) => [
         {
           id: newId,
@@ -720,9 +745,9 @@ export default function DashboardPage() {
     }
   };
 
-const handleConnectExtension = () => {
-  window.open('/extension/callback', '_blank', 'noopener,noreferrer');
-};
+  const handleConnectExtension = () => {
+    window.open('/extension/callback', '_blank', 'noopener,noreferrer');
+  };
 
   const renderEmptyStateForView = () => {
     if (selectedView === 'saved') {
@@ -757,9 +782,7 @@ const handleConnectExtension = () => {
           title="No off-market results yet"
           description="Search by industry + geography to surface owner-operated SMBs."
           primaryLabel="Run a search below"
-          onPrimary={() => {
-            setOffSearchStatus(offSearchStatus ?? 'Add industries + city/state, then click Search.');
-          }}
+          onPrimary={() => setOffSearchStatus(offSearchStatus ?? 'Add industries + city/state, then click Search.')}
           secondaryLabel="Go to Saved"
           onSecondary={() => changeView('saved')}
         />
@@ -779,7 +802,6 @@ const handleConnectExtension = () => {
       );
     }
 
-    // cim_pdf
     return (
       <EmptyStateCard
         title="No CIM uploads yet"
@@ -789,6 +811,56 @@ const handleConnectExtension = () => {
         secondaryLabel="Go to On-market"
         onSecondary={() => changeView('on_market')}
       />
+    );
+  };
+
+  const BulkBar = () => {
+    const disableAll = bulkBusy || loadingDeals || filteredDeals.length === 0;
+
+    return (
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-4">
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          <label className="inline-flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={allVisibleSelected}
+              ref={(el) => {
+                if (el) el.indeterminate = !allVisibleSelected && someVisibleSelected;
+              }}
+              onChange={toggleSelectAll}
+              disabled={disableAll}
+            />
+            <span>{allVisibleSelected ? 'All selected' : 'Select all'}</span>
+          </label>
+
+          <button className="text-xs underline opacity-80" onClick={clearSelection} disabled={disableAll || selectedCount === 0}>
+            Clear
+          </button>
+
+          <span className="opacity-70">{selectedCount} selected</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedView === 'saved' ? (
+            <button className="btn-main" onClick={bulkUnsaveSelected} disabled={disableAll || selectedCount === 0}>
+              {bulkBusy ? 'Working…' : 'Remove selected from Saved'}
+            </button>
+          ) : (
+            <button className="btn-main" onClick={bulkSaveSelected} disabled={disableAll || selectedCount === 0}>
+              {bulkBusy ? 'Working…' : 'Save selected'}
+            </button>
+          )}
+
+          <button
+            className="btn-main"
+            onClick={bulkDeleteSelected}
+            disabled={disableAll || selectedCount === 0}
+            aria-disabled={disableAll || selectedCount === 0}
+          >
+            {bulkBusy ? 'Working…' : 'Delete selected'}
+          </button>
+        </div>
+      </div>
     );
   };
 
@@ -988,7 +1060,7 @@ const handleConnectExtension = () => {
       )}
 
       <section className="mt-4 card-table">
-        <div className="mb-4 flex items-center justify-between px-4 pt-4">
+        <div className="mb-2 flex items-center justify-between px-4 pt-4">
           <h2 className="text-sm font-semibold">{selectedView === 'saved' ? 'Saved companies' : 'Companies'}</h2>
           {loadingDeals ? (
             <p className="text-xs">Loading…</p>
@@ -998,6 +1070,8 @@ const handleConnectExtension = () => {
         </div>
 
         {errorMsg && <p className="px-4 pb-2 text-xs text-red-600">{errorMsg}</p>}
+
+        {filteredDeals.length > 0 && <BulkBar />}
 
         {loadingDeals ? (
           <div className="px-4 pb-4">
@@ -1010,12 +1084,14 @@ const handleConnectExtension = () => {
             <table className="min-w-full text-left text-xs">
               <thead className="table-header">
                 <tr>
+                  {/* ✅ checkbox column */}
+                  <th className="px-2 py-1.5 font-medium w-[36px]"></th>
+
                   {selectedView === 'saved' && (
                     <>
                       <th className="px-2 py-1.5 font-medium">Company</th>
                       <th className="px-2 py-1.5 font-medium">Source</th>
                       <th className="px-2 py-1.5 font-medium">Created</th>
-                      <th className="px-2 py-1.5 font-medium text-right"></th>
                     </>
                   )}
 
@@ -1026,7 +1102,6 @@ const handleConnectExtension = () => {
                       <th className="px-2 py-1.5 font-medium">Industry</th>
                       <th className="px-2 py-1.5 font-medium">Tier</th>
                       <th className="px-2 py-1.5 font-medium">Created</th>
-                      <th className="px-2 py-1.5 font-medium text-right"></th>
                     </>
                   )}
 
@@ -1035,7 +1110,6 @@ const handleConnectExtension = () => {
                       <th className="px-2 py-1.5 font-medium">Company</th>
                       <th className="px-2 py-1.5 font-medium">Owner</th>
                       <th className="px-2 py-1.5 font-medium">Created</th>
-                      <th className="px-2 py-1.5 font-medium text-right"></th>
                     </>
                   )}
 
@@ -1044,7 +1118,6 @@ const handleConnectExtension = () => {
                       <th className="px-2 py-1.5 font-medium">Company</th>
                       <th className="px-2 py-1.5 font-medium">Tier</th>
                       <th className="px-2 py-1.5 font-medium">Created</th>
-                      <th className="px-2 py-1.5 font-medium text-right"></th>
                     </>
                   )}
 
@@ -1052,8 +1125,6 @@ const handleConnectExtension = () => {
                     <>
                       <th className="px-2 py-1.5 font-medium">Company</th>
                       <th className="px-2 py-1.5 font-medium">Created</th>
-                      <th className="px-2 py-1.5 font-medium text-right"></th>
-                      <th className="px-2 py-1.5 font-medium text-right"></th>
                     </>
                   )}
                 </tr>
@@ -1062,6 +1133,15 @@ const handleConnectExtension = () => {
               <tbody>
                 {filteredDeals.map((deal) => (
                   <tr key={deal.id} className="table-row">
+                    <td className="px-2 py-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(deal.id)}
+                        onChange={() => toggleOne(deal.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </td>
+
                     {selectedView === 'saved' && (
                       <>
                         <td className="px-2 py-2">
@@ -1071,17 +1151,6 @@ const handleConnectExtension = () => {
                         </td>
                         <td className="px-2 py-2">{formatSource(deal.source_type)}</td>
                         <td className="px-2 py-2">{deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}</td>
-                        <td className="px-2 py-2 text-right">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRemoveFromSaved(deal.id);
-                            }}
-                            className="text-[11px] underline"
-                          >
-                            Remove
-                          </button>
-                        </td>
                       </>
                     )}
 
@@ -1098,28 +1167,6 @@ const handleConnectExtension = () => {
                           <TierPill tier={deal.final_tier} />
                         </td>
                         <td className="px-2 py-2">{deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}</td>
-                        <td className="px-2 py-2 text-right space-x-3">
-                          {deal.is_saved ? null : (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSave(deal.id);
-                              }}
-                              className="text-[11px] underline"
-                            >
-                              Save
-                            </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(deal.id);
-                            }}
-                            className="text-red-500 text-[11px] underline"
-                          >
-                            Delete
-                          </button>
-                        </td>
                       </>
                     )}
 
@@ -1132,28 +1179,6 @@ const handleConnectExtension = () => {
                         </td>
                         <td className="px-2 py-2">{deal.owner_name || ''}</td>
                         <td className="px-2 py-2">{deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}</td>
-                        <td className="px-2 py-2 text-right space-x-3">
-                          {deal.is_saved ? null : (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSave(deal.id);
-                              }}
-                              className="text-[11px] underline"
-                            >
-                              Save
-                            </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(deal.id);
-                            }}
-                            className="text-red-500 text-[11px] underline"
-                          >
-                            Delete
-                          </button>
-                        </td>
                       </>
                     )}
 
@@ -1168,28 +1193,6 @@ const handleConnectExtension = () => {
                           <TierPill tier={deal.final_tier} />
                         </td>
                         <td className="px-2 py-2">{deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}</td>
-                        <td className="px-2 py-2 text-right space-x-3">
-                          {deal.is_saved ? null : (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSave(deal.id);
-                              }}
-                              className="text-[11px] underline"
-                            >
-                              Save
-                            </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(deal.id);
-                            }}
-                            className="text-red-500 text-[11px] underline"
-                          >
-                            Delete
-                          </button>
-                        </td>
                       </>
                     )}
 
@@ -1201,41 +1204,12 @@ const handleConnectExtension = () => {
                           </Link>
                         </td>
                         <td className="px-2 py-2">{deal.created_at ? new Date(deal.created_at).toLocaleDateString() : ''}</td>
-                        <td className="px-2 py-2 text-right">
-                          {deal.is_saved ? null : (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSave(deal.id);
-                              }}
-                              className="text-[11px] underline"
-                            >
-                              Save
-                            </button>
-                          )}
-                        </td>
-                        <td className="px-2 py-2 text-right">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDelete(deal.id);
-                            }}
-                            className="text-red-500 text-[11px] underline"
-                          >
-                            Delete
-                          </button>
-                        </td>
                       </>
                     )}
                   </tr>
                 ))}
               </tbody>
             </table>
-
-            {/* if you ever want a “colspan” row later */}
-            <div className="hidden">
-              <span>{getColSpanForView(selectedView)}</span>
-            </div>
           </div>
         )}
       </section>
