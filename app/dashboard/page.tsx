@@ -720,9 +720,9 @@ export default function DashboardPage() {
     }
   };
 
-  const handleConnectExtension = () => {
-    window.location.href = 'https://searchfindr-app.vercel.app/extension/callback';
-  };
+const handleConnectExtension = () => {
+  window.open('/extension/callback', '_blank', 'noopener,noreferrer');
+};
 
   const renderEmptyStateForView = () => {
     if (selectedView === 'saved') {
@@ -814,6 +814,9 @@ export default function DashboardPage() {
             </span>
           )}
           <ThemeToggle />
+          <button onClick={handleConnectExtension} className="btn-main">
+            Connect Chrome Extension
+          </button>
           <button onClick={handleLogout} className="btn-main">
             Log out
           </button>
