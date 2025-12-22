@@ -186,7 +186,7 @@ type AIConfidence = {
 
 function normalizeConfidence(
   ai: AIConfidence
-): { icon: '⚠️' | '◑' | '●'; label: string; reason: string } | null {
+): { icon: '⚠️' | '◑' | '●'; label: string; reason: string; analyzed: boolean; level?: ConfidenceLevel } | null {
   if (!ai) return null;
 
   const lvl = (ai.level || '').toLowerCase() as ConfidenceLevel;
@@ -197,8 +197,7 @@ function normalizeConfidence(
   };
 
   const icon = (ai.icon as any) || iconFromLevel[lvl] || '◑';
-  const label =
-    lvl === 'high' ? 'High' : lvl === 'medium' ? 'Medium' : lvl === 'low' ? 'Low' : 'Medium';
+  const labelCore = lvl === 'high' ? 'High' : lvl === 'medium' ? 'Medium' : lvl === 'low' ? 'Low' : 'Medium';
 
   const reason =
     (ai.summary && String(ai.summary).trim()) ||
@@ -210,7 +209,7 @@ function normalizeConfidence(
       : '') ||
     'Data confidence set by latest analysis run.';
 
-  return { icon, label: `Data confidence: ${label}`, reason };
+  return { icon, label: `Data confidence: ${labelCore}`, reason, analyzed: true, level: lvl };
 }
 
 function normalizeFinancialsConfidence(raw: any): { icon: '⚠️' | '◑' | '●'; label: string; reason: string } | null {
@@ -218,11 +217,11 @@ function normalizeFinancialsConfidence(raw: any): { icon: '⚠️' | '◑' | '�
   if (!s) return null;
   const lower = s.toLowerCase();
 
-  // Accept inputs like: "Low", "Medium", "High", "Low confidence", etc.
+  // Accept inputs like: "Operational Performance: Mixed | Financial Controls: Weak"
   let level: ConfidenceLevel = 'medium';
-  if (lower.includes('low') || lower.includes('weak') || lower.includes('poor')) level = 'low';
-  if (lower.includes('high') || lower.includes('strong') || lower.includes('good')) level = 'high';
-  if (lower.includes('medium') || lower.includes('mixed') || lower.includes('moderate')) level = 'medium';
+  if (lower.includes('weak') || lower.includes('low') || lower.includes('poor')) level = 'low';
+  if (lower.includes('strong') || lower.includes('high') || lower.includes('good')) level = 'high';
+  if (lower.includes('mixed') || lower.includes('medium') || lower.includes('moderate')) level = 'medium';
 
   const icon: '⚠️' | '◑' | '●' = level === 'low' ? '⚠️' : level === 'high' ? '●' : '◑';
   const label = `Data confidence: ${level === 'high' ? 'High' : level === 'low' ? 'Low' : 'Medium'}`;
@@ -233,23 +232,19 @@ function getDealConfidence(
   deal: any,
   opts?: { financialAnalysis?: any | null }
 ): { icon: '⚠️' | '◑' | '●'; label: string; reason: string; analyzed: boolean; level?: ConfidenceLevel } {
-  // 1) prefer companies.ai_confidence_json if present (single source of truth)
+  // 1) Prefer companies.ai_confidence_json if present (single source of truth)
   const fromDeal = normalizeConfidence((deal?.ai_confidence_json ?? null) as AIConfidence);
-  if (fromDeal) {
-    const lvl = ((deal?.ai_confidence_json?.level || '') as string).toLowerCase() as ConfidenceLevel;
-    return { ...fromDeal, analyzed: true, level: lvl };
-  }
+  if (fromDeal) return fromDeal;
 
   // 2) Financials: allow fallback to analysis.overall_confidence (DO NOT write this back to companies)
   if (deal?.source_type === 'financials' && opts?.financialAnalysis) {
     const fallback = normalizeFinancialsConfidence(opts.financialAnalysis?.overall_confidence ?? null);
     if (fallback) {
-      const inferred: ConfidenceLevel = fallback.icon === '⚠️' ? 'low' : fallback.icon === '●' ? 'high' : 'medium';
-      return { ...fallback, analyzed: true, level: inferred };
+      return { ...fallback, analyzed: true, level: undefined };
     }
   }
 
-  // ✅ Not analyzed = neutral (matches dashboard)
+  // Not analyzed (neutral)
   return {
     icon: '◑',
     label: 'Data confidence: Not analyzed',
@@ -268,29 +263,97 @@ function ConfidencePill({
   icon: '⚠️' | '◑' | '●';
   label: string;
   title: string;
-  analyzed: boolean;
+  analyzed?: boolean;
   level?: ConfidenceLevel;
 }) {
   const base = 'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium';
 
-  // ✅ Match dashboard rules:
-  // - Not analyzed: neutral gray
-  // - Medium: blue
-  // - Low: red
-  // - High: green
-  const cls = !analyzed
-    ? `${base} border-slate-500/30 bg-transparent text-slate-500`
-    : level === 'low' || icon === '⚠️'
-    ? `${base} border-red-500/40 bg-red-500/5 text-red-700`
-    : level === 'high' || icon === '●'
-    ? `${base} border-emerald-500/40 bg-emerald-500/5 text-emerald-700`
-    : `${base} border-blue-500/40 bg-blue-500/5 text-blue-700`;
+  // Not analyzed: neutral gray (distinct)
+  const cls =
+    analyzed === false
+      ? `${base} border-slate-500/30 bg-transparent text-slate-500`
+      : icon === '⚠️' || level === 'low'
+      ? `${base} border-red-500/40 bg-red-500/5 text-red-700`
+      : icon === '●' || level === 'high'
+      ? `${base} border-emerald-500/40 bg-emerald-500/5 text-emerald-700`
+      : `${base} border-blue-500/40 bg-blue-500/5 text-blue-700`;
 
   return (
     <span className={cls} title={title}>
-      {analyzed ? <span aria-hidden>{icon}</span> : null}
+      <span aria-hidden>{icon}</span>
       <span>{label}</span>
     </span>
+  );
+}
+
+// ====================================================================================
+// Data Confidence signals grid (shared mental model)
+// ====================================================================================
+type ConfidenceSignal = { label: string; value: string };
+
+function parseSignalLine(line: string): ConfidenceSignal | null {
+  const s = (line || '').trim();
+  if (!s) return null;
+
+  // Try "Label: Value"
+  const idx = s.indexOf(':');
+  if (idx > 0 && idx < s.length - 1) {
+    const label = s.slice(0, idx).trim();
+    const value = s.slice(idx + 1).trim();
+    if (label && value) return { label, value };
+  }
+
+  // Try "Label — Value" / "Label - Value"
+  const dash = s.split(/\s—\s|\s-\s/);
+  if (dash.length >= 2) {
+    const label = dash[0].trim();
+    const value = dash.slice(1).join(' - ').trim();
+    if (label && value) return { label, value };
+  }
+
+  // Fallback: treat as a statement
+  return { label: 'Signal', value: s };
+}
+
+function normalizeConfidenceSignals(raw: any): ConfidenceSignal[] {
+  if (!raw) return [];
+
+  // If already array of {label,value}
+  if (Array.isArray(raw)) {
+    const out: ConfidenceSignal[] = [];
+    for (const item of raw) {
+      if (item && typeof item === 'object') {
+        const label = String((item as any).label ?? '').trim();
+        const value = String((item as any).value ?? '').trim();
+        if (label && value) out.push({ label, value });
+        continue;
+      }
+      const parsed = parseSignalLine(String(item ?? ''));
+      if (parsed) out.push(parsed);
+    }
+    return out.slice(0, 12);
+  }
+
+  // Support bullets string/object
+  const bullets = normalizeStringArray(raw);
+  return bullets.map((b) => parseSignalLine(b)).filter(Boolean).slice(0, 12) as ConfidenceSignal[];
+}
+
+function SignalsGrid({ signals }: { signals: ConfidenceSignal[] }) {
+  if (!signals || signals.length === 0) return null;
+
+  return (
+    <div className="mt-3">
+      <p className="text-xs uppercase opacity-70 mb-2">Signals</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {signals.slice(0, 8).map((s, idx) => (
+          <div key={idx} className="rounded-lg border px-3 py-2">
+            <div className="text-[11px] uppercase tracking-wide opacity-70">{s.label}</div>
+            <div className="text-sm font-medium">{s.value}</div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -336,6 +399,32 @@ function TierBadge({ tier }: { tier: string | null }) {
       Tier {tier}
     </span>
   );
+}
+
+function EmptyCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <section className="card-section">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold">{title}</h2>
+          {subtitle ? <p className="text-xs text-muted-foreground">{subtitle}</p> : null}
+        </div>
+      </div>
+      <div className="mt-3">{children}</div>
+    </section>
+  );
+}
+
+function PlaceholderList({ emptyText }: { emptyText: string }) {
+  return <p className="text-sm opacity-80">{emptyText}</p>;
 }
 
 // ====================================================================================
@@ -803,19 +892,19 @@ function HeaderActions({
   canToggleSave,
   savingToggle,
   onToggleSave,
-  confidenceOverride,
+  financialAnalysis,
 }: {
   deal: any;
   rightSlot?: React.ReactNode;
   canToggleSave: boolean;
   savingToggle: boolean;
   onToggleSave: () => void;
-  confidenceOverride?: ReturnType<typeof getDealConfidence>;
+  financialAnalysis?: any | null;
 }) {
   const isTierSource = deal?.source_type === 'on_market' || deal?.source_type === 'off_market';
   const tier = isTierSource ? ((deal?.final_tier as string | null) || null) : null;
 
-  const confidence = confidenceOverride ?? getDealConfidence(deal);
+  const confidence = getDealConfidence(deal, { financialAnalysis: financialAnalysis ?? null });
   const addedLabel = safeDateLabel(deal.created_at);
 
   return (
@@ -823,10 +912,10 @@ function HeaderActions({
       <div className="flex flex-wrap items-center gap-2">
         <SourceBadge source={deal.source_type} />
 
-        {/* ✅ Tier only for On/Off-market */}
+        {/* Tier only for On/Off-market */}
         {isTierSource ? <TierBadge tier={tier} /> : null}
 
-        {/* ✅ Data confidence everywhere */}
+        {/* Data confidence everywhere (CIM/Financials main priority) */}
         <ConfidencePill
           icon={confidence.icon}
           label={confidence.label}
@@ -866,7 +955,7 @@ function HeaderActions({
 }
 
 // ====================================================================================
-// FINANCIALS DEAL VIEW
+// FINANCIALS DEAL VIEW (Snapshot removed)
 // ====================================================================================
 function FinancialsDealView({
   deal,
@@ -891,12 +980,7 @@ function FinancialsDealView({
   savingToggle: boolean;
   onToggleSave: () => void;
 }) {
-  const confidencePill = getDealConfidence(deal, { financialAnalysis: analysis });
-
-  // Try common keys (won't break if absent)
-  const overallDataConfidence = analysis?.overall_confidence ?? null;
-  const operationalPerformance = analysis?.operational_performance ?? analysis?.operationalPerformance ?? null;
-  const financialControls = analysis?.financial_controls ?? analysis?.financialControls ?? null;
+  const confidence = getDealConfidence(deal, { financialAnalysis: analysis });
 
   const redFlags = normalizeStringArray(analysis?.red_flags);
   const greenFlags = normalizeStringArray(analysis?.green_flags);
@@ -940,9 +1024,27 @@ function FinancialsDealView({
     );
   }
 
+  const hasAnyAnalysis = Boolean(analysis);
+  const showLoadingLine = loadingAnalysis && !hasAnyAnalysis;
+
+  // Signals source order:
+  // 1) companies.ai_confidence_json.signals (preferred)
+  // 2) financial_analyses.confidence_json.signals
+  // 3) financial_analyses.confidence_json.bullets (fallback)
+  const signals = useMemo(() => {
+    const fromDeal = normalizeConfidenceSignals(deal?.ai_confidence_json?.signals ?? null);
+    if (fromDeal.length > 0) return fromDeal;
+
+    const fromSignals = normalizeConfidenceSignals(analysis?.confidence_json?.signals ?? null);
+    if (fromSignals.length > 0) return fromSignals;
+
+    const fromBullets = normalizeConfidenceSignals(analysis?.confidence_json?.bullets ?? null);
+    return fromBullets;
+  }, [deal?.ai_confidence_json?.signals, analysis?.confidence_json?.signals, analysis?.confidence_json?.bullets]);
+
   return (
     <main className="min-h-screen">
-      <div className="max-w-4xl mx-auto py-10 px-4 space-y-8">
+      <div className="max-w-5xl mx-auto py-10 px-4 space-y-8">
         <button onClick={onBack} className="text-xs underline">
           ← Back to dashboard
         </button>
@@ -950,24 +1052,24 @@ function FinancialsDealView({
         <section>
           <h1 className="text-3xl font-semibold mb-1">{deal.company_name || 'Financials'}</h1>
           <p className="text-sm text-muted-foreground">
-            Run a skeptical financial quality analysis (risks, strengths, missing items). Results save to the deal and can be re-run anytime.
+            Skeptical read on earnings quality, missing items, and risk signals. Saved to the deal and can be re-run anytime.
           </p>
 
           <HeaderActions
             deal={deal}
+            financialAnalysis={analysis}
             canToggleSave={canToggleSave}
             savingToggle={savingToggle}
             onToggleSave={onToggleSave}
-            confidenceOverride={confidencePill}
-            rightSlot={<span className="hidden" aria-hidden />}
           />
         </section>
 
+        {/* Run box */}
         <section className="card-section">
           <div className="flex items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold">Financial Analysis</h2>
-              <p className="text-xs text-muted-foreground">Click to run AI on the uploaded financials attached to this deal.</p>
+              <p className="text-xs text-muted-foreground">Runs AI on the uploaded financials attached to this deal.</p>
             </div>
 
             <button onClick={onRun} disabled={running} className="text-xs px-3 py-1 border rounded">
@@ -977,139 +1079,134 @@ function FinancialsDealView({
 
           {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
 
-          {loadingAnalysis ? (
-            <p className="text-sm mt-3">Loading analysis…</p>
-          ) : !analysis ? (
-            <p className="text-sm mt-3">No analysis yet. Click “Run Financial Analysis” to generate results.</p>
+          {showLoadingLine ? <p className="text-sm mt-3">Loading analysis…</p> : null}
+
+          {!hasAnyAnalysis ? (
+            <p className="text-sm mt-3 opacity-80">
+              No analysis yet. Click “Run Financial Analysis” to generate outputs and populate sections below.
+            </p>
           ) : null}
         </section>
 
-        {/* ✅ Always render scaffolding (like CIM). Analysis fills these in after run. */}
+        {/* ✅ Snapshot removed. Confidence becomes full-width. */}
         <section className="card-section">
           <h2 className="text-lg font-semibold mb-2">Data Confidence & Read Quality</h2>
 
           <div className="flex flex-wrap items-center gap-2">
             <ConfidencePill
-              icon={confidencePill.icon}
-              label={confidencePill.label}
-              title={confidencePill.reason}
-              analyzed={confidencePill.analyzed}
-              level={confidencePill.level}
+              icon={confidence.icon}
+              label={confidence.label}
+              title={confidence.reason}
+              analyzed={confidence.analyzed}
+              level={confidence.level}
             />
-            <span className="text-xs opacity-70">
-              {analysis
-                ? overallDataConfidence
-                  ? `Reported: ${String(overallDataConfidence)}`
-                  : 'No explicit confidence returned.'
-                : 'Run analysis to generate confidence + read quality signals.'}
-            </span>
           </div>
 
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-            {analysis ? (
-              <>
-                {operationalPerformance ? (
-                  <div className="rounded-lg border p-3">
-                    <p className="text-xs uppercase opacity-70">Operational performance</p>
-                    <p className="font-medium">{String(operationalPerformance)}</p>
-                  </div>
-                ) : null}
-
-                {financialControls ? (
-                  <div className="rounded-lg border p-3">
-                    <p className="text-xs uppercase opacity-70">Financial controls</p>
-                    <p className="font-medium">{String(financialControls)}</p>
-                  </div>
-                ) : null}
-
-                {!operationalPerformance && !financialControls ? (
-                  <p className="text-sm opacity-80">Confidence reflects input completeness and reliability — not “AI certainty.”</p>
-                ) : null}
-              </>
+          {/* Signals grid (CIM-style sibling UI) */}
+          {hasAnyAnalysis ? (
+            signals.length === 0 ? (
+              <p className="mt-3 text-sm opacity-80">No confidence signals returned.</p>
             ) : (
-              <p className="text-sm opacity-80">Confidence reflects input completeness and reliability — not “AI certainty.”</p>
+              <SignalsGrid signals={signals} />
+            )
+          ) : (
+            <p className="mt-3 text-sm opacity-80">Run Financial Analysis to generate read-quality signals.</p>
+          )}
+        </section>
+
+        <EmptyCard title="YoY Trends">
+          {hasAnyAnalysis ? (
+            yoy.length === 0 ? (
+              <PlaceholderList emptyText="No YoY trends returned." />
+            ) : (
+              <ul className="list-disc list-inside space-y-1 text-sm">
+                {yoy.slice(0, 20).map((t: string, idx: number) => (
+                  <li key={idx}>{t}</li>
+                ))}
+              </ul>
+            )
+          ) : (
+            <PlaceholderList emptyText="YoY trends will appear here after you run Financial Analysis." />
+          )}
+        </EmptyCard>
+
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <section className="card-red">
+            <h2 className="text-lg font-semibold mb-2">Red Flags</h2>
+            {hasAnyAnalysis ? (
+              redFlags.length === 0 ? (
+                <p className="text-sm">No red flags returned.</p>
+              ) : (
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  {redFlags.map((x, idx) => (
+                    <li key={idx}>{x}</li>
+                  ))}
+                </ul>
+              )
+            ) : (
+              <p className="text-sm opacity-80">Red flags will populate here after you run Financial Analysis.</p>
             )}
-          </div>
+          </section>
+
+          <section className="card-section">
+            <h2 className="text-lg font-semibold mb-2">Green Flags</h2>
+            {hasAnyAnalysis ? (
+              greenFlags.length === 0 ? (
+                <p className="text-sm">No green flags returned.</p>
+              ) : (
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  {greenFlags.map((x, idx) => (
+                    <li key={idx}>{x}</li>
+                  ))}
+                </ul>
+              )
+            ) : (
+              <p className="text-sm opacity-80">Green flags will populate here after you run Financial Analysis.</p>
+            )}
+          </section>
         </section>
 
-        <section className="card-section">
-          <h2 className="text-lg font-semibold mb-2">YoY Trends</h2>
-          {analysis && yoy.length > 0 ? (
-            <ul className="list-disc list-inside space-y-1 text-sm">
-              {yoy.slice(0, 20).map((t: string, idx: number) => (
-                <li key={idx}>{t}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm opacity-80">No YoY trends yet. Run Financial Analysis to extract trends (if present).</p>
-          )}
-        </section>
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <section className="card-section">
+            <h2 className="text-lg font-semibold mb-2">Missing / Unclear Items</h2>
+            {hasAnyAnalysis ? (
+              missingItems.length === 0 ? (
+                <p className="text-sm">Nothing flagged as missing or unclear.</p>
+              ) : (
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  {missingItems.map((x, idx) => (
+                    <li key={idx}>{x}</li>
+                  ))}
+                </ul>
+              )
+            ) : (
+              <p className="text-sm opacity-80">Missing or unclear items will populate here after you run Financial Analysis.</p>
+            )}
+          </section>
 
-        <section className="card-red">
-          <h2 className="text-lg font-semibold mb-2">Red Flags</h2>
-          {!analysis ? (
-            <p className="text-sm opacity-80">No analysis yet. Run Financial Analysis to generate red flags.</p>
-          ) : redFlags.length === 0 ? (
-            <p className="text-sm">No red flags returned.</p>
-          ) : (
-            <ul className="list-disc list-inside space-y-1 text-sm">
-              {redFlags.map((x, idx) => (
-                <li key={idx}>{x}</li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="card-section">
-          <h2 className="text-lg font-semibold mb-2">Green Flags</h2>
-          {!analysis ? (
-            <p className="text-sm opacity-80">No analysis yet. Run Financial Analysis to generate green flags.</p>
-          ) : greenFlags.length === 0 ? (
-            <p className="text-sm">No green flags returned.</p>
-          ) : (
-            <ul className="list-disc list-inside space-y-1 text-sm">
-              {greenFlags.map((x, idx) => (
-                <li key={idx}>{x}</li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="card-section">
-          <h2 className="text-lg font-semibold mb-2">Missing / Unclear Items</h2>
-          {!analysis ? (
-            <p className="text-sm opacity-80">No analysis yet. Run Financial Analysis to flag missing/unclear items.</p>
-          ) : missingItems.length === 0 ? (
-            <p className="text-sm">Nothing flagged as missing or unclear.</p>
-          ) : (
-            <ul className="list-disc list-inside space-y-1 text-sm">
-              {missingItems.map((x, idx) => (
-                <li key={idx}>{x}</li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="card-section">
-          <h2 className="text-lg font-semibold mb-2">Notes for Diligence</h2>
-          {!analysis ? (
-            <p className="text-sm opacity-80">No analysis yet. Run Financial Analysis to generate diligence notes.</p>
-          ) : diligenceNotes.length === 0 ? (
-            <p className="text-sm">No diligence notes returned.</p>
-          ) : (
-            <ul className="list-disc list-inside space-y-1 text-sm">
-              {diligenceNotes.map((x, idx) => (
-                <li key={idx}>{x}</li>
-              ))}
-            </ul>
-          )}
+          <section className="card-section">
+            <h2 className="text-lg font-semibold mb-2">Due Diligence Checklist</h2>
+            {hasAnyAnalysis ? (
+              diligenceNotes.length === 0 ? (
+                <p className="text-sm">No diligence checklist items returned.</p>
+              ) : (
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  {diligenceNotes.map((x, idx) => (
+                    <li key={idx}>{x}</li>
+                  ))}
+                </ul>
+              )
+            ) : (
+              <p className="text-sm opacity-80">Diligence checklist items will populate here after you run Financial Analysis.</p>
+            )}
+          </section>
         </section>
 
         <section className="card-section">
           <h2 className="text-lg font-semibold mb-2">Key Metrics</h2>
 
-          {!analysis ? (
-            <p className="text-sm opacity-80">No metrics yet. Run Financial Analysis to extract structured metrics (if present).</p>
+          {!hasAnyAnalysis ? (
+            <p className="text-sm opacity-80">Key metrics will populate here after you run Financial Analysis.</p>
           ) : allYears.length === 0 ? (
             <p className="text-sm">No structured metrics extracted.</p>
           ) : (
@@ -1171,11 +1268,14 @@ function FinancialsDealView({
             </div>
           )}
         </section>
+
+        <div className="pt-2 text-[11px] opacity-70">
+          SearchFindr surfaces prioritization signals. Final judgment remains with the buyer.
+        </div>
       </div>
     </main>
   );
 }
-
 // ====================================================================================
 // OFF-MARKET DEAL VIEW (Google Places)
 // ====================================================================================
@@ -1204,6 +1304,7 @@ function OffMarketDealView({
   const ownerSignals = criteria?.owner_signals || null;
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
 
+  // ✅ Why it matters is the main thing for On/Off-market
   const whyItMatters =
     (criteria?.why_it_matters && String(criteria.why_it_matters).trim()) || firstSentence(deal.ai_summary) || '';
 
@@ -1456,6 +1557,7 @@ function OnMarketDealView({
   const criteria = deal.criteria_match_json || {};
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
 
+  // ✅ Why it matters is the main thing for On/Off-market
   const whyItMatters =
     (criteria?.why_it_matters && String(criteria.why_it_matters).trim()) || firstSentence(deal.ai_summary) || '';
 
@@ -1488,9 +1590,7 @@ function OnMarketDealView({
           <section className="card-section">
             <h2 className="text-lg font-semibold mb-1">Why it matters</h2>
             <p className="text-sm opacity-90">{whyItMatters}</p>
-            <p className="mt-1 text-[11px] opacity-70">
-              Based on listing text + extracted signals. Data confidence describes input quality, not “AI certainty.”
-            </p>
+            <p className="mt-1 text-[11px] opacity-70">Surface signal from listing inputs — verify with outreach + diligence.</p>
           </section>
         ) : null}
 
@@ -1679,8 +1779,13 @@ function CimDealView({
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
   const ddChecklist: string[] = Array.isArray(criteria.dd_checklist) ? criteria.dd_checklist.map(String) : [];
 
-  const whyItMatters =
-    (criteria?.why_it_matters && String(criteria.why_it_matters).trim()) || firstSentence(deal.ai_summary) || '';
+  // ✅ CIM: Data confidence is the primary section
+  const confidence = getDealConfidence(deal);
+
+  // ✅ CIM signals MUST use the same grid renderer as Financials
+  const signals = useMemo(() => {
+    return normalizeConfidenceSignals(deal?.ai_confidence_json?.signals ?? null);
+  }, [deal?.ai_confidence_json?.signals]);
 
   return (
     <main className="min-h-screen">
@@ -1696,7 +1801,7 @@ function CimDealView({
             {deal.location_state || 'Location unknown'}
           </p>
 
-          {/* ✅ Tier is suppressed for CIM via HeaderActions */}
+          {/* Tier suppressed for CIM via HeaderActions */}
           <HeaderActions deal={deal} canToggleSave={canToggleSave} savingToggle={savingToggle} onToggleSave={onToggleSave} />
 
           <div className="mt-4 card-section">
@@ -1715,15 +1820,33 @@ function CimDealView({
           </div>
         </section>
 
-        {whyItMatters ? (
-          <section className="card-section">
-            <h2 className="text-lg font-semibold mb-1">Why it matters</h2>
-            <p className="text-sm opacity-90">{whyItMatters}</p>
-            <p className="mt-1 text-[11px] opacity-70">
-              CIM upload = you already chose to spend attention. Data confidence reflects document completeness and supportability.
-            </p>
-          </section>
-        ) : null}
+        {/* ✅ Data Confidence (identical component behavior to Financials) */}
+        <section className="card-section">
+          <h2 className="text-lg font-semibold mb-2">Data Confidence & Read Quality</h2>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <ConfidencePill
+              icon={confidence.icon}
+              label={confidence.label}
+              title={confidence.reason}
+              analyzed={confidence.analyzed}
+              level={confidence.level}
+            />
+            {deal?.ai_confidence_json?.updated_at ? (
+              <span className="text-xs opacity-70">Updated {safeDateLabel(deal.ai_confidence_json.updated_at) || ''}</span>
+            ) : null}
+          </div>
+
+          {confidence.analyzed ? (
+            signals.length === 0 ? (
+              <p className="mt-3 text-sm opacity-80">No confidence signals returned.</p>
+            ) : (
+              <SignalsGrid signals={signals} />
+            )
+          ) : (
+            <p className="mt-3 text-sm opacity-80">Run AI on CIM to generate read-quality signals.</p>
+          )}
+        </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 card-section">
@@ -1801,8 +1924,7 @@ function CimDealView({
           <div className="card-section text-sm space-y-4">
             <h2 className="text-lg font-semibold mb-1">CIM Quality & Risk Signals</h2>
             <p className="text-[11px] opacity-70">
-              These are interpretation aids from the CIM content (not a “grade”). Risk signals: High = more risk. Quality signals: High = stronger quality.
-              No Tier is produced for CIM uploads.
+              Interpretation aids from CIM content (not a grade). Risk signals: High = more risk. Quality signals: High = stronger quality. No Tier is produced for CIM uploads.
             </p>
 
             {Object.keys(scoring).length === 0 ? (
@@ -1811,7 +1933,7 @@ function CimDealView({
               <>
                 {scoring.succession_risk && (
                   <div>
-                    <p className="font-semibold">Key-person risk </p>
+                    <p className="font-semibold">Key-person risk</p>
                     <p>{scoring.succession_risk}</p>
                     <p className="text-xs text-muted-foreground">{scoring.succession_risk_reason}</p>
                   </div>
@@ -1835,7 +1957,7 @@ function CimDealView({
 
                 {scoring.financial_quality && (
                   <div>
-                    <p className="font-semibold">Financial statement quality </p>
+                    <p className="font-semibold">Financial statement quality</p>
                     <p>{scoring.financial_quality}</p>
                     <p className="text-xs text-muted-foreground">{scoring.financial_quality_reason}</p>
                   </div>
