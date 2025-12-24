@@ -1,11 +1,14 @@
 // app/dashboard/page.tsx
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../supabaseClient';
 import { ThemeToggle } from '@/components/ThemeToggle';
+
+// ✅ Global On-Market client helpers (READ-ONLY global search)
+import { searchOnMarket, type OnMarketDeal } from '@/lib/onmarket/client';
 
 type ConfidenceLevel = 'low' | 'medium' | 'high';
 
@@ -31,26 +34,22 @@ type Company = {
   listing_url: string | null;
   is_saved: boolean | null;
 
-  // exists in DB, but we no longer show it on dashboard (off-market owner often unknown)
   owner_name?: string | null;
-
-  // ✅ Used for “Why it matters” across modules (this is what updates after you run AI)
   ai_summary?: string | null;
-
-  // ✅ Single source of truth for dashboard confidence
   ai_confidence_json?: AIConfidence;
 };
 
-type DashboardView = 'saved' | 'on_market' | 'off_market' | 'cim_pdf' | 'financials';
+// Views
+type DashboardView = 'saved' | 'on_market_global' | 'on_market' | 'off_market' | 'cim_pdf' | 'financials';
 const DEFAULT_VIEW: DashboardView = 'saved';
 
 function isDashboardView(v: any): v is DashboardView {
-  return v === 'saved' || v === 'on_market' || v === 'off_market' || v === 'cim_pdf' || v === 'financials';
+  return v === 'saved' || v === 'on_market_global' || v === 'on_market' || v === 'off_market' || v === 'cim_pdf' || v === 'financials';
 }
 
 function formatSource(source: string | null): string {
   if (!source) return '';
-  if (source === 'on_market') return 'On-market (Listings)';
+  if (source === 'on_market') return 'On-market (Extension)';
   if (source === 'off_market') return 'Off-market (Targets)';
   if (source === 'cim_pdf') return 'CIM Upload';
   if (source === 'financials') return 'Financial Upload';
@@ -95,7 +94,7 @@ function normalizeConfidence(ai: AIConfidence): { icon: '⚠️' | '◑' | '●'
     high: '●',
   };
 
-  const icon = (ai.icon as any) || iconFromLevel[lvl] || '◑';
+  const icon = ((ai.icon as any) || iconFromLevel[lvl] || '◑') as '⚠️' | '◑' | '●';
   const labelCore = lvl === 'high' ? 'High' : lvl === 'medium' ? 'Medium' : lvl === 'low' ? 'Low' : 'Medium';
 
   const reason =
@@ -111,11 +110,6 @@ function normalizeConfidence(ai: AIConfidence): { icon: '⚠️' | '◑' | '●'
   return { icon, label: `Data confidence: ${labelCore}`, reason, level: lvl };
 }
 
-/**
- * ✅ Dashboard confidence:
- * - If ai_confidence_json exists: show it (analyzed)
- * - Else: Not analyzed (neutral & visually distinct from Medium)
- */
 function getDashboardConfidence(deal: Company): {
   icon: '⚠️' | '◑' | '●';
   label: string;
@@ -127,23 +121,56 @@ function getDashboardConfidence(deal: Company): {
   if (normalized) return { ...normalized, analyzed: true };
 
   return {
-    icon: '◑', // neutral
+    icon: '◑',
     label: 'Data confidence: Not analyzed',
     reason: 'No analysis run yet. Open the deal and click “Run AI” to generate signals.',
     analyzed: false,
   };
 }
 
+/**
+ * ✅ Global on-market confidence pill (same style as deal confidence)
+ * - No numeric score displayed (ever)
+ */
+function getGlobalConfidencePill(d: OnMarketDeal): {
+  icon: '⚠️' | '◑' | '●';
+  label: string;
+  reason: string;
+  level?: ConfidenceLevel;
+  analyzed: boolean;
+} {
+  const lvl = (d.data_confidence || '').toLowerCase() as ConfidenceLevel;
+  const analyzed = lvl === 'low' || lvl === 'medium' || lvl === 'high';
+
+  const iconFromLevel: Record<ConfidenceLevel, '⚠️' | '◑' | '●'> = {
+    low: '⚠️',
+    medium: '◑',
+    high: '●',
+  };
+
+  const icon = analyzed ? iconFromLevel[lvl] : '◑';
+  const labelCore = !analyzed ? 'Not analyzed' : lvl === 'high' ? 'High' : lvl === 'medium' ? 'Medium' : 'Low';
+
+  const reason = analyzed
+    ? 'Based on completeness/quality of listing metadata (not verified financials).'
+    : 'No confidence label available yet.';
+
+  return {
+    icon,
+    label: `Data confidence: ${labelCore}`,
+    reason,
+    level: analyzed ? lvl : undefined,
+    analyzed,
+  };
+}
+
 function getDashboardWhyItMatters(deal: Company): string {
-  // ✅ Primary: use ai_summary (this is what your backend updates after running AI)
   const fromSummary = clampText(deal.ai_summary || '', 90);
   if (fromSummary) return fromSummary;
 
-  // Secondary: allow confidence summary if that's all we have
   const fromConfidence = clampText(deal.ai_confidence_json?.summary || '', 90);
   if (fromConfidence) return fromConfidence;
 
-  // Fallbacks: action-oriented defaults
   if (deal.source_type === 'off_market') return 'Lead surfaced — open to review surface signals.';
   if (deal.source_type === 'financials') return 'Upload received — open the deal to run financial analysis.';
   if (deal.source_type === 'cim_pdf') return 'CIM uploaded — open the deal to generate memo + labels.';
@@ -176,18 +203,13 @@ function ConfidencePill({
 }) {
   const base = 'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium';
 
-  // ✅ VISUAL FIX:
-  // - Not analyzed: neutral gray (distinct from Medium)
-  // - Medium: blue (so it does NOT look like Not analyzed)
-  // - Low: red
-  // - High: green
   const cls = !analyzed
     ? `${base} border-slate-500/30 bg-transparent text-slate-500`
     : level === 'low' || icon === '⚠️'
-    ? `${base} border-red-500/40 bg-red-500/5 text-red-700`
-    : level === 'high' || icon === '●'
-    ? `${base} border-emerald-500/40 bg-emerald-500/5 text-emerald-700`
-    : `${base} border-blue-500/40 bg-blue-500/5 text-blue-700`;
+      ? `${base} border-red-500/40 bg-red-500/5 text-red-700`
+      : level === 'high' || icon === '●'
+        ? `${base} border-emerald-500/40 bg-emerald-500/5 text-emerald-700`
+        : `${base} border-blue-500/40 bg-blue-500/5 text-blue-700`;
 
   return (
     <span className={cls} title={title}>
@@ -287,6 +309,7 @@ const US_STATES = [
   { abbr: 'WY', name: 'Wyoming' },
 ];
 
+// Used for Off-market only
 const OFFMARKET_INDUSTRIES = [
   'HVAC',
   'Electrical',
@@ -301,6 +324,22 @@ const OFFMARKET_INDUSTRIES = [
   'Logistics / Trucking',
   'Light Manufacturing',
   'Specialty Construction',
+];
+
+// ✅ Global tags MUST match on_market_deals.industry_tag values
+const GLOBAL_INDUSTRY_TAGS = [
+  'HVAC',
+  'Plumbing',
+  'Electrical',
+  'Construction',
+  'Manufacturing',
+  'Healthcare',
+  'Dental',
+  'Auto',
+  'Logistics',
+  'IT Services',
+  'Software',
+  'Landscaping',
 ];
 
 const ALLOWED_RADIUS = [5, 10, 15, 25, 50, 75, 100];
@@ -353,7 +392,7 @@ export default function DashboardPage() {
 
   const [selectedView, setSelectedView] = useState<DashboardView>(DEFAULT_VIEW);
 
-  // Bulk selection
+  // Bulk selection (companies table only)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
 
@@ -361,8 +400,44 @@ export default function DashboardPage() {
   const [tierFilter, setTierFilter] = useState<TierFilter>('all');
   const [sortKey, setSortKey] = useState<SortKey>('newest');
 
+  // Tier controls only apply to companies-based views
   const tierControlsEnabled = selectedView === 'on_market' || selectedView === 'off_market' || selectedView === 'saved';
 
+  // ✅ Global On-Market state (READ ONLY)
+  const [omDeals, setOmDeals] = useState<OnMarketDeal[]>([]);
+  const [omLoading, setOmLoading] = useState(false);
+  const [omError, setOmError] = useState<string | null>(null);
+
+  // Global filters
+  const [omState, setOmState] = useState<string>(''); // '' = all
+  const [omIndustries, setOmIndustries] = useState<string[]>([]);
+  const [omIndustryToAdd, setOmIndustryToAdd] = useState<string>(GLOBAL_INDUSTRY_TAGS[0] ?? 'HVAC');
+  const [omIncludeUnknownFinancials, setOmIncludeUnknownFinancials] = useState(true);
+  const [omIncludeUnknownLocation, setOmIncludeUnknownLocation] = useState(true);
+
+  // CIM upload state
+  const [cimFile, setCimFile] = useState<File | null>(null);
+  const cimInputRef = useRef<HTMLInputElement | null>(null);
+  const [cimUploadStatus, setCimUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
+
+  // Financials upload state
+  const [finFile, setFinFile] = useState<File | null>(null);
+  const finInputRef = useRef<HTMLInputElement | null>(null);
+  const [finUploadStatus, setFinUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
+  const [finUploadMsg, setFinUploadMsg] = useState<string | null>(null);
+
+  // Off-market search state
+  const [offIndustries, setOffIndustries] = useState<string[]>([]);
+  const [offIndustryToAdd, setOffIndustryToAdd] = useState<string>(OFFMARKET_INDUSTRIES[0] ?? 'HVAC');
+
+  const [offCity, setOffCity] = useState('');
+  const [offState, setOffState] = useState('TX');
+  const [offRadiusMiles, setOffRadiusMiles] = useState<number>(10);
+
+  const [offSearching, setOffSearching] = useState(false);
+  const [offSearchStatus, setOffSearchStatus] = useState<string | null>(null);
+
+  // ✅ Change view from URL/localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -391,43 +466,31 @@ export default function DashboardPage() {
     setSelectedIds(new Set());
     setTierFilter('all');
     setSortKey('newest');
+    setErrorMsg(null);
+    setOmError(null);
     if (typeof window !== 'undefined') localStorage.setItem('dashboard_view', view);
     router.replace(`/dashboard?view=${view}`);
   };
 
-  // CIM upload state
-  const [cimFile, setCimFile] = useState<File | null>(null);
-  const cimInputRef = useRef<HTMLInputElement | null>(null);
-  const [cimUploadStatus, setCimUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
-
-  // Financials upload state
-  const [finFile, setFinFile] = useState<File | null>(null);
-  const finInputRef = useRef<HTMLInputElement | null>(null);
-  const [finUploadStatus, setFinUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
-  const [finUploadMsg, setFinUploadMsg] = useState<string | null>(null);
-
-  // Off-market search state
-  const [offIndustries, setOffIndustries] = useState<string[]>([]);
-  const [offIndustryToAdd, setOffIndustryToAdd] = useState<string>(OFFMARKET_INDUSTRIES[0] ?? 'HVAC');
-
-  const [offCity, setOffCity] = useState('');
-  const [offState, setOffState] = useState('TX');
-  const [offRadiusMiles, setOffRadiusMiles] = useState<number>(10);
-
-  const [offSearching, setOffSearching] = useState(false);
-  const [offSearchStatus, setOffSearchStatus] = useState<string | null>(null);
-
+  // Off-market industries chip control
   const addIndustry = () => {
     setOffIndustries((prev) => (prev.includes(offIndustryToAdd) ? prev : [...prev, offIndustryToAdd]));
   };
-
   const removeIndustry = (ind: string) => {
     setOffIndustries((prev) => prev.filter((x) => x !== ind));
   };
 
-  const locationString = `${offCity.trim()}, ${offState}`;
+  // Global OM industries chip control
+  const addOmIndustry = () => {
+    setOmIndustries((prev) => (prev.includes(omIndustryToAdd) ? prev : [...prev, omIndustryToAdd]));
+  };
+  const removeOmIndustry = (ind: string) => {
+    setOmIndustries((prev) => prev.filter((x) => x !== ind));
+  };
 
-  const refreshDeals = async () => {
+  const locationString = `${offCity.trim() || '—'}, ${offState}`;
+
+  const refreshDeals = useCallback(async () => {
     if (!workspaceId) return;
 
     setErrorMsg(null);
@@ -465,8 +528,9 @@ export default function DashboardPage() {
     }
 
     setDeals((data ?? []) as Company[]);
-  };
+  }, [workspaceId]);
 
+  // ✅ Auth + initial deals load
   useEffect(() => {
     const init = async () => {
       try {
@@ -486,11 +550,7 @@ export default function DashboardPage() {
         setLoadingDeals(true);
         setErrorMsg(null);
 
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('workspace_id')
-          .eq('id', user.id)
-          .single();
+        const { data: profile, error: profileError } = await supabase.from('profiles').select('workspace_id').eq('id', user.id).single();
 
         if (profileError || !profile?.workspace_id) {
           console.error('profileError:', profileError);
@@ -538,8 +598,42 @@ export default function DashboardPage() {
     init();
   }, [router]);
 
-  // Base list by view
+  // ✅ Global search runner (button driven)
+  const runGlobalSearch = useCallback(async () => {
+    setOmLoading(true);
+    setOmError(null);
+
+    try {
+      const payload: any = {
+        state: omState ? omState : undefined,
+        industries: omIndustries,
+        include_unknown_financials: omIncludeUnknownFinancials,
+        include_unknown_location: omIncludeUnknownLocation,
+        limit: 10,
+        offset: 0,
+        sort: 'freshness',
+      };
+
+      const res = await (searchOnMarket as any)(payload);
+      setOmDeals((res?.deals ?? []) as OnMarketDeal[]);
+    } catch (e: any) {
+      setOmError(e?.message ?? 'Failed to load global inventory.');
+      setOmDeals([]);
+    } finally {
+      setOmLoading(false);
+    }
+  }, [omState, omIndustries, omIncludeUnknownFinancials, omIncludeUnknownLocation]);
+
+  // ✅ Fetch Global On-Market inventory only when view becomes active (auto-run once you open the view)
+  useEffect(() => {
+    if (selectedView !== 'on_market_global') return;
+    runGlobalSearch();
+  }, [selectedView, runGlobalSearch]);
+
+  // Base list by view (companies table only; global OM uses separate state)
   const baseDealsForView = useMemo(() => {
+    if (selectedView === 'on_market_global') return [];
+
     return selectedView === 'saved'
       ? deals.filter((d) => d.is_saved === true)
       : deals.filter((deal) => {
@@ -596,6 +690,8 @@ export default function DashboardPage() {
 
       if (effectiveSortKey === 'company_az' || effectiveSortKey === 'company_za') {
         const an = normalizeName(a.company_name);
+// CONTINUE from where you got cut off:
+
         const bn = normalizeName(b.company_name);
         const cmp = an.localeCompare(bn);
         return effectiveSortKey === 'company_az' ? cmp : -cmp;
@@ -607,6 +703,7 @@ export default function DashboardPage() {
     return list;
   }, [baseDealsForView, tierControlsEnabled, tierFilter, sortKey, selectedView]);
 
+  // keep selections only for visible rows
   useEffect(() => {
     const visible = new Set(filteredDeals.map((d) => d.id));
     setSelectedIds((prev) => {
@@ -652,7 +749,7 @@ export default function DashboardPage() {
     router.replace('/');
   };
 
-  // Bulk actions
+  // Bulk actions (companies only)
   const bulkSaveSelected = async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
@@ -989,11 +1086,16 @@ export default function DashboardPage() {
     if (selectedView === 'saved')
       return {
         title: 'Saved (Pipeline)',
-        subtitle: 'Your pipeline list. Use Tier sort/filter to prioritize review (tiers only apply to On/Off-market).',
+        subtitle: 'Your pipeline list. Use Tier sort/filter to prioritize review (tiers only apply to On/Off-market + extension captures).',
+      };
+    if (selectedView === 'on_market_global')
+      return {
+        title: 'On-market (Global Inventory)',
+        subtitle: 'Discovery index. Filter, click out to broker listings, then capture the ones you want using the Chrome extension.',
       };
     if (selectedView === 'on_market')
       return {
-        title: 'On-market (Listings)',
+        title: 'On-market (Extension)',
         subtitle: 'Listings captured via Chrome extension. Open a deal to run screening analysis (does not verify claims).',
       };
     if (selectedView === 'off_market')
@@ -1017,11 +1119,29 @@ export default function DashboardPage() {
       return (
         <EmptyStateCard
           title="No saved deals yet"
-          description="Save deals from On-market, Off-market, CIM uploads, or Financial uploads to build your pipeline."
-          primaryLabel="Go to On-market"
-          onPrimary={() => changeView('on_market')}
+          description="Capture deals via the extension or run Off-market searches, then save the ones you want in your pipeline."
+          primaryLabel="Go to Global On-market"
+          onPrimary={() => changeView('on_market_global')}
           secondaryLabel="Go to Off-market"
           onSecondary={() => changeView('off_market')}
+        />
+      );
+    }
+
+    if (selectedView === 'on_market_global') {
+      return (
+        <EmptyStateCard
+          title="No global deals found"
+          description="Try changing filters, or keep “Include unknown location” on — many listings won’t have full location metadata."
+          primaryLabel="Reset filters"
+          onPrimary={() => {
+            setOmState('');
+            setOmIndustries([]);
+            setOmIncludeUnknownFinancials(true);
+            setOmIncludeUnknownLocation(true);
+          }}
+          secondaryLabel="Go to Extension On-market"
+          onSecondary={() => changeView('on_market')}
         />
       );
     }
@@ -1030,11 +1150,11 @@ export default function DashboardPage() {
       return (
         <EmptyStateCard
           title="No on-market deals yet"
-          description="Use the Chrome extension to analyze live listings and send them here."
+          description="Use the Chrome extension to capture live listings and send them here."
           primaryLabel="Connect Chrome extension"
           onPrimary={handleConnectExtension}
-          secondaryLabel="Go to Off-market"
-          onSecondary={() => changeView('off_market')}
+          secondaryLabel="Go to Global On-market"
+          onSecondary={() => changeView('on_market_global')}
         />
       );
     }
@@ -1071,8 +1191,8 @@ export default function DashboardPage() {
         description="Upload a CIM to generate an AI investment memo."
         primaryLabel="Upload CIM (PDF)"
         onPrimary={handleCimButtonClick}
-        secondaryLabel="Go to On-market"
-        onSecondary={() => changeView('on_market')}
+        secondaryLabel="Go to Global On-market"
+        onSecondary={() => changeView('on_market_global')}
       />
     );
   };
@@ -1132,7 +1252,8 @@ export default function DashboardPage() {
     () =>
       [
         { key: 'saved' as const, label: 'Saved (Pipeline)' },
-        { key: 'on_market' as const, label: 'On-market (Listings)' },
+        { key: 'on_market_global' as const, label: 'On-market (Global)' },
+        { key: 'on_market' as const, label: 'On-market (Extension)' },
         { key: 'off_market' as const, label: 'Off-market (Targets)' },
         { key: 'cim_pdf' as const, label: 'CIM Uploads' },
         { key: 'financials' as const, label: 'Financial Uploads' },
@@ -1155,9 +1276,7 @@ export default function DashboardPage() {
       <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My Deals</h1>
-          <p className="text-sm">
-            Search + early diligence workspace. Tier = priority (not quality). Data confidence = completeness/quality of inputs.
-          </p>
+          <p className="text-sm">Search + early diligence workspace. Tier = priority (not quality). Data confidence = completeness/quality of inputs.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -1224,6 +1343,13 @@ export default function DashboardPage() {
                   />
                 </>
               ) : null}
+
+              {/* ✅ Search button for global (not “refresh”) */}
+              {selectedView === 'on_market_global' ? (
+                <button className="btn-main" onClick={runGlobalSearch} disabled={omLoading}>
+                  {omLoading ? 'Searching…' : 'Search'}
+                </button>
+              ) : null}
             </div>
           </div>
 
@@ -1249,25 +1375,99 @@ export default function DashboardPage() {
         </section>
       </div>
 
+      {/* ✅ Global On-market controls */}
+      {selectedView === 'on_market_global' && (
+        <section className="card-table p-4 space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold">Global inventory filters</h2>
+            <p className="text-xs opacity-80">Filter, click out, then capture what you want with the extension.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs opacity-80">State</label>
+              <select className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm" value={omState} onChange={(e) => setOmState(e.target.value)}>
+                <option value="">All states</option>
+                {US_STATES.map((s) => (
+                  <option key={s.abbr} value={s.abbr}>
+                    {s.abbr} — {s.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] opacity-70">Tip: many listings won’t have state at first — keep “Include unknown location” on.</p>
+            </div>
+
+            <div className="space-y-1 md:col-span-2">
+              <label className="text-xs opacity-80">Industries</label>
+
+              <div className="flex gap-2">
+                <select
+                  className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm"
+                  value={omIndustryToAdd}
+                  onChange={(e) => setOmIndustryToAdd(e.target.value)}
+                >
+                  {GLOBAL_INDUSTRY_TAGS.map((ind) => (
+                    <option key={ind} value={ind}>
+                      {ind}
+                    </option>
+                  ))}
+                </select>
+
+                <button type="button" className="btn-main" onClick={addOmIndustry}>
+                  Add
+                </button>
+              </div>
+
+              {omIndustries.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {omIndustries.map((ind) => (
+                    <span key={ind} className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs">
+                      {ind}
+                      <button type="button" className="text-[11px] underline" onClick={() => removeOmIndustry(ind)}>
+                        remove
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs opacity-70">No industries selected (shows all industries).</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-6">
+            <label className="inline-flex items-center gap-2 text-xs">
+              <input type="checkbox" checked={omIncludeUnknownFinancials} onChange={(e) => setOmIncludeUnknownFinancials(e.target.checked)} />
+              <span className="opacity-80">Include unknown financials</span>
+            </label>
+
+            <label className="inline-flex items-center gap-2 text-xs">
+              <input type="checkbox" checked={omIncludeUnknownLocation} onChange={(e) => setOmIncludeUnknownLocation(e.target.checked)} />
+              <span className="opacity-80">Include unknown location</span>
+            </label>
+
+            <button className="btn-main" onClick={runGlobalSearch} disabled={omLoading}>
+              {omLoading ? 'Searching…' : 'Search'}
+            </button>
+          </div>
+
+          {omError ? <p className="text-xs text-red-600">{omError}</p> : null}
+        </section>
+      )}
+
       {/* Off-market search tool */}
       {selectedView === 'off_market' && (
         <section className="card-table p-4 space-y-3">
           <div>
             <h2 className="text-sm font-semibold">Off-market discovery</h2>
-            <p className="text-xs opacity-80">
-              Add industries + enter city/state + radius. Results appear in Off-market as leads. Tiers here are light surface signals.
-            </p>
+            <p className="text-xs opacity-80">Add industries + enter city/state + radius. Results appear in Off-market as leads. Tiers here are light surface signals.</p>
           </div>
 
           <div className="space-y-1">
             <label className="text-xs opacity-80">Industries</label>
             <div className="flex flex-col gap-2">
               <div className="flex gap-2">
-                <select
-                  className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm"
-                  value={offIndustryToAdd}
-                  onChange={(e) => setOffIndustryToAdd(e.target.value)}
-                >
+                <select className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm" value={offIndustryToAdd} onChange={(e) => setOffIndustryToAdd(e.target.value)}>
                   {OFFMARKET_INDUSTRIES.map((ind) => (
                     <option key={ind} value={ind}>
                       {ind}
@@ -1300,12 +1500,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="space-y-1">
               <label className="text-xs opacity-80">City</label>
-              <input
-                className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm"
-                value={offCity}
-                onChange={(e) => setOffCity(e.target.value)}
-                placeholder="e.g. Austin"
-              />
+              <input className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm" value={offCity} onChange={(e) => setOffCity(e.target.value)} placeholder="e.g. Austin" />
             </div>
 
             <div className="space-y-1">
@@ -1321,11 +1516,7 @@ export default function DashboardPage() {
 
             <div className="space-y-1">
               <label className="text-xs opacity-80">Radius (miles)</label>
-              <select
-                className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm"
-                value={offRadiusMiles}
-                onChange={(e) => setOffRadiusMiles(Number(e.target.value))}
-              >
+              <select className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm" value={offRadiusMiles} onChange={(e) => setOffRadiusMiles(Number(e.target.value))}>
                 {ALLOWED_RADIUS.map((r) => (
                   <option key={r} value={r}>
                     {r}
@@ -1347,143 +1538,227 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* Table */}
-      <section className="mt-4 card-table">
-        <div className="mb-2 flex flex-col gap-2 px-4 pt-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <h2 className="text-sm font-semibold">{selectedView === 'saved' ? 'Saved (Pipeline)' : 'Companies'}</h2>
-            {loadingDeals ? (
-              <p className="text-xs">Loading…</p>
-            ) : (
-              <p className="text-xs opacity-80">{filteredDeals.length === 0 ? 'No companies yet.' : `${filteredDeals.length} company(s) shown.`}</p>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs opacity-80">Sort</span>
-              <select className="rounded-lg border px-3 py-2 bg-transparent text-xs" value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}>
-                <option value="newest">Newest</option>
-                <option value="oldest">Oldest</option>
-
-                {tierControlsEnabled ? (
-                  <>
-                    <option value="tier_high_to_low">Tier (A → C)</option>
-                    <option value="tier_low_to_high">Tier (C → A)</option>
-                  </>
-                ) : null}
-
-                <option value="company_az">Company (A → Z)</option>
-                <option value="company_za">Company (Z → A)</option>
-              </select>
+      {/* ✅ Global On-market table (READ ONLY) */}
+      {selectedView === 'on_market_global' ? (
+        <section className="mt-4 card-table">
+          <div className="mb-2 flex flex-col gap-2 px-4 pt-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-semibold">On-market (Global)</h2>
+              {omLoading ? (
+                <p className="text-xs">Loading…</p>
+              ) : (
+                <p className="text-xs opacity-80">{omDeals.length === 0 ? 'No deals found.' : `${omDeals.length} deal(s) shown.`}</p>
+              )}
             </div>
 
-            {tierControlsEnabled ? (
+            <div className="text-[11px] opacity-70">Click out to the listing. To “own” a deal and run AI, capture it with the Chrome extension.</div>
+          </div>
+
+          {omError && <p className="px-4 pb-2 text-xs text-red-600">{omError}</p>}
+
+          {omLoading ? (
+            <div className="px-4 pb-4">
+              <div className="rounded-xl border p-4 text-xs opacity-80">Loading…</div>
+            </div>
+          ) : omDeals.length === 0 ? (
+            renderEmptyStateForView()
+          ) : (
+            <div className="overflow-x-auto px-4 pb-4">
+              <table className="min-w-full text-left text-xs">
+                <thead className="table-header">
+                  <tr>
+                    <th className="px-2 py-1.5 font-medium">Headline</th>
+                    <th className="px-2 py-1.5 font-medium">Industry</th>
+                    <th className="px-2 py-1.5 font-medium">Location</th>
+                    <th className="px-2 py-1.5 font-medium">Data confidence</th>
+                    <th className="px-2 py-1.5 font-medium">Source</th>
+                    <th className="px-2 py-1.5 font-medium w-[120px]"></th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {omDeals.map((d) => {
+                    const conf = getGlobalConfidencePill(d);
+                    const loc = [d.location_city, d.location_state].filter(Boolean).join(', ') || '—';
+
+                    return (
+                      <tr key={d.id} className="table-row">
+                        <td className="px-2 py-2">
+                          <div className="flex flex-col">
+                            <span className="font-medium">{d.headline}</span>
+                            {d.company_name && d.company_name !== d.headline ? <span className="text-[11px] opacity-70">{d.company_name}</span> : null}
+                          </div>
+                        </td>
+
+                        <td className="px-2 py-2">{d.industry_tag ?? '—'}</td>
+
+                        <td className="px-2 py-2">{loc}</td>
+
+                        <td className="px-2 py-2">
+                          <ConfidencePill icon={conf.icon} label={conf.label} title={conf.reason} level={conf.level} analyzed={conf.analyzed} />
+                        </td>
+
+                        <td className="px-2 py-2">
+                          <a className="underline" href={d.source_url} target="_blank" rel="noreferrer">
+                            {d.source_name}
+                          </a>
+                        </td>
+
+                        <td className="px-2 py-2">
+                          <a className="btn-main inline-flex justify-center" href={d.source_url} target="_blank" rel="noreferrer" title="Open the broker listing page in a new tab.">
+                            Open
+                          </a>
+                          <div className="mt-1 text-[11px] opacity-70">Capture via extension</div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              <div className="pt-3 text-[11px] opacity-70">SearchFindr surfaces risk and prioritization signals. Final judgment remains with the buyer.</div>
+            </div>
+          )}
+        </section>
+      ) : (
+        // ✅ Existing companies table for all other views
+        <section className="mt-4 card-table">
+          <div className="mb-2 flex flex-col gap-2 px-4 pt-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="text-sm font-semibold">{selectedView === 'saved' ? 'Saved (Pipeline)' : 'Companies'}</h2>
+              {loadingDeals ? (
+                <p className="text-xs">Loading…</p>
+              ) : (
+                <p className="text-xs opacity-80">{filteredDeals.length === 0 ? 'No companies yet.' : `${filteredDeals.length} company(s) shown.`}</p>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
-                <span className="text-xs opacity-80">Tier</span>
-                <select className="rounded-lg border px-3 py-2 bg-transparent text-xs" value={tierFilter} onChange={(e) => setTierFilter(e.target.value as TierFilter)}>
-                  <option value="all">All</option>
-                  <option value="A">Tier A</option>
-                  <option value="B">Tier B</option>
-                  <option value="C">Tier C</option>
-                  <option value="unrated">Unrated</option>
+                <span className="text-xs opacity-80">Sort</span>
+                <select className="rounded-lg border px-3 py-2 bg-transparent text-xs" value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}>
+                  <option value="newest">Newest</option>
+                  <option value="oldest">Oldest</option>
+
+                  {tierControlsEnabled ? (
+                    <>
+                      <option value="tier_high_to_low">Tier (A → C)</option>
+                      <option value="tier_low_to_high">Tier (C → A)</option>
+                    </>
+                  ) : null}
+
+                  <option value="company_az">Company (A → Z)</option>
+                  <option value="company_za">Company (Z → A)</option>
                 </select>
               </div>
-            ) : null}
 
-            <button
-              className="text-xs underline opacity-80"
-              onClick={() => {
-                setTierFilter('all');
-                setSortKey('newest');
-              }}
-            >
-              Reset
-            </button>
+              {tierControlsEnabled ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs opacity-80">Tier</span>
+                  <select className="rounded-lg border px-3 py-2 bg-transparent text-xs" value={tierFilter} onChange={(e) => setTierFilter(e.target.value as TierFilter)}>
+                    <option value="all">All</option>
+                    <option value="A">Tier A</option>
+                    <option value="B">Tier B</option>
+                    <option value="C">Tier C</option>
+                    <option value="unrated">Unrated</option>
+                  </select>
+                </div>
+              ) : null}
+
+              <button
+                className="text-xs underline opacity-80"
+                onClick={() => {
+                  setTierFilter('all');
+                  setSortKey('newest');
+                }}
+              >
+                Reset
+              </button>
+            </div>
           </div>
-        </div>
 
-        {errorMsg && <p className="px-4 pb-2 text-xs text-red-600">{errorMsg}</p>}
+          {errorMsg && <p className="px-4 pb-2 text-xs text-red-600">{errorMsg}</p>}
 
-        {filteredDeals.length > 0 && <BulkBar />}
+          {filteredDeals.length > 0 && <BulkBar />}
 
-        {loadingDeals ? (
-          <div className="px-4 pb-4">
-            <div className="rounded-xl border p-4 text-xs opacity-80">Loading…</div>
-          </div>
-        ) : filteredDeals.length === 0 ? (
-          renderEmptyStateForView()
-        ) : (
-          <div className="overflow-x-auto px-4 pb-4">
-            <table className="min-w-full text-left text-xs">
-              <thead className="table-header">
-                <tr>
-                  <th className="px-2 py-1.5 font-medium w-[36px]"></th>
-                  <th className="px-2 py-1.5 font-medium">Company</th>
-                  {selectedView !== 'off_market' && <th className="px-2 py-1.5 font-medium">Source</th>}
-                  {selectedView === 'on_market' && <th className="px-2 py-1.5 font-medium">Location</th>}
-                  {selectedView === 'on_market' && <th className="px-2 py-1.5 font-medium">Industry</th>}
-                  {showTierColumn && <th className="px-2 py-1.5 font-medium">Tier</th>}
-                  <th className="px-2 py-1.5 font-medium">Data confidence</th>
-                  <th className="px-2 py-1.5 font-medium">Why it matters</th>
-                  {/* ✅ REMOVED: Owner column (off-market owner often unknown / not reliable) */}
-                  <th className="px-2 py-1.5 font-medium">Created</th>
-                </tr>
-              </thead>
+          {loadingDeals ? (
+            <div className="px-4 pb-4">
+              <div className="rounded-xl border p-4 text-xs opacity-80">Loading…</div>
+            </div>
+          ) : filteredDeals.length === 0 ? (
+            renderEmptyStateForView()
+          ) : (
+            <div className="overflow-x-auto px-4 pb-4">
+              <table className="min-w-full text-left text-xs">
+                <thead className="table-header">
+                  <tr>
+                    <th className="px-2 py-1.5 font-medium w-[36px]"></th>
+                    <th className="px-2 py-1.5 font-medium">Company</th>
+                    {selectedView !== 'off_market' && <th className="px-2 py-1.5 font-medium">Source</th>}
+                    {selectedView === 'on_market' && <th className="px-2 py-1.5 font-medium">Location</th>}
+                    {selectedView === 'on_market' && <th className="px-2 py-1.5 font-medium">Industry</th>}
+                    {showTierColumn && <th className="px-2 py-1.5 font-medium">Tier</th>}
+                    <th className="px-2 py-1.5 font-medium">Data confidence</th>
+                    <th className="px-2 py-1.5 font-medium">Why it matters</th>
+                    <th className="px-2 py-1.5 font-medium">Created</th>
+                  </tr>
+                </thead>
 
-              <tbody>
-                {filteredDeals.map((deal) => {
-                  const conf = getDashboardConfidence(deal);
-                  const why = getDashboardWhyItMatters(deal);
-                  const tierApplicableRow = isTierApplicableSource(deal.source_type);
+                <tbody>
+                  {filteredDeals.map((deal) => {
+                    const conf = getDashboardConfidence(deal);
+                    const why = getDashboardWhyItMatters(deal);
+                    const tierApplicableRow = isTierApplicableSource(deal.source_type);
 
-                  return (
-                    <tr key={deal.id} className="table-row">
-                      <td className="px-2 py-2">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(deal.id)}
-                          onChange={() => toggleOne(deal.id)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </td>
+                    return (
+                      <tr
+                        key={deal.id}
+                        className="table-row"
+                        onClick={() => router.push(`/deals/${deal.id}?from_view=${selectedView}`)}
+                        role="button"
+                        tabIndex={0}
+                      >
+                        <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                          <input type="checkbox" checked={selectedIds.has(deal.id)} onChange={() => toggleOne(deal.id)} />
+                        </td>
 
-                      <td className="px-2 py-2">
-                        <div className="flex flex-col">
-                          <Link href={`/deals/${deal.id}?from_view=${selectedView}`} className="underline">
-                            {deal.company_name || 'Untitled'}
-                          </Link>
-                        </div>
-                      </td>
+                        <td className="px-2 py-2">
+                          <div className="flex flex-col">
+                            <Link href={`/deals/${deal.id}?from_view=${selectedView}`} className="underline" onClick={(e) => e.stopPropagation()}>
+                              {deal.company_name || 'Untitled'}
+                            </Link>
+                          </div>
+                        </td>
 
-                      {selectedView !== 'off_market' && <td className="px-2 py-2">{formatSource(deal.source_type)}</td>}
+                        {selectedView !== 'off_market' && <td className="px-2 py-2">{formatSource(deal.source_type)}</td>}
 
-                      {selectedView === 'on_market' && <td className="px-2 py-2">{formatLocation(deal.location_city, deal.location_state)}</td>}
-                      {selectedView === 'on_market' && <td className="px-2 py-2">{deal.industry || ''}</td>}
+                        {selectedView === 'on_market' && <td className="px-2 py-2">{formatLocation(deal.location_city, deal.location_state)}</td>}
+                        {selectedView === 'on_market' && <td className="px-2 py-2">{deal.industry || ''}</td>}
 
-                      {showTierColumn && (
-                        <td className="px-2 py-2">{tierApplicableRow ? <TierPill tier={deal.final_tier} /> : null}</td>
-                      )}
+                        {showTierColumn && <td className="px-2 py-2">{tierApplicableRow ? <TierPill tier={deal.final_tier} /> : null}</td>}
 
-                      <td className="px-2 py-2">
-                        <ConfidencePill icon={conf.icon} label={conf.label} title={conf.reason} level={conf.level} analyzed={conf.analyzed} />
-                      </td>
+                        <td className="px-2 py-2">
+                          <ConfidencePill icon={conf.icon} label={conf.label} title={conf.reason} level={conf.level} analyzed={conf.analyzed} />
+                        </td>
 
-                      <td className="px-2 py-2">
-                        <span className="opacity-90">{why}</span>
-                      </td>
+                        <td className="px-2 py-2">
+                          <span className="opacity-90">{why}</span>
+                        </td>
 
-                      <td className="px-2 py-2">{formatCreated(deal.created_at)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        <td className="px-2 py-2">{formatCreated(deal.created_at)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
 
-            <div className="pt-3 text-[11px] opacity-70">SearchFindr surfaces risk and prioritization signals. Final judgment remains with the buyer.</div>
-          </div>
-        )}
-      </section>
+              <div className="pt-3 text-[11px] opacity-70">SearchFindr surfaces risk and prioritization signals. Final judgment remains with the buyer.</div>
+            </div>
+          )}
+        </section>
+      )}
     </main>
   );
 }
+
+
