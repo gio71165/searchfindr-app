@@ -7,17 +7,12 @@ export const runtime = "nodejs";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
-
-// Set this in env (Vercel project env vars)
-// Example: ON_MARKET_CRON_SECRET="some-long-random-string"
 const CRON_SECRET = process.env.ON_MARKET_CRON_SECRET as string;
 
 function json(status: number, body: any) {
   return NextResponse.json(body, {
     status,
-    headers: {
-      "Cache-Control": "no-store",
-    },
+    headers: { "Cache-Control": "no-store" },
   });
 }
 
@@ -29,9 +24,7 @@ export async function POST(req: NextRequest) {
       });
     }
     if (!CRON_SECRET) {
-      return json(500, {
-        error: "Missing ON_MARKET_CRON_SECRET env var.",
-      });
+      return json(500, { error: "Missing ON_MARKET_CRON_SECRET env var." });
     }
 
     const secret = req.headers.get("x-cron-secret");
@@ -55,9 +48,6 @@ export async function POST(req: NextRequest) {
       ...ingestResult,
     });
   } catch (e: any) {
-    return json(500, {
-      ok: false,
-      error: e?.message ?? String(e),
-    });
+    return json(500, { ok: false, error: e?.message ?? String(e) });
   }
 }

@@ -2,13 +2,11 @@
 import type { ExtractedFields, ListingStub, OnMarketParser } from "./types";
 
 /**
- * MVP RSS parser:
+ * V1 RSS parser (HVAC/Plumbing/Electrical only):
  * - parseIndex: parse RSS XML into listing stubs (url/title/date)
- * - parseDetail: very conservative heuristics on HTML (optional)
+ * - parseDetail: conservative text sample + V1 term hits + optional PDF URL
  *
- * Notes:
- * - We keep this intentionally conservative.
- * - Real broker sites will likely need custom parsers later.
+ * Intentionally conservative: do NOT invent numbers.
  */
 export const rssGenericParser: OnMarketParser = {
   key: "rss_generic",
@@ -16,8 +14,6 @@ export const rssGenericParser: OnMarketParser = {
   async parseIndex(input) {
     const xml = typeof input === "string" ? input : input.text;
 
-    // super-light XML parsing without external deps:
-    // We extract <item> blocks, then pull common tags.
     const items = xml.match(/<item[\s\S]*?<\/item>/gi) ?? [];
 
     const stubs: ListingStub[] = items
@@ -38,10 +34,10 @@ export const rssGenericParser: OnMarketParser = {
       })
       .filter(Boolean) as ListingStub[];
 
-    // Dedup by URL
     const seen = new Set<string>();
     return stubs.filter((s) => {
       const k = s.listing_url;
+      if (!k) return false;
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
@@ -49,11 +45,7 @@ export const rssGenericParser: OnMarketParser = {
   },
 
   async parseDetail(input) {
-    // This is optional for RSS-only sources. If you don't fetch detail pages in MVP,
-    // you can just return minimal extracted fields.
     const html = typeof input === "string" ? input : input.text;
-
-    // Very conservative extraction:
     const text = stripHtml(html);
 
     const teaserPdf = findFirstUrl(html, /\.pdf(\?.*)?$/i);
@@ -62,44 +54,22 @@ export const rssGenericParser: OnMarketParser = {
       company_name: null,
       city: null,
       state: null,
-      financials_strings: [],
+
+      financials_strings: extractFinancialLines(text),
       asking_price: null,
+
       teaser_pdf_url: teaserPdf ?? null,
-      industry_terms: [],
-      deal_type_terms: [],
+
+      // ✅ V1 only terms
+      industry_terms: v1IndustryTerms(text),
+
+      // Deal type hints (very light)
+      deal_type_terms: keywordHits(text, ["asset sale", "stock sale", "membership interest"]),
+
       raw: {
         text_sample: text.slice(0, 2000),
       },
     };
-
-    // Industry terms: extremely basic keyword capture (MVP)
-    // (Normalization will map to industry_tag later.)
-    const industryHits = keywordHits(text, [
-      "hvac",
-      "plumbing",
-      "electrical",
-      "construction",
-      "manufacturing",
-      "software",
-      "saas",
-      "healthcare",
-      "dental",
-      "auto repair",
-      "logistics",
-      "transportation",
-      "landscaping",
-    ]);
-    extracted.industry_terms = industryHits;
-
-    // Deal type hints
-    extracted.deal_type_terms = keywordHits(text, ["asset sale", "stock sale", "membership interest"]);
-
-    // Asking price (very rough)
-    const price = extractMoney(text);
-    if (price !== null) extracted.asking_price = price;
-
-    // Financials strings: pull lines that include revenue/ebitda/net income keywords
-    extracted.financials_strings = extractFinancialLines(text);
 
     return extracted;
   },
@@ -129,6 +99,8 @@ function stripHtml(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+    .replace(/<svg[\s\S]*?<\/svg>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -148,13 +120,13 @@ function keywordHits(text: string, keywords: string[]): string[] {
   const t = text.toLowerCase();
   const hits: string[] = [];
   for (const k of keywords) {
+    if (!k) continue;
     if (t.includes(k.toLowerCase())) hits.push(k);
   }
   return hits;
 }
 
 function findFirstUrl(html: string, endingRegex: RegExp): string | null {
-  // crude URL scan
   const urls = html.match(/https?:\/\/[^\s"'<>]+/gi) ?? [];
   for (const u of urls) {
     if (endingRegex.test(u)) return u;
@@ -162,21 +134,49 @@ function findFirstUrl(html: string, endingRegex: RegExp): string | null {
   return null;
 }
 
-function extractMoney(text: string): number | null {
-  // Matches: $1,234,567 or 1,234,567 or 1.2M (very rough)
-  const m = text.match(/\$\s?([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+(?:\.[0-9]+)?)(\s?[MBmb])?/);
-  if (!m) return null;
+/**
+ * ✅ V1-only term extraction. We keep this broad enough to catch real pages
+ * but ONLY for HVAC/Plumbing/Electrical.
+ */
+function v1IndustryTerms(text: string): string[] {
+  const t = text.toLowerCase();
+  const terms: string[] = [];
 
-  const raw = m[1].replace(/,/g, "");
-  const suffix = (m[2] ?? "").trim().toLowerCase();
+  const add = (term: string, cond: boolean) => {
+    if (cond) terms.push(term);
+  };
 
-  const base = Number(raw);
-  if (!Number.isFinite(base)) return null;
+  // HVAC
+  add("hvac", /\bhvac\b/.test(t));
+  add("heating", /\bheating\b/.test(t));
+  add("air conditioning", /\bair\s+conditioning\b/.test(t) || /\ba\/c\b/.test(t));
+  add("refrigeration", /\brefrigeration\b/.test(t));
+  add("ductwork", /\bduct(work|ing)?\b/.test(t));
+  add("ventilation", /\bventilation\b/.test(t));
+  add("furnace", /\bfurnace\b/.test(t));
+  add("heat pump", /\bheat\s+pump\b/.test(t));
+  add("boiler", /\bboiler\b/.test(t));
 
-  if (suffix === "m") return Math.round(base * 1_000_000);
-  if (suffix === "b") return Math.round(base * 1_000_000_000);
+  // Plumbing
+  add("plumbing", /\bplumb(ing|er|ers)\b/.test(t));
+  add("drain cleaning", /\bdrain\s+clean(ing|er)\b/.test(t));
+  add("sewer", /\bsewer\b/.test(t));
+  add("septic", /\bseptic\b/.test(t));
+  add("water heater", /\bwater\s+heater\b/.test(t));
+  add("backflow", /\bbackflow\b/.test(t));
+  add("pipe repair", /\bpipe\b/.test(t) && /\brepair\b/.test(t));
 
-  return Math.round(base);
+  // Electrical
+  add("electrical", /\belectric(al|ian|ians)\b/.test(t));
+  add("electrical contractor", /\belectrical\s+contract(or|ing)\b/.test(t));
+  add("panel upgrade", /\bpanel\s+upgrade\b/.test(t));
+  add("generator", /\bgenerator\b/.test(t));
+  add("rewire", /\brewiring\b/.test(t) || /\brewired\b/.test(t));
+  add("low voltage", /\blow[-\s]voltage\b/.test(t));
+  add("ev charger", /\bev\s+charger\b/.test(t));
+
+  // Dedup & return
+  return Array.from(new Set(terms));
 }
 
 function extractFinancialLines(text: string): string[] {
@@ -185,16 +185,15 @@ function extractFinancialLines(text: string): string[] {
     .map((l) => l.trim())
     .filter(Boolean);
 
-  const keys = ["revenue", "sales", "ebitda", "sde", "net income", "profit", "cash flow"];
+  const keys = ["annual revenue", "revenue", "sales", "ebitda", "sde", "net income", "profit", "cash flow"];
 
   const out: string[] = [];
   for (const line of lines) {
     const low = line.toLowerCase();
     if (keys.some((k) => low.includes(k))) {
-      // Keep it short
       out.push(line.slice(0, 240));
     }
-    if (out.length >= 10) break;
+    if (out.length >= 12) break;
   }
   return out;
 }

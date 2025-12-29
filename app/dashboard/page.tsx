@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { supabase } from '../supabaseClient';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
-// ✅ Global On-Market client helpers (READ-ONLY global search)
+// ✅ Keep import so backend/dev plumbing stays intact (even though UI is “Coming soon”)
 import { searchOnMarket, type OnMarketDeal } from '@/lib/onmarket/client';
 
 type ConfidenceLevel = 'low' | 'medium' | 'high';
@@ -40,11 +40,11 @@ type Company = {
 };
 
 // Views
-type DashboardView = 'saved' | 'on_market_global' | 'on_market' | 'off_market' | 'cim_pdf' | 'financials';
+type DashboardView = 'saved' | 'on_market' | 'off_market' | 'cim_pdf' | 'financials' | 'on_market_global';
 const DEFAULT_VIEW: DashboardView = 'saved';
 
 function isDashboardView(v: any): v is DashboardView {
-  return v === 'saved' || v === 'on_market_global' || v === 'on_market' || v === 'off_market' || v === 'cim_pdf' || v === 'financials';
+  return v === 'saved' || v === 'on_market' || v === 'off_market' || v === 'cim_pdf' || v === 'financials' || v === 'on_market_global';
 }
 
 function formatSource(source: string | null): string {
@@ -125,42 +125,6 @@ function getDashboardConfidence(deal: Company): {
     label: 'Data confidence: Not analyzed',
     reason: 'No analysis run yet. Open the deal and click “Run AI” to generate signals.',
     analyzed: false,
-  };
-}
-
-/**
- * ✅ Global on-market confidence pill (same style as deal confidence)
- * - No numeric score displayed (ever)
- */
-function getGlobalConfidencePill(d: OnMarketDeal): {
-  icon: '⚠️' | '◑' | '●';
-  label: string;
-  reason: string;
-  level?: ConfidenceLevel;
-  analyzed: boolean;
-} {
-  const lvl = (d.data_confidence || '').toLowerCase() as ConfidenceLevel;
-  const analyzed = lvl === 'low' || lvl === 'medium' || lvl === 'high';
-
-  const iconFromLevel: Record<ConfidenceLevel, '⚠️' | '◑' | '●'> = {
-    low: '⚠️',
-    medium: '◑',
-    high: '●',
-  };
-
-  const icon = analyzed ? iconFromLevel[lvl] : '◑';
-  const labelCore = !analyzed ? 'Not analyzed' : lvl === 'high' ? 'High' : lvl === 'medium' ? 'Medium' : 'Low';
-
-  const reason = analyzed
-    ? 'Based on completeness/quality of listing metadata (not verified financials).'
-    : 'No confidence label available yet.';
-
-  return {
-    icon,
-    label: `Data confidence: ${labelCore}`,
-    reason,
-    level: analyzed ? lvl : undefined,
-    analyzed,
   };
 }
 
@@ -256,6 +220,59 @@ function EmptyStateCard({
   );
 }
 
+function ComingSoonPanel({
+  title,
+  description,
+  primaryLabel,
+  onPrimary,
+  secondaryLabel,
+  onSecondary,
+}: {
+  title: string;
+  description: string;
+  primaryLabel: string;
+  onPrimary: () => void;
+  secondaryLabel?: string;
+  onSecondary?: () => void;
+}) {
+  return (
+    <section className="mt-4">
+      <div className="rounded-2xl border p-8">
+        <div className="max-w-2xl">
+          <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-medium opacity-80">
+            <span aria-hidden>⏳</span>
+            <span>Coming soon</span>
+          </div>
+
+          <h2 className="mt-4 text-xl font-semibold tracking-tight">{title}</h2>
+          <p className="mt-2 text-sm opacity-80">{description}</p>
+
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <button className="btn-main" onClick={onPrimary}>
+              {primaryLabel}
+            </button>
+
+            {secondaryLabel && onSecondary ? (
+              <button className="text-sm underline opacity-80" onClick={onSecondary}>
+                {secondaryLabel}
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-6 rounded-xl border bg-slate-500/5 p-4 text-xs opacity-80">
+            <div className="font-medium">Why you’re seeing this</div>
+            <ul className="mt-2 list-disc pl-5 space-y-1">
+              <li>We’re keeping the backend plumbing in place for dev velocity.</li>
+              <li>During beta, the product is “analyze deals faster”, not “daily deal delivery”.</li>
+              <li>If you want value today: capture a deal with the extension, or upload a CIM/financials.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 const US_STATES = [
   { abbr: 'AL', name: 'Alabama' },
   { abbr: 'AK', name: 'Alaska' },
@@ -309,7 +326,6 @@ const US_STATES = [
   { abbr: 'WY', name: 'Wyoming' },
 ];
 
-// Used for Off-market only
 const OFFMARKET_INDUSTRIES = [
   'HVAC',
   'Electrical',
@@ -324,22 +340,6 @@ const OFFMARKET_INDUSTRIES = [
   'Logistics / Trucking',
   'Light Manufacturing',
   'Specialty Construction',
-];
-
-// ✅ Global tags MUST match on_market_deals.industry_tag values
-const GLOBAL_INDUSTRY_TAGS = [
-  'HVAC',
-  'Plumbing',
-  'Electrical',
-  'Construction',
-  'Manufacturing',
-  'Healthcare',
-  'Dental',
-  'Auto',
-  'Logistics',
-  'IT Services',
-  'Software',
-  'Landscaping',
 ];
 
 const ALLOWED_RADIUS = [5, 10, 15, 25, 50, 75, 100];
@@ -403,17 +403,12 @@ export default function DashboardPage() {
   // Tier controls only apply to companies-based views
   const tierControlsEnabled = selectedView === 'on_market' || selectedView === 'off_market' || selectedView === 'saved';
 
-  // ✅ Global On-Market state (READ ONLY)
-  const [omDeals, setOmDeals] = useState<OnMarketDeal[]>([]);
-  const [omLoading, setOmLoading] = useState(false);
-  const [omError, setOmError] = useState<string | null>(null);
-
-  // Global filters
-  const [omState, setOmState] = useState<string>(''); // '' = all
-  const [omIndustries, setOmIndustries] = useState<string[]>([]);
-  const [omIndustryToAdd, setOmIndustryToAdd] = useState<string>(GLOBAL_INDUSTRY_TAGS[0] ?? 'HVAC');
-  const [omIncludeUnknownFinancials, setOmIncludeUnknownFinancials] = useState(true);
-  const [omIncludeUnknownLocation, setOmIncludeUnknownLocation] = useState(true);
+  // ✅ Keep Global OM state (unused in UI) so dev plumbing remains easy
+  const [_omDeals, _setOmDeals] = useState<OnMarketDeal[]>([]);
+  const [_omLoading, _setOmLoading] = useState(false);
+  const [_omError, _setOmError] = useState<string | null>(null);
+  const [_omHasSearched, _setOmHasSearched] = useState(false);
+  const [_omIncludeUnknownLocation, _setOmIncludeUnknownLocation] = useState(true);
 
   // CIM upload state
   const [cimFile, setCimFile] = useState<File | null>(null);
@@ -429,15 +424,13 @@ export default function DashboardPage() {
   // Off-market search state
   const [offIndustries, setOffIndustries] = useState<string[]>([]);
   const [offIndustryToAdd, setOffIndustryToAdd] = useState<string>(OFFMARKET_INDUSTRIES[0] ?? 'HVAC');
-
   const [offCity, setOffCity] = useState('');
   const [offState, setOffState] = useState('TX');
   const [offRadiusMiles, setOffRadiusMiles] = useState<number>(10);
-
   const [offSearching, setOffSearching] = useState(false);
   const [offSearchStatus, setOffSearchStatus] = useState<string | null>(null);
 
-  // ✅ Change view from URL/localStorage
+  // ✅ Change view from URL/localStorage (KEEP EXACT BEHAVIOR)
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -467,7 +460,8 @@ export default function DashboardPage() {
     setTierFilter('all');
     setSortKey('newest');
     setErrorMsg(null);
-    setOmError(null);
+
+    // Keep behavior: do not auto-run anything for global.
     if (typeof window !== 'undefined') localStorage.setItem('dashboard_view', view);
     router.replace(`/dashboard?view=${view}`);
   };
@@ -478,14 +472,6 @@ export default function DashboardPage() {
   };
   const removeIndustry = (ind: string) => {
     setOffIndustries((prev) => prev.filter((x) => x !== ind));
-  };
-
-  // Global OM industries chip control
-  const addOmIndustry = () => {
-    setOmIndustries((prev) => (prev.includes(omIndustryToAdd) ? prev : [...prev, omIndustryToAdd]));
-  };
-  const removeOmIndustry = (ind: string) => {
-    setOmIndustries((prev) => prev.filter((x) => x !== ind));
   };
 
   const locationString = `${offCity.trim() || '—'}, ${offState}`;
@@ -598,158 +584,14 @@ export default function DashboardPage() {
     init();
   }, [router]);
 
-  // ✅ Global search runner (button driven)
-  const runGlobalSearch = useCallback(async () => {
-    setOmLoading(true);
-    setOmError(null);
-
-    try {
-      const payload: any = {
-        state: omState ? omState : undefined,
-        industries: omIndustries,
-        include_unknown_financials: omIncludeUnknownFinancials,
-        include_unknown_location: omIncludeUnknownLocation,
-        limit: 10,
-        offset: 0,
-        sort: 'freshness',
-      };
-
-      const res = await (searchOnMarket as any)(payload);
-      setOmDeals((res?.deals ?? []) as OnMarketDeal[]);
-    } catch (e: any) {
-      setOmError(e?.message ?? 'Failed to load global inventory.');
-      setOmDeals([]);
-    } finally {
-      setOmLoading(false);
-    }
-  }, [omState, omIndustries, omIncludeUnknownFinancials, omIncludeUnknownLocation]);
-
-  // ✅ Fetch Global On-Market inventory only when view becomes active (auto-run once you open the view)
-  useEffect(() => {
-    if (selectedView !== 'on_market_global') return;
-    runGlobalSearch();
-  }, [selectedView, runGlobalSearch]);
-
-  // Base list by view (companies table only; global OM uses separate state)
-  const baseDealsForView = useMemo(() => {
-    if (selectedView === 'on_market_global') return [];
-
-    return selectedView === 'saved'
-      ? deals.filter((d) => d.is_saved === true)
-      : deals.filter((deal) => {
-          if (selectedView === 'cim_pdf') return deal.source_type === 'cim_pdf';
-          if (selectedView === 'financials') return deal.source_type === 'financials';
-          return deal.source_type === selectedView;
-        });
-  }, [deals, selectedView]);
-
-  // Apply tier filter + sort
-  const filteredDeals = useMemo(() => {
-    let list = [...baseDealsForView];
-
-    if (tierControlsEnabled && tierFilter !== 'all') {
-      list = list.filter((d) => {
-        const tierApplicable = isTierApplicableSource(d.source_type);
-        const t = (d.final_tier || '').toUpperCase();
-
-        if (!tierApplicable && selectedView === 'saved') return true;
-
-        if (tierFilter === 'unrated') {
-          if (selectedView === 'saved') return !t || !tierApplicable;
-          return !t;
-        }
-
-        return t === tierFilter;
-      });
-    }
-
-    const effectiveSortKey: SortKey =
-      !tierControlsEnabled && (sortKey === 'tier_high_to_low' || sortKey === 'tier_low_to_high') ? 'newest' : sortKey;
-
-    list.sort((a, b) => {
-      if (effectiveSortKey === 'newest' || effectiveSortKey === 'oldest') {
-        const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
-        return effectiveSortKey === 'newest' ? bd - ad : ad - bd;
-      }
-
-      if (effectiveSortKey === 'tier_high_to_low' || effectiveSortKey === 'tier_low_to_high') {
-        const aTierApplicable = isTierApplicableSource(a.source_type);
-        const bTierApplicable = isTierApplicableSource(b.source_type);
-
-        const ar = aTierApplicable ? tierRank(a.final_tier) : 998;
-        const br = bTierApplicable ? tierRank(b.final_tier) : 998;
-
-        const primary = effectiveSortKey === 'tier_high_to_low' ? ar - br : br - ar;
-        if (primary !== 0) return primary;
-
-        const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
-        return bd - ad;
-      }
-
-      if (effectiveSortKey === 'company_az' || effectiveSortKey === 'company_za') {
-        const an = normalizeName(a.company_name);
-// CONTINUE from where you got cut off:
-
-        const bn = normalizeName(b.company_name);
-        const cmp = an.localeCompare(bn);
-        return effectiveSortKey === 'company_az' ? cmp : -cmp;
-      }
-
-      return 0;
-    });
-
-    return list;
-  }, [baseDealsForView, tierControlsEnabled, tierFilter, sortKey, selectedView]);
-
-  // keep selections only for visible rows
-  useEffect(() => {
-    const visible = new Set(filteredDeals.map((d) => d.id));
-    setSelectedIds((prev) => {
-      const next = new Set<string>();
-      prev.forEach((id) => {
-        if (visible.has(id)) next.add(id);
-      });
-      return next;
-    });
-  }, [filteredDeals]);
-
-  const visibleIds = useMemo(() => filteredDeals.map((d) => d.id), [filteredDeals]);
-  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
-  const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
-  const selectedCount = selectedIds.size;
-
-  const toggleOne = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const selectAllVisible = () => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      visibleIds.forEach((id) => next.add(id));
-      return next;
-    });
-  };
-
-  const clearSelection = () => setSelectedIds(new Set());
-
-  const toggleSelectAll = () => {
-    if (allVisibleSelected) clearSelection();
-    else selectAllVisible();
-  };
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.replace('/');
   };
 
   // Bulk actions (companies only)
+  const clearSelection = () => setSelectedIds(new Set());
+
   const bulkSaveSelected = async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
@@ -814,6 +656,15 @@ export default function DashboardPage() {
     } finally {
       setBulkBusy(false);
     }
+  };
+
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const handleCimButtonClick = () => cimInputRef.current?.click();
@@ -1082,21 +933,30 @@ export default function DashboardPage() {
     window.open('/extension/callback', '_blank', 'noopener,noreferrer');
   };
 
+  // ✅ Tabs: keep Global but clearly “Coming soon”
+  const tabs = useMemo(
+    () =>
+      [
+        { key: 'saved' as const, label: 'Saved (Pipeline)' },
+        { key: 'on_market' as const, label: 'On-market (Extension)' },
+        { key: 'off_market' as const, label: 'Off-market (Targets)' },
+        { key: 'cim_pdf' as const, label: 'CIM Uploads' },
+        { key: 'financials' as const, label: 'Financial Uploads' },
+        { key: 'on_market_global' as const, label: 'Global Feed (Coming soon)' },
+      ] as const,
+    []
+  );
+
   const viewMeta = useMemo(() => {
     if (selectedView === 'saved')
       return {
         title: 'Saved (Pipeline)',
-        subtitle: 'Your pipeline list. Use Tier sort/filter to prioritize review (tiers only apply to On/Off-market + extension captures).',
-      };
-    if (selectedView === 'on_market_global')
-      return {
-        title: 'On-market (Global Inventory)',
-        subtitle: 'Discovery index. Filter, click out to broker listings, then capture the ones you want using the Chrome extension.',
+        subtitle: 'Your pipeline list. Tier = priority (not quality). Data confidence = completeness/quality of inputs.',
       };
     if (selectedView === 'on_market')
       return {
         title: 'On-market (Extension)',
-        subtitle: 'Listings captured via Chrome extension. Open a deal to run screening analysis (does not verify claims).',
+        subtitle: 'Capture any listing with the Chrome extension to “own” it and run AI.',
       };
     if (selectedView === 'off_market')
       return {
@@ -1106,95 +966,116 @@ export default function DashboardPage() {
     if (selectedView === 'cim_pdf')
       return {
         title: 'CIM Uploads',
-        subtitle: 'Uploads don’t get a Tier — you already prioritized them by uploading. Open a deal to generate memo + labels.',
+        subtitle: 'Upload a CIM to generate memo + labels. Uploads don’t get a Tier.',
+      };
+    if (selectedView === 'financials')
+      return {
+        title: 'Financial Uploads',
+        subtitle: 'Upload financials to run a skeptical quality analysis. Uploads don’t get a Tier.',
       };
     return {
-      title: 'Financial Uploads',
-      subtitle: 'Uploads don’t get a Tier — you already prioritized them by uploading. Open a deal to run financial quality analysis.',
+      title: 'Global Feed',
+      subtitle: 'Coming soon. We’re keeping this hidden during beta so users don’t rely on a half-built feed.',
     };
   }, [selectedView]);
 
-  const renderEmptyStateForView = () => {
-    if (selectedView === 'saved') {
-      return (
-        <EmptyStateCard
-          title="No saved deals yet"
-          description="Capture deals via the extension or run Off-market searches, then save the ones you want in your pipeline."
-          primaryLabel="Go to Global On-market"
-          onPrimary={() => changeView('on_market_global')}
-          secondaryLabel="Go to Off-market"
-          onSecondary={() => changeView('off_market')}
-        />
-      );
+  // Base list by view (companies table only)
+  const baseDealsForView = useMemo(() => {
+    if (selectedView === 'on_market_global') return [];
+
+    return selectedView === 'saved'
+      ? deals.filter((d) => d.is_saved === true)
+      : deals.filter((deal) => {
+          if (selectedView === 'cim_pdf') return deal.source_type === 'cim_pdf';
+          if (selectedView === 'financials') return deal.source_type === 'financials';
+          return deal.source_type === selectedView;
+        });
+  }, [deals, selectedView]);
+
+  const filteredDeals = useMemo(() => {
+    let list = [...baseDealsForView];
+
+    if (tierControlsEnabled && tierFilter !== 'all') {
+      list = list.filter((d) => {
+        const tierApplicable = isTierApplicableSource(d.source_type);
+        const t = (d.final_tier || '').toUpperCase();
+
+        if (!tierApplicable && selectedView === 'saved') return true;
+
+        if (tierFilter === 'unrated') {
+          if (selectedView === 'saved') return !t || !tierApplicable;
+          return !t;
+        }
+
+        return t === tierFilter;
+      });
     }
 
-    if (selectedView === 'on_market_global') {
-      return (
-        <EmptyStateCard
-          title="No global deals found"
-          description="Try changing filters, or keep “Include unknown location” on — many listings won’t have full location metadata."
-          primaryLabel="Reset filters"
-          onPrimary={() => {
-            setOmState('');
-            setOmIndustries([]);
-            setOmIncludeUnknownFinancials(true);
-            setOmIncludeUnknownLocation(true);
-          }}
-          secondaryLabel="Go to Extension On-market"
-          onSecondary={() => changeView('on_market')}
-        />
-      );
-    }
+    const effectiveSortKey: SortKey =
+      !tierControlsEnabled && (sortKey === 'tier_high_to_low' || sortKey === 'tier_low_to_high') ? 'newest' : sortKey;
 
-    if (selectedView === 'on_market') {
-      return (
-        <EmptyStateCard
-          title="No on-market deals yet"
-          description="Use the Chrome extension to capture live listings and send them here."
-          primaryLabel="Connect Chrome extension"
-          onPrimary={handleConnectExtension}
-          secondaryLabel="Go to Global On-market"
-          onSecondary={() => changeView('on_market_global')}
-        />
-      );
-    }
+    list.sort((a, b) => {
+      if (effectiveSortKey === 'newest' || effectiveSortKey === 'oldest') {
+        const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return effectiveSortKey === 'newest' ? bd - ad : ad - bd;
+      }
 
-    if (selectedView === 'off_market') {
-      return (
-        <EmptyStateCard
-          title="No off-market results yet"
-          description="Search by industry + geography to surface owner-operated SMBs. Results are leads, not verified."
-          primaryLabel="Run a search below"
-          onPrimary={() => setOffSearchStatus(offSearchStatus ?? 'Add industries + city/state, then click Search.')}
-          secondaryLabel="Go to Saved"
-          onSecondary={() => changeView('saved')}
-        />
-      );
-    }
+      if (effectiveSortKey === 'tier_high_to_low' || effectiveSortKey === 'tier_low_to_high') {
+        const aTierApplicable = isTierApplicableSource(a.source_type);
+        const bTierApplicable = isTierApplicableSource(b.source_type);
 
-    if (selectedView === 'financials') {
-      return (
-        <EmptyStateCard
-          title="No financial uploads yet"
-          description="Upload financials and run a skeptical quality analysis (red flags, green flags, missing items)."
-          primaryLabel="Upload Financials"
-          onPrimary={handleFinancialsButtonClick}
-          secondaryLabel="Go to CIM Uploads"
-          onSecondary={() => changeView('cim_pdf')}
-        />
-      );
-    }
+        const ar = aTierApplicable ? tierRank(a.final_tier) : 998;
+        const br = bTierApplicable ? tierRank(b.final_tier) : 998;
 
-    return (
-      <EmptyStateCard
-        title="No CIM uploads yet"
-        description="Upload a CIM to generate an AI investment memo."
-        primaryLabel="Upload CIM (PDF)"
-        onPrimary={handleCimButtonClick}
-        secondaryLabel="Go to Global On-market"
-        onSecondary={() => changeView('on_market_global')}
-      />
-    );
+        const primary = effectiveSortKey === 'tier_high_to_low' ? ar - br : br - ar;
+        if (primary !== 0) return primary;
+
+        const ad = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const bd = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return bd - ad;
+      }
+
+      if (effectiveSortKey === 'company_az' || effectiveSortKey === 'company_za') {
+        const an = normalizeName(a.company_name);
+        const bn = normalizeName(b.company_name);
+        const cmp = an.localeCompare(bn);
+        return effectiveSortKey === 'company_az' ? cmp : -cmp;
+      }
+
+      return 0;
+    });
+
+    return list;
+  }, [baseDealsForView, tierControlsEnabled, tierFilter, sortKey, selectedView]);
+
+  // keep selections only for visible rows
+  useEffect(() => {
+    const visible = new Set(filteredDeals.map((d) => d.id));
+    setSelectedIds((prev) => {
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (visible.has(id)) next.add(id);
+      });
+      return next;
+    });
+  }, [filteredDeals]);
+
+  const visibleIds = useMemo(() => filteredDeals.map((d) => d.id), [filteredDeals]);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.has(id));
+  const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
+  const selectedCount = selectedIds.size;
+
+  const selectAllVisible = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      visibleIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+  const toggleSelectAll = () => {
+    if (allVisibleSelected) clearSelection();
+    else selectAllVisible();
   };
 
   const BulkBar = () => {
@@ -1248,18 +1129,70 @@ export default function DashboardPage() {
     );
   };
 
-  const tabs = useMemo(
-    () =>
-      [
-        { key: 'saved' as const, label: 'Saved (Pipeline)' },
-        { key: 'on_market_global' as const, label: 'On-market (Global)' },
-        { key: 'on_market' as const, label: 'On-market (Extension)' },
-        { key: 'off_market' as const, label: 'Off-market (Targets)' },
-        { key: 'cim_pdf' as const, label: 'CIM Uploads' },
-        { key: 'financials' as const, label: 'Financial Uploads' },
-      ] as const,
-    []
-  );
+  const renderEmptyStateForView = () => {
+    if (selectedView === 'saved') {
+      return (
+        <EmptyStateCard
+          title="No saved deals yet"
+          description="Capture deals via the extension or upload a CIM/financials, then save the ones you want in your pipeline."
+          primaryLabel="Go to On-market (Extension)"
+          onPrimary={() => changeView('on_market')}
+          secondaryLabel="Upload a CIM"
+          onSecondary={() => changeView('cim_pdf')}
+        />
+      );
+    }
+
+    if (selectedView === 'on_market') {
+      return (
+        <EmptyStateCard
+          title="No on-market deals yet"
+          description="Use the Chrome extension to capture live listings and send them here."
+          primaryLabel="Connect Chrome extension"
+          onPrimary={handleConnectExtension}
+          secondaryLabel="Go to Saved"
+          onSecondary={() => changeView('saved')}
+        />
+      );
+    }
+
+    if (selectedView === 'off_market') {
+      return (
+        <EmptyStateCard
+          title="No off-market results yet"
+          description="Search by industry + geography to surface owner-operated SMBs. Results are leads, not verified."
+          primaryLabel="Run a search below"
+          onPrimary={() => setOffSearchStatus(offSearchStatus ?? 'Add industries + city/state, then click Search.')}
+          secondaryLabel="Go to Saved"
+          onSecondary={() => changeView('saved')}
+        />
+      );
+    }
+
+    if (selectedView === 'financials') {
+      return (
+        <EmptyStateCard
+          title="No financial uploads yet"
+          description="Upload financials and run a skeptical quality analysis (red flags, green flags, missing items)."
+          primaryLabel="Upload Financials"
+          onPrimary={handleFinancialsButtonClick}
+          secondaryLabel="Go to CIM Uploads"
+          onSecondary={() => changeView('cim_pdf')}
+        />
+      );
+    }
+
+    return (
+      <EmptyStateCard
+        title="No CIM uploads yet"
+        description="Upload a CIM to generate an AI investment memo."
+        primaryLabel="Upload CIM (PDF)"
+        onPrimary={handleCimButtonClick}
+        secondaryLabel="Go to On-market (Extension)"
+        onSecondary={() => changeView('on_market')}
+      />
+    );
+  };
 
   const showTierColumn = selectedView === 'on_market' || selectedView === 'off_market' || selectedView === 'saved';
 
@@ -1271,12 +1204,30 @@ export default function DashboardPage() {
     );
   }
 
+  // ✅ Shared select styles (theme-aware)
+  const selectCls =
+    'w-full rounded-lg border px-3 py-2 text-sm appearance-none bg-transparent ' +
+    'text-[color:var(--foreground)] border-black/20 dark:border-white/20 ' +
+    'focus:outline-none focus:ring-2 focus:ring-black/10 dark:focus:ring-white/10';
+
+  // ✅ If user clicks Global Feed: show ONLY Coming Soon page (no table, no controls)
+  const renderGlobalComingSoon = () => (
+    <ComingSoonPanel
+      title="Global Feed"
+      description="We’re building a real on-market feed — but we’re not shipping a half-done version. During private beta, SearchFindr is focused on analyzing deals you bring in."
+      primaryLabel="Go to On-market (Extension)"
+      onPrimary={() => changeView('on_market')}
+      secondaryLabel="Upload a CIM"
+      onSecondary={() => changeView('cim_pdf')}
+    />
+  );
+
   return (
     <main className="space-y-6 py-6 px-4">
       <header className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">My Deals</h1>
-          <p className="text-sm">Search + early diligence workspace. Tier = priority (not quality). Data confidence = completeness/quality of inputs.</p>
+          <p className="text-sm">Analyze deals faster. Tier = priority (not quality). Data confidence = completeness/quality of inputs.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -1286,7 +1237,7 @@ export default function DashboardPage() {
             </span>
           )}
           <ThemeToggle />
-          <button onClick={handleConnectExtension} className="btn-main">
+          <button onClick={() => window.open('/extension/callback', '_blank', 'noopener,noreferrer')} className="btn-main">
             Connect Chrome Extension
           </button>
           <button onClick={refreshDeals} className="btn-main" disabled={refreshing || loadingDeals || !workspaceId}>
@@ -1343,13 +1294,6 @@ export default function DashboardPage() {
                   />
                 </>
               ) : null}
-
-              {/* ✅ Search button for global (not “refresh”) */}
-              {selectedView === 'on_market_global' ? (
-                <button className="btn-main" onClick={runGlobalSearch} disabled={omLoading}>
-                  {omLoading ? 'Searching…' : 'Search'}
-                </button>
-              ) : null}
             </div>
           </div>
 
@@ -1375,253 +1319,11 @@ export default function DashboardPage() {
         </section>
       </div>
 
-      {/* ✅ Global On-market controls */}
-      {selectedView === 'on_market_global' && (
-        <section className="card-table p-4 space-y-3">
-          <div>
-            <h2 className="text-sm font-semibold">Global inventory filters</h2>
-            <p className="text-xs opacity-80">Filter, click out, then capture what you want with the extension.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs opacity-80">State</label>
-              <select className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm" value={omState} onChange={(e) => setOmState(e.target.value)}>
-                <option value="">All states</option>
-                {US_STATES.map((s) => (
-                  <option key={s.abbr} value={s.abbr}>
-                    {s.abbr} — {s.name}
-                  </option>
-                ))}
-              </select>
-              <p className="text-[11px] opacity-70">Tip: many listings won’t have state at first — keep “Include unknown location” on.</p>
-            </div>
-
-            <div className="space-y-1 md:col-span-2">
-              <label className="text-xs opacity-80">Industries</label>
-
-              <div className="flex gap-2">
-                <select
-                  className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm"
-                  value={omIndustryToAdd}
-                  onChange={(e) => setOmIndustryToAdd(e.target.value)}
-                >
-                  {GLOBAL_INDUSTRY_TAGS.map((ind) => (
-                    <option key={ind} value={ind}>
-                      {ind}
-                    </option>
-                  ))}
-                </select>
-
-                <button type="button" className="btn-main" onClick={addOmIndustry}>
-                  Add
-                </button>
-              </div>
-
-              {omIndustries.length > 0 ? (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {omIndustries.map((ind) => (
-                    <span key={ind} className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs">
-                      {ind}
-                      <button type="button" className="text-[11px] underline" onClick={() => removeOmIndustry(ind)}>
-                        remove
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="mt-2 text-xs opacity-70">No industries selected (shows all industries).</p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-6">
-            <label className="inline-flex items-center gap-2 text-xs">
-              <input type="checkbox" checked={omIncludeUnknownFinancials} onChange={(e) => setOmIncludeUnknownFinancials(e.target.checked)} />
-              <span className="opacity-80">Include unknown financials</span>
-            </label>
-
-            <label className="inline-flex items-center gap-2 text-xs">
-              <input type="checkbox" checked={omIncludeUnknownLocation} onChange={(e) => setOmIncludeUnknownLocation(e.target.checked)} />
-              <span className="opacity-80">Include unknown location</span>
-            </label>
-
-            <button className="btn-main" onClick={runGlobalSearch} disabled={omLoading}>
-              {omLoading ? 'Searching…' : 'Search'}
-            </button>
-          </div>
-
-          {omError ? <p className="text-xs text-red-600">{omError}</p> : null}
-        </section>
-      )}
-
-      {/* Off-market search tool */}
-      {selectedView === 'off_market' && (
-        <section className="card-table p-4 space-y-3">
-          <div>
-            <h2 className="text-sm font-semibold">Off-market discovery</h2>
-            <p className="text-xs opacity-80">Add industries + enter city/state + radius. Results appear in Off-market as leads. Tiers here are light surface signals.</p>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs opacity-80">Industries</label>
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                <select className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm" value={offIndustryToAdd} onChange={(e) => setOffIndustryToAdd(e.target.value)}>
-                  {OFFMARKET_INDUSTRIES.map((ind) => (
-                    <option key={ind} value={ind}>
-                      {ind}
-                    </option>
-                  ))}
-                </select>
-
-                <button type="button" className="btn-main" onClick={addIndustry}>
-                  Add
-                </button>
-              </div>
-
-              {offIndustries.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {offIndustries.map((ind) => (
-                    <span key={ind} className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs">
-                      {ind}
-                      <button type="button" className="text-[11px] underline" onClick={() => removeIndustry(ind)}>
-                        remove
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs opacity-70">Add at least one industry to search.</p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs opacity-80">City</label>
-              <input className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm" value={offCity} onChange={(e) => setOffCity(e.target.value)} placeholder="e.g. Austin" />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs opacity-80">State</label>
-              <select className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm" value={offState} onChange={(e) => setOffState(e.target.value)}>
-                {US_STATES.map((s) => (
-                  <option key={s.abbr} value={s.abbr}>
-                    {s.abbr} — {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs opacity-80">Radius (miles)</label>
-              <select className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm" value={offRadiusMiles} onChange={(e) => setOffRadiusMiles(Number(e.target.value))}>
-                {ALLOWED_RADIUS.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button className="btn-main" onClick={handleOffMarketSearch} disabled={offSearching}>
-              {offSearching ? 'Searching…' : 'Search'}
-            </button>
-
-            <span className="text-xs opacity-80">Location: {locationString}</span>
-
-            {offSearchStatus && <span className="text-xs opacity-80">{offSearchStatus}</span>}
-          </div>
-        </section>
-      )}
-
-      {/* ✅ Global On-market table (READ ONLY) */}
+      {/* ✅ Global feed = COMING SOON PAGE ONLY */}
       {selectedView === 'on_market_global' ? (
-        <section className="mt-4 card-table">
-          <div className="mb-2 flex flex-col gap-2 px-4 pt-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3">
-              <h2 className="text-sm font-semibold">On-market (Global)</h2>
-              {omLoading ? (
-                <p className="text-xs">Loading…</p>
-              ) : (
-                <p className="text-xs opacity-80">{omDeals.length === 0 ? 'No deals found.' : `${omDeals.length} deal(s) shown.`}</p>
-              )}
-            </div>
-
-            <div className="text-[11px] opacity-70">Click out to the listing. To “own” a deal and run AI, capture it with the Chrome extension.</div>
-          </div>
-
-          {omError && <p className="px-4 pb-2 text-xs text-red-600">{omError}</p>}
-
-          {omLoading ? (
-            <div className="px-4 pb-4">
-              <div className="rounded-xl border p-4 text-xs opacity-80">Loading…</div>
-            </div>
-          ) : omDeals.length === 0 ? (
-            renderEmptyStateForView()
-          ) : (
-            <div className="overflow-x-auto px-4 pb-4">
-              <table className="min-w-full text-left text-xs">
-                <thead className="table-header">
-                  <tr>
-                    <th className="px-2 py-1.5 font-medium">Headline</th>
-                    <th className="px-2 py-1.5 font-medium">Industry</th>
-                    <th className="px-2 py-1.5 font-medium">Location</th>
-                    <th className="px-2 py-1.5 font-medium">Data confidence</th>
-                    <th className="px-2 py-1.5 font-medium">Source</th>
-                    <th className="px-2 py-1.5 font-medium w-[120px]"></th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {omDeals.map((d) => {
-                    const conf = getGlobalConfidencePill(d);
-                    const loc = [d.location_city, d.location_state].filter(Boolean).join(', ') || '—';
-
-                    return (
-                      <tr key={d.id} className="table-row">
-                        <td className="px-2 py-2">
-                          <div className="flex flex-col">
-                            <span className="font-medium">{d.headline}</span>
-                            {d.company_name && d.company_name !== d.headline ? <span className="text-[11px] opacity-70">{d.company_name}</span> : null}
-                          </div>
-                        </td>
-
-                        <td className="px-2 py-2">{d.industry_tag ?? '—'}</td>
-
-                        <td className="px-2 py-2">{loc}</td>
-
-                        <td className="px-2 py-2">
-                          <ConfidencePill icon={conf.icon} label={conf.label} title={conf.reason} level={conf.level} analyzed={conf.analyzed} />
-                        </td>
-
-                        <td className="px-2 py-2">
-                          <a className="underline" href={d.source_url} target="_blank" rel="noreferrer">
-                            {d.source_name}
-                          </a>
-                        </td>
-
-                        <td className="px-2 py-2">
-                          <a className="btn-main inline-flex justify-center" href={d.source_url} target="_blank" rel="noreferrer" title="Open the broker listing page in a new tab.">
-                            Open
-                          </a>
-                          <div className="mt-1 text-[11px] opacity-70">Capture via extension</div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              <div className="pt-3 text-[11px] opacity-70">SearchFindr surfaces risk and prioritization signals. Final judgment remains with the buyer.</div>
-            </div>
-          )}
-        </section>
+        renderGlobalComingSoon()
       ) : (
-        // ✅ Existing companies table for all other views
+        // ✅ Companies table for all other views
         <section className="mt-4 card-table">
           <div className="mb-2 flex flex-col gap-2 px-4 pt-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-3">
@@ -1636,7 +1338,11 @@ export default function DashboardPage() {
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs opacity-80">Sort</span>
-                <select className="rounded-lg border px-3 py-2 bg-transparent text-xs" value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}>
+                <select
+                  className="rounded-lg border px-3 py-2 bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 text-xs"
+                  value={sortKey}
+                  onChange={(e) => setSortKey(e.target.value as SortKey)}
+                >
                   <option value="newest">Newest</option>
                   <option value="oldest">Oldest</option>
 
@@ -1655,7 +1361,11 @@ export default function DashboardPage() {
               {tierControlsEnabled ? (
                 <div className="flex items-center gap-2">
                   <span className="text-xs opacity-80">Tier</span>
-                  <select className="rounded-lg border px-3 py-2 bg-transparent text-xs" value={tierFilter} onChange={(e) => setTierFilter(e.target.value as TierFilter)}>
+                  <select
+                    className="rounded-lg border px-3 py-2 bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 text-xs"
+                    value={tierFilter}
+                    onChange={(e) => setTierFilter(e.target.value as TierFilter)}
+                  >
                     <option value="all">All</option>
                     <option value="A">Tier A</option>
                     <option value="B">Tier B</option>
@@ -1679,7 +1389,65 @@ export default function DashboardPage() {
 
           {errorMsg && <p className="px-4 pb-2 text-xs text-red-600">{errorMsg}</p>}
 
-          {filteredDeals.length > 0 && <BulkBar />}
+          {filteredDeals.length > 0 && (
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-4">
+              <div className="flex flex-wrap items-center gap-3 text-xs">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = !allVisibleSelected && someVisibleSelected;
+                    }}
+                    onChange={() => {
+                      if (allVisibleSelected) clearSelection();
+                      else {
+                        setSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          visibleIds.forEach((id) => next.add(id));
+                          return next;
+                        });
+                      }
+                    }}
+                    disabled={bulkBusy || loadingDeals || filteredDeals.length === 0}
+                  />
+                  <span>{allVisibleSelected ? 'All selected' : 'Select all'}</span>
+                </label>
+
+                <button
+                  className="text-xs underline opacity-80"
+                  onClick={clearSelection}
+                  disabled={bulkBusy || loadingDeals || filteredDeals.length === 0 || selectedCount === 0}
+                >
+                  Clear
+                </button>
+
+                <span className="opacity-70">{selectedCount} selected</span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {selectedView === 'saved' ? (
+                  <button className="btn-main" onClick={bulkUnsaveSelected} disabled={bulkBusy || selectedCount === 0}>
+                    {bulkBusy ? 'Working…' : 'Remove selected from Saved'}
+                  </button>
+                ) : (
+                  <button className="btn-main" onClick={bulkSaveSelected} disabled={bulkBusy || selectedCount === 0}>
+                    {bulkBusy ? 'Working…' : 'Save selected'}
+                  </button>
+                )}
+
+                <button
+                  className="btn-main"
+                  onClick={bulkDeleteSelected}
+                  disabled={bulkBusy || selectedCount === 0}
+                  aria-disabled={bulkBusy || selectedCount === 0}
+                  title="Deletes deal records from your workspace (cannot be undone)."
+                >
+                  {bulkBusy ? 'Working…' : 'Delete selected'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {loadingDeals ? (
             <div className="px-4 pb-4">
@@ -1757,8 +1525,89 @@ export default function DashboardPage() {
           )}
         </section>
       )}
+
+      {/* Off-market search tool (UNCHANGED UI) */}
+      {selectedView === 'off_market' && (
+        <section className="card-table p-4 space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold">Off-market discovery</h2>
+            <p className="text-xs opacity-80">Add industries + enter city/state + radius. Results appear in Off-market as leads. Tiers here are light surface signals.</p>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs opacity-80">Industries</label>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <select className={selectCls} value={offIndustryToAdd} onChange={(e) => setOffIndustryToAdd(e.target.value)}>
+                  {OFFMARKET_INDUSTRIES.map((ind) => (
+                    <option key={ind} value={ind}>
+                      {ind}
+                    </option>
+                  ))}
+                </select>
+
+                <button type="button" className="btn-main" onClick={addIndustry}>
+                  Add
+                </button>
+              </div>
+
+              {offIndustries.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {offIndustries.map((ind) => (
+                    <span key={ind} className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs">
+                      {ind}
+                      <button type="button" className="text-[11px] underline" onClick={() => removeIndustry(ind)}>
+                        remove
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs opacity-70">Add at least one industry to search.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs opacity-80">City</label>
+              <input className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm" value={offCity} onChange={(e) => setOffCity(e.target.value)} placeholder="e.g. Austin" />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs opacity-80">State</label>
+              <select className={selectCls} value={offState} onChange={(e) => setOffState(e.target.value)}>
+                {US_STATES.map((s) => (
+                  <option key={s.abbr} value={s.abbr}>
+                    {s.abbr} — {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs opacity-80">Radius (miles)</label>
+              <select className={selectCls} value={offRadiusMiles} onChange={(e) => setOffRadiusMiles(Number(e.target.value))}>
+                {ALLOWED_RADIUS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button className="btn-main" onClick={handleOffMarketSearch} disabled={offSearching}>
+              {offSearching ? 'Searching…' : 'Search'}
+            </button>
+
+            <span className="text-xs opacity-80">Location: {locationString}</span>
+
+            {offSearchStatus && <span className="text-xs opacity-80">{offSearchStatus}</span>}
+          </div>
+        </section>
+      )}
     </main>
   );
 }
-
-

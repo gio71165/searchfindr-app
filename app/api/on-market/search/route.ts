@@ -7,6 +7,17 @@ export const runtime = "nodejs";
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
 
+/**
+ * V1: HARD LOCK
+ * Only these industries are allowed anywhere in global promoted inventory.
+ */
+const V1_ALLOWED_INDUSTRIES = ["HVAC", "Plumbing", "Electrical"] as const;
+type V1Industry = (typeof V1_ALLOWED_INDUSTRIES)[number];
+
+function isV1Industry(x: unknown): x is V1Industry {
+  return typeof x === "string" && (V1_ALLOWED_INDUSTRIES as readonly string[]).includes(x);
+}
+
 function json(status: number, body: any) {
   return NextResponse.json(body, {
     status,
@@ -14,7 +25,6 @@ function json(status: number, body: any) {
   });
 }
 
-// Maps our display bands to numeric ranges (representative overlap logic)
 function bandToRange(kind: "revenue" | "ebitda", band: string): { min: number; max: number } | null {
   const b = band.trim();
 
@@ -41,9 +51,22 @@ function bandToRange(kind: "revenue" | "ebitda", band: string): { min: number; m
 
 function parseBool(v: string | null, defaultVal: boolean) {
   if (v === null || v === undefined) return defaultVal;
-  if (v === "1" || v === "true" || v === "yes") return true;
-  if (v === "0" || v === "false" || v === "no") return false;
+  const s = String(v).toLowerCase().trim();
+  if (s === "1" || s === "true" || s === "yes") return true;
+  if (s === "0" || s === "false" || s === "no") return false;
   return defaultVal;
+}
+
+/**
+ * Parse ?industry=HVAC&industry=Plumbing
+ * V1: sanitize to ONLY allowed tags; if caller provides only invalid tags => return 0 results.
+ */
+function parseIndustries(sp: URLSearchParams): { mode: "default" | "explicit"; industries: V1Industry[] } {
+  const raw = sp.getAll("industry").map((x) => String(x).trim());
+  if (!raw.length) return { mode: "default", industries: [...V1_ALLOWED_INDUSTRIES] };
+
+  const cleaned = raw.filter(isV1Industry);
+  return { mode: "explicit", industries: cleaned };
 }
 
 export async function GET(req: NextRequest) {
@@ -60,20 +83,28 @@ export async function GET(req: NextRequest) {
     const sp = req.nextUrl.searchParams;
 
     // Filters
-    const industries = sp.getAll("industry"); // ?industry=HVAC&industry=Plumbing
-    const state = sp.get("state"); // e.g. TX (optional)
-    const includeUnknownLocation = parseBool(sp.get("include_unknown_location"), true);
+    const { mode: industryMode, industries } = parseIndustries(sp);
+    const stateRaw = sp.get("state"); // e.g. TX (optional)
+    const state = stateRaw ? String(stateRaw).trim().toUpperCase() : null;
+
+    // ✅ default curated behavior
+    const includeUnknownLocation = parseBool(sp.get("include_unknown_location"), false);
+    const includeUnknownFinancials = parseBool(sp.get("include_unknown_financials"), false);
 
     const revenueBand = sp.get("revenue_band");
     const ebitdaBand = sp.get("ebitda_band");
-    const includeUnknownFinancials = parseBool(sp.get("include_unknown_financials"), true);
 
     // Pagination
     const limit = Math.min(Math.max(Number(sp.get("limit") ?? 25), 1), 50);
     const offset = Math.max(Number(sp.get("offset") ?? 0), 0);
 
     // Sort
-    const sort = (sp.get("sort") ?? "freshness").toLowerCase(); // "freshness" | "confidence"
+    const sort = (sp.get("sort") ?? "confidence").toLowerCase(); // "freshness" | "confidence"
+
+    // If user explicitly passed industries, but ALL were invalid, return empty set (strict).
+    if (industryMode === "explicit" && industries.length === 0) {
+      return json(200, { ok: true, limit, offset, count: 0, deals: [] });
+    }
 
     let q = supabase
       .from("on_market_deals")
@@ -106,19 +137,23 @@ export async function GET(req: NextRequest) {
           "promoted_date",
         ].join(",")
       )
-      // ✅ "Promoted" = promoted_date IS NOT NULL
-      .not("promoted_date", "is", null);
-
-    // Industry filter
-    if (industries.length > 0) q = q.in("industry_tag", industries);
+      // ✅ Only promoted inventory
+      .not("promoted_date", "is", null)
+      // ✅ Only deals we actually classified into your V1 taxonomy
+      .in("industry_tag", industries)
+      // ✅ Minimum confidence for “premium” defaults
+      .gte("industry_confidence", 70);
 
     // Geo filter (with optional include unknown location)
     if (state) {
-      const s = state.toUpperCase();
       if (includeUnknownLocation) {
-        q = q.or(`location_state.eq.${s},location_state.is.null`);
+        q = q.or(`location_state.eq.${state},location_state.is.null`);
       } else {
-        q = q.eq("location_state", s);
+        q = q.eq("location_state", state);
+      }
+    } else {
+      if (!includeUnknownLocation) {
+        q = q.not("location_state", "is", null);
       }
     }
 
@@ -127,9 +162,10 @@ export async function GET(req: NextRequest) {
       const r = bandToRange("revenue", revenueBand);
       if (r) {
         if (includeUnknownFinancials) {
+          // ✅ IMPORTANT: both null must be AND(), not comma
           q = q.or(
             [
-              "revenue_min.is.null,revenue_max.is.null",
+              "and(revenue_min.is.null,revenue_max.is.null)",
               `and(revenue_max.gte.${r.min},revenue_min.lte.${r.max})`,
               `and(revenue_min.is.null,revenue_max.gte.${r.min})`,
               `and(revenue_max.is.null,revenue_min.lte.${r.max})`,
@@ -152,9 +188,10 @@ export async function GET(req: NextRequest) {
       const r = bandToRange("ebitda", ebitdaBand);
       if (r) {
         if (includeUnknownFinancials) {
+          // ✅ IMPORTANT: both null must be AND(), not comma
           q = q.or(
             [
-              "ebitda_min.is.null,ebitda_max.is.null",
+              "and(ebitda_min.is.null,ebitda_max.is.null)",
               `and(ebitda_max.gte.${r.min},ebitda_min.lte.${r.max})`,
               `and(ebitda_min.is.null,ebitda_max.gte.${r.min})`,
               `and(ebitda_max.is.null,ebitda_min.lte.${r.max})`,
@@ -173,10 +210,13 @@ export async function GET(req: NextRequest) {
     }
 
     // Sorting
-    if (sort === "confidence") {
-      q = q.order("confidence_score", { ascending: false }).order("last_seen_at", { ascending: false });
-    } else {
+    if (sort === "freshness") {
       q = q.order("last_seen_at", { ascending: false }).order("confidence_score", { ascending: false });
+    } else {
+      q = q
+        .order("industry_confidence", { ascending: false })
+        .order("confidence_score", { ascending: false })
+        .order("last_seen_at", { ascending: false });
     }
 
     // Pagination

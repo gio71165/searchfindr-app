@@ -1,9 +1,8 @@
 // lib/onmarket/ingest/worker.ts
-
 import crypto from "crypto";
 import { getParser } from "../parsers";
 import type { ListingStub } from "../parsers/types";
-import { normalizeDeal } from "../normalize";
+import { normalizeDeal, type NormalizedDeal, type V1IndustryTag } from "../normalize";
 
 // Minimal shape of the supabase client we use here
 type SupabaseAdmin = {
@@ -21,6 +20,11 @@ type IngestResult = {
   heldDeals: number;
   errors: Array<{ sourceId?: string; sourceName?: string; where: string; message: string }>;
 };
+
+/**
+ * V1 hard lock
+ */
+const V1_ALLOWED_INDUSTRIES: readonly V1IndustryTag[] = ["HVAC", "Plumbing", "Electrical"] as const;
 
 export async function runOnMarketIngestion(args: {
   supabaseAdmin: SupabaseAdmin;
@@ -46,9 +50,11 @@ export async function runOnMarketIngestion(args: {
   };
 
   const now = new Date();
-  const today = isoDate(now); // YYYY-MM-DD
 
-  // ✅ DEBUG: Increase default cap while testing (was 10)
+  // ✅ Use America/Chicago “today” for caps + promoted_date
+  const today = isoDateInTimeZone(now, "America/Chicago"); // YYYY-MM-DD
+
+  // Debug-friendly cap while testing
   await ensureDailyCapRow(supabaseAdmin, today, 1000);
 
   // Pull enabled sources
@@ -58,9 +64,7 @@ export async function runOnMarketIngestion(args: {
     .eq("is_enabled", true)
     .limit(maxSourcesPerRun);
 
-  if (sourcesErr) {
-    throw new Error(`Failed to load on_market_sources: ${sourcesErr.message}`);
-  }
+  if (sourcesErr) throw new Error(`Failed to load on_market_sources: ${sourcesErr.message}`);
 
   for (const source of sources ?? []) {
     const due = isSourceDue(source, now);
@@ -71,14 +75,31 @@ export async function runOnMarketIngestion(args: {
 
     result.sourcesProcessed += 1;
 
+    const delayMs = perRequestDelayMs(Number(source.rate_limit_per_minute ?? 0));
+
     try {
       const parser = getParser(source.parser_key);
 
-      // polite-ish: rate limit per source by spacing requests (MVP)
-      // We still keep it simple; real worker should use a per-domain scheduler.
-      const entryRes = await safeFetch(fetchFn, source.entry_url, {
-        headers: { "User-Agent": "SearchFindrBot/0.1 (+on-market-indexer)" },
-      });
+      // ----------------------------
+      // 1) Fetch index
+      // ----------------------------
+      let entryRes: Response;
+      try {
+        entryRes = await safeFetch(fetchFn, source.entry_url, {
+          headers: browserHeaders(),
+          timeoutMs: timeoutForUrl(source.entry_url),
+        });
+        await sleep(delayMs);
+      } catch (e: any) {
+        await markSourceCrawl(supabaseAdmin, source.id, now.toISOString());
+        result.errors.push({
+          sourceId: source.id,
+          sourceName: source.name,
+          where: "fetch entry_url",
+          message: e?.message ?? String(e),
+        });
+        continue;
+      }
 
       if (!entryRes.ok) {
         await markSourceCrawl(supabaseAdmin, source.id, now.toISOString());
@@ -93,6 +114,9 @@ export async function runOnMarketIngestion(args: {
 
       const entryText = await entryRes.text();
 
+      // ----------------------------
+      // 2) Parse index → stubs
+      // ----------------------------
       let stubs: ListingStub[] = [];
       try {
         stubs = await parser.parseIndex({
@@ -115,9 +139,11 @@ export async function runOnMarketIngestion(args: {
       stubs = stubs.slice(0, maxListingsPerSource);
       result.rawSeen += stubs.length;
 
+      // ----------------------------
+      // 3) Process each stub
+      // ----------------------------
       for (const stub of stubs) {
-        // ✅ Filter out blog/articles by URL shape (prevents “random articles”)
-        if (!stub.listing_url || !stub.listing_url.includes("/listings/")) continue;
+        if (!stub.listing_url) continue;
 
         const checksum = hashChecksum({
           title: stub.title ?? "",
@@ -126,7 +152,7 @@ export async function runOnMarketIngestion(args: {
           maybe_price: stub.maybe_price ?? "",
         });
 
-        // Look for existing raw row
+        // Find existing raw row
         const { data: existingRaw, error: existingErr } = await supabaseAdmin
           .from("on_market_raw_listings")
           .select("id, checksum, status")
@@ -151,16 +177,12 @@ export async function runOnMarketIngestion(args: {
         if (isChanged) result.rawChanged += 1;
 
         // Upsert raw listing
-        const payload = {
-          stub,
-        };
-
         const upsertPayload = {
           source_id: source.id,
           listing_url: stub.listing_url,
           title_raw: stub.title,
           snippet_raw: null,
-          payload_json: payload,
+          payload_json: { stub },
           checksum,
           last_seen_at: now.toISOString(),
           status: isChanged ? "changed" : "active",
@@ -186,25 +208,21 @@ export async function runOnMarketIngestion(args: {
         const rawId = upsertedRaw?.id ?? existingRaw?.id;
         if (!rawId) continue;
 
-        // ✅ DEBUG MODE: ALWAYS fetch detail, even if unchanged
-        // This makes debugging MUCH easier.
-        //
-        // Production behavior (previously) was:
-        // if (!isNew && !isChanged) { touchDealLastSeen(); continue; }
-        //
-        // We will still touch last_seen, but we won't "continue" while debugging.
+        // Touch last_seen for existing deal rows (if any)
         if (!isNew && !isChanged) {
           await touchDealLastSeen(supabaseAdmin, rawId, now.toISOString());
-          // NOTE: do NOT continue — fall through to fetch detail
         }
 
-        // Fetch detail page and parse
-        let extracted = null as any;
-
+        // ----------------------------
+        // 4) Fetch detail & parse
+        // ----------------------------
+        let extracted: any = null;
         try {
           const detailRes = await safeFetch(fetchFn, stub.listing_url, {
-            headers: { "User-Agent": "SearchFindrBot/0.1 (+on-market-indexer)" },
+            headers: browserHeaders(),
+            timeoutMs: timeoutForUrl(stub.listing_url),
           });
+          await sleep(delayMs);
 
           if (!detailRes.ok) {
             await supabaseAdmin
@@ -231,14 +249,10 @@ export async function runOnMarketIngestion(args: {
 
           result.detailFetched += 1;
 
-          // Store extraction for traceability/debugging
           await supabaseAdmin
             .from("on_market_raw_listings")
             .update({
-              payload_json: {
-                stub,
-                extracted,
-              },
+              payload_json: { stub, extracted },
               last_fetch_error: null,
               last_seen_at: now.toISOString(),
               status: "active",
@@ -259,7 +273,9 @@ export async function runOnMarketIngestion(args: {
           continue;
         }
 
-        // Normalize into canonical deal object
+        // ----------------------------
+        // 5) Normalize (V1 taxonomy enforced inside normalize.ts)
+        // ----------------------------
         const normalized = normalizeDeal({
           sourceName: source.name,
           sourceUrl: stub.listing_url,
@@ -267,8 +283,10 @@ export async function runOnMarketIngestion(args: {
           extracted,
         });
 
-        // Upsert into on_market_deals with daily cap gating if this is a NEW normalized deal
-        const wasNewDeal = await upsertDealWithDailyCap({
+        // ----------------------------
+        // 6) Upsert into canonical (curation-aware)
+        // ----------------------------
+        const outcome = await upsertDealWithDailyCap({
           supabaseAdmin,
           today,
           rawId,
@@ -276,11 +294,10 @@ export async function runOnMarketIngestion(args: {
           normalized,
         });
 
-        if (wasNewDeal === "promoted") result.promotedDeals += 1;
-        if (wasNewDeal === "held") result.heldDeals += 1;
+        if (outcome === "promoted") result.promotedDeals += 1;
+        if (outcome === "held") result.heldDeals += 1;
       }
 
-      // mark source crawled
       await markSourceCrawl(supabaseAdmin, source.id, now.toISOString());
     } catch (e: any) {
       result.errors.push({
@@ -289,8 +306,6 @@ export async function runOnMarketIngestion(args: {
         where: "source loop",
         message: e?.message ?? String(e),
       });
-
-      // Still mark crawl attempt to avoid hot looping
       await markSourceCrawl(supabaseAdmin, source.id, now.toISOString());
     }
   }
@@ -299,38 +314,105 @@ export async function runOnMarketIngestion(args: {
 }
 
 /* =======================================================================================
-   Cap gating + deal upsert
+   Promotion gate (curation) — V1
+======================================================================================= */
+
+function passesPromotionGate(normalized: NormalizedDeal) {
+  // must be one of allowed V1 tags
+  if (!normalized.industry_tag) return false;
+  if (!V1_ALLOWED_INDUSTRIES.includes(normalized.industry_tag)) return false;
+
+  // strong enough classification
+  if ((normalized.industry_confidence ?? 0) < 70) return false;
+
+  // completeness: medium+ only
+  if ((normalized.confidence_score ?? 0) < 45) return false;
+
+  // anchors: avoid empty garbage
+  const hasLocation = !!(normalized.location_city || normalized.location_state);
+  const hasMoney = !!(
+    normalized.revenue_min ||
+    normalized.revenue_max ||
+    normalized.ebitda_min ||
+    normalized.ebitda_max ||
+    normalized.asking_price
+  );
+
+  const textLen = String((normalized.debug as any)?.industry_blob_sample ?? "").length;
+  const hasText = textLen >= 160;
+
+  return hasLocation || hasMoney || hasText;
+}
+
+/* =======================================================================================
+   Cap gating + deal upsert (IMPORTANT BEHAVIOR)
+   - Never create canonical rows when industry_tag is NULL
+   - Sticky industry_tag on update (do not downgrade)
+   - V1: Never allow non-V1 tags to exist in canonical table
 ======================================================================================= */
 
 async function upsertDealWithDailyCap(args: {
   supabaseAdmin: SupabaseAdmin;
-  today: string; // YYYY-MM-DD
+  today: string; // YYYY-MM-DD (America/Chicago)
   rawId: string;
   nowIso: string;
-  normalized: ReturnType<typeof normalizeDeal>;
+  normalized: NormalizedDeal;
 }): Promise<"updated" | "promoted" | "held"> {
   const { supabaseAdmin, today, rawId, nowIso, normalized } = args;
 
-  // Does a normalized deal already exist for this raw listing?
   const { data: existingDeal, error: dealSelErr } = await supabaseAdmin
     .from("on_market_deals")
-    .select("id, is_promoted, promoted_date")
+    .select("id, is_promoted, promoted_date, industry_tag, industry_confidence")
     .eq("primary_raw_listing_id", rawId)
     .maybeSingle();
 
-  if (dealSelErr) {
-    throw new Error(`Select on_market_deals failed: ${dealSelErr.message}`);
-  }
+  if (dealSelErr) throw new Error(`Select on_market_deals failed: ${dealSelErr.message}`);
 
-  // If exists, update fields + last_seen + is_new_today flag
+  // ----------------------------
+  // UPDATE PATH
+  // ----------------------------
   if (existingDeal?.id) {
+    const existingIndustryTag = (existingDeal.industry_tag as V1IndustryTag | null) ?? null;
+
+    // Sticky tag: if existing has a tag and new is null, keep existing
+    const nextIndustryTag =
+      existingIndustryTag && !normalized.industry_tag ? existingIndustryTag : normalized.industry_tag;
+
+    // V1 safety: if somehow nextIndustryTag is not allowed, force null (never leak into canonical)
+    const safeNextIndustryTag =
+      nextIndustryTag && V1_ALLOWED_INDUSTRIES.includes(nextIndustryTag) ? nextIndustryTag : null;
+
+    const nextIndustryConfidence =
+      safeNextIndustryTag && existingIndustryTag && !normalized.industry_tag
+        ? Number(existingDeal.industry_confidence ?? 0)
+        : Number(normalized.industry_confidence ?? 0);
+
+    const gatePass = safeNextIndustryTag
+      ? passesPromotionGate({
+          ...normalized,
+          industry_tag: safeNextIndustryTag,
+          industry_confidence: nextIndustryConfidence,
+        })
+      : false;
+
+    // Never un-promote. Only allow held → promoted.
+    let nextIsPromoted = Boolean(existingDeal.is_promoted);
+    let nextPromotedDate: string | null = existingDeal.promoted_date ?? null;
+
+    if (!existingDeal.is_promoted && gatePass) {
+      nextIsPromoted = true;
+      nextPromotedDate = today;
+    }
+
     await supabaseAdmin
       .from("on_market_deals")
       .update({
         company_name: normalized.company_name,
         headline: normalized.headline,
-        industry_tag: normalized.industry_tag,
-        industry_confidence: normalized.industry_confidence,
+
+        industry_tag: safeNextIndustryTag,
+        industry_confidence: safeNextIndustryTag ? nextIndustryConfidence : 0,
+
         location_city: normalized.location_city,
         location_state: normalized.location_state,
         revenue_min: normalized.revenue_min,
@@ -348,75 +430,37 @@ async function upsertDealWithDailyCap(args: {
         confidence_score: normalized.confidence_score,
         last_seen_at: nowIso,
         published_at: normalized.published_at,
-        is_new_today: existingDeal.promoted_date === today,
+
+        is_promoted: nextIsPromoted,
+        promoted_date: nextPromotedDate,
+        is_new_today: nextPromotedDate === today,
       })
       .eq("id", existingDeal.id);
 
     return "updated";
   }
 
-  // New normalized deal → apply daily cap gating
+  // ----------------------------
+  // INSERT PATH
+  // ----------------------------
+
+  // CRITICAL: If industry_tag is NULL, DO NOT create canonical
+  if (!normalized.industry_tag) return "held";
+
+  // V1 safety: only allow V1 tags into canonical
+  if (!V1_ALLOWED_INDUSTRIES.includes(normalized.industry_tag)) return "held";
+
+  const gatePass = passesPromotionGate(normalized);
+  if (!gatePass) return "held";
+
+  // Only consume cap if we are promoting
   const capRow = await getDailyCapRow(supabaseAdmin, today);
   const cap = capRow?.cap ?? 10;
   const used = capRow?.used ?? 0;
 
-  const canPromote = used < cap;
+  if (used >= cap) return "held";
 
-  if (canPromote) {
-    // Insert promoted deal
-    const { error: insErr } = await supabaseAdmin.from("on_market_deals").insert({
-      primary_raw_listing_id: rawId,
-
-      company_name: normalized.company_name,
-      headline: normalized.headline,
-
-      industry_tag: normalized.industry_tag,
-      industry_confidence: normalized.industry_confidence,
-
-      location_city: normalized.location_city,
-      location_state: normalized.location_state,
-
-      revenue_min: normalized.revenue_min,
-      revenue_max: normalized.revenue_max,
-      ebitda_min: normalized.ebitda_min,
-      ebitda_max: normalized.ebitda_max,
-
-      revenue_band: normalized.revenue_band,
-      ebitda_band: normalized.ebitda_band,
-
-      asking_price: normalized.asking_price,
-
-      deal_type: normalized.deal_type,
-      has_teaser_pdf: normalized.has_teaser_pdf,
-
-      source_name: normalized.source_name,
-      source_url: normalized.source_url,
-
-      data_confidence: normalized.data_confidence,
-      confidence_score: normalized.confidence_score,
-
-      first_seen_at: nowIso,
-      last_seen_at: nowIso,
-      published_at: normalized.published_at,
-
-      is_promoted: true,
-      promoted_date: today,
-      is_new_today: true,
-    });
-
-    if (insErr) throw new Error(`Insert on_market_deals failed: ${insErr.message}`);
-
-    // Increment used
-    await supabaseAdmin
-      .from("daily_inventory_caps")
-      .update({ used: used + 1 })
-      .eq("date", today);
-
-    return "promoted";
-  }
-
-  // Hold: insert as not promoted (still stored, but not searchable due to RLS policy)
-  const { error: heldErr } = await supabaseAdmin.from("on_market_deals").insert({
+  const { error: insErr } = await supabaseAdmin.from("on_market_deals").insert({
     primary_raw_listing_id: rawId,
 
     company_name: normalized.company_name,
@@ -451,14 +495,17 @@ async function upsertDealWithDailyCap(args: {
     last_seen_at: nowIso,
     published_at: normalized.published_at,
 
-    is_promoted: false,
-    promoted_date: null,
-    is_new_today: false,
+    // promoted = admitted to library
+    is_promoted: true,
+    promoted_date: today,
+    is_new_today: true,
   });
 
-  if (heldErr) throw new Error(`Insert held on_market_deals failed: ${heldErr.message}`);
+  if (insErr) throw new Error(`Insert on_market_deals failed: ${insErr.message}`);
 
-  return "held";
+  await supabaseAdmin.from("daily_inventory_caps").update({ used: used + 1 }).eq("date", today);
+
+  return "promoted";
 }
 
 /* =======================================================================================
@@ -510,44 +557,52 @@ function isSourceDue(source: any, now: Date): boolean {
 }
 
 async function markSourceCrawl(supabaseAdmin: SupabaseAdmin, sourceId: string, nowIso: string) {
-  await supabaseAdmin
-    .from("on_market_sources")
-    .update({ last_crawled_at: nowIso })
-    .eq("id", sourceId);
+  await supabaseAdmin.from("on_market_sources").update({ last_crawled_at: nowIso }).eq("id", sourceId);
 }
 
 /* =======================================================================================
-   Deal touch helper (when raw listing seen but unchanged)
+   Deal touch helper
 ======================================================================================= */
 
 async function touchDealLastSeen(supabaseAdmin: SupabaseAdmin, rawId: string, nowIso: string) {
-  await supabaseAdmin
-    .from("on_market_deals")
-    .update({ last_seen_at: nowIso })
-    .eq("primary_raw_listing_id", rawId);
+  await supabaseAdmin.from("on_market_deals").update({ last_seen_at: nowIso }).eq("primary_raw_listing_id", rawId);
 }
 
 /* =======================================================================================
    Fetch helpers
 ======================================================================================= */
 
-async function safeFetch(fetchFn: typeof fetch, url: string, init?: RequestInit) {
+function browserHeaders() {
+  return {
+    "User-Agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache",
+  } as const;
+}
+
+function timeoutForUrl(url: string) {
+  const h = hostOf(url);
+  if (h.includes("bizquest")) return 7000;
+  return 12_000;
+}
+
+async function safeFetch(fetchFn: typeof fetch, url: string, init?: RequestInit & { timeoutMs?: number }) {
   const controller = new AbortController();
-  const timeoutMs = 60_000;
+  const timeoutMs = init?.timeoutMs ?? 12_000;
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const { timeoutMs: _ignore, ...rest } = init ?? {};
     return await fetchFn(url, {
-      ...init,
+      ...rest,
       redirect: "follow",
       signal: controller.signal,
     });
   } catch (err: any) {
-    const msg =
-      err?.name === "AbortError"
-        ? `AbortError: timed out after ${timeoutMs}ms`
-        : err?.message ?? String(err);
-
+    const msg = err?.name === "AbortError" ? `AbortError: timed out after ${timeoutMs}ms` : err?.message ?? String(err);
     throw new Error(`safeFetch failed for ${url}: ${msg}`);
   } finally {
     clearTimeout(timeout);
@@ -555,17 +610,49 @@ async function safeFetch(fetchFn: typeof fetch, url: string, init?: RequestInit)
 }
 
 /* =======================================================================================
+   Throttle helpers
+======================================================================================= */
+
+function perRequestDelayMs(rateLimitPerMinute: number) {
+  if (!Number.isFinite(rateLimitPerMinute) || rateLimitPerMinute <= 0) return 0;
+  return Math.ceil(60_000 / rateLimitPerMinute);
+}
+
+function sleep(ms: number) {
+  if (!ms || ms <= 0) return Promise.resolve();
+  return new Promise((res) => setTimeout(res, ms));
+}
+
+function hostOf(u: string) {
+  try {
+    return new URL(u).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+/* =======================================================================================
    Utility
 ======================================================================================= */
 
-function isoDate(d: Date): string {
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
+function isoDateInTimeZone(d: Date, timeZone: string): string {
+  // en-CA yields YYYY-MM-DD format reliably
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
 }
 
 function hashChecksum(obj: Record<string, unknown>): string {
   const s = JSON.stringify(obj);
   return crypto.createHash("sha256").update(s).digest("hex");
 }
+
+// after processing all listings for a source
+await supabaseAdmin
+  .from("on_market_raw_listings")
+  .delete()
+  .eq("source_id", sourceId)
+  .not("id", "in", promotedRawIds);

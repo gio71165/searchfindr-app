@@ -1,39 +1,52 @@
 // lib/onmarket/client.ts
+
+export type V1IndustryTag = "HVAC" | "Plumbing" | "Electrical";
+
 export type OnMarketDeal = {
   id: string;
   company_name: string | null;
   headline: string;
-  industry_tag: string | null;
+
+  industry_tag: V1IndustryTag | null;
   industry_confidence: number;
+
   location_city: string | null;
   location_state: string | null;
+
   revenue_min: number | null;
   revenue_max: number | null;
   ebitda_min: number | null;
   ebitda_max: number | null;
+
   revenue_band: string | null;
   ebitda_band: string | null;
+
   asking_price: number | null;
   deal_type: "asset" | "stock" | "unknown";
+
   has_teaser_pdf: boolean;
+
   source_name: string;
   source_url: string;
+
   data_confidence: "high" | "medium" | "low";
   confidence_score: number;
+
   first_seen_at: string;
   last_seen_at: string;
+
   published_at: string | null;
   is_new_today: boolean;
   promoted_date: string | null;
 };
 
 export type OnMarketSearchParams = {
-  industries?: string[];
+  industries?: V1IndustryTag[];
   state?: string;
   revenue_band?: string;
   ebitda_band?: string;
   include_unknown_financials?: boolean;
-  include_unknown_location?: boolean; // ✅ NEW
+  include_unknown_location?: boolean;
   sort?: "freshness" | "confidence";
   limit?: number;
   offset?: number;
@@ -56,12 +69,21 @@ export type DealNote = {
   created_at: string;
 };
 
+const V1_ALLOWED: readonly V1IndustryTag[] = ["HVAC", "Plumbing", "Electrical"] as const;
+
+function sanitizeIndustries(input?: string[]): V1IndustryTag[] | undefined {
+  if (!input?.length) return undefined;
+  const cleaned = input.filter((x): x is V1IndustryTag => V1_ALLOWED.includes(x as V1IndustryTag));
+  return cleaned.length ? cleaned : [];
+}
+
 function buildQuery(params: OnMarketSearchParams): string {
   const sp = new URLSearchParams();
 
   if (params.industries?.length) {
     for (const ind of params.industries) sp.append("industry", ind);
   }
+
   if (params.state) sp.set("state", params.state);
   if (params.revenue_band) sp.set("revenue_band", params.revenue_band);
   if (params.ebitda_band) sp.set("ebitda_band", params.ebitda_band);
@@ -94,7 +116,10 @@ async function parseJson(res: Response) {
  * Global inventory search (promoted deals).
  */
 export async function searchOnMarket(params: OnMarketSearchParams) {
-  const qs = buildQuery(params);
+  // Optional extra guard: if someone passes bad industries, sanitize
+  const sanitized = sanitizeIndustries(params.industries as unknown as string[] | undefined);
+  const qs = buildQuery({ ...params, industries: sanitized as any });
+
   const res = await fetch(`/api/on-market/search${qs}`, {
     method: "GET",
     cache: "no-store",

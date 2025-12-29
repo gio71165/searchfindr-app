@@ -1,12 +1,18 @@
 // lib/onmarket/normalize.ts
-
 import type { ExtractedFields, ListingStub } from "./parsers/types";
+
+/**
+ * V1: HARD LOCK — ONLY these industries are allowed.
+ * Everything else must end up NULL.
+ */
+export type V1IndustryTag = "HVAC" | "Plumbing" | "Electrical";
 
 export type NormalizedDeal = {
   company_name: string | null;
   headline: string;
 
-  industry_tag: string | null;
+  // ✅ V1 only
+  industry_tag: V1IndustryTag | null;
   industry_confidence: number; // 0-100
 
   location_city: string | null;
@@ -30,11 +36,10 @@ export type NormalizedDeal = {
   source_url: string;
 
   data_confidence: "high" | "medium" | "low";
-  confidence_score: number; // 0-100 (internal only; UI should NOT display the number)
+  confidence_score: number; // internal only
 
   published_at: string | null; // ISO if known
 
-  // helpful debug fields
   debug?: Record<string, unknown>;
 };
 
@@ -49,41 +54,52 @@ export type NormalizeInput = {
  * Normalize scraped + extracted fields into a canonical deal record.
  * Rules:
  * - Do NOT invent numbers.
- * - Only set revenue/EBITDA when explicitly present and parseable.
- * - Confidence is based on completeness, not "AI vibes".
- * - Global UI should show ONLY data_confidence label (low/medium/high), not the numeric score.
+ * - Prefer labeled values (Annual Revenue, EBITDA, Cash Flow, Price).
+ * - Only set industry when we’re confident.
+ * - data_confidence is completeness-based (not “AI vibes”).
+ * - V1: ONLY HVAC/Plumbing/Electrical are allowed.
  */
 export function normalizeDeal(input: NormalizeInput): NormalizedDeal {
   const { sourceName, sourceUrl, listing, extracted } = input;
 
-  // Use the best available headline
-  const headline = (listing.title || extracted?.company_name || "On-market listing").trim();
+  // Best available headline
+  const headline = cleanText(listing.title || extracted?.company_name || "On-market listing");
 
   const company_name = extracted?.company_name ? cleanText(extracted.company_name) : null;
 
   const loc = normalizeLocation(extracted?.city ?? null, extracted?.state ?? null);
 
-  // ✅ Infer industry from BOTH extracted terms and page/headline text (MVP-safe)
-  const industry = mapIndustry([
-    ...(extracted?.industry_terms ?? []),
-    listing.title ?? "",
-    extracted?.company_name ?? "",
-    headline ?? "",
-    String(extracted?.raw?.text_sample ?? ""),
-  ]);
+  // Best-effort text sample from parser (safe if missing)
+  const textSample = String((extracted as any)?.raw?.text_sample ?? "");
+
+  // Build a blob for classification
+  const industryTermsBlob: string[] = [
+    ...((extracted?.industry_terms ?? []).map((x) => String(x)) ?? []),
+    String(sourceName ?? ""),
+    String(sourceUrl ?? ""),
+    String(listing.title ?? ""),
+    String(extracted?.company_name ?? ""),
+    String(headline ?? ""),
+    String(textSample ?? ""),
+  ];
+
+  // ✅ Industry: prefer sourceName override if it’s one of your “broker - industry” sources
+  const sourceIndustry = industryFromSourceName(sourceName);
+  const industry = sourceIndustry.tag ? sourceIndustry : mapIndustry(industryTermsBlob);
 
   const deal_type = mapDealType(extracted?.deal_type_terms ?? []);
 
   const has_teaser_pdf = Boolean(extracted?.teaser_pdf_url);
 
-  // Parse financial numbers conservatively from financials_strings + page text_sample (if included)
-  const finText = [
-    ...(extracted?.financials_strings ?? []),
-    String(extracted?.raw?.text_sample ?? ""),
-  ].join(" \n ");
+  // --- Financial parsing (strict) ---
+  const finText = [textSample, ...(extracted?.financials_strings ?? [])].join("\n");
 
-  const revenueRange = extractRange(finText, ["revenue", "sales", "gross revenue", "total revenue"]);
-  const ebitdaRange = extractRange(finText, ["ebitda", "sde", "seller's discretionary earnings", "cash flow"]);
+  const labeled = parseLabeledFinancials(finText);
+  const revenueRange =
+    labeled.revenue ?? extractRangeStrict(finText, ["annual revenue", "revenue", "sales", "gross revenue", "total revenue"]);
+  const ebitdaRange =
+    labeled.ebitda ??
+    extractRangeStrict(finText, ["ebitda", "net cash flow", "cash flow", "sde", "seller discretionary earnings"]);
 
   const revenue_min = revenueRange?.min ?? null;
   const revenue_max = revenueRange?.max ?? null;
@@ -93,8 +109,8 @@ export function normalizeDeal(input: NormalizeInput): NormalizedDeal {
   const revenue_band = deriveRevenueBand(revenue_min, revenue_max);
   const ebitda_band = deriveEbitdaBand(ebitda_min, ebitda_max);
 
-  // Asking price: only if extracted explicitly
-  const asking_price = extracted?.asking_price ?? null;
+  // Asking price: only if extracted explicitly; otherwise try labeled parse
+  const asking_price = extracted?.asking_price ?? labeled.asking_price ?? null;
 
   const { confidence_score, data_confidence } = computeConfidence({
     hasCompany: Boolean(company_name),
@@ -104,6 +120,7 @@ export function normalizeDeal(input: NormalizeInput): NormalizedDeal {
     hasAnyFinancial: Boolean(revenue_min || revenue_max || ebitda_min || ebitda_max),
     hasAskingPrice: Boolean(asking_price),
     hasTeaser: has_teaser_pdf,
+    hasTextSample: textSample.trim().length >= 200,
   });
 
   return {
@@ -134,16 +151,16 @@ export function normalizeDeal(input: NormalizeInput): NormalizedDeal {
     source_url: sourceUrl,
 
     data_confidence,
-    // NOTE: keep stored for internal ranking/debug; UI should only show data_confidence label.
     confidence_score,
 
     published_at: listing.maybe_date ?? null,
 
     debug: {
-      industry_terms: extracted?.industry_terms ?? [],
-      deal_type_terms: extracted?.deal_type_terms ?? [],
-      financials_strings: extracted?.financials_strings ?? [],
       headline_used: headline,
+      text_sample_len: textSample.length,
+      source_industry_override: sourceIndustry.tag ? true : false,
+      industry_blob_sample: buildIndustryBlob(industryTermsBlob).slice(0, 700),
+      labeled_financials: labeled,
     },
   };
 }
@@ -160,8 +177,8 @@ function computeConfidence(input: {
   hasAnyFinancial: boolean;
   hasAskingPrice: boolean;
   hasTeaser: boolean;
+  hasTextSample: boolean;
 }): { confidence_score: number; data_confidence: "high" | "medium" | "low" } {
-  // Total 100 points
   let score = 0;
 
   if (input.hasHeadline) score += 15;
@@ -173,11 +190,11 @@ function computeConfidence(input: {
   if (input.hasAskingPrice) score += 10;
   if (input.hasTeaser) score += 10;
 
-  // Clamp
+  if (input.hasTextSample) score += 5;
+
   if (score < 0) score = 0;
   if (score > 100) score = 100;
 
-  // Label only (this is what the UI should display)
   let data_confidence: "high" | "medium" | "low" = "low";
   if (score >= 75) data_confidence = "high";
   else if (score >= 45) data_confidence = "medium";
@@ -186,44 +203,107 @@ function computeConfidence(input: {
 }
 
 /* =======================================================================================
-   Industry mapping (conservative MVP)
-   ✅ FIX: substring matching across combined terms/headline text
+   Industry mapping (V1 ONLY)
 ======================================================================================= */
 
-function mapIndustry(terms: string[]): { tag: string | null; confidence: number } {
-  const blob = terms
-    .filter(Boolean)
-    .map((x) => String(x).toLowerCase())
-    .join(" | ");
+type IndustryTag = V1IndustryTag;
 
-  const has = (keys: string[]) => keys.some((k) => blob.includes(k));
+function industryFromSourceName(sourceName: string): { tag: IndustryTag | null; confidence: number } {
+  const s = (sourceName ?? "").toLowerCase();
 
-  // Conservative mapping. Expand later.
-  const rules: Array<{ tag: string; keys: string[]; confidence: number }> = [
-    { tag: "HVAC", keys: ["hvac", "heating", "air conditioning", "a/c"], confidence: 80 },
-    { tag: "Plumbing", keys: ["plumbing", "plumber"], confidence: 80 },
-    { tag: "Electrical", keys: ["electrical", "electrician"], confidence: 80 },
-
-    { tag: "Construction", keys: ["construction", "contractor", "masonry", "concrete", "remodel", "roofing"], confidence: 75 },
-    { tag: "Manufacturing", keys: ["manufacturing", "manufacturer", "fabrication", "machine shop", "production"], confidence: 75 },
-
-    { tag: "Healthcare", keys: ["healthcare", "medical", "clinic", "practice", "pain management", "mental health", "addiction"], confidence: 70 },
-    { tag: "Dental", keys: ["dental", "dentist", "orthodont"], confidence: 75 },
-
-    { tag: "Auto", keys: ["auto repair", "automotive", "collision", "body shop", "tire"], confidence: 70 },
-    { tag: "Logistics", keys: ["logistics", "transportation", "trucking", "freight", "carrier"], confidence: 70 },
-
-    { tag: "IT Services", keys: ["it services", "managed services", "msp", "it professional"], confidence: 70 },
-
-    // SMB only focus — still helpful for filtering later, but lower confidence
-    { tag: "Software", keys: ["software", "saas"], confidence: 60 },
-  ];
-
-  for (const r of rules) {
-    if (has(r.keys)) return { tag: r.tag, confidence: r.confidence };
-  }
+  // If you add “broker - hvac” etc, these will force tag with high confidence:
+  if (s.includes(" - hvac")) return { tag: "HVAC", confidence: 95 };
+  if (s.includes(" - electrical")) return { tag: "Electrical", confidence: 95 };
+  if (s.includes(" - plumbing")) return { tag: "Plumbing", confidence: 95 };
 
   return { tag: null, confidence: 0 };
+}
+
+function buildIndustryBlob(terms: string[]): string {
+  return terms
+    .filter((x) => x !== null && x !== undefined)
+    .map((x) => String(x).toLowerCase())
+    .join(" | ");
+}
+
+function countHits(blob: string, keys: string[]) {
+  let hits = 0;
+  for (const k of keys) {
+    if (!k) continue;
+    if (blob.includes(k)) hits += 1;
+  }
+  return hits;
+}
+
+function mapIndustry(terms: string[]): { tag: IndustryTag | null; confidence: number } {
+  const blob = buildIndustryBlob(terms);
+
+  const excludes = (keys: string[]) => keys.some((k) => blob.includes(k));
+
+  const rules: Array<{
+    tag: IndustryTag;
+    strong: string[];
+    weak: string[];
+    exclude?: string[];
+  }> = [
+    {
+      tag: "HVAC",
+      strong: [
+        "hvac",
+        "heating and air",
+        "heating & air",
+        "air conditioning",
+        "air-conditioning",
+        "furnace",
+        "heat pump",
+        "refrigeration",
+        "ductwork",
+        "ventilation",
+        "mechanical contractor",
+        "chiller",
+        "boiler",
+      ],
+      weak: ["ac repair", "a/c", "thermostat", "maintenance plan", "service agreement", "indoor air quality", "iaq"],
+      exclude: ["auto", "car dealership", "vehicle"],
+    },
+    {
+      tag: "Plumbing",
+      strong: ["plumbing", "plumber", "drain cleaning", "sewer", "septic", "water heater", "backflow", "rooter"],
+      weak: ["pipe", "piping", "leak", "fixture", "toilet", "faucet"],
+      exclude: ["software", "saas"],
+    },
+    {
+      tag: "Electrical",
+      strong: ["electrical contractor", "electrician", "electrical", "panel upgrade", "rewire", "generator", "low voltage", "low-voltage"],
+      weak: ["lighting retrofit", "ev charger", "alarm", "security system", "smart home"],
+      exclude: ["electronics manufacturing", "semiconductor"],
+    },
+  ];
+
+  let best: { tag: IndustryTag; score: number } | null = null;
+
+  for (const r of rules) {
+    if (r.exclude && excludes(r.exclude)) continue;
+
+    const strongHits = countHits(blob, r.strong);
+    const weakHits = countHits(blob, r.weak);
+
+    const qualifies = strongHits >= 1 || weakHits >= 2;
+    if (!qualifies) continue;
+
+    let score = strongHits * 35 + weakHits * 12;
+    if (strongHits >= 2) score += 10;
+    if (score > 100) score = 100;
+
+    if (!best || score > best.score) best = { tag: r.tag, score };
+  }
+
+  if (!best) return { tag: null, confidence: 0 };
+
+  const confidence = Math.max(0, Math.min(100, Math.round(best.score)));
+  if (confidence < 55) return { tag: null, confidence: 0 };
+
+  return { tag: best.tag, confidence };
 }
 
 /* =======================================================================================
@@ -231,7 +311,7 @@ function mapIndustry(terms: string[]): { tag: string | null; confidence: number 
 ======================================================================================= */
 
 function mapDealType(terms: string[]): "asset" | "stock" | "unknown" {
-  const t = terms.map((x) => x.toLowerCase());
+  const t = (terms ?? []).map((x) => String(x).toLowerCase());
   if (t.some((x) => x.includes("asset"))) return "asset";
   if (t.some((x) => x.includes("stock") || x.includes("membership"))) return "stock";
   return "unknown";
@@ -241,16 +321,11 @@ function mapDealType(terms: string[]): "asset" | "stock" | "unknown" {
    Location normalization
 ======================================================================================= */
 
-function normalizeLocation(
-  city: string | null,
-  state: string | null
-): { city: string | null; state: string | null } {
+function normalizeLocation(city: string | null, state: string | null): { city: string | null; state: string | null } {
   const c = city ? cleanText(city) : null;
   const s = state ? cleanText(state).toUpperCase() : null;
 
-  // State: allow 2-letter codes only for MVP; otherwise null
   const state2 = s && /^[A-Z]{2}$/.test(s) ? s : null;
-
   return { city: c, state: state2 };
 }
 
@@ -290,18 +365,64 @@ function pickRepresentative(min: number | null, max: number | null): number | nu
 }
 
 /* =======================================================================================
-   Conservative range extraction from text
+   Financial parsing (STRICT)
 ======================================================================================= */
 
-function extractRange(text: string, keywords: string[]): { min: number; max: number } | null {
-  const lower = text.toLowerCase();
+function parseLabeledFinancials(text: string): {
+  revenue: { min: number; max: number } | null;
+  ebitda: { min: number; max: number } | null;
+  asking_price: number | null;
+} {
+  const t = text.replace(/\u00a0/g, " "); // nbsp
 
-  // only consider windows where keyword appears
+  const asking = parseFirstLabeledMoney(t, ["price", "asking price", "purchase price", "list price"]) ?? null;
+
+  const rev = parseFirstLabeledRangeOrSingle(t, ["annual revenue", "revenue", "sales"]) ?? null;
+
+  const ebitda =
+    parseFirstLabeledRangeOrSingle(t, ["ebitda", "net cash flow", "cash flow", "sde", "seller discretionary earnings"]) ?? null;
+
+  return { revenue: rev, ebitda, asking_price: asking };
+}
+
+function parseFirstLabeledMoney(text: string, labels: string[]): number | null {
+  for (const label of labels) {
+    const re = new RegExp(`${escapeReg(label)}\\s*[:\\-]?\\s*([^\\n\\r]{0,80})`, "i");
+    const m = text.match(re);
+    if (!m?.[1]) continue;
+
+    const chunk = m[1];
+    const v = parseSingleMoneyStrict(chunk);
+    if (v !== null) return v;
+  }
+  return null;
+}
+
+function parseFirstLabeledRangeOrSingle(text: string, labels: string[]): { min: number; max: number } | null {
+  for (const label of labels) {
+    const re = new RegExp(`${escapeReg(label)}\\s*[:\\-]?\\s*([^\\n\\r]{0,120})`, "i");
+    const m = text.match(re);
+    if (!m?.[1]) continue;
+
+    const chunk = m[1];
+
+    const range = parseMoneyRangeStrict(chunk);
+    if (range) return range;
+
+    const single = parseSingleMoneyStrict(chunk);
+    if (single !== null) return { min: single, max: single };
+  }
+  return null;
+}
+
+function extractRangeStrict(text: string, keywords: string[]): { min: number; max: number } | null {
+  const lower = text.toLowerCase();
   const hits: string[] = [];
+
   for (const k of keywords) {
     let idx = lower.indexOf(k);
     while (idx !== -1) {
-      const start = Math.max(0, idx - 80);
+      const start = Math.max(0, idx - 60);
       const end = Math.min(lower.length, idx + 220);
       hits.push(text.slice(start, end));
       idx = lower.indexOf(k, idx + k.length);
@@ -309,55 +430,62 @@ function extractRange(text: string, keywords: string[]): { min: number; max: num
   }
   if (hits.length === 0) return null;
 
-  // Try to find a range first
   for (const chunk of hits) {
-    const range = parseMoneyRange(chunk);
+    if (!looksMoneyLike(chunk)) continue;
+
+    const range = parseMoneyRangeStrict(chunk);
     if (range) return range;
 
-    const single = parseSingleMoney(chunk);
+    const single = parseSingleMoneyStrict(chunk);
     if (single !== null) return { min: single, max: single };
   }
 
   return null;
 }
 
-function parseMoneyRange(s: string): { min: number; max: number } | null {
-  // Examples:
-  // "$1.2M - $2.0M"
-  // "$450k to $650k"
+function looksMoneyLike(s: string) {
+  const t = s.toLowerCase();
+  return /\$/.test(s) || /\bmillion\b/.test(t) || /\b(k|m)\b/.test(t) || /[0-9],[0-9]{3}/.test(s);
+}
+
+function parseMoneyRangeStrict(s: string): { min: number; max: number } | null {
   const re =
-    /\$?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+(?:\.[0-9]+)?)\s*([KkMmBb])?\s*(?:-|to)\s*\$?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+(?:\.[0-9]+)?)\s*([KkMmBb])?/;
+    /\$?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+(?:\.[0-9]+)?)\s*([KkMmBb]|million)?\s*(?:-|to)\s*\$?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+(?:\.[0-9]+)?)\s*([KkMmBb]|million)?/;
   const m = s.match(re);
   if (!m) return null;
 
-  const a = parseMoney(m[1], m[2]);
-  const b = parseMoney(m[3], m[4]);
+  const a = parseMoneyStrict(m[1], m[2]);
+  const b = parseMoneyStrict(m[3], m[4]);
   if (a === null || b === null) return null;
 
-  const min = Math.min(a, b);
-  const max = Math.max(a, b);
-  return { min, max };
+  return { min: Math.min(a, b), max: Math.max(a, b) };
 }
 
-function parseSingleMoney(s: string): number | null {
-  // Example: "$3.2M", "$450k", "USD 1,200,000"
-  const re = /\$?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+(?:\.[0-9]+)?)\s*([KkMmBb])?/;
+function parseSingleMoneyStrict(s: string): number | null {
+  if (!looksMoneyLike(s)) return null;
+
+  const re = /\$?\s*([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+(?:\.[0-9]+)?)\s*([KkMmBb]|million)?/;
   const m = s.match(re);
   if (!m) return null;
 
-  return parseMoney(m[1], m[2]);
+  return parseMoneyStrict(m[1], m[2]);
 }
 
-function parseMoney(numRaw: string, suffixRaw?: string): number | null {
-  const base = Number(numRaw.replace(/,/g, ""));
+function parseMoneyStrict(numRaw: string, suffixRaw?: string): number | null {
+  const base = Number(String(numRaw).replace(/,/g, ""));
   if (!Number.isFinite(base)) return null;
 
-  const suf = (suffixRaw ?? "").toLowerCase();
+  const suf = String(suffixRaw ?? "").toLowerCase();
   if (suf === "k") return Math.round(base * 1_000);
   if (suf === "m") return Math.round(base * 1_000_000);
   if (suf === "b") return Math.round(base * 1_000_000_000);
+  if (suf === "million") return Math.round(base * 1_000_000);
 
   return Math.round(base);
+}
+
+function escapeReg(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /* =======================================================================================
@@ -365,5 +493,5 @@ function parseMoney(numRaw: string, suffixRaw?: string): number | null {
 ======================================================================================= */
 
 function cleanText(s: string): string {
-  return s.replace(/\s+/g, " ").trim();
+  return String(s).replace(/\s+/g, " ").trim();
 }
