@@ -77,6 +77,10 @@ export async function runOnMarketIngestion(args: {
 
     const delayMs = perRequestDelayMs(Number(source.rate_limit_per_minute ?? 0));
 
+    // Track promoted raw IDs for this source so we can optionally delete raw rows
+    // without nuking the ones that became canonical deals.
+    const promotedRawIdsForSource = new Set<string>();
+
     try {
       const parser = getParser(source.parser_key);
 
@@ -294,9 +298,16 @@ export async function runOnMarketIngestion(args: {
           normalized,
         });
 
-        if (outcome === "promoted") result.promotedDeals += 1;
+        if (outcome === "promoted") {
+          result.promotedDeals += 1;
+          promotedRawIdsForSource.add(rawId);
+        }
         if (outcome === "held") result.heldDeals += 1;
       }
+
+      // ✅ Optional cleanup: remove raw rows for this source except ones that were promoted.
+      // If you want to keep ALL raw history, delete this call.
+      await cleanupRawListingsForSource(supabaseAdmin, source.id, promotedRawIdsForSource);
 
       await markSourceCrawl(supabaseAdmin, source.id, now.toISOString());
     } catch (e: any) {
@@ -311,6 +322,37 @@ export async function runOnMarketIngestion(args: {
   }
 
   return result;
+}
+
+/* =======================================================================================
+   Cleanup helper
+   - Fixes the build error by keeping cleanup inside a function (no top-level await)
+   - Deletes raw listings for a source EXCEPT promoted raw ids (if any)
+======================================================================================= */
+
+async function cleanupRawListingsForSource(
+  supabaseAdmin: SupabaseAdmin,
+  sourceId: string,
+  promotedRawIds: Set<string>
+) {
+  // If nothing was promoted, you can choose either:
+  // A) delete all raw rows for this source, OR
+  // B) delete none.
+  //
+  // Current behavior = delete all when none promoted (keeps table small).
+  if (promotedRawIds.size === 0) {
+    await supabaseAdmin.from("on_market_raw_listings").delete().eq("source_id", sourceId);
+    return;
+  }
+
+  // Keep only promoted IDs; delete the rest for this source.
+  // Supabase "in" expects a string like "(a,b,c)" or an array depending on client;
+  // the postgrest-js style supports `.in("id", [...])`.
+  await supabaseAdmin
+    .from("on_market_raw_listings")
+    .delete()
+    .eq("source_id", sourceId)
+    .not("id", "in", `(${Array.from(promotedRawIds).join(",")})`);
 }
 
 /* =======================================================================================
@@ -649,10 +691,3 @@ function hashChecksum(obj: Record<string, unknown>): string {
   const s = JSON.stringify(obj);
   return crypto.createHash("sha256").update(s).digest("hex");
 }
-
-// after processing all listings for a source
-await supabaseAdmin
-  .from("on_market_raw_listings")
-  .delete()
-  .eq("source_id", sourceId)
-  .not("id", "in", promotedRawIds);
