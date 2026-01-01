@@ -1066,134 +1066,6 @@ export default function DashboardPage() {
   const someVisibleSelected = visibleIds.some((id) => selectedIds.has(id));
   const selectedCount = selectedIds.size;
 
-  const selectAllVisible = () => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      visibleIds.forEach((id) => next.add(id));
-      return next;
-    });
-  };
-  const toggleSelectAll = () => {
-    if (allVisibleSelected) clearSelection();
-    else selectAllVisible();
-  };
-
-  const BulkBar = () => {
-    const disableAll = bulkBusy || loadingDeals || filteredDeals.length === 0;
-
-    return (
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-4">
-        <div className="flex flex-wrap items-center gap-3 text-xs">
-          <label className="inline-flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={allVisibleSelected}
-              ref={(el) => {
-                if (el) el.indeterminate = !allVisibleSelected && someVisibleSelected;
-              }}
-              onChange={toggleSelectAll}
-              disabled={disableAll}
-            />
-            <span>{allVisibleSelected ? 'All selected' : 'Select all'}</span>
-          </label>
-
-          <button className="text-xs underline opacity-80" onClick={clearSelection} disabled={disableAll || selectedCount === 0}>
-            Clear
-          </button>
-
-          <span className="opacity-70">{selectedCount} selected</span>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {selectedView === 'saved' ? (
-            <button className="btn-main" onClick={bulkUnsaveSelected} disabled={disableAll || selectedCount === 0}>
-              {bulkBusy ? 'Working…' : 'Remove selected from Saved'}
-            </button>
-          ) : (
-            <button className="btn-main" onClick={bulkSaveSelected} disabled={disableAll || selectedCount === 0}>
-              {bulkBusy ? 'Working…' : 'Save selected'}
-            </button>
-          )}
-
-          <button
-            className="btn-main"
-            onClick={bulkDeleteSelected}
-            disabled={disableAll || selectedCount === 0}
-            aria-disabled={disableAll || selectedCount === 0}
-            title="Deletes deal records from your workspace (cannot be undone)."
-          >
-            {bulkBusy ? 'Working…' : 'Delete selected'}
-          </button>
-        </div>
-      </div>
-    );
-  };
-
-  const renderEmptyStateForView = () => {
-    if (selectedView === 'saved') {
-      return (
-        <EmptyStateCard
-          title="No saved deals yet"
-          description="Capture deals via the extension or upload a CIM/financials, then save the ones you want in your pipeline."
-          primaryLabel="Go to On-market (Extension)"
-          onPrimary={() => changeView('on_market')}
-          secondaryLabel="Upload a CIM"
-          onSecondary={() => changeView('cim_pdf')}
-        />
-      );
-    }
-
-    if (selectedView === 'on_market') {
-      return (
-        <EmptyStateCard
-          title="No on-market deals yet"
-          description="Use the Chrome extension to capture live listings and send them here."
-          primaryLabel="Connect Chrome extension"
-          onPrimary={handleConnectExtension}
-          secondaryLabel="Go to Saved"
-          onSecondary={() => changeView('saved')}
-        />
-      );
-    }
-
-    if (selectedView === 'off_market') {
-      return (
-        <EmptyStateCard
-          title="No off-market results yet"
-          description="Search by industry + geography to surface owner-operated SMBs. Results are leads, not verified."
-          primaryLabel="Run a search below"
-          onPrimary={() => setOffSearchStatus(offSearchStatus ?? 'Add industries + city/state, then click Search.')}
-          secondaryLabel="Go to Saved"
-          onSecondary={() => changeView('saved')}
-        />
-      );
-    }
-
-    if (selectedView === 'financials') {
-      return (
-        <EmptyStateCard
-          title="No financial uploads yet"
-          description="Upload financials and run a skeptical quality analysis (red flags, green flags, missing items)."
-          primaryLabel="Upload Financials"
-          onPrimary={handleFinancialsButtonClick}
-          secondaryLabel="Go to CIM Uploads"
-          onSecondary={() => changeView('cim_pdf')}
-        />
-      );
-    }
-
-    return (
-      <EmptyStateCard
-        title="No CIM uploads yet"
-        description="Upload a CIM to generate an AI investment memo."
-        primaryLabel="Upload CIM (PDF)"
-        onPrimary={handleCimButtonClick}
-        secondaryLabel="Go to On-market (Extension)"
-        onSecondary={() => changeView('on_market')}
-      />
-    );
-  };
-
   const showTierColumn = selectedView === 'on_market' || selectedView === 'off_market' || selectedView === 'saved';
 
   if (checkingAuth) {
@@ -1220,6 +1092,96 @@ export default function DashboardPage() {
       secondaryLabel="Upload a CIM"
       onSecondary={() => changeView('cim_pdf')}
     />
+  );
+
+  // ✅ Off-market search tool (UNCHANGED UI) — moved ABOVE table
+  const renderOffMarketSearchPanel = () => (
+    <section className="card-table p-4 space-y-3">
+      <div>
+        <h2 className="text-sm font-semibold">Off-market discovery</h2>
+        <p className="text-xs opacity-80">
+          Add industries + enter city/state + radius. Results appear in Off-market as leads. Tiers here are light surface signals.
+        </p>
+      </div>
+
+      <div className="space-y-1">
+        <label className="text-xs opacity-80">Industries</label>
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2">
+            <select className={selectCls} value={offIndustryToAdd} onChange={(e) => setOffIndustryToAdd(e.target.value)}>
+              {OFFMARKET_INDUSTRIES.map((ind) => (
+                <option key={ind} value={ind}>
+                  {ind}
+                </option>
+              ))}
+            </select>
+
+            <button type="button" className="btn-main" onClick={addIndustry}>
+              Add
+            </button>
+          </div>
+
+          {offIndustries.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {offIndustries.map((ind) => (
+                <span key={ind} className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs">
+                  {ind}
+                  <button type="button" className="text-[11px] underline" onClick={() => removeIndustry(ind)}>
+                    remove
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs opacity-70">Add at least one industry to search.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="space-y-1">
+          <label className="text-xs opacity-80">City</label>
+          <input
+            className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm"
+            value={offCity}
+            onChange={(e) => setOffCity(e.target.value)}
+            placeholder="e.g. Austin"
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs opacity-80">State</label>
+          <select className={selectCls} value={offState} onChange={(e) => setOffState(e.target.value)}>
+            {US_STATES.map((s) => (
+              <option key={s.abbr} value={s.abbr}>
+                {s.abbr} — {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-xs opacity-80">Radius (miles)</label>
+          <select className={selectCls} value={offRadiusMiles} onChange={(e) => setOffRadiusMiles(Number(e.target.value))}>
+            {ALLOWED_RADIUS.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button className="btn-main" onClick={handleOffMarketSearch} disabled={offSearching}>
+          {offSearching ? 'Searching…' : 'Search'}
+        </button>
+
+        <span className="text-xs opacity-80">Location: {locationString}</span>
+
+        {offSearchStatus && <span className="text-xs opacity-80">{offSearchStatus}</span>}
+      </div>
+    </section>
   );
 
   return (
@@ -1323,290 +1285,258 @@ export default function DashboardPage() {
       {selectedView === 'on_market_global' ? (
         renderGlobalComingSoon()
       ) : (
-        // ✅ Companies table for all other views
-        <section className="mt-4 card-table">
-          <div className="mb-2 flex flex-col gap-2 px-4 pt-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3">
-              <h2 className="text-sm font-semibold">{selectedView === 'saved' ? 'Saved (Pipeline)' : 'Companies'}</h2>
-              {loadingDeals ? (
-                <p className="text-xs">Loading…</p>
-              ) : (
-                <p className="text-xs opacity-80">{filteredDeals.length === 0 ? 'No companies yet.' : `${filteredDeals.length} company(s) shown.`}</p>
-              )}
-            </div>
+        <>
+          {/* ✅ OFF-MARKET SEARCH PANEL NOW ON TOP (only for off_market view) */}
+          {selectedView === 'off_market' ? renderOffMarketSearchPanel() : null}
 
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs opacity-80">Sort</span>
-                <select
-                  className="rounded-lg border px-3 py-2 bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 text-xs"
-                  value={sortKey}
-                  onChange={(e) => setSortKey(e.target.value as SortKey)}
-                >
-                  <option value="newest">Newest</option>
-                  <option value="oldest">Oldest</option>
-
-                  {tierControlsEnabled ? (
-                    <>
-                      <option value="tier_high_to_low">Tier (A → C)</option>
-                      <option value="tier_low_to_high">Tier (C → A)</option>
-                    </>
-                  ) : null}
-
-                  <option value="company_az">Company (A → Z)</option>
-                  <option value="company_za">Company (Z → A)</option>
-                </select>
+          {/* ✅ Companies table for all other views (and for off_market, it comes AFTER the search panel) */}
+          <section className="mt-4 card-table">
+            <div className="mb-2 flex flex-col gap-2 px-4 pt-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-3">
+                <h2 className="text-sm font-semibold">{selectedView === 'saved' ? 'Saved (Pipeline)' : 'Companies'}</h2>
+                {loadingDeals ? (
+                  <p className="text-xs">Loading…</p>
+                ) : (
+                  <p className="text-xs opacity-80">{filteredDeals.length === 0 ? 'No companies yet.' : `${filteredDeals.length} company(s) shown.`}</p>
+                )}
               </div>
 
-              {tierControlsEnabled ? (
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs opacity-80">Tier</span>
+                  <span className="text-xs opacity-80">Sort</span>
                   <select
                     className="rounded-lg border px-3 py-2 bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 text-xs"
-                    value={tierFilter}
-                    onChange={(e) => setTierFilter(e.target.value as TierFilter)}
+                    value={sortKey}
+                    onChange={(e) => setSortKey(e.target.value as SortKey)}
                   >
-                    <option value="all">All</option>
-                    <option value="A">Tier A</option>
-                    <option value="B">Tier B</option>
-                    <option value="C">Tier C</option>
-                    <option value="unrated">Unrated</option>
+                    <option value="newest">Newest</option>
+                    <option value="oldest">Oldest</option>
+
+                    {tierControlsEnabled ? (
+                      <>
+                        <option value="tier_high_to_low">Tier (A → C)</option>
+                        <option value="tier_low_to_high">Tier (C → A)</option>
+                      </>
+                    ) : null}
+
+                    <option value="company_az">Company (A → Z)</option>
+                    <option value="company_za">Company (Z → A)</option>
                   </select>
                 </div>
-              ) : null}
 
-              <button
-                className="text-xs underline opacity-80"
-                onClick={() => {
-                  setTierFilter('all');
-                  setSortKey('newest');
-                }}
-              >
-                Reset
-              </button>
-            </div>
-          </div>
-
-          {errorMsg && <p className="px-4 pb-2 text-xs text-red-600">{errorMsg}</p>}
-
-          {filteredDeals.length > 0 && (
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-4">
-              <div className="flex flex-wrap items-center gap-3 text-xs">
-                <label className="inline-flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={allVisibleSelected}
-                    ref={(el) => {
-                      if (el) el.indeterminate = !allVisibleSelected && someVisibleSelected;
-                    }}
-                    onChange={() => {
-                      if (allVisibleSelected) clearSelection();
-                      else {
-                        setSelectedIds((prev) => {
-                          const next = new Set(prev);
-                          visibleIds.forEach((id) => next.add(id));
-                          return next;
-                        });
-                      }
-                    }}
-                    disabled={bulkBusy || loadingDeals || filteredDeals.length === 0}
-                  />
-                  <span>{allVisibleSelected ? 'All selected' : 'Select all'}</span>
-                </label>
+                {tierControlsEnabled ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs opacity-80">Tier</span>
+                    <select
+                      className="rounded-lg border px-3 py-2 bg-white text-slate-900 dark:bg-slate-900 dark:text-slate-100 dark:border-slate-700 text-xs"
+                      value={tierFilter}
+                      onChange={(e) => setTierFilter(e.target.value as TierFilter)}
+                    >
+                      <option value="all">All</option>
+                      <option value="A">Tier A</option>
+                      <option value="B">Tier B</option>
+                      <option value="C">Tier C</option>
+                      <option value="unrated">Unrated</option>
+                    </select>
+                  </div>
+                ) : null}
 
                 <button
                   className="text-xs underline opacity-80"
-                  onClick={clearSelection}
-                  disabled={bulkBusy || loadingDeals || filteredDeals.length === 0 || selectedCount === 0}
+                  onClick={() => {
+                    setTierFilter('all');
+                    setSortKey('newest');
+                  }}
                 >
-                  Clear
+                  Reset
                 </button>
-
-                <span className="opacity-70">{selectedCount} selected</span>
               </div>
+            </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                {selectedView === 'saved' ? (
-                  <button className="btn-main" onClick={bulkUnsaveSelected} disabled={bulkBusy || selectedCount === 0}>
-                    {bulkBusy ? 'Working…' : 'Remove selected from Saved'}
+            {errorMsg && <p className="px-4 pb-2 text-xs text-red-600">{errorMsg}</p>}
+
+            {filteredDeals.length > 0 && (
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-3 px-4">
+                <div className="flex flex-wrap items-center gap-3 text-xs">
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = !allVisibleSelected && someVisibleSelected;
+                      }}
+                      onChange={() => {
+                        if (allVisibleSelected) clearSelection();
+                        else {
+                          setSelectedIds((prev) => {
+                            const next = new Set(prev);
+                            visibleIds.forEach((id) => next.add(id));
+                            return next;
+                          });
+                        }
+                      }}
+                      disabled={bulkBusy || loadingDeals || filteredDeals.length === 0}
+                    />
+                    <span>{allVisibleSelected ? 'All selected' : 'Select all'}</span>
+                  </label>
+
+                  <button
+                    className="text-xs underline opacity-80"
+                    onClick={clearSelection}
+                    disabled={bulkBusy || loadingDeals || filteredDeals.length === 0 || selectedCount === 0}
+                  >
+                    Clear
                   </button>
-                ) : (
-                  <button className="btn-main" onClick={bulkSaveSelected} disabled={bulkBusy || selectedCount === 0}>
-                    {bulkBusy ? 'Working…' : 'Save selected'}
-                  </button>
-                )}
 
-                <button
-                  className="btn-main"
-                  onClick={bulkDeleteSelected}
-                  disabled={bulkBusy || selectedCount === 0}
-                  aria-disabled={bulkBusy || selectedCount === 0}
-                  title="Deletes deal records from your workspace (cannot be undone)."
-                >
-                  {bulkBusy ? 'Working…' : 'Delete selected'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {loadingDeals ? (
-            <div className="px-4 pb-4">
-              <div className="rounded-xl border p-4 text-xs opacity-80">Loading…</div>
-            </div>
-          ) : filteredDeals.length === 0 ? (
-            renderEmptyStateForView()
-          ) : (
-            <div className="overflow-x-auto px-4 pb-4">
-              <table className="min-w-full text-left text-xs">
-                <thead className="table-header">
-                  <tr>
-                    <th className="px-2 py-1.5 font-medium w-[36px]"></th>
-                    <th className="px-2 py-1.5 font-medium">Company</th>
-                    {selectedView !== 'off_market' && <th className="px-2 py-1.5 font-medium">Source</th>}
-                    {selectedView === 'on_market' && <th className="px-2 py-1.5 font-medium">Location</th>}
-                    {selectedView === 'on_market' && <th className="px-2 py-1.5 font-medium">Industry</th>}
-                    {showTierColumn && <th className="px-2 py-1.5 font-medium">Tier</th>}
-                    <th className="px-2 py-1.5 font-medium">Data confidence</th>
-                    <th className="px-2 py-1.5 font-medium">Why it matters</th>
-                    <th className="px-2 py-1.5 font-medium">Created</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {filteredDeals.map((deal) => {
-                    const conf = getDashboardConfidence(deal);
-                    const why = getDashboardWhyItMatters(deal);
-                    const tierApplicableRow = isTierApplicableSource(deal.source_type);
-
-                    return (
-                      <tr
-                        key={deal.id}
-                        className="table-row"
-                        onClick={() => router.push(`/deals/${deal.id}?from_view=${selectedView}`)}
-                        role="button"
-                        tabIndex={0}
-                      >
-                        <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
-                          <input type="checkbox" checked={selectedIds.has(deal.id)} onChange={() => toggleOne(deal.id)} />
-                        </td>
-
-                        <td className="px-2 py-2">
-                          <div className="flex flex-col">
-                            <Link href={`/deals/${deal.id}?from_view=${selectedView}`} className="underline" onClick={(e) => e.stopPropagation()}>
-                              {deal.company_name || 'Untitled'}
-                            </Link>
-                          </div>
-                        </td>
-
-                        {selectedView !== 'off_market' && <td className="px-2 py-2">{formatSource(deal.source_type)}</td>}
-
-                        {selectedView === 'on_market' && <td className="px-2 py-2">{formatLocation(deal.location_city, deal.location_state)}</td>}
-                        {selectedView === 'on_market' && <td className="px-2 py-2">{deal.industry || ''}</td>}
-
-                        {showTierColumn && <td className="px-2 py-2">{tierApplicableRow ? <TierPill tier={deal.final_tier} /> : null}</td>}
-
-                        <td className="px-2 py-2">
-                          <ConfidencePill icon={conf.icon} label={conf.label} title={conf.reason} level={conf.level} analyzed={conf.analyzed} />
-                        </td>
-
-                        <td className="px-2 py-2">
-                          <span className="opacity-90">{why}</span>
-                        </td>
-
-                        <td className="px-2 py-2">{formatCreated(deal.created_at)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-
-              <div className="pt-3 text-[11px] opacity-70">SearchFindr surfaces risk and prioritization signals. Final judgment remains with the buyer.</div>
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* Off-market search tool (UNCHANGED UI) */}
-      {selectedView === 'off_market' && (
-        <section className="card-table p-4 space-y-3">
-          <div>
-            <h2 className="text-sm font-semibold">Off-market discovery</h2>
-            <p className="text-xs opacity-80">Add industries + enter city/state + radius. Results appear in Off-market as leads. Tiers here are light surface signals.</p>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs opacity-80">Industries</label>
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                <select className={selectCls} value={offIndustryToAdd} onChange={(e) => setOffIndustryToAdd(e.target.value)}>
-                  {OFFMARKET_INDUSTRIES.map((ind) => (
-                    <option key={ind} value={ind}>
-                      {ind}
-                    </option>
-                  ))}
-                </select>
-
-                <button type="button" className="btn-main" onClick={addIndustry}>
-                  Add
-                </button>
-              </div>
-
-              {offIndustries.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {offIndustries.map((ind) => (
-                    <span key={ind} className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs">
-                      {ind}
-                      <button type="button" className="text-[11px] underline" onClick={() => removeIndustry(ind)}>
-                        remove
-                      </button>
-                    </span>
-                  ))}
+                  <span className="opacity-70">{selectedCount} selected</span>
                 </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {selectedView === 'saved' ? (
+                    <button className="btn-main" onClick={bulkUnsaveSelected} disabled={bulkBusy || selectedCount === 0}>
+                      {bulkBusy ? 'Working…' : 'Remove selected from Saved'}
+                    </button>
+                  ) : (
+                    <button className="btn-main" onClick={bulkSaveSelected} disabled={bulkBusy || selectedCount === 0}>
+                      {bulkBusy ? 'Working…' : 'Save selected'}
+                    </button>
+                  )}
+
+                  <button
+                    className="btn-main"
+                    onClick={bulkDeleteSelected}
+                    disabled={bulkBusy || selectedCount === 0}
+                    aria-disabled={bulkBusy || selectedCount === 0}
+                    title="Deletes deal records from your workspace (cannot be undone)."
+                  >
+                    {bulkBusy ? 'Working…' : 'Delete selected'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {loadingDeals ? (
+              <div className="px-4 pb-4">
+                <div className="rounded-xl border p-4 text-xs opacity-80">Loading…</div>
+              </div>
+            ) : filteredDeals.length === 0 ? (
+              // keep same empty state behavior
+              selectedView === 'saved' ? (
+                <EmptyStateCard
+                  title="No saved deals yet"
+                  description="Capture deals via the extension or upload a CIM/financials, then save the ones you want in your pipeline."
+                  primaryLabel="Go to On-market (Extension)"
+                  onPrimary={() => changeView('on_market')}
+                  secondaryLabel="Upload a CIM"
+                  onSecondary={() => changeView('cim_pdf')}
+                />
+              ) : selectedView === 'on_market' ? (
+                <EmptyStateCard
+                  title="No on-market deals yet"
+                  description="Use the Chrome extension to capture live listings and send them here."
+                  primaryLabel="Connect Chrome extension"
+                  onPrimary={handleConnectExtension}
+                  secondaryLabel="Go to Saved"
+                  onSecondary={() => changeView('saved')}
+                />
+              ) : selectedView === 'off_market' ? (
+                <EmptyStateCard
+                  title="No off-market results yet"
+                  description="Search by industry + geography to surface owner-operated SMBs. Results are leads, not verified."
+                  primaryLabel="Run a search above"
+                  onPrimary={() => setOffSearchStatus(offSearchStatus ?? 'Add industries + city/state, then click Search.')}
+                  secondaryLabel="Go to Saved"
+                  onSecondary={() => changeView('saved')}
+                />
+              ) : selectedView === 'financials' ? (
+                <EmptyStateCard
+                  title="No financial uploads yet"
+                  description="Upload financials and run a skeptical quality analysis (red flags, green flags, missing items)."
+                  primaryLabel="Upload Financials"
+                  onPrimary={handleFinancialsButtonClick}
+                  secondaryLabel="Go to CIM Uploads"
+                  onSecondary={() => changeView('cim_pdf')}
+                />
               ) : (
-                <p className="text-xs opacity-70">Add at least one industry to search.</p>
-              )}
-            </div>
-          </div>
+                <EmptyStateCard
+                  title="No CIM uploads yet"
+                  description="Upload a CIM to generate an AI investment memo."
+                  primaryLabel="Upload CIM (PDF)"
+                  onPrimary={handleCimButtonClick}
+                  secondaryLabel="Go to On-market (Extension)"
+                  onSecondary={() => changeView('on_market')}
+                />
+              )
+            ) : (
+              <div className="overflow-x-auto px-4 pb-4">
+                <table className="min-w-full text-left text-xs">
+                  <thead className="table-header">
+                    <tr>
+                      <th className="px-2 py-1.5 font-medium w-[36px]"></th>
+                      <th className="px-2 py-1.5 font-medium">Company</th>
+                      {selectedView !== 'off_market' && <th className="px-2 py-1.5 font-medium">Source</th>}
+                      {selectedView === 'on_market' && <th className="px-2 py-1.5 font-medium">Location</th>}
+                      {selectedView === 'on_market' && <th className="px-2 py-1.5 font-medium">Industry</th>}
+                      {showTierColumn && <th className="px-2 py-1.5 font-medium">Tier</th>}
+                      <th className="px-2 py-1.5 font-medium">Data confidence</th>
+                      <th className="px-2 py-1.5 font-medium">Why it matters</th>
+                      <th className="px-2 py-1.5 font-medium">Created</th>
+                    </tr>
+                  </thead>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs opacity-80">City</label>
-              <input className="w-full rounded-lg border px-3 py-2 bg-transparent text-sm" value={offCity} onChange={(e) => setOffCity(e.target.value)} placeholder="e.g. Austin" />
-            </div>
+                  <tbody>
+                    {filteredDeals.map((deal) => {
+                      const conf = getDashboardConfidence(deal);
+                      const why = getDashboardWhyItMatters(deal);
+                      const tierApplicableRow = isTierApplicableSource(deal.source_type);
 
-            <div className="space-y-1">
-              <label className="text-xs opacity-80">State</label>
-              <select className={selectCls} value={offState} onChange={(e) => setOffState(e.target.value)}>
-                {US_STATES.map((s) => (
-                  <option key={s.abbr} value={s.abbr}>
-                    {s.abbr} — {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+                      return (
+                        <tr
+                          key={deal.id}
+                          className="table-row"
+                          onClick={() => router.push(`/deals/${deal.id}?from_view=${selectedView}`)}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <td className="px-2 py-2" onClick={(e) => e.stopPropagation()}>
+                            <input type="checkbox" checked={selectedIds.has(deal.id)} onChange={() => toggleOne(deal.id)} />
+                          </td>
 
-            <div className="space-y-1">
-              <label className="text-xs opacity-80">Radius (miles)</label>
-              <select className={selectCls} value={offRadiusMiles} onChange={(e) => setOffRadiusMiles(Number(e.target.value))}>
-                {ALLOWED_RADIUS.map((r) => (
-                  <option key={r} value={r}>
-                    {r}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+                          <td className="px-2 py-2">
+                            <div className="flex flex-col">
+                              <Link href={`/deals/${deal.id}?from_view=${selectedView}`} className="underline" onClick={(e) => e.stopPropagation()}>
+                                {deal.company_name || 'Untitled'}
+                              </Link>
+                            </div>
+                          </td>
 
-          <div className="flex items-center gap-3">
-            <button className="btn-main" onClick={handleOffMarketSearch} disabled={offSearching}>
-              {offSearching ? 'Searching…' : 'Search'}
-            </button>
+                          {selectedView !== 'off_market' && <td className="px-2 py-2">{formatSource(deal.source_type)}</td>}
 
-            <span className="text-xs opacity-80">Location: {locationString}</span>
+                          {selectedView === 'on_market' && <td className="px-2 py-2">{formatLocation(deal.location_city, deal.location_state)}</td>}
+                          {selectedView === 'on_market' && <td className="px-2 py-2">{deal.industry || ''}</td>}
 
-            {offSearchStatus && <span className="text-xs opacity-80">{offSearchStatus}</span>}
-          </div>
-        </section>
+                          {showTierColumn && <td className="px-2 py-2">{tierApplicableRow ? <TierPill tier={deal.final_tier} /> : null}</td>}
+
+                          <td className="px-2 py-2">
+                            <ConfidencePill icon={conf.icon} label={conf.label} title={conf.reason} level={conf.level} analyzed={conf.analyzed} />
+                          </td>
+
+                          <td className="px-2 py-2">
+                            <span className="opacity-90">{why}</span>
+                          </td>
+
+                          <td className="px-2 py-2">{formatCreated(deal.created_at)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+
+                <div className="pt-3 text-[11px] opacity-70">SearchFindr surfaces risk and prioritization signals. Final judgment remains with the buyer.</div>
+              </div>
+            )}
+          </section>
+        </>
       )}
     </main>
   );

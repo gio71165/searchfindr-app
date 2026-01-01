@@ -1,22 +1,25 @@
-// popup.js — SearchFindr Extension UX v13 (state machine + safe error handling)
-console.log("SearchFindr popup v13 loaded");
+// popup.js — SearchFindr Extension UX v15 (MV3, no "tabs" permission required)
+// - No chrome.tabs.create()
+// - Uses window.open for navigation
+// - Uses chrome.tabs.query ONLY to get active tab id (works with activeTab + user gesture)
+// - Injects script via chrome.scripting.executeScript to read URL/title/text
+
+console.log("SearchFindr popup v15 loaded");
 
 // 🔥 Your LIVE API endpoint
 const API_URL = "https://searchfindr-app.vercel.app/api/capture-deal";
 
 // 🔐 Login / connect entry point
-// User goes here → logs in if needed → returns to /extension/callback
 const LOGIN_URL = "https://searchfindr-app.vercel.app/?next=/extension/callback";
- 
+
 // Optional
 const LEARN_MORE_URL = "https://searchfindr-app.vercel.app/extension/help";
 const APP_HOME_URL = "https://searchfindr-app.vercel.app/dashboard";
 
-// Storage key (you’re already using this)
+// Storage key
 const TOKEN_KEY = "sf_access_token";
 
-// Prefer local for auth tokens (sync can be flaky/slow + not ideal for tokens).
-// If you MUST keep sync, switch STORAGE = chrome.storage.sync
+// Prefer local for auth tokens
 const STORAGE = chrome.storage.local;
 
 // ---- DOM ----
@@ -36,10 +39,10 @@ const copyDebugBtn = document.getElementById("copyDebugButton"); // optional but
  * logged_out | ready | loading | success | error | expired
  */
 let uiState = "logged_out";
-let lastCapturePayload = null; // used for Retry
 let lastDebugId = null;
 let lastDealUrl = null;
 
+// ---- UI helpers ----
 function setStatus(text, isError = false) {
   if (!statusEl) return;
   statusEl.textContent = text;
@@ -54,11 +57,13 @@ function setTitle(text) {
 function setDebug(idOrNull) {
   lastDebugId = idOrNull;
   if (!debugRow || !debugIdText) return;
+
   if (!idOrNull) {
     debugRow.style.display = "none";
     debugIdText.textContent = "";
     return;
   }
+
   debugRow.style.display = "block";
   debugIdText.textContent = idOrNull;
 }
@@ -70,13 +75,14 @@ function makeDebugId() {
 
 function setButtons({ primaryText, primaryDisabled, secondaryText, secondaryHidden }) {
   if (primaryBtn) {
-    primaryBtn.textContent = primaryText ?? primaryBtn.textContent;
+    if (primaryText != null) primaryBtn.textContent = primaryText;
     primaryBtn.disabled = !!primaryDisabled;
     primaryBtn.style.opacity = primaryBtn.disabled ? "0.6" : "1";
     primaryBtn.style.cursor = primaryBtn.disabled ? "not-allowed" : "pointer";
   }
+
   if (secondaryBtn) {
-    secondaryBtn.textContent = secondaryText ?? secondaryBtn.textContent;
+    if (secondaryText != null) secondaryBtn.textContent = secondaryText;
     secondaryBtn.style.display = secondaryHidden ? "none" : "inline-block";
     secondaryBtn.disabled = false;
     secondaryBtn.style.opacity = "1";
@@ -84,7 +90,6 @@ function setButtons({ primaryText, primaryDisabled, secondaryText, secondaryHidd
 }
 
 function render() {
-  // Default: hide debug unless error wants it
   if (uiState !== "error") setDebug(null);
 
   switch (uiState) {
@@ -95,7 +100,7 @@ function render() {
         primaryText: "Log in",
         primaryDisabled: false,
         secondaryText: "Learn more",
-        secondaryHidden: !secondaryBtn, // if no secondary button exists, ignore
+        secondaryHidden: !secondaryBtn,
       });
       break;
 
@@ -143,7 +148,7 @@ function render() {
 
     case "error":
       setTitle("Something went wrong");
-      // status already set by the error handler (so we can use alternate copy for 400/422)
+      // status is set by the error handler so we can customize copy
       setButtons({
         primaryText: "Retry",
         primaryDisabled: false,
@@ -159,7 +164,7 @@ function render() {
   }
 }
 
-// ---- Helpers ----
+// ---- Storage helpers ----
 async function getToken() {
   const res = await STORAGE.get([TOKEN_KEY]);
   const t = res[TOKEN_KEY];
@@ -170,8 +175,15 @@ async function clearToken() {
   await STORAGE.remove([TOKEN_KEY]);
 }
 
+// ---- Navigation ----
+// No chrome.tabs.create() -> avoids "tabs" permission concerns.
 function openUrl(url) {
-  chrome.tabs.create({ url });
+  try {
+    window.open(url, "_blank", "noopener,noreferrer");
+  } catch {
+    // fallback
+    location.href = url;
+  }
 }
 
 function copyToClipboard(text) {
@@ -179,42 +191,49 @@ function copyToClipboard(text) {
   navigator.clipboard?.writeText(text).catch(() => {});
 }
 
-// ---- Page capture ----
-function readActiveTabPayload() {
+// ---- Capture ----
+function getActiveTabId() {
   return new Promise((resolve, reject) => {
+    // With MV3, this typically works under user gesture with "activeTab".
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tab = tabs?.[0];
       if (!tab || !tab.id) return reject(new Error("No active tab"));
-
-      chrome.scripting.executeScript(
-        {
-          target: { tabId: tab.id },
-          func: () => {
-            const url = window.location.href;
-            const title = document.title || "";
-            const pageText = document.body?.innerText || "";
-            return { url, title, pageText: pageText.slice(0, 20000) };
-          },
-        },
-        (results) => {
-          const r = results?.[0]?.result;
-          if (!r) return reject(new Error("Could not read page content"));
-
-          const { url, title, pageText } = r;
-          if (!pageText || !pageText.trim()) return reject(new Error("No text found on page"));
-
-          resolve({ url, title, text: pageText });
-        }
-      );
+      resolve(tab.id);
     });
   });
 }
 
-// ---- Safe request wrapper (maps errors to UX states) ----
+async function readActiveTabPayload() {
+  const tabId = await getActiveTabId();
+
+  return new Promise((resolve, reject) => {
+    chrome.scripting.executeScript(
+      {
+        target: { tabId },
+        func: () => {
+          const url = window.location.href;
+          const title = document.title || "";
+          const pageText = document.body?.innerText || "";
+          return { url, title, pageText: pageText.slice(0, 20000) };
+        },
+      },
+      (results) => {
+        const r = results?.[0]?.result;
+        if (!r) return reject(new Error("Could not read page content"));
+
+        const { url, title, pageText } = r;
+        if (!pageText || !pageText.trim()) return reject(new Error("No text found on page"));
+
+        resolve({ url, title, text: pageText });
+      }
+    );
+  });
+}
+
+// ---- API wrapper ----
 async function apiCaptureDeal(payload, token) {
   const debugId = makeDebugId();
 
-  // Abort/timeout protection
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
 
@@ -234,10 +253,10 @@ async function apiCaptureDeal(payload, token) {
     try {
       json = bodyText ? JSON.parse(bodyText) : null;
     } catch {
-      // non-json response (still handled)
+      // non-json response is allowed; we handle it below
     }
 
-    // Developer-only logs
+    // Dev logs
     console.error("[SearchFindr EXT] capture-deal response", {
       debugId,
       status: res.status,
@@ -245,23 +264,11 @@ async function apiCaptureDeal(payload, token) {
       bodyText,
     });
 
-    // Mandatory mapping
-    if (res.status === 401 || res.status === 403) {
-      return { kind: "expired", debugId };
-    }
+    if (res.status === 401 || res.status === 403) return { kind: "expired", debugId };
+    if (res.status === 400 || res.status === 422) return { kind: "bad_request", debugId };
+    if (!res.ok) return { kind: "retryable", debugId };
 
-    if (res.status === 400 || res.status === 422) {
-      return { kind: "bad_request", debugId };
-    }
-
-    if (!res.ok) {
-      return { kind: "retryable", debugId };
-    }
-
-    // Success must include { success: true } (per your spec)
-    if (!json || json.success !== true) {
-      return { kind: "retryable", debugId };
-    }
+    if (!json || json.success !== true) return { kind: "retryable", debugId };
 
     return { kind: "ok", debugId, json };
   } catch (err) {
@@ -294,21 +301,17 @@ async function doCapture() {
   let payload;
   try {
     payload = await readActiveTabPayload();
-  } catch (err) {
-    // This is user-facing copy (no raw error)
+  } catch {
     uiState = "error";
     setStatus("We couldn’t read this page. Please try a different listing page.", true);
-    lastDebugId = makeDebugId();
+    setDebug(makeDebugId());
     render();
     return;
   }
 
-  lastCapturePayload = payload;
-
   const result = await apiCaptureDeal(payload, token);
 
   if (result.kind === "ok") {
-    // Try to store deep link if backend returns one
     const dealUrl = result.json?.dealUrl || result.json?.url || null;
     lastDealUrl = typeof dealUrl === "string" ? dealUrl : null;
 
@@ -326,7 +329,7 @@ async function doCapture() {
 
   if (result.kind === "bad_request") {
     uiState = "error";
-    lastDebugId = result.debugId;
+    setDebug(result.debugId);
     setStatus(
       "This listing couldn’t be saved. Please try a different page or contact support.",
       true
@@ -335,21 +338,14 @@ async function doCapture() {
     return;
   }
 
-  // retryable
   uiState = "error";
-  lastDebugId = result.debugId;
+  setDebug(result.debugId);
   setStatus("We couldn’t save this listing. Please try again.", true);
   render();
 }
 
-async function doRetry() {
-  // Retry just runs capture again (reads page again so it stays current)
-  await doCapture();
-}
-
 async function doDisconnect() {
   await clearToken();
-  lastCapturePayload = null;
   lastDealUrl = null;
   lastDebugId = null;
   uiState = "logged_out";
@@ -369,7 +365,7 @@ function bindButtons() {
         return;
       }
       if (uiState === "error") {
-        await doRetry();
+        await doCapture();
         return;
       }
       if (uiState === "success") {
@@ -390,13 +386,11 @@ function bindButtons() {
         return;
       }
       if (uiState === "success") {
-        // "Capture another"
         uiState = "ready";
         render();
         return;
       }
       if (uiState === "error") {
-        // "Copy debug ID"
         if (lastDebugId) copyToClipboard(lastDebugId);
         return;
       }
