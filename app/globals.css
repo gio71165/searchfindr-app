@@ -1,22 +1,77 @@
 @import "tailwindcss";
 
 /* =========================
-   Theme + native control scheme
+   Global Theme (Option B+)
+   Techy blue-gray, consistent light/dark
    ========================= */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* App */
+  --background: #f3f6fb;
+  --foreground: #0b1220;
 
-  /* Forces native UI (including select dropdown menus) to render in light mode */
+  --surface: #ffffff;
+  --muted: #e8effa;
+  --hover: rgba(11, 18, 32, 0.05);
+
+  --border: rgba(11, 18, 32, 0.12);
+
+  --input-bg: #ffffff;
+  --input-border: rgba(11, 18, 32, 0.18);
+
+  --ui-strong: #0b1220;
+  --ui-strong-hover: #111a2c;
+
   color-scheme: light;
+
+  /* =========================
+     AI Chat (distinct + cohesive)
+     ========================= */
+  --ai-chat-bg: #e6eefc;              /* clearly different from page bg */
+  --ai-chat-border: rgba(11, 18, 32, 0.16);
+  --ai-chat-hover: rgba(11, 18, 32, 0.08);
+
+  /* bubbles */
+  --ai-bubble-assistant-bg: #f8fbff;
+  --ai-bubble-user-bg: #eef4ff;
+  --ai-bubble-prompt-bg: #ffffff;
+
+  /* input row */
+  --ai-input-bg: #ffffff;
+  --ai-input-border: rgba(11, 18, 32, 0.18);
 }
 
 :root.dark {
-  --background: #0a0a0a;
-  --foreground: #ededed;
+  /* App */
+  --background: #0b1220;
+  --foreground: #eef2f7;
 
-  /* Forces native UI (including select dropdown menus) to render in dark mode */
+  --surface: #101a2c;
+  --muted: #14213a;
+  --hover: rgba(255, 255, 255, 0.06);
+
+  --border: rgba(255, 255, 255, 0.12);
+
+  --input-bg: #0f172a;
+  --input-border: rgba(255, 255, 255, 0.16);
+
+  --ui-strong: #ffffff;
+  --ui-strong-hover: #f3f4f6;
+
   color-scheme: dark;
+
+  /* =========================
+     AI Chat (dark distinct)
+     ========================= */
+  --ai-chat-bg: #071226;              /* deeper than app bg */
+  --ai-chat-border: rgba(255, 255, 255, 0.14);
+  --ai-chat-hover: rgba(255, 255, 255, 0.07);
+
+  --ai-bubble-assistant-bg: #0c1a33;
+  --ai-bubble-user-bg: #0b1730;
+  --ai-bubble-prompt-bg: #0b1a35;
+
+  --ai-input-bg: #0f172a;
+  --ai-input-border: rgba(255, 255, 255, 0.16);
 }
 
 html,
@@ -27,171 +82,153 @@ body {
 }
 
 /* =========================
-   Native form controls
-   =========================
-   NOTE:
-   - This styles the CLOSED control reliably.
-   - The OPEN dropdown list is mostly controlled by the browser/OS,
-     but color-scheme above is what fixes the “dark dropdown” mismatch.
-*/
+   Native controls
+   ========================= */
 select,
 input,
 textarea {
-  background-color: #ffffff;
-  color: #171717;
-  border: 1px solid rgba(0, 0, 0, 0.25);
+  background-color: var(--input-bg);
+  color: var(--foreground);
+  border: 1px solid var(--input-border);
+  border-radius: 0.5rem;
 }
 
-/* Helps some browsers with option rendering */
 select option {
-  background-color: #ffffff;
-  color: #171717;
-}
-
-/* Dark mode form controls */
-:root.dark select,
-:root.dark input,
-:root.dark textarea {
-  background-color: #111827; /* slate-900 */
-  color: #ededed;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-:root.dark select option {
-  background-color: #111827;
-  color: #ededed;
+  background-color: var(--input-bg);
+  color: var(--foreground);
 }
 
 /* =========================
-   Primary action buttons
+   Buttons
    ========================= */
 .btn-main {
   padding: 0.5rem 0.75rem;
   font-size: 0.75rem;
-  font-weight: 500;
-  border-radius: 0.375rem;
-  border: 1px solid #000;
-  background: #000;
-  color: #fff;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  border: 1px solid var(--ui-strong);
+  background: var(--ui-strong);
+  color: #ffffff;
   cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease, opacity 150ms ease;
 }
-
-.btn-main:hover {
-  background: #111111;
-}
-
-/* Dark mode buttons */
-:root.dark .btn-main {
-  background: #ffffff;
-  color: #000000;
-  border-color: #ffffff;
-}
-
-:root.dark .btn-main:hover {
-  background: #f5f5f5;
-}
+:root.dark .btn-main { color: #0b1220; }
+.btn-main:hover { background: var(--ui-strong-hover); border-color: var(--ui-strong-hover); }
+.btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* =========================
-   View / filter pills
+   Pills
    ========================= */
 .view-pill {
   padding: 0.5rem 0.75rem;
   font-size: 0.75rem;
-  font-weight: 500;
-  border-radius: 0.375rem;
-  border: 1px solid #000;
-  background: #ffffff;
-  color: #000000;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--foreground);
   cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, opacity 150ms ease;
 }
-
-.view-pill--active {
-  background: #000000;
-  color: #ffffff;
-}
-
-/* Dark mode pills */
-:root.dark .view-pill {
-  background: transparent;
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.5);
-}
-
-:root.dark .view-pill--active {
-  background: #ffffff;
-  color: #000000;
-  border-color: #ffffff;
-}
+.view-pill:hover { background: var(--muted); }
+.view-pill--active { background: var(--ui-strong); border-color: var(--ui-strong); color: #ffffff; }
+:root.dark .view-pill--active { color: #0b1220; }
+.view-pill:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* =========================
-   Cards / tables
+   Cards
    ========================= */
 .card-table {
   border-radius: 0.75rem;
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
   padding: 1rem;
-  background: #ffffff;
+  background: var(--surface);
 }
+.table-header { background: var(--muted); }
+.table-row { border-top: 1px solid rgba(11, 18, 32, 0.06); }
+:root.dark .table-row { border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.table-row:hover { background: var(--hover); }
 
-:root.dark .card-table {
-  background: #111827;
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-/* Table header */
-.table-header {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-:root.dark .table-header {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-/* Table rows */
-.table-row {
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.table-row:hover {
-  background: rgba(0, 0, 0, 0.05);
-}
-
-:root.dark .table-row {
-  border-color: rgba(255, 255, 255, 0.1);
-}
-
-:root.dark .table-row:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-/* =========================
-   Detail cards
-   ========================= */
 .card-section {
   border-radius: 0.75rem;
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
   padding: 1.25rem;
-  background: #ffffff;
-}
-
-:root.dark .card-section {
-  background: #111827;
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--surface);
 }
 
 /* =========================
-   Red flags card
+   AI Chat (NO triple boxes)
+   One distinct panel bg + bubbles only
+   ========================= */
+.ai-chat-panel {
+  background: var(--ai-chat-bg);
+  border: 1px solid var(--ai-chat-border);
+  border-radius: 1rem;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+}
+:root.dark .ai-chat-panel { box-shadow: 0 16px 44px rgba(0,0,0,0.50); }
+
+.ai-chat-divider { border-color: var(--ai-chat-border); }
+
+/* Bubbles */
+.ai-bubble-assistant {
+  background: var(--ai-bubble-assistant-bg);
+  border: 1px solid var(--ai-chat-border);
+  color: var(--foreground);
+}
+.ai-bubble-user {
+  background: var(--ai-bubble-user-bg);
+  border: 1px solid var(--ai-chat-border);
+  color: var(--foreground);
+}
+/* Clickable prompt bubble */
+.ai-bubble-prompt {
+  background: var(--ai-bubble-prompt-bg);
+  border: 1px solid var(--ai-chat-border);
+  color: var(--foreground);
+  transition: background 150ms ease, transform 120ms ease;
+  cursor: pointer;
+}
+.ai-bubble-prompt:hover { background: var(--ai-chat-hover); transform: translateY(-1px); }
+.ai-bubble-prompt:active { transform: translateY(0px); }
+
+/* Small control buttons inside chat */
+.ai-chip-btn {
+  border-radius: 10px;
+  border: 1px solid var(--ai-chat-border);
+  background: var(--ai-bubble-user-bg);
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: background 150ms ease, opacity 150ms ease;
+}
+.ai-chip-btn:hover { background: var(--ai-chat-hover); }
+
+/* Chat input row uses chat tokens (so it matches) */
+.ai-chat-input {
+  background: var(--ai-input-bg);
+  border: 1px solid var(--ai-input-border);
+  border-radius: 0.75rem;
+}
+.ai-chat-send {
+  background: var(--ai-input-bg);
+  border: 1px solid var(--ai-input-border);
+  border-radius: 0.75rem;
+}
+.ai-chat-send:hover { background: var(--ai-chat-hover); }
+
+/* =========================
+   Red flags
    ========================= */
 .card-red {
   border-radius: 0.75rem;
   border: 1px solid #dc2626;
   padding: 1.25rem;
-  background: #fee2e2;
+  background: #ffe3e3;
   color: #7f1d1d;
 }
-
 :root.dark .card-red {
-  background: rgba(127, 29, 29, 0.25);
-  border-color: #fca5a5;
+  background: rgba(220, 38, 38, 0.18);
+  border-color: rgba(252, 165, 165, 0.7);
   color: #fecaca;
 }
