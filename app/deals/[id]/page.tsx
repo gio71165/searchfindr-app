@@ -511,17 +511,21 @@ function DealChatPanel({ dealId, deal }: { dealId: string; deal: any }) {
 
   // ------------------------------------------------------------
   // Clear chat (UI + Supabase)
-  // NOTE: requires your /api/deal-chat DELETE handler to delete rows
-  // scoped by workspace_id + deal_id + user_id.
+  // Uses your existing DELETE /api/deal-chat handler (Bearer token auth)
   // ------------------------------------------------------------
   const handleClearChat = async () => {
-    // Clear UI immediately
-    setMessages([]);
-
     try {
+      if (!dealId || sending) return;
+
+      setErr(null);
+
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
-      if (!token) return;
+
+      if (!token) {
+        setErr("Not authenticated.");
+        return;
+      }
 
       const res = await fetch(`/api/deal-chat?dealId=${encodeURIComponent(dealId)}`, {
         method: "DELETE",
@@ -529,11 +533,16 @@ function DealChatPanel({ dealId, deal }: { dealId: string; deal: any }) {
       });
 
       if (!res.ok) {
-        const raw = await res.text();
-        console.warn("Clear chat failed:", res.status, raw);
+        const raw = await res.text().catch(() => "");
+        setErr(raw || "Failed to clear chat.");
+        return;
       }
+
+      // Success: clear UI after backend clears
+      setMessages([]);
     } catch (e) {
       console.warn("Clear chat failed:", e);
+      setErr("Failed to clear chat.");
     }
   };
 
@@ -709,7 +718,7 @@ function DealChatPanel({ dealId, deal }: { dealId: string; deal: any }) {
   };
 
   // ------------------------------------------------------------
-  // Render (UNCHANGED UI)
+  // Render (Clear persists via DELETE /api/deal-chat)
   // ------------------------------------------------------------
   return (
     <aside className="lg:col-span-1">
