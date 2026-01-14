@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { DealsRepository } from "@/lib/data-access/deals";
 import { NotFoundError } from "@/lib/data-access/base";
+import { buildOffMarketDiligencePrompt } from "@/lib/prompts/off-market-diligence";
 
 export const runtime = "nodejs";
 
@@ -182,83 +183,16 @@ async function runOffMarketInitialDiligenceAI(input: {
 
   const inputs = c.tier_reason && typeof c.tier_reason === "object" ? (c.tier_reason as any).inputs ?? null : null;
 
-  const prompt = `
-You are SearchFindr running INITIAL OFF-MARKET DILIGENCE using ONLY:
-- Google listing metadata we already have (rating/reviews/address/phone)
-- The company website homepage text pasted below (may be incomplete)
-
-Do NOT assume you know the owner. If the website DOES NOT explicitly show ownership signals
-(e.g., "owner", "founder", named people with titles, "family-owned" with specifics),
-then owner information is "Unknown".
-
-Very important: Tier and score MUST be EVIDENCE-BASED.
-- If ownership cannot be verified (no named owner/founder/leadership signals), you MUST cap the result:
-  - final_tier cannot be "A"
-  - overall_score_0_100 must be <= 69
-- If the website text is thin/marketing-only and doesn't show real operations, be conservative.
-
-Do NOT include geography/industry fit scoring.
-
-Return ONLY valid JSON (no markdown) in this exact schema:
-
-{
-  "ai_summary": "string (2-4 sentences, factual, no hype)",
-  "ai_red_flags": ["string (>=3 items; evidence-based if possible, otherwise 'Unknown: ... Verify ...')"],
-  "business_model": {
-    "services": ["string"],
-    "customer_types": ["string"],
-    "delivery_model": "string",
-    "recurring_revenue_signals": ["string"],
-    "differentiators": ["string"],
-    "evidence": ["string"]
-  },
-  "owner_profile": {
-    "known": boolean,
-    "owner_names": ["string"],
-    "ownership_type": "Unknown|Owner-operated|Family-owned|Partnership|Other",
-    "evidence": ["string"],
-    "assumptions": ["string"]
-  },
-  "notes_for_searcher": {
-    "what_to_verify_first": ["string"],
-    "questions_to_ask_owner": ["string"],
-    "deal_angle": ["string"]
-  },
-  "financials": {
-    "revenue_band_est": "Unknown|<$1M|$1–$3M|$3–$10M|$10M+",
-    "ebitda_band_est": "Unknown|<$250k|$250k–$750k|$750k–$2M|$2M+",
-    "pricing_power": "Low|Medium|High|Unknown",
-    "customer_concentration_risk": "Low|Medium|High|Unknown",
-    "seasonality_risk": "Low|Medium|High|Unknown",
-    "evidence": ["string"]
-  },
-  "scoring": {
-    "succession_risk": "Low|Medium|High|Unknown",
-    "operational_quality_signal": "Low|Medium|High|Unknown",
-    "data_confidence": "Low|Medium|High",
-    "overall_score_0_100": 0,
-    "final_tier": "A|B|C",
-    "tier_basis": "string"
-  },
-  "criteria_match": {
-    "business_model": "string",
-    "owner_profile": "string",
-    "notes_for_searcher": "string",
-    "source_inputs": ${inputs ? JSON.stringify(inputs) : "null"}
-  }
-}
-
-Company metadata:
-- Name: ${c.company_name ?? ""}
-- Website: ${c.website}
-- Address: ${c.address ?? ""}
-- Phone: ${c.phone ?? ""}
-- Google rating: ${c.rating ?? ""}
-- Ratings count: ${c.ratings_total ?? ""}
-
-Homepage text:
-${input.homepageText || "(no homepage text available)"}
-`.trim();
+  const prompt = buildOffMarketDiligencePrompt({
+    company_name: c.company_name ?? null,
+    website: c.website,
+    address: c.address ?? null,
+    phone: c.phone ?? null,
+    rating: c.rating ?? null,
+    ratings_total: c.ratings_total ?? null,
+    homepageText: input.homepageText || "(no homepage text available)",
+    inputs,
+  });
 
   const res = await fetch(`${OPENAI_BASE_URL}/v1/chat/completions`, {
     method: "POST",

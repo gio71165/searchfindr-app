@@ -5,6 +5,7 @@ import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { DealsRepository } from "@/lib/data-access/deals";
 import { NotFoundError } from "@/lib/data-access/base";
 import * as XLSX from "xlsx";
+import { FINANCIALS_SYSTEM_PROMPT, buildFinancialsUserMessage } from "@/lib/prompts/financials-analysis";
 
 export const runtime = "nodejs";
 
@@ -162,37 +163,14 @@ async function callOpenAIJson(args: {
 }) {
   if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not set");
 
-  const system = `
-You are a skeptical financial screening analyst for SMB acquisitions.
-Return STRICT JSON only. No markdown. No commentary.
-Never invent numbers. If uncertain, say so.
-
-overall_confidence MUST be a dual-axis label, for example:
-"Operational Performance: Mixed | Financial Controls: Weak"
-`.trim();
-
-  const schema = `
-{
-  "overall_confidence": string,
-  "extracted_metrics": {
-    "revenue": [{"year": string, "value": number|null, "unit": string, "note": string}],
-    "ebitda": [{"year": string, "value": number|null, "unit": string, "note": string}],
-    "net_income": [{"year": string, "value": number|null, "unit": string, "note": string}],
-    "margins": [{"type": string, "year": string, "value_pct": number|null, "note": string}],
-    "yoy_trends": [string]
-  },
-  "red_flags": [string],
-  "green_flags": [string],
-  "missing_items": [string],
-  "diligence_notes": [string]
-}
-`.trim();
+  const system = FINANCIALS_SYSTEM_PROMPT.template;
+  const userMessage = buildFinancialsUserMessage();
 
   const input: any[] = [
     { role: "system", content: system },
     {
       role: "user",
-      content: [{ type: "input_text", text: `Analyze these financials.\n${schema}` }],
+      content: [{ type: "input_text", text: userMessage }],
     },
   ];
 

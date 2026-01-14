@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { DEAL_CHAT_SYSTEM_PROMPT, buildDealChatContextBlock } from "@/lib/prompts/deal-chat";
 
 export type ChatRole = "user" | "assistant" | "system";
 
@@ -66,43 +67,12 @@ export async function chatForDeal(args: DealChatArgs): Promise<DealChatResult> {
   }
 
   const dealContext = args.dealContext ?? {};
-  const systemPrompt = `
-You are SearchFindr's Deal Assistant.
+  const systemPrompt = DEAL_CHAT_SYSTEM_PROMPT.template;
 
-You are STRICTLY deal-locked: only use the deal data provided in CONTEXT below.
-If the user asks something that isn't supported by the context, say what is missing and what to request next (documents, fields, questions).
-
-Be concise, practical, and specific. No fluff. No generic investing advice unless it directly applies to the provided deal.
-When helpful, answer in bullets and include a short "Next checks" section.
-`.trim();
-
-  const contextBlock = `
-CONTEXT (server truth; do not assume anything beyond this):
-Company: ${dealContext?.company_name ?? "Unknown"}
-Source type: ${dealContext?.source_type ?? "unknown"}
-Listing URL: ${dealContext?.listing_url ?? "n/a"}
-
-AI Summary:
-${clipText(dealContext?.ai_summary, 5000)}
-
-AI Red Flags:
-${clipText(dealContext?.ai_red_flags, 5000)}
-
-AI Scoring JSON:
-${safeJsonStringify(dealContext?.ai_scoring_json, 8000)}
-
-AI Financials JSON:
-${safeJsonStringify(dealContext?.ai_financials_json, 9000)}
-
-Criteria Match JSON:
-${safeJsonStringify(dealContext?.criteria_match_json, 7000)}
-
-AI Confidence JSON:
-${safeJsonStringify(dealContext?.ai_confidence_json, 5000)}
-
-Raw listing text (clipped):
-${clipText(dealContext?.raw_listing_text, 9000)}
-`.trim();
+  const contextBlock = buildDealChatContextBlock(dealContext, {
+    clipText,
+    safeJsonStringify,
+  });
 
   const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
   const cleanedHistory = cleanHistory(args.history, 10);
