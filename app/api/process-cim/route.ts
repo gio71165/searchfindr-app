@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { authenticateRequest, AuthError } from '@/lib/api/auth';
+import { DealsRepository } from '@/lib/data-access/deals';
+import { NotFoundError } from '@/lib/data-access/base';
 
 export const runtime = 'nodejs';
 
@@ -223,6 +225,7 @@ export async function POST(req: NextRequest) {
     console.log('process-cim: received request');
 
     const { supabase: supabaseUser, workspace } = await authenticateRequest(req);
+    const deals = new DealsRepository(supabaseAdmin, workspace.id);
 
     const body = await req.json();
     const companyId = body.companyId as string | undefined;
@@ -234,18 +237,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Verify company belongs to user's workspace
-    const { data: company, error: companyErr } = await supabaseAdmin
-      .from('companies')
-      .select('id, workspace_id')
-      .eq('id', companyId)
-      .maybeSingle();
-
-    if (companyErr || !company) {
-      return NextResponse.json({ success: false, error: 'Company not found' }, { status: 404 });
-    }
-
-    if (company.workspace_id !== workspace.id) {
-      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
+    try {
+      await deals.getById(companyId);
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        return NextResponse.json({ success: false, error: 'Company not found' }, { status: 404 });
+      }
+      throw err;
     }
 
     if (!OPENAI_API_KEY) {
@@ -817,26 +815,20 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
     const cimDataConfidence = buildCimDataConfidence(parsed);
 
     // ✅ WRITE RESULTS TO DB
-    const { error: updateErr } = await supabaseAdmin
-      .from('companies')
-      .update({
+    try {
+      await deals.updateAnalysis(companyId, {
         ai_summary: parsed.ai_summary ?? null,
         ai_red_flags: redFlagsBulleted,
         ai_financials_json: parsed.financials ?? null,
         ai_scoring_json: parsed.scoring ?? null,
         criteria_match_json: criteriaToStore ?? null,
         final_tier: parsed?.scoring?.final_tier ?? null,
-
-        // ✅ IMPORTANT: snapshot column for dashboard truth
         ai_confidence_json: cimDataConfidence,
-      })
-      .eq('id', companyId)
-      .eq('workspace_id', workspace.id);
-
-    if (updateErr) {
-      console.error('process-cim: DB update error:', updateErr);
+      });
+    } catch (err) {
+      console.error('process-cim: DB update error:', err);
       return NextResponse.json(
-        { success: false, error: 'Failed to persist AI results to DB.', details: updateErr.message },
+        { success: false, error: 'Failed to persist AI results to DB.', details: err instanceof Error ? err.message : String(err) },
         { status: 500 }
       );
     }

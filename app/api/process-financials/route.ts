@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { authenticateRequest, AuthError } from "@/lib/api/auth";
+import { DealsRepository } from "@/lib/data-access/deals";
+import { NotFoundError } from "@/lib/data-access/base";
 import * as XLSX from "xlsx";
 
 export const runtime = "nodejs";
@@ -279,6 +281,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { user, workspace } = await authenticateRequest(req);
+    const deals = new DealsRepository(supabaseAdmin, workspace.id);
 
     const body = await req.json().catch(() => null);
     const dealId = body?.deal_id;
@@ -287,15 +290,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Company
-    const { data: company, error: compErr } = await supabaseAdmin
-      .from("companies")
-      .select("id, workspace_id, source_type, financials_storage_path, financials_filename, financials_mime")
-      .eq("id", dealId)
-      .eq("workspace_id", workspace.id)
-      .maybeSingle();
-
-    if (compErr || !company) {
-      return NextResponse.json({ error: "Deal not found" }, { status: 404, headers: corsHeaders });
+    let company;
+    try {
+      company = await deals.getById(dealId);
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        return NextResponse.json({ error: "Deal not found" }, { status: 404, headers: corsHeaders });
+      }
+      throw err;
     }
 
     if (company.source_type !== "financials") {
@@ -383,16 +385,13 @@ export async function POST(req: NextRequest) {
       firstSentence((analysis?.red_flags?.[0] as any) || "") ||
       "Financial analysis completed — review red flags, missing items, and trends.";
 
-    const { error: updErr } = await supabaseAdmin
-      .from("companies")
-      .update({
+    try {
+      await deals.updateAnalysis(dealId, {
         ai_confidence_json: confidenceJson,
         ai_summary: whyItMatters,
-      })
-      .eq("id", dealId);
-
-    if (updErr) {
-      console.error("companies update ai_confidence_json/ai_summary error:", updErr);
+      });
+    } catch (err) {
+      console.error("companies update ai_confidence_json/ai_summary error:", err);
       return NextResponse.json({ error: "Failed to update company confidence." }, { status: 500, headers: corsHeaders });
     }
 

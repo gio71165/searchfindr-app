@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { authenticateRequest, AuthError } from "@/lib/api/auth";
+import { DealsRepository } from "@/lib/data-access/deals";
+import { NotFoundError } from "@/lib/data-access/base";
 
 export const runtime = "nodejs";
 
@@ -367,6 +369,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { supabase: supabaseUser, workspace } = await authenticateRequest(req);
+    const deals = new DealsRepository(supabase, workspace.id);
 
     const body = (await req.json()) as Body;
 
@@ -377,21 +380,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing company_id" }, { status: 400, headers: corsHeaders });
     }
 
-    const { data, error } = await supabase
-      .from("companies")
-      .select("id, workspace_id, source_type, company_name, website, address, phone, rating, ratings_total, tier_reason")
-      .eq("id", companyId)
-      .eq("workspace_id", workspace.id)
-      .maybeSingle();
-
-    if (error || !data) {
-      return NextResponse.json(
-        { success: false, error: "Company not found (or not in your workspace)" },
-        { status: 404, headers: corsHeaders }
-      );
+    let company;
+    try {
+      company = await deals.getById(companyId);
+    } catch (err) {
+      if (err instanceof NotFoundError) {
+        return NextResponse.json(
+          { success: false, error: "Company not found (or not in your workspace)" },
+          { status: 404, headers: corsHeaders }
+        );
+      }
+      throw err;
     }
-
-    const company = data as any;
 
     if (company.source_type !== "off_market") {
       return NextResponse.json(
@@ -437,9 +437,8 @@ export async function POST(req: NextRequest) {
     const redFlagsBulleted = bullets(ai.ai_red_flags);
 
     // ✅ WRITE RESULTS TO DB (removed updated_at — your companies table doesn't have it)
-    const { error: updateErr } = await supabase
-      .from("companies")
-      .update({
+    try {
+      await deals.updateAnalysis(companyId, {
         website, // ensure saved if provided
         ai_summary: ai.ai_summary ?? null,
         ai_red_flags: redFlagsBulleted,
@@ -449,14 +448,10 @@ export async function POST(req: NextRequest) {
         final_tier: finalTier === "A" || finalTier === "B" || finalTier === "C" ? finalTier : null,
         score,
         ai_confidence_json: confidenceJson,
-        // ✅ removed: updated_at
-      })
-      .eq("id", companyId)
-      .eq("workspace_id", workspace.id);
-
-    if (updateErr) {
+      });
+    } catch (err) {
       return NextResponse.json(
-        { success: false, error: "Failed to persist off-market diligence results.", details: updateErr.message },
+        { success: false, error: "Failed to persist off-market diligence results.", details: err instanceof Error ? err.message : String(err) },
         { status: 500, headers: corsHeaders }
       );
     }

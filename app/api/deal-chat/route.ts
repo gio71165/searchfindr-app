@@ -2,40 +2,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { chatForDeal } from "@/lib/ai/dealChat";
+import { DealsRepository } from "@/lib/data-access/deals";
+import { ChatRepository } from "@/lib/data-access/chat";
+import { NotFoundError } from "@/lib/data-access/base";
 
 type ChatRole = "user" | "assistant" | "system";
-
-async function getDealForWorkspace(supabase: any, dealId: string, workspaceId: string) {
-  const { data: deal, error } = await supabase
-    .from("companies")
-    .select(
-      [
-        "id",
-        "workspace_id",
-        "company_name",
-        "listing_url",
-        "external_id",
-        "ai_summary",
-        "ai_red_flags",
-        "ai_financials_json",
-        "ai_scoring_json",
-        "criteria_match_json",
-        "ai_confidence_json",
-        "raw_listing_text",
-        "cim_storage_path",
-      ].join(",")
-    )
-    .eq("id", dealId)
-    .eq("workspace_id", workspaceId)
-    .single();
-
-  return { deal, error };
-}
 
 export async function POST(req: NextRequest) {
   try {
     // 1) Auth
     const { supabase, user, workspace } = await authenticateRequest(req);
+    const deals = new DealsRepository(supabase, workspace.id);
+    const chat = new ChatRepository(supabase, workspace.id);
 
     // 2) Body
     const body = await req.json().catch(() => null);
@@ -48,10 +26,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 3) Deal (workspace-scoped)
-    const { deal, error: dealErr } = await getDealForWorkspace(supabase, dealId, workspace.id);
-    if (dealErr || !deal) {
-      return NextResponse.json({ error: "Deal not found" }, { status: 404 });
-    }
+    const deal = await deals.getById(dealId);
 
     // 5) Mode A enforcement (schema truth)
     const isCim = !!deal.cim_storage_path;
@@ -62,23 +37,10 @@ export async function POST(req: NextRequest) {
     const sourceType = isCim ? "cim_pdf" : "on_market";
 
     // 6) Rate limit (window)
-    const WINDOW_SECONDS = 60;
     const MAX_USER_MESSAGES_PER_WINDOW = 5;
-    const sinceIso = new Date(Date.now() - WINDOW_SECONDS * 1000).toISOString();
+    const recentCount = await chat.getRecentMessageCount(user.id, 60);
 
-    const { count: recentCount, error: recentErr } = await supabase
-      .from("deal_chat_messages")
-      .select("*", { count: "exact", head: true })
-      .eq("workspace_id", workspace.id)
-      .eq("user_id", user.id)
-      .eq("role", "user")
-      .gte("created_at", sinceIso);
-
-    if (recentErr) {
-      return NextResponse.json({ error: "Rate limit check failed" }, { status: 500 });
-    }
-
-    if ((recentCount ?? 0) >= MAX_USER_MESSAGES_PER_WINDOW) {
+    if (recentCount >= MAX_USER_MESSAGES_PER_WINDOW) {
       return NextResponse.json(
         { answer: "Rate limit: please wait a moment before sending more messages.", sources_used: ["rate_limit"] },
         { status: 200 }
@@ -87,17 +49,9 @@ export async function POST(req: NextRequest) {
 
     // 7) Hard cap per deal per user (turns)
     const MAX_MESSAGES_PER_DEAL = 30; // turns (user+assistant => *2 rows)
-    const { count: totalCount, error: countErr } = await supabase
-      .from("deal_chat_messages")
-      .select("*", { count: "exact", head: true })
-      .eq("deal_id", dealId)
-      .eq("user_id", user.id);
+    const totalCount = await chat.getMessageCount(dealId, user.id);
 
-    if (countErr) {
-      return NextResponse.json({ error: "Rate limit check failed" }, { status: 500 });
-    }
-
-    if ((totalCount ?? 0) >= MAX_MESSAGES_PER_DEAL * 2) {
+    if (totalCount >= MAX_MESSAGES_PER_DEAL * 2) {
       return NextResponse.json(
         {
           answer:
@@ -143,32 +97,30 @@ export async function POST(req: NextRequest) {
     const sources_used = ai?.sources_used ?? ["companies.ai_*"];
 
     // 11) Persist (best effort)
-    const insertRows = [
-      {
-        workspace_id: workspace.id,
-        deal_id: dealId,
-        user_id: user.id,
-        role: "user",
-        content: message,
-        meta: { sources_used },
-      },
-      {
-        workspace_id: workspace.id,
-        deal_id: dealId,
-        user_id: user.id,
-        role: "assistant",
-        content: answer,
-        meta: {
-          sources_used,
-          model: ai?.model,
-          tokens: ai?.tokens,
-          latency_ms: ai?.latency_ms,
+    try {
+      await chat.addMessages([
+        {
+          dealId,
+          userId: user.id,
+          role: "user",
+          content: message,
+          meta: { sources_used },
         },
-      },
-    ];
-
-    const { error: insErr } = await supabase.from("deal_chat_messages").insert(insertRows);
-    if (insErr) {
+        {
+          dealId,
+          userId: user.id,
+          role: "assistant",
+          content: answer,
+          meta: {
+            sources_used,
+            model: ai?.model,
+            tokens: ai?.tokens,
+            latency_ms: ai?.latency_ms,
+          },
+        },
+      ]);
+    } catch (err) {
+      // Best effort - return response even if persistence fails
       return NextResponse.json({ answer, sources_used, warning: "Failed to persist chat" });
     }
 
@@ -176,6 +128,9 @@ export async function POST(req: NextRequest) {
   } catch (e: any) {
     if (e instanceof AuthError) {
       return NextResponse.json({ error: e.message }, { status: e.statusCode });
+    }
+    if (e instanceof NotFoundError) {
+      return NextResponse.json({ error: e.message }, { status: 404 });
     }
     return NextResponse.json(
       { error: "Server error", detail: e?.message ?? String(e) },
@@ -187,24 +142,14 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const { supabase, user, workspace } = await authenticateRequest(req);
+    const chat = new ChatRepository(supabase, workspace.id);
 
     const dealId = req.nextUrl.searchParams.get("dealId");
     if (!dealId) return NextResponse.json({ error: "Missing dealId" }, { status: 400 });
 
-    const { data: rows, error } = await supabase
-      .from("deal_chat_messages")
-      .select("role, content, created_at")
-      .eq("workspace_id", workspace.id)
-      .eq("deal_id", dealId)
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: true })
-      .limit(40);
+    const rows = await chat.getMessages(dealId, user.id, 40);
 
-    if (error) {
-      return NextResponse.json({ error: "Failed to load messages" }, { status: 500 });
-    }
-
-    const messages = (rows ?? []).map((r: any) => ({
+    const messages = rows.map((r) => ({
       role: r.role,
       content: r.content,
     }));
@@ -221,20 +166,12 @@ export async function GET(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const { supabase, user, workspace } = await authenticateRequest(req);
+    const chat = new ChatRepository(supabase, workspace.id);
 
     const dealId = req.nextUrl.searchParams.get("dealId");
     if (!dealId) return NextResponse.json({ error: "Missing dealId" }, { status: 400 });
 
-    const { error } = await supabase
-      .from("deal_chat_messages")
-      .delete()
-      .eq("workspace_id", workspace.id)
-      .eq("deal_id", dealId)
-      .eq("user_id", user.id);
-
-    if (error) {
-      return NextResponse.json({ error: "Failed to clear messages" }, { status: 500 });
-    }
+    await chat.clearMessages(dealId, user.id);
 
     return NextResponse.json({ ok: true });
   } catch (e: any) {

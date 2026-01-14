@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { authenticateRequest, AuthError } from "@/lib/api/auth";
+import { DealsRepository } from "@/lib/data-access/deals";
 
 export const runtime = "nodejs";
 
@@ -305,6 +306,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { supabase: supabaseUser, user, workspace } = await authenticateRequest(req);
+    const deals = new DealsRepository(supabase, workspace.id);
 
     const body = (await req.json()) as Body;
 
@@ -459,7 +461,6 @@ export async function POST(req: NextRequest) {
       if (!ai.keep) continue;
 
       inserts.push({
-        workspace_id: workspace.id,
         source_type: "off_market",
         external_source: "google_places",
         external_id: c.externalId,
@@ -509,14 +510,11 @@ export async function POST(req: NextRequest) {
     }
 
     // 10) Upsert into companies (dedupe per workspace + external ids)
-    const { data: saved, error: upsertErr } = await supabase
-      .from("companies")
-      .upsert(inserts, { onConflict: "workspace_id,external_source,external_id" })
-      .select("id, company_name, address, phone, website, tier, is_saved, created_at, place_id");
-
-    if (upsertErr) {
-      return NextResponse.json({ success: false, error: upsertErr.message }, { status: 500, headers: corsHeaders });
-    }
+    const saved = await deals.upsertMany(
+      inserts,
+      "workspace_id,external_source,external_id",
+      "id, company_name, address, phone, website, tier, is_saved, created_at, place_id"
+    );
 
     return NextResponse.json(
       {
