@@ -31,6 +31,7 @@ export type Deal = {
   financials_mime: string | null;
   created_at: string | null;
   updated_at: string | null;
+  passed_at: string | null;
   // Additional fields that may exist
   [key: string]: any;
 };
@@ -285,5 +286,89 @@ export class DealsRepository extends BaseRepository {
     }
 
     return (data || []) as Deal[];
+  }
+
+  /**
+   * Updates the diligence checklist state for a deal.
+   * Stores checklist state in metadata JSON field.
+   * @param dealId - The deal ID
+   * @param checklistState - The checklist state object: { "item_1": { checked: true, notes: "..." }, ... }
+   * @returns The updated deal
+   * @throws NotFoundError if deal not found
+   * @throws DatabaseError if database error occurs
+   */
+  async updateDiligenceChecklist(dealId: string, checklistState: Record<string, { checked: boolean; notes?: string }>): Promise<Deal> {
+    // Get current deal to merge with existing metadata
+    const deal = await this.getById(dealId);
+    
+    const currentMetadata = (deal as any).metadata || {};
+    const updatedMetadata = {
+      ...currentMetadata,
+      diligence_checklist: checklistState,
+    };
+
+    const { data, error } = await this.ensureWorkspaceScope(
+      this.supabase.from("companies").update({ metadata: updatedMetadata }).eq("id", dealId)
+    ).select().single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        throw new NotFoundError(`Deal with id ${dealId} not found`);
+      }
+      this.handleError(error, "Failed to update diligence checklist");
+    }
+
+    if (!data) {
+      throw new NotFoundError(`Deal with id ${dealId} not found`);
+    }
+
+    return data as Deal;
+  }
+
+  /**
+   * Gets the diligence checklist state for a deal.
+   * @param dealId - The deal ID
+   * @returns The checklist state object or null if not set
+   * @throws NotFoundError if deal not found
+   */
+  async getDiligenceChecklist(dealId: string): Promise<Record<string, { checked: boolean; notes?: string }> | null> {
+    const deal = await this.getById(dealId);
+    const metadata = (deal as any).metadata;
+    return metadata?.diligence_checklist || null;
+  }
+
+  /**
+   * Marks a deal as passed (sets passed_at timestamp).
+   * @param dealId - The deal ID
+   * @returns The updated deal
+   * @throws NotFoundError if deal not found
+   * @throws DatabaseError if database error occurs
+   */
+  async passDeal(dealId: string): Promise<Deal> {
+    const { data, error } = await this.ensureWorkspaceScope(
+      this.supabase.from("companies").update({ passed_at: new Date().toISOString() }).eq("id", dealId)
+    ).select().single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        throw new NotFoundError(`Deal with id ${dealId} not found`);
+      }
+      this.handleError(error, "Failed to pass deal");
+    }
+
+    if (!data) {
+      throw new NotFoundError(`Deal with id ${dealId} not found`);
+    }
+
+    return data as Deal;
+  }
+
+  /**
+   * Filters out deals that have been passed (passed_at is not null).
+   * @param deals - Array of deals to filter
+   * @returns Array of deals excluding passed ones
+   */
+  static filterOutPassedDeals<T extends { passed_at?: string | null }>(deals: T[]): T[] {
+    return deals.filter((deal) => !deal.passed_at);
   }
 }

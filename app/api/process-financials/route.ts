@@ -6,6 +6,7 @@ import { DealsRepository } from "@/lib/data-access/deals";
 import { NotFoundError } from "@/lib/data-access/base";
 import * as XLSX from "xlsx";
 import { FINANCIALS_SYSTEM_PROMPT, buildFinancialsUserMessage } from "@/lib/prompts/financials-analysis";
+import { getBenchmarkForDeal } from "@/lib/data/industry-benchmarks";
 
 export const runtime = "nodejs";
 
@@ -218,6 +219,25 @@ async function callOpenAIJson(args: {
 
   const parsed = JSON.parse(text);
 
+  // Validate and clamp QoE red flags
+  const qoeRedFlags = Array.isArray(parsed.qoe_red_flags)
+    ? parsed.qoe_red_flags
+        .filter((flag: any) => flag && typeof flag === "object")
+        .map((flag: any) => ({
+          type:
+            typeof flag.type === "string"
+              ? flag.type
+              : "unknown",
+          severity:
+            typeof flag.severity === "string" && ["low", "medium", "high"].includes(flag.severity.toLowerCase())
+              ? flag.severity.toLowerCase()
+              : "medium",
+          description: typeof flag.description === "string" ? flag.description.slice(0, 500) : "",
+        }))
+        .filter((flag: any) => flag.type !== "unknown" && flag.description)
+        .slice(0, 20)
+    : [];
+
   return {
     overall_confidence: clampConfidenceLabel(parsed.overall_confidence),
     extracted_metrics: parsed.extracted_metrics ?? {},
@@ -225,6 +245,7 @@ async function callOpenAIJson(args: {
     green_flags: clampStringArray(parsed.green_flags),
     missing_items: clampStringArray(parsed.missing_items),
     diligence_notes: clampStringArray(parsed.diligence_notes),
+    qoe_red_flags: qoeRedFlags,
   };
 }
 
@@ -331,6 +352,91 @@ export async function POST(req: NextRequest) {
 
     const confidenceJson = buildConfidenceJson(analysis.overall_confidence);
 
+    // Extract revenue and EBITDA for benchmark comparison
+    const revenue = analysis.extracted_metrics?.revenue?.[0]?.value ?? null;
+    const ebitda = analysis.extracted_metrics?.ebitda?.[0]?.value ?? null;
+    const industry = company.industry ?? null;
+
+    // Get industry benchmark comparison
+    const benchmarkComparison = getBenchmarkForDeal(industry, revenue, ebitda);
+
+    // Generate owner interview questions based on red flags and missing items
+    const ownerInterviewQuestions: Array<{ category: string; question: string }> = [];
+    
+    // Questions from QoE red flags
+    if (Array.isArray(analysis.qoe_red_flags)) {
+      for (const flag of analysis.qoe_red_flags.slice(0, 5)) {
+        if (flag.type === "customer_concentration") {
+          ownerInterviewQuestions.push({
+            category: "Customers",
+            question: flag.description.includes("%")
+              ? flag.description
+              : `Customer concentration concern: ${flag.description} - What are the contract terms and renewal likelihood for your top customers?`,
+          });
+        } else if (flag.type === "revenue_spike" || flag.type === "revenue_drop") {
+          ownerInterviewQuestions.push({
+            category: "Revenue",
+            question: flag.description.includes("?")
+              ? flag.description
+              : `${flag.description} - What caused this and is it sustainable?`,
+          });
+        } else if (flag.type === "addbacks") {
+          ownerInterviewQuestions.push({
+            category: "Financials",
+            question: flag.description.includes("?")
+              ? flag.description
+              : `${flag.description} - Can you provide detail on each addback item?`,
+          });
+        } else if (flag.type === "working_capital") {
+          ownerInterviewQuestions.push({
+            category: "Financials",
+            question: flag.description.includes("?")
+              ? flag.description
+              : `${flag.description} - What's driving the working capital trend?`,
+          });
+        }
+      }
+    }
+
+    // Questions from general red flags
+    for (const redFlag of analysis.red_flags.slice(0, 3)) {
+      if (redFlag.toLowerCase().includes("customer") || redFlag.toLowerCase().includes("concentration")) {
+        ownerInterviewQuestions.push({
+          category: "Customers",
+          question: `Regarding ${redFlag} - What are the contract terms and renewal process?`,
+        });
+      } else if (redFlag.toLowerCase().includes("revenue") || redFlag.toLowerCase().includes("sales")) {
+        ownerInterviewQuestions.push({
+          category: "Revenue",
+          question: `Regarding ${redFlag} - Can you explain the underlying drivers?`,
+        });
+      } else {
+        ownerInterviewQuestions.push({
+          category: "Operations",
+          question: `Regarding ${redFlag} - What should a buyer verify?`,
+        });
+      }
+    }
+
+    // Questions from missing items
+    for (const missing of analysis.missing_items.slice(0, 2)) {
+      ownerInterviewQuestions.push({
+        category: "Financials",
+        question: `Missing information: ${missing} - Can you provide this data?`,
+      });
+    }
+
+    // Limit to 8-10 questions total
+    const finalQuestions = ownerInterviewQuestions.slice(0, 10);
+
+    // Build enhanced financials JSON with new fields
+    const enhancedFinancialsJson = {
+      ...analysis.extracted_metrics,
+      qoe_red_flags: analysis.qoe_red_flags ?? [],
+      industry_benchmark: benchmarkComparison,
+      owner_interview_questions: finalQuestions,
+    };
+
     // ✅ financial_analyses has UNIQUE(deal_id) -> use UPSERT (latest-only)
     // NOTE: If your table does NOT have confidence_json column, remove that field below.
     const { error: upsertErr } = await supabaseAdmin
@@ -358,6 +464,7 @@ export async function POST(req: NextRequest) {
     }
 
     // ✅ Update company confidence AND make "Why it matters" update (ai_summary)
+    // Also store enhanced financials JSON with QoE red flags, benchmarks, and questions
     const whyItMatters =
       firstSentence((analysis?.diligence_notes?.[0] as any) || "") ||
       firstSentence((analysis?.red_flags?.[0] as any) || "") ||
@@ -367,10 +474,11 @@ export async function POST(req: NextRequest) {
       await deals.updateAnalysis(dealId, {
         ai_confidence_json: confidenceJson,
         ai_summary: whyItMatters,
+        ai_financials_json: enhancedFinancialsJson,
       });
     } catch (err) {
-      console.error("companies update ai_confidence_json/ai_summary error:", err);
-      return NextResponse.json({ error: "Failed to update company confidence." }, { status: 500, headers: corsHeaders });
+      console.error("companies update ai_confidence_json/ai_summary/ai_financials_json error:", err);
+      return NextResponse.json({ error: "Failed to update company data." }, { status: 500, headers: corsHeaders });
     }
 
     return NextResponse.json({ ok: true }, { status: 200, headers: corsHeaders });

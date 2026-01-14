@@ -380,6 +380,45 @@ Examples:
 - "Attractive, recurring-revenue-heavy platform with moderate succession risk but strong financial transparency and stable margins."
 
 ============================================================
+OWNER INTERVIEW QUESTIONS
+============================================================
+You MUST generate 8-10 specific, actionable questions to ask the owner during initial calls.
+
+Base questions on:
+- Red flags identified (financial inconsistencies, succession risk, customer concentration)
+- Missing information gaps (renewal rates, customer contracts, lease terms)
+- Industry-specific concerns (typical for the business type)
+- Customer/supplier dependencies (key relationships, contracts)
+
+Each question MUST:
+- Be direct and specific (not generic)
+- Reference specific data points or concerns from the CIM
+- Be answerable in a 15-30 minute owner call
+- Help verify or clarify red flags
+
+Categories to cover:
+- Revenue (concentration, contracts, renewals, seasonality)
+- Operations (team depth, key processes, systems)
+- Financials (addbacks, working capital, one-time items)
+- Customers (concentration, contracts, churn)
+- Market (competition, pricing, growth drivers)
+
+Output format:
+{
+  "owner_interview_questions": [
+    {
+      "category": "Revenue" | "Operations" | "Financials" | "Customers" | "Market",
+      "question": "string (specific, actionable question)"
+    }
+  ]
+}
+
+Examples:
+- "Your top customer is 45% of revenue - what's the contract term and renewal likelihood?"
+- "Revenue dropped 10% in 2023 - what caused this and is it temporary?"
+- "You show $200k in owner addbacks - can you provide detail on each item?"
+
+============================================================
 JSON OUTPUT SCHEMA (STRICT)
 ============================================================
 You MUST return JSON ONLY, matching this schema exactly:
@@ -466,7 +505,14 @@ You MUST return JSON ONLY, matching this schema exactly:
       "string",
       "string"
     ]
-  }
+  },
+
+  "owner_interview_questions": [
+    {
+      "category": "Revenue" | "Operations" | "Financials" | "Customers" | "Market",
+      "question": "string"
+    }
+  ]
 }
 `.trim(),
   variables: [],

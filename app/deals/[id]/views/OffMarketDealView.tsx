@@ -1,15 +1,22 @@
 'use client';
 
-import { DealHeader } from '../components/DealHeader';
+import { ExecutiveSummaryCard } from '../components/ExecutiveSummaryCard';
+import { DealChatPanel } from '../components/DealChatPanel';
 import { AIInvestmentMemo } from '../components/AIInvestmentMemo';
+import { FinancialSnapshot } from '../components/FinancialSnapshot';
 import { RiskSignalsCard } from '../components/RiskSignalsCard';
 import { SearcherSnapshot } from '../components/SearcherSnapshot';
 import { RedFlagsPanel } from '../components/RedFlagsPanel';
+import { QoeRedFlagsPanel } from '../components/QoeRedFlagsPanel';
+import { StrengthsPanel } from '../components/StrengthsPanel';
+import { OwnerInterviewQuestions } from '../components/OwnerInterviewQuestions';
+import { BackButton } from '../components/BackButton';
 import { normalizeRedFlags } from '../lib/normalizers';
-import { firstSentence } from '../lib/formatters';
+import { TrendingUp, BarChart3, User, CheckCircle2 } from 'lucide-react';
 
 export function OffMarketDealView({
   deal,
+  dealId,
   onBack,
   running,
   error,
@@ -19,6 +26,7 @@ export function OffMarketDealView({
   onToggleSave,
 }: {
   deal: any;
+  dealId: string;
   onBack: () => void;
   running: boolean;
   error: string | null;
@@ -32,9 +40,8 @@ export function OffMarketDealView({
   const criteria = deal.criteria_match_json || {};
   const ownerSignals = criteria?.owner_signals || null;
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
-
-  const whyItMatters =
-    (criteria?.why_it_matters && String(criteria.why_it_matters).trim()) || firstSentence(deal.ai_summary) || '';
+  const qoeRedFlags = fin.qoe_red_flags || [];
+  const ownerQuestions = fin.owner_interview_questions || [];
 
   const ratingLine =
     deal.rating || deal.ratings_total ? `${deal.rating ?? '—'} (${deal.ratings_total ?? '—'} reviews)` : null;
@@ -42,140 +49,176 @@ export function OffMarketDealView({
   const confidencePct =
     ownerSignals && typeof ownerSignals.confidence === 'number' ? Math.round(ownerSignals.confidence * 100) : null;
 
+  const handlePass = () => {
+    alert('Marked as pass');
+  };
+
+  const handleRequestInfo = () => {
+    alert('Coming soon');
+  };
+
   return (
-    <main className="min-h-screen">
-      <div className="max-w-4xl mx-auto py-10 px-4 space-y-8">
-        <DealHeader
-          deal={deal}
-          onBack={onBack}
-          canToggleSave={canToggleSave}
-          savingToggle={savingToggle}
-          onToggleSave={onToggleSave}
-        />
+    <main className="min-h-screen bg-[#F9FAFB] dark:bg-slate-900">
+      <div className="max-w-7xl mx-auto py-8 px-4">
+        <BackButton dealSourceType={deal.source_type} />
+        <div className="flex gap-6">
+          {/* Main Content */}
+          <div className="flex-1 pr-6 space-y-8">
+            {/* Executive Summary Card */}
+            <ExecutiveSummaryCard
+              deal={deal}
+              onSave={onToggleSave}
+              onPass={handlePass}
+              onRequestInfo={handleRequestInfo}
+              savingToggle={savingToggle}
+              canToggleSave={canToggleSave}
+            />
 
-        {ratingLine ? (
-          <div className="mt-2">
-            <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
-              Google {ratingLine}
-            </span>
-          </div>
-        ) : null}
-
-        {/* Small top run strip */}
-        <section className="card-section">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">Initial Diligence</h2>
-              <p className="text-xs text-muted-foreground">Runs AI based on the company's website + available inputs.</p>
-            </div>
-            <button onClick={onRunInitialDiligence} disabled={running} className="text-xs px-3 py-1 border rounded">
-              {running ? 'Running…' : deal.ai_summary ? 'Re-run' : 'Run'}
-            </button>
-          </div>
-          {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
-        </section>
-
-        {whyItMatters ? (
-          <section className="card-section">
-            <h2 className="text-lg font-semibold mb-1">Why it matters</h2>
-            <p className="text-sm opacity-90">{whyItMatters}</p>
-            <p className="mt-1 text-[11px] opacity-70">Surface signal from available inputs — verify with outreach + diligence.</p>
-          </section>
-        ) : null}
-
-        <AIInvestmentMemo
-          summary={deal.ai_summary}
-          emptyText="No diligence memo yet. Run Initial Diligence to generate one from the company website."
-        />
-
-        {ownerSignals && (
-          <section className="card-section">
-            <h2 className="text-lg font-semibold mb-2">Owner Signals (Probabilistic)</h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-xs uppercase">Likely owner-operated</p>
-                <p className="font-medium">
-                  {ownerSignals.likely_owner_operated ? 'Yes' : 'No'}
-                  {confidencePct !== null && <span className="text-xs text-muted-foreground"> ({confidencePct}%)</span>}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs uppercase">Owner named on site</p>
-                <p className="font-medium">
-                  {ownerSignals.owner_named_on_site ? 'Yes' : 'No'}
-                  {ownerSignals.owner_named_on_site && ownerSignals.owner_name ? (
-                    <span className="text-xs text-muted-foreground"> — {ownerSignals.owner_name}</span>
-                  ) : null}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs uppercase">Generation hint</p>
-                <p className="font-medium">{ownerSignals.generation_hint || 'unknown'}</p>
-              </div>
-
-              <div>
-                <p className="text-xs uppercase">Key-person dependency risk</p>
-                <p className="font-medium">{ownerSignals.owner_dependency_risk || 'Unknown'}</p>
-              </div>
-
-              <div className="sm:col-span-2">
-                <p className="text-xs uppercase">Years in business</p>
-                <p className="font-medium">{ownerSignals.years_in_business || 'Unknown'}</p>
-              </div>
-            </div>
-
-            {Array.isArray(ownerSignals.evidence) && ownerSignals.evidence.length > 0 && (
-              <div className="mt-4">
-                <p className="text-xs uppercase mb-1">Evidence</p>
-                <ul className="list-disc list-inside space-y-1 text-sm">
-                  {ownerSignals.evidence.slice(0, 6).map((e: string, idx: number) => (
-                    <li key={idx}>{e}</li>
-                  ))}
-                </ul>
+            {ratingLine && (
+              <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
+                <span className="inline-flex items-center rounded-full border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-300">
+                  Google {ratingLine}
+                </span>
               </div>
             )}
 
-            {Array.isArray(ownerSignals.missing_info) && ownerSignals.missing_info.length > 0 && (
-              <div className="mt-4">
-                <p className="text-xs uppercase mb-1">Missing info</p>
-                <ul className="list-disc list-inside space-y-1 text-sm">
-                  {ownerSignals.missing_info.slice(0, 6).map((m: string, idx: number) => (
-                    <li key={idx}>{m}</li>
-                  ))}
-                </ul>
+            {/* Initial Diligence Run Strip */}
+            <section className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-sm font-semibold">Initial Diligence</h2>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">Runs AI based on the company's website + available inputs.</p>
+                </div>
+                <button
+                  onClick={onRunInitialDiligence}
+                  disabled={running}
+                  className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                >
+                  {running ? 'Running…' : deal.ai_summary ? 'Re-run' : 'Run'}
+                </button>
+              </div>
+              {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
+            </section>
+
+            {/* QoE Red Flags - Before regular red flags */}
+            <QoeRedFlagsPanel qoeRedFlags={qoeRedFlags} />
+
+            {/* Red Flags */}
+            <RedFlagsPanel redFlags={redFlags} />
+
+            {/* Strengths */}
+            <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500 dark:border-l-green-600 p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
+                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Strengths</h3>
+              </div>
+              <StrengthsPanel deal={deal} />
+            </div>
+
+            {/* AI Investment Memo */}
+            <AIInvestmentMemo
+              summary={deal.ai_summary}
+              emptyText="No diligence memo yet. Run Initial Diligence to generate one from the company website."
+            />
+
+            {/* Owner Signals */}
+            {ownerSignals && (
+              <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <User className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                  <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Owner Signals (Probabilistic)</h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">Likely owner-operated</p>
+                    <p className="font-medium text-slate-900 dark:text-slate-100">
+                      {ownerSignals.likely_owner_operated ? 'Yes' : 'No'}
+                      {confidencePct !== null && <span className="text-xs text-slate-600 dark:text-slate-400"> ({confidencePct}%)</span>}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">Owner named on site</p>
+                    <p className="font-medium text-slate-900 dark:text-slate-100">
+                      {ownerSignals.owner_named_on_site ? 'Yes' : 'No'}
+                      {ownerSignals.owner_named_on_site && ownerSignals.owner_name && (
+                        <span className="text-xs text-slate-600 dark:text-slate-400"> — {ownerSignals.owner_name}</span>
+                      )}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">Generation hint</p>
+                    <p className="font-medium text-slate-900 dark:text-slate-100">{ownerSignals.generation_hint || 'unknown'}</p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">Key-person dependency risk</p>
+                    <p className="font-medium text-slate-900 dark:text-slate-100">{ownerSignals.owner_dependency_risk || 'Unknown'}</p>
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">Years in business</p>
+                    <p className="font-medium text-slate-900 dark:text-slate-100">{ownerSignals.years_in_business || 'Unknown'}</p>
+                  </div>
+                </div>
+
+                {Array.isArray(ownerSignals.evidence) && ownerSignals.evidence.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-2">Evidence</p>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-slate-700 dark:text-slate-300">
+                      {ownerSignals.evidence.slice(0, 6).map((e: string, idx: number) => (
+                        <li key={idx}>{e}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {Array.isArray(ownerSignals.missing_info) && ownerSignals.missing_info.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-2">Missing info</p>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-slate-700 dark:text-slate-300">
+                      {ownerSignals.missing_info.slice(0, 6).map((m: string, idx: number) => (
+                        <li key={idx}>{m}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
-          </section>
-        )}
 
-        <section className="card-section">
-          <h2 className="text-lg font-semibold mb-3">Financials (if available)</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-sm">
-            <div>
-              <p className="text-xs uppercase">Revenue</p>
-              <p className="font-medium">{fin.revenue || 'Unknown'}</p>
+            {/* Financial Details */}
+            <FinancialSnapshot fin={fin} deal={deal} />
+
+            {/* Owner Interview Questions */}
+            <OwnerInterviewQuestions questions={ownerQuestions} />
+
+            {/* Scoring Breakdown */}
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Scoring Breakdown</h3>
+              </div>
+              <RiskSignalsCard
+                scoring={scoring}
+                title=""
+                subtitle="Prioritization view (not a recommendation). Risk signals: High = more risk. Fit/quality signals: High = stronger alignment/quality."
+              />
             </div>
-            <div>
-              <p className="text-xs uppercase">EBITDA</p>
-              <p className="font-medium">{fin.ebitda || 'Unknown'}</p>
+
+            {/* Searcher Fit Analysis */}
+            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <TrendingUp className="h-5 w-5 text-slate-600 dark:text-slate-400" />
+                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Searcher Fit Analysis</h3>
+              </div>
+              <SearcherSnapshot criteria={criteria} />
             </div>
           </div>
-        </section>
 
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <RiskSignalsCard
-            scoring={scoring}
-            title="Scoring Breakdown"
-            subtitle="Prioritization view (not a recommendation). Risk signals: High = more risk. Fit/quality signals: High = stronger alignment/quality."
-          />
-
-          <SearcherSnapshot criteria={criteria} />
-        </section>
-
-        <RedFlagsPanel redFlags={redFlags} />
+          {/* Chat Sidebar */}
+          <DealChatPanel dealId={dealId} deal={deal} />
+        </div>
       </div>
     </main>
   );

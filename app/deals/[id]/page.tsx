@@ -52,6 +52,7 @@ export default function DealPage() {
     return (
       <FinancialsDealView
         deal={deal}
+        dealId={id}
         onBack={() => router.push(backHref)}
         loadingAnalysis={finLoading}
         running={finRunning}
@@ -86,6 +87,7 @@ export default function DealPage() {
     return (
       <OffMarketDealView
         deal={deal}
+        dealId={id}
         onBack={() => router.push(backHref)}
         running={runningOffMarketDD}
         error={offMarketError}
