@@ -1,6 +1,7 @@
 // app/api/process-financials/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import * as XLSX from "xlsx";
 
 export const runtime = "nodejs";
@@ -277,22 +278,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Auth
-    const auth = req.headers.get("authorization") || "";
-    const jwt = auth.startsWith("Bearer ") ? auth.slice(7) : null;
-    if (!jwt) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: corsHeaders });
-    }
-
-    const supabaseUser = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false },
-    });
-
-    const { data: userData, error: userErr } = await supabaseUser.auth.getUser(jwt);
-    const userId = userData?.user?.id;
-    if (userErr || !userId) {
-      return NextResponse.json({ error: "Invalid auth" }, { status: 401, headers: corsHeaders });
-    }
+    const { user, workspace } = await authenticateRequest(req);
 
     const body = await req.json().catch(() => null);
     const dealId = body?.deal_id;
@@ -300,31 +286,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing deal_id" }, { status: 400, headers: corsHeaders });
     }
 
-    // Workspace
-    const { data: profile, error: profErr } = await supabaseAdmin
-      .from("profiles")
-      .select("workspace_id")
-      .eq("id", userId)
-      .single();
-
-    const workspaceId = profile?.workspace_id;
-    if (profErr || !workspaceId) {
-      return NextResponse.json({ error: "No workspace" }, { status: 403, headers: corsHeaders });
-    }
-
     // Company
     const { data: company, error: compErr } = await supabaseAdmin
       .from("companies")
       .select("id, workspace_id, source_type, financials_storage_path, financials_filename, financials_mime")
       .eq("id", dealId)
-      .single();
+      .eq("workspace_id", workspace.id)
+      .maybeSingle();
 
     if (compErr || !company) {
       return NextResponse.json({ error: "Deal not found" }, { status: 404, headers: corsHeaders });
-    }
-
-    if (company.workspace_id !== workspaceId) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403, headers: corsHeaders });
     }
 
     if (company.source_type !== "financials") {
@@ -386,8 +357,8 @@ export async function POST(req: NextRequest) {
       .from("financial_analyses")
       .upsert(
         {
-          user_id: userId,
-          workspace_id: workspaceId,
+          user_id: user.id,
+          workspace_id: workspace.id,
           deal_id: dealId,
           source_filename: filename,
           overall_confidence: analysis.overall_confidence,
@@ -427,6 +398,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true }, { status: 200, headers: corsHeaders });
   } catch (err: any) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: err.statusCode, headers: corsHeaders });
+    }
     console.error("process-financials error:", err);
     return NextResponse.json(
       { error: err?.message || "Unknown error" },

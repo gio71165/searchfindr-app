@@ -1,6 +1,7 @@
 // app/api/on-market/save/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { authenticateRequest, AuthError } from "@/lib/api/auth";
 
 export const runtime = "nodejs";
 
@@ -20,12 +21,6 @@ type SaveBody = {
   status?: "saved" | "pipeline" | "passed";
 };
 
-function getBearerToken(req: NextRequest): string | null {
-  const auth = req.headers.get("authorization");
-  if (!auth) return null;
-  const m = auth.match(/^Bearer\s+(.+)$/i);
-  return m ? m[1] : null;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,23 +40,7 @@ export async function POST(req: NextRequest) {
       return json(400, { error: "Invalid status" });
     }
 
-    // Create a Supabase client that can read the user from the JWT (Authorization header).
-    // On the client, you’ll call this with:
-    // fetch('/api/on-market/save', { method:'POST', headers:{ Authorization:`Bearer ${session.access_token}` }, body: JSON.stringify(...) })
-    const token = getBearerToken(req);
-    if (!token) return json(401, { error: "Missing Authorization Bearer token" });
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false },
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-
-    const { data: authData, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !authData?.user?.id) {
-      return json(401, { error: "Unauthorized" });
-    }
-
-    const user_id = authData.user.id;
+    const { supabase, user } = await authenticateRequest(req);
 
     // Upsert workspace_saved_deals (unique on workspace_id,user_id,on_market_deal_id)
     const { data, error } = await supabase
@@ -69,7 +48,7 @@ export async function POST(req: NextRequest) {
       .upsert(
         {
           workspace_id,
-          user_id,
+          user_id: user.id,
           on_market_deal_id,
           status,
         },
@@ -82,6 +61,9 @@ export async function POST(req: NextRequest) {
 
     return json(200, { ok: true, saved: data });
   } catch (e: any) {
+    if (e instanceof AuthError) {
+      return json(e.statusCode, { error: e.message });
+    }
     return json(500, { error: e?.message ?? String(e) });
   }
 }

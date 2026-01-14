@@ -1,6 +1,7 @@
 // app/api/off-market/search/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { authenticateRequest, AuthError } from "@/lib/api/auth";
 
 export const runtime = "nodejs";
 
@@ -100,27 +101,6 @@ function failsHardFilter(input: { name: string | null; website: string | null; a
   return { fail: false, reason: "" };
 }
 
-async function getAuthedUserAndWorkspace(req: NextRequest) {
-  const authHeader = req.headers.get("authorization") || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-
-  if (!token) return { userId: null, workspaceId: null };
-
-  const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-  if (userErr || !userData?.user?.id) return { userId: null, workspaceId: null };
-
-  const userId = userData.user.id;
-
-  const { data: profile, error: profErr } = await supabase
-    .from("profiles")
-    .select("workspace_id")
-    .eq("id", userId)
-    .single();
-
-  if (profErr || !profile?.workspace_id) return { userId, workspaceId: null };
-
-  return { userId, workspaceId: profile.workspace_id as string };
-}
 
 async function googleGeocode(location: string) {
   const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
@@ -324,10 +304,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { userId, workspaceId } = await getAuthedUserAndWorkspace(req);
-    if (!userId || !workspaceId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401, headers: corsHeaders });
-    }
+    const { supabase: supabaseUser, user, workspace } = await authenticateRequest(req);
 
     const body = (await req.json()) as Body;
 
@@ -482,7 +459,7 @@ export async function POST(req: NextRequest) {
       if (!ai.keep) continue;
 
       inserts.push({
-        workspace_id: workspaceId,
+        workspace_id: workspace.id,
         source_type: "off_market",
         external_source: "google_places",
         external_id: c.externalId,
@@ -560,6 +537,9 @@ export async function POST(req: NextRequest) {
       { headers: corsHeaders }
     );
   } catch (e: any) {
+    if (e instanceof AuthError) {
+      return NextResponse.json({ success: false, error: e.message }, { status: e.statusCode, headers: corsHeaders });
+    }
     return NextResponse.json(
       { success: false, error: e?.message ?? "Unknown error" },
       { status: 500, headers: corsHeaders }

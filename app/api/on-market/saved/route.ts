@@ -1,6 +1,7 @@
 // app/api/on-market/saved/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { authenticateRequest, AuthError } from "@/lib/api/auth";
 
 export const runtime = "nodejs";
 
@@ -14,12 +15,6 @@ function json(status: number, body: any) {
   });
 }
 
-function getBearerToken(req: NextRequest): string | null {
-  const auth = req.headers.get("authorization");
-  if (!auth) return null;
-  const m = auth.match(/^Bearer\s+(.+)$/i);
-  return m ? m[1] : null;
-}
 
 export async function GET(req: NextRequest) {
   try {
@@ -27,17 +22,7 @@ export async function GET(req: NextRequest) {
       return json(500, { error: "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY" });
     }
 
-    const token = getBearerToken(req);
-    if (!token) return json(401, { error: "Missing Authorization Bearer token" });
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false },
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-
-    const { data: authData, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !authData?.user?.id) return json(401, { error: "Unauthorized" });
-    const user_id = authData.user.id;
+    const { supabase, user } = await authenticateRequest(req);
 
     const workspace_id = req.nextUrl.searchParams.get("workspace_id");
     if (!workspace_id) return json(400, { error: "Missing workspace_id" });
@@ -85,7 +70,7 @@ export async function GET(req: NextRequest) {
         `
       )
       .eq("workspace_id", workspace_id)
-      .eq("user_id", user_id)
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -103,6 +88,9 @@ export async function GET(req: NextRequest) {
       saved: data ?? [],
     });
   } catch (e: any) {
+    if (e instanceof AuthError) {
+      return json(e.statusCode, { error: e.message });
+    }
     return json(500, { error: e?.message ?? String(e) });
   }
 }

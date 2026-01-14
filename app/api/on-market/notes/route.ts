@@ -1,6 +1,7 @@
 // app/api/on-market/notes/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { authenticateRequest, AuthError } from "@/lib/api/auth";
 
 export const runtime = "nodejs";
 
@@ -14,12 +15,6 @@ function json(status: number, body: any) {
   });
 }
 
-function getBearerToken(req: NextRequest): string | null {
-  const auth = req.headers.get("authorization");
-  if (!auth) return null;
-  const m = auth.match(/^Bearer\s+(.+)$/i);
-  return m ? m[1] : null;
-}
 
 type CreateNoteBody = {
   workspace_saved_deal_id: string;
@@ -32,17 +27,7 @@ export async function GET(req: NextRequest) {
       return json(500, { error: "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY" });
     }
 
-    const token = getBearerToken(req);
-    if (!token) return json(401, { error: "Missing Authorization Bearer token" });
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false },
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-
-    const { data: authData, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !authData?.user?.id) return json(401, { error: "Unauthorized" });
-    const user_id = authData.user.id;
+    const { supabase, user } = await authenticateRequest(req);
 
     const workspace_saved_deal_id = req.nextUrl.searchParams.get("workspace_saved_deal_id");
     if (!workspace_saved_deal_id) return json(400, { error: "Missing workspace_saved_deal_id" });
@@ -55,7 +40,7 @@ export async function GET(req: NextRequest) {
       .maybeSingle();
 
     if (savedErr) return json(400, { error: savedErr.message });
-    if (!savedRow || savedRow.user_id !== user_id) return json(403, { error: "Forbidden" });
+    if (!savedRow || savedRow.user_id !== user.id) return json(403, { error: "Forbidden" });
 
     const { data, error } = await supabase
       .from("deal_notes")
@@ -73,6 +58,9 @@ export async function GET(req: NextRequest) {
       notes: data ?? [],
     });
   } catch (e: any) {
+    if (e instanceof AuthError) {
+      return json(e.statusCode, { error: e.message });
+    }
     return json(500, { error: e?.message ?? String(e) });
   }
 }
@@ -83,17 +71,7 @@ export async function POST(req: NextRequest) {
       return json(500, { error: "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY" });
     }
 
-    const token = getBearerToken(req);
-    if (!token) return json(401, { error: "Missing Authorization Bearer token" });
-
-    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: { persistSession: false },
-      global: { headers: { Authorization: `Bearer ${token}` } },
-    });
-
-    const { data: authData, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !authData?.user?.id) return json(401, { error: "Unauthorized" });
-    const user_id = authData.user.id;
+    const { supabase, user } = await authenticateRequest(req);
 
     const body = (await req.json()) as CreateNoteBody;
     const workspace_saved_deal_id = body?.workspace_saved_deal_id;
@@ -111,7 +89,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (savedErr) return json(400, { error: savedErr.message });
-    if (!savedRow || savedRow.user_id !== user_id) return json(403, { error: "Forbidden" });
+    if (!savedRow || savedRow.user_id !== user.id) return json(403, { error: "Forbidden" });
 
     const { data, error } = await supabase
       .from("deal_notes")
@@ -126,6 +104,9 @@ export async function POST(req: NextRequest) {
 
     return json(200, { ok: true, note: data });
   } catch (e: any) {
+    if (e instanceof AuthError) {
+      return json(e.statusCode, { error: e.message });
+    }
     return json(500, { error: e?.message ?? String(e) });
   }
 }

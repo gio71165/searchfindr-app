@@ -1,6 +1,7 @@
 // app/api/off-market/diligence/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { authenticateRequest, AuthError } from "@/lib/api/auth";
 
 export const runtime = "nodejs";
 
@@ -162,27 +163,6 @@ function buildOffMarketConfidence(ai: any): {
   };
 }
 
-async function getAuthedUserAndWorkspace(req: NextRequest) {
-  const authHeader = req.headers.get("authorization") || "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-
-  if (!token) return { userId: null as string | null, workspaceId: null as string | null };
-
-  const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-  if (userErr || !userData?.user?.id) return { userId: null, workspaceId: null };
-
-  const userId = userData.user.id;
-
-  const { data: profile, error: profErr } = await supabase
-    .from("profiles")
-    .select("workspace_id")
-    .eq("id", userId)
-    .single();
-
-  if (profErr || !profile?.workspace_id) return { userId, workspaceId: null };
-
-  return { userId, workspaceId: profile.workspace_id as string };
-}
 
 async function runOffMarketInitialDiligenceAI(input: {
   company: {
@@ -386,10 +366,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing OPENAI_API_KEY" }, { status: 500, headers: corsHeaders });
     }
 
-    const { workspaceId } = await getAuthedUserAndWorkspace(req);
-    if (!workspaceId) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401, headers: corsHeaders });
-    }
+    const { supabase: supabaseUser, workspace } = await authenticateRequest(req);
 
     const body = (await req.json()) as Body;
 
@@ -404,7 +381,7 @@ export async function POST(req: NextRequest) {
       .from("companies")
       .select("id, workspace_id, source_type, company_name, website, address, phone, rating, ratings_total, tier_reason")
       .eq("id", companyId)
-      .eq("workspace_id", workspaceId)
+      .eq("workspace_id", workspace.id)
       .maybeSingle();
 
     if (error || !data) {
@@ -475,7 +452,7 @@ export async function POST(req: NextRequest) {
         // ✅ removed: updated_at
       })
       .eq("id", companyId)
-      .eq("workspace_id", workspaceId);
+      .eq("workspace_id", workspace.id);
 
     if (updateErr) {
       return NextResponse.json(
@@ -498,6 +475,9 @@ export async function POST(req: NextRequest) {
       { headers: corsHeaders }
     );
   } catch (e: any) {
+    if (e instanceof AuthError) {
+      return NextResponse.json({ success: false, error: e.message }, { status: e.statusCode, headers: corsHeaders });
+    }
     return NextResponse.json({ success: false, error: e?.message ?? "Unknown error" }, { status: 500, headers: corsHeaders });
   }
 }

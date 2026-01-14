@@ -1,6 +1,7 @@
 // app/api/process-cim/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { authenticateRequest, AuthError } from '@/lib/api/auth';
 
 export const runtime = 'nodejs';
 
@@ -221,6 +222,8 @@ export async function POST(req: NextRequest) {
   try {
     console.log('process-cim: received request');
 
+    const { supabase: supabaseUser, workspace } = await authenticateRequest(req);
+
     const body = await req.json();
     const companyId = body.companyId as string | undefined;
     const cimStoragePath = body.cimStoragePath as string | undefined;
@@ -228,6 +231,21 @@ export async function POST(req: NextRequest) {
 
     if (!companyId || !cimStoragePath) {
       return NextResponse.json({ success: false, error: 'Missing companyId or cimStoragePath' }, { status: 400 });
+    }
+
+    // Verify company belongs to user's workspace
+    const { data: company, error: companyErr } = await supabaseAdmin
+      .from('companies')
+      .select('id, workspace_id')
+      .eq('id', companyId)
+      .maybeSingle();
+
+    if (companyErr || !company) {
+      return NextResponse.json({ success: false, error: 'Company not found' }, { status: 404 });
+    }
+
+    if (company.workspace_id !== workspace.id) {
+      return NextResponse.json({ success: false, error: 'Access denied' }, { status: 403 });
     }
 
     if (!OPENAI_API_KEY) {
@@ -812,7 +830,8 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
         // ✅ IMPORTANT: snapshot column for dashboard truth
         ai_confidence_json: cimDataConfidence,
       })
-      .eq('id', companyId);
+      .eq('id', companyId)
+      .eq('workspace_id', workspace.id);
 
     if (updateErr) {
       console.error('process-cim: DB update error:', updateErr);
@@ -837,6 +856,9 @@ Analyze the attached CIM PDF and populate the JSON schema from the instructions 
       ai_confidence_json: cimDataConfidence,
     });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ success: false, error: err.message }, { status: err.statusCode });
+    }
     console.error('Unexpected error in process-cim:', err);
     return NextResponse.json({ success: false, error: 'Unexpected server error in process-cim.' }, { status: 500 });
   }

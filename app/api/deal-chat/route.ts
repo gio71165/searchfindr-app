@@ -1,42 +1,9 @@
 // app/api/deal-chat/route.ts
-import { NextResponse } from "next/server";
-import { createClient as createSupabase } from "@supabase/supabase-js";
+import { NextRequest, NextResponse } from "next/server";
+import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { chatForDeal } from "@/lib/ai/dealChat";
 
 type ChatRole = "user" | "assistant" | "system";
-
-// Bearer helper
-function getBearerToken(req: Request) {
-  const authHeader = req.headers.get("authorization") || "";
-  if (!authHeader.startsWith("Bearer ")) return null;
-  return authHeader.slice(7).trim();
-}
-
-function makeAuthedSupabase(token: string) {
-  return createSupabase(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-      },
-    }
-  );
-}
-
-async function getWorkspaceIdForUser(supabase: any, userId: string) {
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("workspace_id")
-    .eq("id", userId)
-    .single();
-
-  if (error || !profile?.workspace_id) return { workspaceId: null as string | null, error };
-  return { workspaceId: profile.workspace_id as string, error: null };
-}
 
 async function getDealForWorkspace(supabase: any, dealId: string, workspaceId: string) {
   const { data: deal, error } = await supabase
@@ -65,21 +32,10 @@ async function getDealForWorkspace(supabase: any, dealId: string, workspaceId: s
   return { deal, error };
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     // 1) Auth
-    const token = getBearerToken(req);
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized (missing token)" }, { status: 401 });
-    }
-
-    const supabase = makeAuthedSupabase(token);
-
-    const { data: authData, error: authErr } = await supabase.auth.getUser(token);
-    if (authErr || !authData?.user) {
-      return NextResponse.json({ error: "Unauthorized (bad token)" }, { status: 401 });
-    }
-    const userId = authData.user.id;
+    const { supabase, user, workspace } = await authenticateRequest(req);
 
     // 2) Body
     const body = await req.json().catch(() => null);
@@ -91,14 +47,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing dealId or message" }, { status: 400 });
     }
 
-    // 3) Workspace
-    const { workspaceId, error: wsErr } = await getWorkspaceIdForUser(supabase, userId);
-    if (wsErr || !workspaceId) {
-      return NextResponse.json({ error: "Profile/workspace not found" }, { status: 403 });
-    }
-
-    // 4) Deal (workspace-scoped)
-    const { deal, error: dealErr } = await getDealForWorkspace(supabase, dealId, workspaceId);
+    // 3) Deal (workspace-scoped)
+    const { deal, error: dealErr } = await getDealForWorkspace(supabase, dealId, workspace.id);
     if (dealErr || !deal) {
       return NextResponse.json({ error: "Deal not found" }, { status: 404 });
     }
@@ -119,8 +69,8 @@ export async function POST(req: Request) {
     const { count: recentCount, error: recentErr } = await supabase
       .from("deal_chat_messages")
       .select("*", { count: "exact", head: true })
-      .eq("workspace_id", workspaceId)
-      .eq("user_id", userId)
+      .eq("workspace_id", workspace.id)
+      .eq("user_id", user.id)
       .eq("role", "user")
       .gte("created_at", sinceIso);
 
@@ -141,7 +91,7 @@ export async function POST(req: Request) {
       .from("deal_chat_messages")
       .select("*", { count: "exact", head: true })
       .eq("deal_id", dealId)
-      .eq("user_id", userId);
+      .eq("user_id", user.id);
 
     if (countErr) {
       return NextResponse.json({ error: "Rate limit check failed" }, { status: 500 });
@@ -195,17 +145,17 @@ export async function POST(req: Request) {
     // 11) Persist (best effort)
     const insertRows = [
       {
-        workspace_id: workspaceId,
+        workspace_id: workspace.id,
         deal_id: dealId,
-        user_id: userId,
+        user_id: user.id,
         role: "user",
         content: message,
         meta: { sources_used },
       },
       {
-        workspace_id: workspaceId,
+        workspace_id: workspace.id,
         deal_id: dealId,
-        user_id: userId,
+        user_id: user.id,
         role: "assistant",
         content: answer,
         meta: {
@@ -224,6 +174,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ answer, sources_used });
   } catch (e: any) {
+    if (e instanceof AuthError) {
+      return NextResponse.json({ error: e.message }, { status: e.statusCode });
+    }
     return NextResponse.json(
       { error: "Server error", detail: e?.message ?? String(e) },
       { status: 500 }
@@ -231,79 +184,63 @@ export async function POST(req: Request) {
   }
 }
 
-export async function GET(req: Request) {
-  const token = getBearerToken(req);
-  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function GET(req: NextRequest) {
+  try {
+    const { supabase, user, workspace } = await authenticateRequest(req);
 
-  const url = new URL(req.url);
-  const dealId = url.searchParams.get("dealId");
-  if (!dealId) return NextResponse.json({ error: "Missing dealId" }, { status: 400 });
+    const dealId = req.nextUrl.searchParams.get("dealId");
+    if (!dealId) return NextResponse.json({ error: "Missing dealId" }, { status: 400 });
 
-  const supabase = makeAuthedSupabase(token);
+    const { data: rows, error } = await supabase
+      .from("deal_chat_messages")
+      .select("role, content, created_at")
+      .eq("workspace_id", workspace.id)
+      .eq("deal_id", dealId)
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(40);
 
-  const { data: authData, error: authErr } = await supabase.auth.getUser(token);
-  if (authErr || !authData?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error) {
+      return NextResponse.json({ error: "Failed to load messages" }, { status: 500 });
+    }
 
-  const userId = authData.user.id;
+    const messages = (rows ?? []).map((r: any) => ({
+      role: r.role,
+      content: r.content,
+    }));
 
-  const { workspaceId, error: wsErr } = await getWorkspaceIdForUser(supabase, userId);
-  if (wsErr || !workspaceId) {
-    return NextResponse.json({ error: "Profile/workspace not found" }, { status: 403 });
+    return NextResponse.json({ messages });
+  } catch (e: any) {
+    if (e instanceof AuthError) {
+      return NextResponse.json({ error: e.message }, { status: e.statusCode });
+    }
+    return NextResponse.json({ error: "Server error", detail: e?.message ?? String(e) }, { status: 500 });
   }
-
-  const { data: rows, error } = await supabase
-    .from("deal_chat_messages")
-    .select("role, content, created_at")
-    .eq("workspace_id", workspaceId)
-    .eq("deal_id", dealId)
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true })
-    .limit(40);
-
-  if (error) {
-    return NextResponse.json({ error: "Failed to load messages" }, { status: 500 });
-  }
-
-  const messages = (rows ?? []).map((r: any) => ({
-    role: r.role,
-    content: r.content,
-  }));
-
-  return NextResponse.json({ messages });
 }
 
-export async function DELETE(req: Request) {
-  const token = getBearerToken(req);
-  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function DELETE(req: NextRequest) {
+  try {
+    const { supabase, user, workspace } = await authenticateRequest(req);
 
-  const url = new URL(req.url);
-  const dealId = url.searchParams.get("dealId");
-  if (!dealId) return NextResponse.json({ error: "Missing dealId" }, { status: 400 });
+    const dealId = req.nextUrl.searchParams.get("dealId");
+    if (!dealId) return NextResponse.json({ error: "Missing dealId" }, { status: 400 });
 
-  const supabase = makeAuthedSupabase(token);
+    const { error } = await supabase
+      .from("deal_chat_messages")
+      .delete()
+      .eq("workspace_id", workspace.id)
+      .eq("deal_id", dealId)
+      .eq("user_id", user.id);
 
-  const { data: authData, error: authErr } = await supabase.auth.getUser(token);
-  if (authErr || !authData?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (error) {
+      return NextResponse.json({ error: "Failed to clear messages" }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (e: any) {
+    if (e instanceof AuthError) {
+      return NextResponse.json({ error: e.message }, { status: e.statusCode });
+    }
+    return NextResponse.json({ error: "Server error", detail: e?.message ?? String(e) }, { status: 500 });
   }
-
-  const userId = authData.user.id;
-
-  const { workspaceId, error: wsErr } = await getWorkspaceIdForUser(supabase, userId);
-  if (wsErr || !workspaceId) {
-    return NextResponse.json({ error: "Profile/workspace not found" }, { status: 403 });
-  }
-
-  const { error } = await supabase
-    .from("deal_chat_messages")
-    .delete()
-    .eq("workspace_id", workspaceId)
-    .eq("deal_id", dealId)
-    .eq("user_id", userId);
-
-  if (error) {
-    return NextResponse.json({ error: "Failed to clear messages" }, { status: 500 });
-  }
-
-  return NextResponse.json({ ok: true });
 }
