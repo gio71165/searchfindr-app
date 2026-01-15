@@ -31,7 +31,6 @@ export async function GET(
     const { supabase, workspace } = await authenticateRequest(req);
     const deals = new DealsRepository(supabase, workspace.id);
 
-    const dealId = params.id;
     if (!dealId) {
       return NextResponse.json({ error: "Missing deal ID" }, { status: 400, headers: corsHeaders });
     }
@@ -114,9 +113,9 @@ export async function PUT(
     if (e instanceof DatabaseError) {
       return NextResponse.json({ error: e.message }, { status: e.statusCode, headers: corsHeaders });
     }
-    console.error("diligence-checklist GET error:", e);
+    console.error("diligence-checklist PUT error:", e);
     return NextResponse.json(
-      { error: "Unable to load checklist. Please try again." },
+      { error: "Unable to update checklist. Please try again." },
       { status: 500, headers: corsHeaders }
     );
   }
