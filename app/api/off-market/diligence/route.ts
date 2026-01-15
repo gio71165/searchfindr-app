@@ -202,10 +202,10 @@ async function runOffMarketInitialDiligenceAI(input: {
     : null;
 
   const prompt = buildOffMarketDiligencePrompt({
-    company_name: sanitizeShortText(c.company_name ?? null),
+    company_name: sanitizeShortText(c.company_name ?? ""),
     website: sanitizeShortText(c.website),
-    address: sanitizeShortText(c.address ?? null),
-    phone: sanitizeShortText(c.phone ?? null),
+    address: sanitizeShortText(c.address ?? ""),
+    phone: sanitizeShortText(c.phone ?? ""),
     rating: c.rating ?? null,
     ratings_total: c.ratings_total ?? null,
     homepageText: input.homepageText || "(no homepage text available)",
