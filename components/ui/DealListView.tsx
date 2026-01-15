@@ -13,7 +13,7 @@ type Deal = {
   source_type: string | null;
   created_at: string | null;
   ai_confidence_json?: {
-    level?: 'low' | 'medium' | 'high' | null;
+    level?: 'A' | 'B' | 'C' | 'low' | 'medium' | 'high' | null;
   } | null;
   final_tier?: string | null;
   is_saved?: boolean | null;
@@ -92,7 +92,12 @@ export function DealListView({
           <tbody className="bg-white divide-y divide-slate-200">
             {deals.map((deal, idx) => {
               const location = [deal.location_city, deal.location_state].filter(Boolean).join(', ') || '—';
-              const confidenceLevel = deal.ai_confidence_json?.level || null;
+              // Convert confidence level to 'A'|'B'|'C' format
+              const rawLevel = deal.ai_confidence_json?.level;
+              let confidenceLevel: 'A' | 'B' | 'C' | null = null;
+              if (rawLevel === 'A' || rawLevel === 'high') confidenceLevel = 'A';
+              else if (rawLevel === 'B' || rawLevel === 'medium') confidenceLevel = 'B';
+              else if (rawLevel === 'C' || rawLevel === 'low') confidenceLevel = 'C';
               const analyzed = Boolean(deal.ai_confidence_json);
               const date = deal.created_at ? new Date(deal.created_at).toLocaleDateString() : '—';
 
