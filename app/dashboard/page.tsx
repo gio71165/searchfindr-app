@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback, type ChangeEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../supabaseClient";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { StatCard } from "@/components/ui/StatCard";
@@ -171,6 +171,7 @@ function getConfidenceLevel(deal: Company): ConfidenceLevel | null {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
@@ -184,7 +185,12 @@ export default function DashboardPage() {
 
   // Unified filtering (replaces tabs)
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"saved" | "on_market" | "off_market" | "cim_pdf" | "financials">("saved");
+  // Initialize activeTab from URL parameter if present
+  const viewParam = searchParams.get('view');
+  const initialTab = (viewParam && ["saved", "on_market", "off_market", "cim_pdf", "financials"].includes(viewParam))
+    ? viewParam as "saved" | "on_market" | "off_market" | "cim_pdf" | "financials"
+    : "saved";
+  const [activeTab, setActiveTab] = useState<"saved" | "on_market" | "off_market" | "cim_pdf" | "financials">(initialTab);
   const [savedFilter, setSavedFilter] = useState<SavedFilter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("newest");
   const [activeStatFilter, setActiveStatFilter] = useState<"none" | "new_today" | "saved" | "high_confidence">("none");
@@ -258,6 +264,14 @@ export default function DashboardPage() {
 
     setDeals((data ?? []) as Company[]);
   }, [workspaceId]);
+
+  // Sync activeTab with URL view parameter
+  useEffect(() => {
+    const viewParam = searchParams.get('view');
+    if (viewParam && ["saved", "on_market", "off_market", "cim_pdf", "financials"].includes(viewParam)) {
+      setActiveTab(viewParam as "saved" | "on_market" | "off_market" | "cim_pdf" | "financials");
+    }
+  }, [searchParams]);
 
   // Auth + initial deals load
   useEffect(() => {
@@ -1143,6 +1157,7 @@ export default function DashboardPage() {
                   onToggleSelect={toggleOne}
                   onSaveToggle={handleSaveToggle}
                   onDelete={handleDelete}
+                  fromView={activeTab}
                 />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -1157,7 +1172,7 @@ export default function DashboardPage() {
                           className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                         />
                       </div>
-                      <DealCard deal={deal} onSaveToggle={handleSaveToggle} onDelete={handleDelete} />
+                      <DealCard deal={deal} onSaveToggle={handleSaveToggle} onDelete={handleDelete} fromView={activeTab} />
                     </div>
                   ))}
                 </div>
@@ -1199,10 +1214,43 @@ export default function DashboardPage() {
               </div>
             </section>
 
+            {/* Refresh Banner - Important Notice */}
+            <section className="rounded-lg border-2 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 p-4 mb-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-0.5">
+                  <RefreshCw className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                    📢 Important: Refresh Required After Sending Deals
+                  </p>
+                  <p className="text-xs text-amber-800 dark:text-amber-200 mb-3">
+                    After using the Chrome extension to send a deal to SearchFindr, you <strong>must refresh this page</strong> to see the new deal appear in your list. The deal won't show up automatically until you refresh.
+                  </p>
+                  <button
+                    onClick={refreshDeals}
+                    disabled={refreshing}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                    {refreshing ? 'Refreshing...' : 'Refresh Deals Now'}
+                  </button>
+                </div>
+              </div>
+            </section>
+
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-lg font-semibold">On-Market Deals</h2>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={refreshDeals}
+                    disabled={refreshing}
+                    className="p-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+                    title="Refresh deals list"
+                  >
+                    <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+                  </button>
                   <button
                     onClick={() => setViewMode("list")}
                     className={`p-2 rounded-lg border transition-colors ${
@@ -1285,6 +1333,7 @@ export default function DashboardPage() {
                   onToggleSelect={toggleOne}
                   onSaveToggle={handleSaveToggle}
                   onDelete={handleDelete}
+                  fromView={activeTab}
                 />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -1299,7 +1348,7 @@ export default function DashboardPage() {
                           className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                         />
                       </div>
-                      <DealCard deal={deal} onSaveToggle={handleSaveToggle} onDelete={handleDelete} />
+                      <DealCard deal={deal} onSaveToggle={handleSaveToggle} onDelete={handleDelete} fromView={activeTab} />
                     </div>
                   ))}
                 </div>
@@ -1512,6 +1561,7 @@ export default function DashboardPage() {
                   onToggleSelect={toggleOne}
                   onSaveToggle={handleSaveToggle}
                   onDelete={handleDelete}
+                  fromView={activeTab}
                 />
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -1526,7 +1576,7 @@ export default function DashboardPage() {
                           className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                         />
                       </div>
-                      <DealCard deal={deal} onSaveToggle={handleSaveToggle} onDelete={handleDelete} />
+                      <DealCard deal={deal} onSaveToggle={handleSaveToggle} onDelete={handleDelete} fromView={activeTab} />
                     </div>
                   ))}
                 </div>
@@ -1649,7 +1699,7 @@ export default function DashboardPage() {
                           className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                         />
                       </div>
-                      <DealCard deal={deal} onSaveToggle={handleSaveToggle} onDelete={handleDelete} />
+                      <DealCard deal={deal} onSaveToggle={handleSaveToggle} onDelete={handleDelete} fromView={activeTab} />
                     </div>
                   ))}
                 </div>
@@ -1772,7 +1822,7 @@ export default function DashboardPage() {
                           className="h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
                         />
                       </div>
-                      <DealCard deal={deal} onSaveToggle={handleSaveToggle} onDelete={handleDelete} />
+                      <DealCard deal={deal} onSaveToggle={handleSaveToggle} onDelete={handleDelete} fromView={activeTab} />
                     </div>
                   ))}
                 </div>
