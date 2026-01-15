@@ -208,7 +208,7 @@ export function ExecutiveSummaryCard({
             disabled={savingToggle}
             className={`px-6 py-2.5 font-medium rounded-lg transition-colors ${
               deal.is_saved
-                ? 'bg-slate-100 text-slate-700
+                ? 'bg-slate-100 text-slate-700'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
