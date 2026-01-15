@@ -35,8 +35,8 @@ export type NormalizedDeal = {
   source_name: string;
   source_url: string;
 
-  data_confidence: "high" | "medium" | "low";
-  confidence_score: number; // internal only
+  data_confidence: "A" | "B" | "C";
+  confidence_score: number; // internal only (deprecated, kept for backward compatibility)
 
   published_at: string | null; // ISO if known
 
@@ -178,7 +178,7 @@ function computeConfidence(input: {
   hasAskingPrice: boolean;
   hasTeaser: boolean;
   hasTextSample: boolean;
-}): { confidence_score: number; data_confidence: "high" | "medium" | "low" } {
+}): { confidence_score: number; data_confidence: "A" | "B" | "C" } {
   let score = 0;
 
   if (input.hasHeadline) score += 15;
@@ -195,9 +195,10 @@ function computeConfidence(input: {
   if (score < 0) score = 0;
   if (score > 100) score = 100;
 
-  let data_confidence: "high" | "medium" | "low" = "low";
-  if (score >= 75) data_confidence = "high";
-  else if (score >= 45) data_confidence = "medium";
+  // Map numeric score to tier: A (high), B (medium), C (low)
+  let data_confidence: "A" | "B" | "C" = "C";
+  if (score >= 75) data_confidence = "A";
+  else if (score >= 45) data_confidence = "B";
 
   return { confidence_score: score, data_confidence };
 }

@@ -6,7 +6,10 @@ import { DealsRepository } from "@/lib/data-access/deals";
 import { ChatRepository } from "@/lib/data-access/chat";
 import { NotFoundError } from "@/lib/data-access/base";
 import { sanitizeForPrompt, sanitizeShortText } from "@/lib/utils/sanitize";
+import { validateInputLength } from "@/lib/api/security";
 import type { ChatRole } from "@/lib/types/deal";
+
+const MAX_MESSAGE_LENGTH = 5000;
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,12 +21,20 @@ export async function POST(req: NextRequest) {
     // 2) Body
     const body = await req.json().catch(() => null);
     const dealId = body?.dealId;
-    const message = sanitizeForPrompt(typeof body?.message === "string" ? body.message.trim() : "");
+    const messageRaw = typeof body?.message === "string" ? body.message.trim() : "";
     const historyRaw = Array.isArray(body?.history) ? body.history : [];
 
-    if (!dealId || !message) {
+    if (!dealId || !messageRaw) {
       return NextResponse.json({ error: "Missing dealId or message" }, { status: 400 });
     }
+
+    // Input length validation
+    const messageLengthError = validateInputLength(messageRaw, MAX_MESSAGE_LENGTH, 'Message');
+    if (messageLengthError) {
+      return NextResponse.json({ error: messageLengthError }, { status: 400 });
+    }
+
+    const message = sanitizeForPrompt(messageRaw);
 
     // 3) Deal (workspace-scoped)
     const deal = await deals.getById(dealId);

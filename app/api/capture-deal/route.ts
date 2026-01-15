@@ -1,6 +1,11 @@
 // app/api/capture-deal/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { authenticateRequest, AuthError } from "@/lib/api/auth";
+import { DealsRepository } from "@/lib/data-access/deals";
+import { checkRateLimit, getRateLimitConfig } from "@/lib/api/rate-limit";
+import { validateInputLength, getCorsHeaders } from "@/lib/api/security";
+import { logger } from "@/lib/utils/logger";
 
 export const runtime = "nodejs";
 
@@ -10,13 +15,12 @@ const supabaseAdmin = createClient(
   { auth: { persistSession: false } }
 );
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": process.env.NODE_ENV === "production"
-    ? "https://searchfindr-app.vercel.app"
-    : "http://localhost:3000",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const corsHeaders = getCorsHeaders();
+
+// Input length limits
+const MAX_TEXT_LENGTH = 50000;
+const MAX_URL_LENGTH = 2048;
+const MAX_TITLE_LENGTH = 500;
 
 function json(resBody: any, status = 200) {
   return NextResponse.json(resBody, { status, headers: corsHeaders });
@@ -107,11 +111,11 @@ function coerceRedFlagsToBulletedMarkdown(value: unknown): string | null {
  * This is confidence in the INPUTS / DISCLOSURE QUALITY of the LISTING TEXT,
  * not "how confident the AI feels".
  */
-type DataConfidenceLevel = "low" | "medium" | "high";
+type DataConfidenceLevel = "A" | "B" | "C";
 
 function iconForLevel(level: DataConfidenceLevel): "⚠️" | "◑" | "●" {
-  if (level === "high") return "●";
-  if (level === "medium") return "◑";
+  if (level === "A") return "●";
+  if (level === "B") return "◑";
   return "⚠️";
 }
 
@@ -153,24 +157,24 @@ function buildOnMarketDataConfidence(args: {
     ? red.split("\n").filter(Boolean).length
     : 0;
 
-  // Base level selection
-  let level: DataConfidenceLevel = "medium";
+  // Base level selection (B = medium)
+  let level: DataConfidenceLevel = "B";
 
-  // If listing is extremely short or missing most useful detail, downgrade to low.
+  // If listing is extremely short or missing most useful detail, downgrade to C.
   const thinSignals =
     (textLen > 0 && textLen < 900) || (!hasAnyFinancial && !hasAsking) || (!hasLocationHint && !hasIndustryHint);
 
-  if (thinSignals) level = "low";
+  if (thinSignals) level = "C";
 
-  // If listing is long and includes at least some financials, upgrade to high.
-  if (textLen >= 2200 && hasAnyFinancial) level = "high";
+  // If listing is long and includes at least some financials, upgrade to A.
+  if (textLen >= 2200 && hasAnyFinancial) level = "A";
 
-  // If a lot of red flags exist, it often correlates with messy listing/claims → cap at medium.
-  if (level === "high" && redCount >= 6) level = "medium";
+  // If a lot of red flags exist, it often correlates with messy listing/claims → cap at B.
+  if (level === "A" && redCount >= 6) level = "B";
 
-  let summary = "Medium data confidence — listing details require verification.";
-  if (level === "low") summary = "Low data confidence — listing is thin or missing key disclosures.";
-  if (level === "high") summary = "High data confidence — listing contains meaningful detail and financial context.";
+  let summary = "B tier data confidence — listing details require verification.";
+  if (level === "C") summary = "C tier data confidence — listing is thin or missing key disclosures.";
+  if (level === "A") summary = "A tier data confidence — listing contains meaningful detail and financial context.";
 
   const signals: Array<{ label: string; value: string }> = [
     { label: "Listing detail", value: textLen >= 2200 ? "Strong" : textLen >= 900 ? "Mixed" : "Thin" },
@@ -193,55 +197,33 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
     // Hard fail fast if env is missing (prevents confusing Vercel runtime errors)
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-      return json({ error: "Missing NEXT_PUBLIC_SUPABASE_URL" }, 500);
+      return json({ error: "Service temporarily unavailable" }, 500);
     }
     if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      return json({ error: "Missing SUPABASE_SERVICE_ROLE_KEY" }, 500);
+      return json({ error: "Service temporarily unavailable" }, 500);
     }
     if (!process.env.OPENAI_API_KEY) {
-      return json({ error: "Missing OPENAI_API_KEY" }, 500);
+      return json({ error: "Service temporarily unavailable" }, 500);
     }
 
     /* ===============================
-       1) AUTH — Supabase Bearer Token
+       1) AUTH — Use centralized auth helper
     ================================ */
-    const authHeader = req.headers.get("authorization");
-    const token =
-      authHeader && authHeader.startsWith("Bearer ")
-        ? authHeader.slice(7)
-        : null;
-
-    if (!token) {
-      return json({ error: "Missing Authorization Bearer token." }, 401);
-    }
-
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.getUser(token);
-
-    if (userError || !userData?.user) {
-      return json({ error: "Invalid or expired token." }, 401);
-    }
-
-    const ownerUserId = userData.user.id;
+    const { supabase, user, workspace } = await authenticateRequest(req);
+    const deals = new DealsRepository(supabase, workspace.id);
 
     /* ===============================
-       2) RESOLVE WORKSPACE
+       2) RATE LIMITING
     ================================ */
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .select("workspace_id")
-      .eq("id", ownerUserId)
-      .single();
-
-    if (profileError || !profile?.workspace_id) {
-      return json({ error: "Workspace not found for user." }, 400);
+    const config = getRateLimitConfig('capture-deal');
+    const rateLimit = await checkRateLimit(user.id, 'capture-deal', config.limit, config.windowSeconds, supabase);
+    if (!rateLimit.allowed) {
+      return json({ error: `Rate limit exceeded. Maximum ${config.limit} requests per hour. Please try again later.` }, 429);
     }
-
-    const workspaceId = profile.workspace_id;
 
     /* ===============================
        3) REQUEST BODY
@@ -256,6 +238,24 @@ export async function POST(req: Request) {
     const { url, title, text } = body ?? {};
     if (!url || !text) {
       return json({ error: "Missing url or text." }, 400);
+    }
+
+    // Input length validation
+    const urlError = validateInputLength(url, MAX_URL_LENGTH, 'URL');
+    if (urlError) {
+      return json({ error: urlError }, 400);
+    }
+
+    const textError = validateInputLength(text, MAX_TEXT_LENGTH, 'Text');
+    if (textError) {
+      return json({ error: textError }, 400);
+    }
+
+    if (title) {
+      const titleError = validateInputLength(title, MAX_TITLE_LENGTH, 'Title');
+      if (titleError) {
+        return json({ error: titleError }, 400);
+      }
     }
 
     const company_name = title || null;
@@ -328,7 +328,8 @@ export async function POST(req: Request) {
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      return json({ error: errText }, 500);
+      logger.error('OpenAI API error in capture-deal:', errText);
+      return json({ error: "Failed to process deal. Please try again later." }, 500);
     }
 
     const aiJSON = await aiResponse.json();
@@ -382,35 +383,25 @@ export async function POST(req: Request) {
     /* ===============================
        6) INSERT COMPANY
     ================================ */
-    const { data: inserted, error: insertError } = await supabaseAdmin
-      .from("companies")
-      .insert({
-        workspace_id: workspaceId,
-        user_id: ownerUserId,
-        company_name,
-        listing_url: url,
-        raw_listing_text: text,
-        source_type: "on_market",
-        location_city: location_city ?? null,
-        location_state: location_state ?? null,
-        industry: industry ?? null,
-        final_tier: normalizedTier ?? null,
-        score,
-        ai_summary: ai_summary ?? null,
-        ai_red_flags: redFlagsBulleted ?? null,
-        ai_financials_json: financials ?? null,
-        ai_scoring_json: scoringToStore ?? null,
-        criteria_match_json: criteria_match ?? null,
-
-        // ✅ IMPORTANT: this powers your dashboard "Data confidence"
-        ai_confidence_json: onMarketDataConfidence,
-      })
-      .select("id")
-      .single();
-
-    if (insertError) {
-      return json({ error: insertError.message }, 500);
-    }
+    const inserted = await deals.create({
+      user_id: user.id,
+      company_name,
+      listing_url: url,
+      raw_listing_text: text,
+      source_type: "on_market",
+      location_city: location_city ?? null,
+      location_state: location_state ?? null,
+      industry: industry ?? null,
+      final_tier: normalizedTier ?? null,
+      score,
+      ai_summary: ai_summary ?? null,
+      ai_red_flags: redFlagsBulleted ?? null,
+      ai_financials_json: financials ?? null,
+      ai_scoring_json: scoringToStore ?? null,
+      criteria_match_json: criteria_match ?? null,
+      // ✅ IMPORTANT: this powers your dashboard "Data confidence"
+      ai_confidence_json: onMarketDataConfidence,
+    });
 
     return json(
       {
@@ -422,7 +413,10 @@ export async function POST(req: Request) {
       200
     );
   } catch (err: any) {
-    console.error("capture-deal error:", err);
+    if (err instanceof AuthError) {
+      return json({ error: err.message }, err.statusCode);
+    }
+    logger.error("capture-deal error:", err);
     return json({ error: "Unable to capture deal. Please try again later." }, 500);
   }
 }

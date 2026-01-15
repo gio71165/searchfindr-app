@@ -21,6 +21,7 @@ import { normalizeRedFlags, normalizeConfidenceSignals } from '../lib/normalizer
 import { safeDateLabel } from '../lib/formatters';
 import type { Deal, FinancialMetrics } from '@/lib/types/deal';
 import { BarChart3, TrendingUp, FileCheck, CheckCircle2 } from 'lucide-react';
+import { PassDealModal } from '@/components/modals/PassDealModal';
 
 export function CimDealView({
   deal,
@@ -30,9 +31,6 @@ export function CimDealView({
   cimError,
   cimSuccess,
   onRunCim,
-  canToggleSave,
-  savingToggle,
-  onToggleSave,
 }: {
   deal: Deal;
   dealId: string;
@@ -41,9 +39,6 @@ export function CimDealView({
   cimError: string | null;
   cimSuccess: boolean;
   onRunCim: () => void;
-  canToggleSave: boolean;
-  savingToggle: boolean;
-  onToggleSave: () => void;
 }) {
   const scoring = deal.ai_scoring_json || {};
   const criteria = deal.criteria_match_json || {};
@@ -77,40 +72,70 @@ export function CimDealView({
     return normalizeConfidenceSignals(deal?.ai_confidence_json?.signals ?? null);
   }, [deal?.ai_confidence_json?.signals]);
 
-  const [passing, setPassing] = useState(false);
+  const [showPassModal, setShowPassModal] = useState(false);
+  const [settingVerdict, setSettingVerdict] = useState(false);
+  const [editingWorkflow, setEditingWorkflow] = useState(false);
+  const [nextAction, setNextAction] = useState(deal.next_action || '');
+  const [reminderDate, setReminderDate] = useState(
+    deal.next_action_date ? new Date(deal.next_action_date).toISOString().split('T')[0] : ''
+  );
 
-  const handlePass = async () => {
-    if (passing) return;
-    
-    const confirmed = window.confirm('Mark this deal as passed? This will hide it from your dashboard.');
-    if (!confirmed) return;
+  const handlePassSuccess = () => {
+    setShowPassModal(false);
+    window.location.href = '/dashboard';
+  };
 
-    setPassing(true);
+  const handleProceed = async () => {
+    setSettingVerdict(true);
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) throw new Error('Not signed in.');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not signed in');
+      const { data: profile } = await supabase.from('profiles').select('workspace_id').eq('id', user.id).single();
+      if (!profile?.workspace_id) throw new Error('No workspace');
 
-      const res = await fetch(`/api/deals/${dealId}/pass`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-      });
+      const { error } = await supabase
+        .from('companies')
+        .update({ 
+          verdict: 'proceed',
+          last_action_at: new Date().toISOString()
+        })
+        .eq('id', dealId)
+        .eq('workspace_id', profile.workspace_id);
 
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        throw new Error(json.error || 'Failed to pass deal');
-      }
-
-      // Navigate back to dashboard
-      window.location.href = '/dashboard';
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Unknown error');
-      alert(`Failed to pass deal: ${error.message}`);
+      if (error) throw error;
+      window.location.reload();
+    } catch (error) {
+      console.error('Error setting proceed:', error);
+      alert('Failed to set verdict. Please try again.');
     } finally {
-      setPassing(false);
+      setSettingVerdict(false);
+    }
+  };
+
+  const handlePark = async () => {
+    setSettingVerdict(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not signed in');
+      const { data: profile } = await supabase.from('profiles').select('workspace_id').eq('id', user.id).single();
+      if (!profile?.workspace_id) throw new Error('No workspace');
+
+      const { error } = await supabase
+        .from('companies')
+        .update({ 
+          verdict: 'park',
+          last_action_at: new Date().toISOString()
+        })
+        .eq('id', dealId)
+        .eq('workspace_id', profile.workspace_id);
+
+      if (error) throw error;
+      window.location.reload();
+    } catch (error) {
+      console.error('Error setting park:', error);
+      alert('Failed to set verdict. Please try again.');
+    } finally {
+      setSettingVerdict(false);
     }
   };
 
@@ -129,11 +154,116 @@ export function CimDealView({
             {/* Executive Summary Card */}
             <ExecutiveSummaryCard
               deal={deal}
-              onSave={onToggleSave}
-              onPass={handlePass}
-              savingToggle={savingToggle}
-              canToggleSave={canToggleSave}
+              onProceed={handleProceed}
+              onPark={handlePark}
+              onPass={() => setShowPassModal(true)}
+              settingVerdict={settingVerdict}
             />
+
+            {/* Workflow Controls Section */}
+            <div className="border rounded-lg p-6 mb-6 bg-gray-50">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold">Deal Workflow</h3>
+                <button 
+                  onClick={() => setEditingWorkflow(!editingWorkflow)}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  {editingWorkflow ? 'Done' : 'Edit'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Stage Selector */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Stage
+                  </label>
+                  {editingWorkflow ? (
+                    <select
+                      value={deal.stage || 'new'}
+                      onChange={async (e) => {
+                        const newStage = e.target.value;
+                        await supabase
+                          .from('companies')
+                          .update({ 
+                            stage: newStage,
+                            last_action_at: new Date().toISOString()
+                          })
+                          .eq('id', deal.id);
+                        // Refresh deal
+                        window.location.reload();
+                      }}
+                      className="w-full border rounded-lg px-3 py-2"
+                    >
+                      <option value="new">New</option>
+                      <option value="reviewing">Reviewing</option>
+                      <option value="follow_up">Follow-up</option>
+                      <option value="ioi_sent">IOI Sent</option>
+                      <option value="loi">LOI</option>
+                      <option value="dd">Due Diligence</option>
+                    </select>
+                  ) : (
+                    <div className="text-base font-medium capitalize">
+                      {deal.stage?.replace(/_/g, ' ') || 'New'}
+                    </div>
+                  )}
+                </div>
+
+                {/* Next Action */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Next Action
+                  </label>
+                  {editingWorkflow ? (
+                    <input
+                      type="text"
+                      value={nextAction}
+                      onChange={(e) => setNextAction(e.target.value)}
+                      onBlur={async () => {
+                        await supabase
+                          .from('companies')
+                          .update({ next_action: nextAction })
+                          .eq('id', deal.id);
+                      }}
+                      placeholder="e.g., Call broker to clarify revenue"
+                      className="w-full border rounded-lg px-3 py-2"
+                    />
+                  ) : (
+                    <div className="text-base">
+                      {deal.next_action || <span className="text-gray-400">Not set</span>}
+                    </div>
+                  )}
+                </div>
+
+                {/* Reminder Date */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Follow-up Date
+                  </label>
+                  {editingWorkflow ? (
+                    <input
+                      type="date"
+                      value={reminderDate}
+                      onChange={(e) => setReminderDate(e.target.value)}
+                      onBlur={async () => {
+                        await supabase
+                          .from('companies')
+                          .update({ next_action_date: reminderDate })
+                          .eq('id', deal.id);
+                      }}
+                      className="w-full border rounded-lg px-3 py-2"
+                    />
+                  ) : (
+                    <div className="text-base">
+                      {deal.next_action_date 
+                        ? new Date(deal.next_action_date).toLocaleDateString()
+                        : <span className="text-gray-400">Not set</span>
+                      }
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
 
             {/* CIM Processing Run Strip */}
             <section className="rounded-lg border border-slate-200 bg-white p-4">
@@ -242,6 +372,16 @@ export function CimDealView({
           <DealChatPanel dealId={dealId} deal={deal} />
         </div>
       </div>
+      
+      {showPassModal && (
+        <PassDealModal
+          dealId={dealId}
+          companyName={deal.company_name || 'this deal'}
+          workspaceId={deal.workspace_id}
+          onClose={() => setShowPassModal(false)}
+          onSuccess={handlePassSuccess}
+        />
+      )}
     </main>
   );
 }

@@ -78,6 +78,44 @@ When you identify industry-specific signals, include them in:
 - notes_for_searcher.what_to_verify_first
 - notes_for_searcher.questions_to_ask_owner
 
+============================================================
+DECISION FRAMEWORK (REQUIRED)
+============================================================
+Since this is OFF-MARKET (company may not be for sale), assess:
+
+outreach_priority: HIGH (clear signals, worth cold call) | MEDIUM (track, wait for signal) | LOW (not worth time)
+outreach_angle: Best approach based on what you learned (e.g., "Owner is 67, likely succession planning window")
+estimated_receptiveness: LIKELY (retirement age, industry consolidating) | POSSIBLE | UNLIKELY
+
+Provide a DECISION FRAMEWORK. You are a skeptical buyer's advisor:
+
+verdict: Should a searcher PROCEED (worth outreach), PARK (track for later), or PASS (not worth time)?
+verdict_confidence: HIGH (data is complete), MEDIUM (some gaps), LOW (major unknowns)
+primary_reason: ONE sentence for verdict
+deal_killers: Issues that make you pass immediately (empty if none)
+proceed_conditions: If PROCEED/PARK, what MUST be verified?
+recommended_next_action: Be SPECIFIC - "Cold call owner mentioning succession planning angle" NOT "follow up"
+estimated_time_to_decision: Given data quality, how long until outreach decision? (e.g., "Can decide in 1 week" | "Needs 2-3 weeks DD" | "Pass now")
+
+Be OPINIONATED. Searchers pay for judgment, not just information.
+
+============================================================
+DEAL ECONOMICS (REQUIRED)
+============================================================
+Extract DEAL ECONOMICS even if incomplete - mark as UNKNOWN if not stated.
+
+asking_price: Extract exact price if stated, else null (e.g., "$2.5M")
+asking_price_confidence: STATED | IMPLIED | UNKNOWN
+revenue_ttm: Most recent 12 months revenue (estimate if needed)
+ebitda_ttm: Most recent 12 months EBITDA (estimate if needed)
+ebitda_margin_pct: Calculate percentage if possible
+implied_multiple: If price and EBITDA both known (e.g., "4.2x EBITDA")
+deal_size_band: sub_1m | 1m_3m | 3m_5m | 5m_plus
+sba_eligible: {
+  assessment: YES if clearly <$5M + profitable + US, NO if clearly >$5M or unprofitable, LIKELY if probable, UNKNOWN if insufficient data
+  reasoning: Why (e.g., "Under $5M, profitable, US-based = likely eligible")
+}
+
 Return ONLY valid JSON (no markdown) in this exact schema:
 
 {
@@ -114,7 +152,7 @@ Return ONLY valid JSON (no markdown) in this exact schema:
   "scoring": {
     "succession_risk": "Low|Medium|High|Unknown",
     "operational_quality_signal": "Low|Medium|High|Unknown",
-    "data_confidence": "Low|Medium|High",
+    "data_confidence": "A|B|C",
     "overall_score_0_100": 0,
     "final_tier": "A|B|C",
     "tier_basis": "string"
@@ -124,6 +162,31 @@ Return ONLY valid JSON (no markdown) in this exact schema:
     "owner_profile": "string",
     "notes_for_searcher": "string",
     "source_inputs": {{inputs_json}}
+  },
+  "decision_framework": {
+    "verdict": "PROCEED | PARK | PASS",
+    "verdict_confidence": "HIGH | MEDIUM | LOW",
+    "primary_reason": "string",
+    "deal_killers": ["string"],
+    "proceed_conditions": ["string"],
+    "recommended_next_action": "string",
+    "estimated_time_to_decision": "string",
+    "outreach_priority": "HIGH | MEDIUM | LOW",
+    "outreach_angle": "string",
+    "estimated_receptiveness": "LIKELY | POSSIBLE | UNLIKELY"
+  },
+  "deal_economics": {
+    "asking_price": "string | null",
+    "asking_price_confidence": "STATED | IMPLIED | UNKNOWN",
+    "revenue_ttm": "string | null",
+    "ebitda_ttm": "string | null",
+    "ebitda_margin_pct": "string | null",
+    "implied_multiple": "string | null",
+    "deal_size_band": "sub_1m | 1m_3m | 3m_5m | 5m_plus",
+    "sba_eligible": {
+      "assessment": "YES | NO | LIKELY | UNKNOWN",
+      "reasoning": "string"
+    }
   }
 }
 

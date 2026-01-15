@@ -1,15 +1,19 @@
 import React from 'react';
 import { AlertCircle, Circle, CheckCircle2 } from 'lucide-react';
 
+export type ConfidenceLevel = 'A' | 'B' | 'C';
+
+export interface ConfidenceBadgeProps {
+  level?: ConfidenceLevel | null;
+  analyzed?: boolean;
+  size?: 'small' | 'default';
+}
+
 export function ConfidenceBadge({
   level,
   analyzed = true,
   size = 'default',
-}: {
-  level?: 'low' | 'medium' | 'high' | null;
-  analyzed?: boolean;
-  size?: 'small' | 'default';
-}) {
+}: ConfidenceBadgeProps) {
   if (!analyzed) {
     return (
       <span className={`inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-50 text-slate-600 ${size === 'small' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs'}`}>
@@ -20,31 +24,31 @@ export function ConfidenceBadge({
   }
 
   const config = {
-    high: {
+    A: {
       icon: CheckCircle2,
       color: 'text-emerald-700',
       bg: 'bg-emerald-50',
       border: 'border-emerald-200',
-      label: 'High confidence',
+      label: 'A',
     },
-    medium: {
+    B: {
       icon: Circle,
       color: 'text-yellow-700',
       bg: 'bg-yellow-50',
       border: 'border-yellow-200',
-      label: 'Medium confidence',
+      label: 'B',
     },
-    low: {
+    C: {
       icon: AlertCircle,
       color: 'text-red-700',
       bg: 'bg-red-50',
       border: 'border-red-200',
-      label: 'Low confidence',
+      label: 'C',
     },
   };
 
-  const validLevels = ['high', 'medium', 'low'];
-  const safeLevel = (level && validLevels.includes(level)) ? level : 'medium';
+  const validLevels: ('A' | 'B' | 'C')[] = ['A', 'B', 'C'];
+  const safeLevel = (level && validLevels.includes(level)) ? level : 'B';
   const conf = config[safeLevel];
   const Icon = conf.icon;
 

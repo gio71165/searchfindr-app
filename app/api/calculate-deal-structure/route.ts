@@ -1,16 +1,11 @@
 // app/api/calculate-deal-structure/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest, AuthError } from "@/lib/api/auth";
+import { getCorsHeaders } from "@/lib/api/security";
 
 export const runtime = "nodejs";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": process.env.NODE_ENV === "production"
-    ? "https://searchfindr-app.vercel.app"
-    : "http://localhost:3000",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const corsHeaders = getCorsHeaders();
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 200, headers: corsHeaders });

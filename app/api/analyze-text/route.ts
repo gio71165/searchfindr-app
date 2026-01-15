@@ -1,39 +1,39 @@
 // app/api/analyze-text/route.ts
-import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { NextRequest, NextResponse } from 'next/server';
+import { authenticateRequest, AuthError } from '@/lib/api/auth';
+import { DealsRepository } from '@/lib/data-access/deals';
+import { checkRateLimit, getRateLimitConfig } from '@/lib/api/rate-limit';
+import { validateInputLength } from '@/lib/api/security';
 import { logger } from '@/lib/utils/logger';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const DEFAULT_USER_ID = process.env.SEARCHFINDR_DEFAULT_USER_ID;
 
-// Server-side Supabase client using service role (bypasses RLS)
-const supabase =
-  SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
-    ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-    : null;
-
-if (!OPENAI_API_KEY) {
-  logger.warn('OPENAI_API_KEY is not set in environment variables');
-}
-if (!SUPABASE_URL) {
-  logger.warn('NEXT_PUBLIC_SUPABASE_URL is not set');
-}
-if (!SUPABASE_SERVICE_ROLE_KEY) {
-  logger.warn('SUPABASE_SERVICE_ROLE_KEY is not set');
-}
-if (!DEFAULT_USER_ID) {
-  logger.warn('SEARCHFINDR_DEFAULT_USER_ID is not set');
-}
+// Input length limits
+const MAX_TEXT_LENGTH = 50000; // 50KB
+const MAX_URL_LENGTH = 2048;
 
 type AnalyzeTextRequest = {
   url: string;
   text: string;
 };
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    // 1) Authentication - CRITICAL FIX
+    const { supabase, user, workspace } = await authenticateRequest(req);
+    const deals = new DealsRepository(supabase, workspace.id);
+
+    // 2) Rate limiting
+    const config = getRateLimitConfig('analyze-text');
+    const rateLimit = await checkRateLimit(user.id, 'analyze-text', config.limit, config.windowSeconds, supabase);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: `Rate limit exceeded. Maximum ${config.limit} requests per hour. Please try again later.` },
+        { status: 429 }
+      );
+    }
+
+    // 3) Request body validation
     const body = (await req.json()) as AnalyzeTextRequest;
     const { url, text } = body;
 
@@ -51,24 +51,26 @@ export async function POST(req: Request) {
       );
     }
 
+    // 4) Input length validation
+    const urlLengthError = validateInputLength(url, MAX_URL_LENGTH, 'URL');
+    if (urlLengthError) {
+      return NextResponse.json({ error: urlLengthError }, { status: 400 });
+    }
+
+    const textLengthError = validateInputLength(text, MAX_TEXT_LENGTH, 'Text');
+    if (textLengthError) {
+      return NextResponse.json({ error: textLengthError }, { status: 400 });
+    }
+
     if (!OPENAI_API_KEY) {
+      logger.error('OPENAI_API_KEY is not set');
       return NextResponse.json(
-        { error: 'Server missing OPENAI_API_KEY' },
+        { error: 'Service temporarily unavailable. Please try again later.' },
         { status: 500 }
       );
     }
 
-    if (!supabase || !DEFAULT_USER_ID) {
-      return NextResponse.json(
-        {
-          error:
-            'Supabase server-side client not configured. Check SUPABASE_SERVICE_ROLE_KEY and SEARCHFINDR_DEFAULT_USER_ID.',
-        },
-        { status: 500 }
-      );
-    }
-
-    // Trim text so we don’t send insane amounts to OpenAI
+    // Trim text so we don't send insane amounts to OpenAI
     const cleanedText = text.replace(/\s+/g, ' ').trim().slice(0, 12000);
 
     const prompt = `
@@ -137,7 +139,7 @@ Here is the listing text:
       const textRes = await openAiRes.text();
       logger.error('OpenAI API error:', textRes);
       return NextResponse.json(
-        { error: 'Failed to call OpenAI API', details: textRes },
+        { error: 'Failed to process request. Please try again later.' },
         { status: 502 }
       );
     }
@@ -151,10 +153,7 @@ Here is the listing text:
     } catch (err) {
       logger.error('Failed to parse OpenAI JSON:', err, 'content:', content);
       return NextResponse.json(
-        {
-          error: 'Failed to parse AI response as JSON',
-          raw: content,
-        },
+        { error: 'Failed to process AI response. Please try again.' },
         { status: 500 }
       );
     }
@@ -163,32 +162,21 @@ Here is the listing text:
     parsed.listing_url = url;
     parsed.source_type = 'on_market';
 
-    // Insert into Supabase as your default user
-    const { data: inserted, error: insertError } = await supabase
-      .from('companies')
-      .insert([
-        {
-          user_id: DEFAULT_USER_ID,
-          ...parsed,
-        },
-      ])
-      .select()
-      .single();
-
-    if (insertError) {
-      logger.error('Supabase insert error:', insertError);
-      return NextResponse.json(
-        { error: 'Failed to save deal to database', details: insertError.message },
-        { status: 500 }
-      );
-    }
+    // Insert into Supabase with proper workspace and user scoping
+    const inserted = await deals.create({
+      user_id: user.id,
+      ...parsed,
+    });
 
     // Return the row that was actually saved
     return NextResponse.json({ data: inserted }, { status: 200 });
   } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: err.statusCode });
+    }
     logger.error('Unexpected error in /api/analyze-text:', err);
     return NextResponse.json(
-      { error: 'Unexpected server error' },
+      { error: 'An unexpected error occurred. Please try again later.' },
       { status: 500 }
     );
   }

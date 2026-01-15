@@ -29,8 +29,8 @@ export type OnMarketDeal = {
   source_name: string;
   source_url: string;
 
-  data_confidence: "high" | "medium" | "low";
-  confidence_score: number;
+  data_confidence: "A" | "B" | "C";
+  confidence_score: number; // Deprecated: kept for backward compatibility
 
   first_seen_at: string;
   last_seen_at: string;

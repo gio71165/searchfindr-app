@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { runOnMarketIngestion } from "@/lib/onmarket/ingest/worker";
+import { constantTimeCompare } from "@/lib/api/security";
+import { logger } from "@/lib/utils/logger";
 
 export const runtime = "nodejs";
 
@@ -28,7 +30,8 @@ export async function POST(req: NextRequest) {
     }
 
     const secret = req.headers.get("x-cron-secret");
-    if (!secret || secret !== CRON_SECRET) {
+    if (!secret || !CRON_SECRET || !constantTimeCompare(secret, CRON_SECRET)) {
+      logger.warn('on-market-ingest: Invalid cron secret attempted');
       return json(401, { error: "Unauthorized." });
     }
 
@@ -48,6 +51,7 @@ export async function POST(req: NextRequest) {
       ...ingestResult,
     });
   } catch (e: any) {
-    return json(500, { ok: false, error: e?.message ?? String(e) });
+    logger.error('on-market-ingest error:', e);
+    return json(500, { ok: false, error: "Internal server error" });
   }
 }

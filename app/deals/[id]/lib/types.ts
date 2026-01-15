@@ -1,4 +1,4 @@
-export type ConfidenceLevel = 'low' | 'medium' | 'high';
+export type ConfidenceLevel = 'A' | 'B' | 'C';
 
 export type AIConfidence = {
   level?: ConfidenceLevel | null;

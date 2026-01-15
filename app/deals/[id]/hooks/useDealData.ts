@@ -116,6 +116,7 @@ export function useDealData(dealId: string | undefined) {
         return;
       }
 
+      // Allow viewing archived deals on detail page (but they're hidden from lists)
       const { data, error } = await supabase
         .from('companies')
         .select('*')

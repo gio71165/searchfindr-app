@@ -1,20 +1,53 @@
 import type { ConfidenceLevel, AIConfidence } from './types';
 import type { ConfidenceJson } from '@/lib/types/deal';
 
+/**
+ * Maps old confidence formats (low/medium/high, numeric scores) to tier-based A/B/C
+ */
+function mapToTier(input: unknown): ConfidenceLevel {
+  if (!input) return 'C';
+  
+  const s = String(input).trim().toUpperCase();
+  
+  // Direct A/B/C match
+  if (s === 'A' || s === 'TIER A') return 'A';
+  if (s === 'B' || s === 'TIER B') return 'B';
+  if (s === 'C' || s === 'TIER C') return 'C';
+  
+  // Map old low/medium/high to A/B/C
+  const lower = s.toLowerCase();
+  if (lower === 'high' || lower.includes('high')) return 'A';
+  if (lower === 'medium' || lower.includes('medium')) return 'B';
+  if (lower === 'low' || lower.includes('low')) return 'C';
+  
+  // Map numeric scores (0-100) to tiers
+  const num = Number(input);
+  if (!isNaN(num) && isFinite(num)) {
+    if (num >= 70) return 'A';
+    if (num >= 40) return 'B';
+    return 'C';
+  }
+  
+  // Default to C (lowest confidence)
+  return 'C';
+}
+
 export function normalizeConfidence(
   ai: AIConfidence
 ): { icon: '⚠️' | '◑' | '●'; label: string; reason: string; analyzed: boolean; level?: ConfidenceLevel } | null {
   if (!ai) return null;
 
-  const lvl = (ai.level || '').toLowerCase() as ConfidenceLevel;
+  // Map old level format to tier
+  const tier = mapToTier(ai.level);
+  
   const iconFromLevel: Record<ConfidenceLevel, '⚠️' | '◑' | '●'> = {
-    low: '⚠️',
-    medium: '◑',
-    high: '●',
+    A: '●',
+    B: '◑',
+    C: '⚠️',
   };
 
-  const icon = (ai.icon && ['⚠️', '◑', '●'].includes(ai.icon) ? ai.icon : null) || iconFromLevel[lvl] || '◑';
-  const labelCore = lvl === 'high' ? 'High' : lvl === 'medium' ? 'Medium' : lvl === 'low' ? 'Low' : 'Medium';
+  const icon = (ai.icon && ['⚠️', '◑', '●'].includes(ai.icon) ? ai.icon : null) || iconFromLevel[tier] || '◑';
+  const labelCore = tier === 'A' ? 'A' : tier === 'B' ? 'B' : 'C';
 
   const reason =
     (ai.summary && String(ai.summary).trim()) ||
@@ -26,22 +59,17 @@ export function normalizeConfidence(
       : '') ||
     'Data confidence set by latest analysis run.';
 
-  return { icon, label: `Data confidence: ${labelCore}`, reason, analyzed: true, level: lvl };
+  return { icon, label: `Data confidence: ${labelCore}`, reason, analyzed: true, level: tier };
 }
 
-export function normalizeFinancialsConfidence(raw: unknown): { icon: '⚠️' | '◑' | '●'; label: string; reason: string } | null {
+export function normalizeFinancialsConfidence(raw: unknown): { icon: '⚠️' | '◑' | '●'; label: string; reason: string; level?: ConfidenceLevel } | null {
   const s = raw == null ? '' : String(raw).trim();
   if (!s) return null;
-  const lower = s.toLowerCase();
-
-  let level: ConfidenceLevel = 'medium';
-  if (lower.includes('weak') || lower.includes('low') || lower.includes('poor')) level = 'low';
-  if (lower.includes('strong') || lower.includes('high') || lower.includes('good')) level = 'high';
-  if (lower.includes('mixed') || lower.includes('medium') || lower.includes('moderate')) level = 'medium';
-
-  const icon: '⚠️' | '◑' | '●' = level === 'low' ? '⚠️' : level === 'high' ? '●' : '◑';
-  const label = `Data confidence: ${level === 'high' ? 'High' : level === 'low' ? 'Low' : 'Medium'}`;
-  return { icon, label, reason: 'Derived from latest Financial Analysis output.' };
+  
+  const tier = mapToTier(raw);
+  const icon: '⚠️' | '◑' | '●' = tier === 'A' ? '●' : tier === 'B' ? '◑' : '⚠️';
+  const label = `Data confidence: ${tier}`;
+  return { icon, label, reason: 'Derived from latest Financial Analysis output.', level: tier };
 }
 
 import type { Deal, FinancialAnalysis } from '@/lib/types/deal';
@@ -58,7 +86,7 @@ export function getDealConfidence(
   if (deal?.source_type === 'financials' && opts?.financialAnalysis) {
     const fallback = normalizeFinancialsConfidence(opts.financialAnalysis?.overall_confidence ?? null);
     if (fallback) {
-      return { ...fallback, analyzed: true, level: undefined };
+      return { ...fallback, analyzed: true };
     }
   }
 

@@ -10,47 +10,45 @@ import type { Deal, FinancialAnalysis, ConfidenceJson } from '@/lib/types/deal';
 
 type Verdict = 'strong' | 'caution' | 'pass' | 'not_analyzed';
 
-function getDealVerdict(deal: Deal, redFlags: string[], confidence: { level?: string; analyzed?: boolean }): Verdict {
-  // Not analyzed: separate state from low/medium/high confidence
+function getDealVerdict(deal: Deal, redFlags: string[], confidence: { level?: 'A' | 'B' | 'C'; analyzed?: boolean }): Verdict {
+  // Not analyzed: separate state from tier confidence
   if (confidence?.analyzed === false) {
     return 'not_analyzed';
   }
   
   const redFlagCount = redFlags.length;
-  const confidenceLevel = confidence?.level || 'medium';
+  const confidenceTier = confidence?.level || 'B';
   
-  // Pass: low confidence OR critical red flags (5+)
-  if (confidenceLevel === 'low' || redFlagCount >= 5) {
+  // Pass: C tier (low confidence) OR critical red flags (5+)
+  if (confidenceTier === 'C' || redFlagCount >= 5) {
     return 'pass';
   }
   
-  // Strong: high confidence AND few red flags (0-2)
-  if (confidenceLevel === 'high' && redFlagCount <= 2) {
+  // Strong: A tier (high confidence) AND few red flags (0-2)
+  if (confidenceTier === 'A' && redFlagCount <= 2) {
     return 'strong';
   }
   
-  // Caution: everything else (medium confidence OR 3-4 red flags)
+  // Caution: everything else (B tier OR 3-4 red flags)
   return 'caution';
 }
 
 export function ExecutiveSummaryCard({
   deal,
-  onSave,
+  onProceed,
+  onPark,
   onPass,
   onRequestInfo,
-  savingToggle,
-  canToggleSave,
+  settingVerdict,
   financialAnalysis,
-  passing,
 }: {
   deal: Deal;
-  onSave: () => void;
+  onProceed: () => void;
+  onPark: () => void;
   onPass: () => void;
   onRequestInfo?: () => void; // Optional - button removed but kept for backward compatibility
-  savingToggle: boolean;
-  canToggleSave: boolean;
+  settingVerdict: boolean;
   financialAnalysis?: FinancialAnalysis | null;
-  passing?: boolean;
 }) {
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
   const confidence = getDealConfidence(deal, { financialAnalysis: financialAnalysis ?? null });
@@ -64,14 +62,8 @@ export function ExecutiveSummaryCard({
   const location = [deal.location_city, deal.location_state].filter(Boolean).join(', ') || 'Location not specified';
   const industry = deal.industry || 'Industry not specified';
   
-  // Calculate confidence score (0-100) from level - null if not analyzed
-  const confidenceScore = confidence.analyzed === false 
-    ? null 
-    : confidence.level === 'high' 
-      ? 85 
-      : confidence.level === 'medium' 
-        ? 60 
-        : 30;
+  // Confidence tier (A/B/C) - no numeric score
+  const confidenceTier = confidence.analyzed === false ? null : confidence.level || null;
   
   const verdictConfig = {
     strong: {
@@ -111,9 +103,31 @@ export function ExecutiveSummaryCard({
   const config = verdictConfig[verdict];
   const VerdictIcon = config.icon;
   
+  // Extract user-set verdict (proceed/park/pass)
+  const userVerdict = (deal as any).verdict || deal.criteria_match_json?.verdict || null;
+  
+  // User verdict badge config
+  const userVerdictConfig = {
+    proceed: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300', label: 'Proceed' },
+    park: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-300', label: 'Parked' },
+    pass: { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-300', label: 'Passed' }
+  };
+  
+  const userVerdictNormalized = userVerdict ? userVerdict.toLowerCase() : null;
+  const userVerdictStyle = userVerdictNormalized ? userVerdictConfig[userVerdictNormalized as keyof typeof userVerdictConfig] : null;
+  
   return (
     <div className={`rounded-xl border-2 ${config.borderColor} ${config.bgColor} p-8`}>
-      {/* Verdict Badge */}
+      {/* User Verdict Badge - Prominently displayed at top */}
+      {userVerdictStyle && (
+        <div className="mb-4 flex justify-end">
+          <span className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 ${userVerdictStyle.bg} ${userVerdictStyle.text} ${userVerdictStyle.border}`}>
+            Status: {userVerdictStyle.label}
+          </span>
+        </div>
+      )}
+      
+      {/* AI Recommendation Badge */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className={`rounded-full p-2 ${config.bgColor} ${config.borderColor} border`}>
@@ -187,55 +201,38 @@ export function ExecutiveSummaryCard({
         </div>
       )}
       
-      {/* Confidence Score */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-slate-700">Confidence Score</span>
-          <span className="text-sm font-bold text-slate-900">
-            {confidenceScore !== null ? `${confidenceScore}/100` : '—'}
-          </span>
+      {/* Confidence Tier */}
+      {confidenceTier && (
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-slate-700">Data Confidence</span>
+            <ConfidenceBadge level={confidenceTier} analyzed={true} />
+          </div>
         </div>
-        {confidenceScore !== null ? (
-          <div className="w-full bg-slate-200 rounded-full h-3">
-            <div
-              className={`h-3 rounded-full transition-all ${
-                confidenceScore >= 70
-                  ? 'bg-green-500'
-                  : confidenceScore >= 40
-                    ? 'bg-yellow-500'
-                    : 'bg-red-500'
-              }`}
-              style={{ width: `${confidenceScore}%` }}
-            />
-          </div>
-        ) : (
-          <div className="w-full bg-slate-200 rounded-full h-3">
-            <div className="h-3 rounded-full bg-slate-400" style={{ width: '0%' }} />
-          </div>
-        )}
-      </div>
+      )}
       
-      {/* Primary Actions */}
+      {/* Primary Actions - Verdict Buttons */}
       <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-slate-200">
-        {canToggleSave && (
-          <button
-            onClick={onSave}
-            disabled={savingToggle}
-            className={`px-6 py-2.5 font-medium rounded-lg transition-colors ${
-              deal.is_saved
-                ? 'bg-slate-100 text-slate-700'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
-            } disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            {savingToggle ? 'Saving…' : deal.is_saved ? '✓ Saved' : 'Save Deal'}
-          </button>
-        )}
+        <button
+          onClick={onProceed}
+          disabled={settingVerdict}
+          className="px-6 py-2.5 font-medium rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {settingVerdict ? 'Setting…' : 'Proceed'}
+        </button>
+        <button
+          onClick={onPark}
+          disabled={settingVerdict}
+          className="px-6 py-2.5 font-medium rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {settingVerdict ? 'Setting…' : 'Park'}
+        </button>
         <button
           onClick={onPass}
-          disabled={passing}
+          disabled={settingVerdict}
           className="px-6 py-2.5 font-medium rounded-lg border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {passing ? 'Passing...' : 'Pass on Deal'}
+          Pass
         </button>
       </div>
     </div>

@@ -29,25 +29,30 @@ export async function POST(req: NextRequest) {
     }
 
     const body = (await req.json()) as SaveBody;
-    const workspace_id = body?.workspace_id;
     const on_market_deal_id = body?.on_market_deal_id;
     const status = body?.status ?? "saved";
 
-    if (!workspace_id || !on_market_deal_id) {
-      return json(400, { error: "Missing workspace_id or on_market_deal_id" });
+    if (!on_market_deal_id) {
+      return json(400, { error: "Missing on_market_deal_id" });
     }
     if (!["saved", "pipeline", "passed"].includes(status)) {
       return json(400, { error: "Invalid status" });
     }
 
-    const { supabase, user } = await authenticateRequest(req);
+    const { supabase, user, workspace } = await authenticateRequest(req);
+
+    // Validate workspace_id if provided (must match authenticated workspace)
+    if (body.workspace_id && body.workspace_id !== workspace.id) {
+      return json(403, { error: "Forbidden: workspace mismatch" });
+    }
 
     // Upsert workspace_saved_deals (unique on workspace_id,user_id,on_market_deal_id)
+    // Use authenticated workspace.id, not user-provided workspace_id
     const { data, error } = await supabase
       .from("workspace_saved_deals")
       .upsert(
         {
-          workspace_id,
+          workspace_id: workspace.id,
           user_id: user.id,
           on_market_deal_id,
           status,

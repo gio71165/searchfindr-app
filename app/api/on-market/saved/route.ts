@@ -22,10 +22,16 @@ export async function GET(req: NextRequest) {
       return json(500, { error: "Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY" });
     }
 
-    const { supabase, user } = await authenticateRequest(req);
+    const { supabase, user, workspace } = await authenticateRequest(req);
 
-    const workspace_id = req.nextUrl.searchParams.get("workspace_id");
-    if (!workspace_id) return json(400, { error: "Missing workspace_id" });
+    // Validate workspace_id if provided (must match authenticated workspace)
+    const workspace_id_param = req.nextUrl.searchParams.get("workspace_id");
+    if (workspace_id_param && workspace_id_param !== workspace.id) {
+      return json(403, { error: "Forbidden: invalid workspace" });
+    }
+
+    // Use authenticated workspace.id for security
+    const workspace_id = workspace.id;
 
     const status = req.nextUrl.searchParams.get("status"); // optional: saved|pipeline|passed
     const limit = Math.min(Math.max(Number(req.nextUrl.searchParams.get("limit") ?? 50), 1), 100);

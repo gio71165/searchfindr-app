@@ -59,9 +59,6 @@ export default function DealPage() {
         analysis={finAnalysis}
         error={finError}
         onRun={runFinancialAnalysis}
-        canToggleSave={canToggleSave ?? false}
-        savingToggle={savingToggle}
-        onToggleSave={toggleSaved}
       />
     );
   }
@@ -76,9 +73,6 @@ export default function DealPage() {
         cimError={cimError}
         cimSuccess={cimSuccess}
         onRunCim={runCimAnalysis}
-        canToggleSave={canToggleSave ?? false}
-        savingToggle={savingToggle}
-        onToggleSave={toggleSaved}
       />
     );
   }
@@ -92,24 +86,18 @@ export default function DealPage() {
         running={runningOffMarketDD}
         error={offMarketError}
         onRunInitialDiligence={runOffMarketInitialDiligence}
-        canToggleSave={canToggleSave ?? false}
-        savingToggle={savingToggle}
-        onToggleSave={toggleSaved}
       />
     );
   }
 
   return (
-    <OnMarketDealView
-      deal={deal}
-      dealId={id}
-      onBack={() => router.push(backHref)}
-      analyzing={analyzing}
-      aiError={aiError}
-      onRunInitialDiligence={runOnMarketInitialDiligence}
-      canToggleSave={canToggleSave ?? false}
-      savingToggle={savingToggle}
-      onToggleSave={toggleSaved}
-    />
+      <OnMarketDealView
+        deal={deal}
+        dealId={id}
+        onBack={() => router.push(backHref)}
+        analyzing={analyzing}
+        aiError={aiError}
+        onRunInitialDiligence={runOnMarketInitialDiligence}
+      />
   );
 }

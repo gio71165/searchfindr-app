@@ -426,6 +426,38 @@ Examples:
 - "You show $200k in owner addbacks - can you provide detail on each item?"
 
 ============================================================
+DECISION FRAMEWORK (REQUIRED)
+============================================================
+Finally, provide a DECISION FRAMEWORK. You are a skeptical buyer's advisor:
+
+verdict: Should a searcher PROCEED (submit IOI), PARK (interesting but need more info), or PASS (not worth time)?
+verdict_confidence: HIGH (data is complete), MEDIUM (some gaps), LOW (major unknowns)
+primary_reason: ONE sentence for verdict
+deal_killers: Issues that make you pass immediately (empty if none)
+proceed_conditions: If PROCEED/PARK, what MUST be verified?
+recommended_next_action: Be SPECIFIC - "Schedule call with broker to clarify X" NOT "follow up"
+estimated_time_to_decision: Given CIM quality, how long until LOI? (e.g., "Can decide in 1 week" | "Needs 2-3 weeks DD" | "Pass now")
+
+Be OPINIONATED. Searchers pay for judgment, not just information.
+
+============================================================
+DEAL ECONOMICS (REQUIRED)
+============================================================
+Also extract DEAL ECONOMICS even if incomplete - mark as UNKNOWN if not stated.
+
+asking_price: Extract exact price if stated, else null (e.g., "$2.5M")
+asking_price_confidence: STATED | IMPLIED | UNKNOWN
+revenue_ttm: Most recent 12 months revenue
+ebitda_ttm: Most recent 12 months EBITDA
+ebitda_margin_pct: Calculate percentage
+implied_multiple: If price and EBITDA both known (e.g., "4.2x EBITDA")
+deal_size_band: sub_1m | 1m_3m | 3m_5m | 5m_plus
+sba_eligible: {
+  assessment: YES if clearly <$5M + profitable + US, NO if clearly >$5M or unprofitable, LIKELY if probable, UNKNOWN if insufficient data
+  reasoning: Why (e.g., "Under $5M, profitable, US-based = likely eligible")
+}
+
+============================================================
 JSON OUTPUT SCHEMA (STRICT)
 ============================================================
 You MUST return JSON ONLY, matching this schema exactly:
@@ -520,6 +552,30 @@ You MUST return JSON ONLY, matching this schema exactly:
       "question": "string"
     }
   ],
+
+  "decision_framework": {
+    "verdict": "PROCEED | PARK | PASS",
+    "verdict_confidence": "HIGH | MEDIUM | LOW",
+    "primary_reason": "string",
+    "deal_killers": ["string"],
+    "proceed_conditions": ["string"],
+    "recommended_next_action": "string",
+    "estimated_time_to_decision": "string"
+  },
+
+  "deal_economics": {
+    "asking_price": "string | null",
+    "asking_price_confidence": "STATED | IMPLIED | UNKNOWN",
+    "revenue_ttm": "string | null",
+    "ebitda_ttm": "string | null",
+    "ebitda_margin_pct": "string | null",
+    "implied_multiple": "string | null",
+    "deal_size_band": "sub_1m | 1m_3m | 3m_5m | 5m_plus",
+    "sba_eligible": {
+      "assessment": "YES | NO | LIKELY | UNKNOWN",
+      "reasoning": "string"
+    }
+  },
 
   "key_assumptions": [
     "string"

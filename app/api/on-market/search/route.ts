@@ -1,6 +1,9 @@
 // app/api/on-market/search/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { authenticateRequest, AuthError } from "@/lib/api/auth";
+import { checkRateLimit, getRateLimitConfig } from "@/lib/api/rate-limit";
+import { logger } from "@/lib/utils/logger";
 
 export const runtime = "nodejs";
 
@@ -71,8 +74,18 @@ function parseIndustries(sp: URLSearchParams): { mode: "default" | "explicit"; i
 
 export async function GET(req: NextRequest) {
   try {
+    // 1) Authentication - CRITICAL FIX
+    const { supabase: supabaseUser, user, workspace } = await authenticateRequest(req);
+
+    // 2) Rate limiting
+    const config = getRateLimitConfig('on-market-search');
+    const rateLimit = await checkRateLimit(user.id, 'on-market-search', config.limit, config.windowSeconds, supabaseUser);
+    if (!rateLimit.allowed) {
+      return json(429, { error: `Rate limit exceeded. Maximum ${config.limit} requests per hour. Please try again later.` });
+    }
+
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      return json(500, { error: "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY" });
+      return json(500, { error: "Service temporarily unavailable" });
     }
 
     // ✅ Service role (server only). Do NOT rely on RLS for global inventory.
@@ -223,7 +236,10 @@ export async function GET(req: NextRequest) {
     q = q.range(offset, offset + limit - 1);
 
     const { data, error } = await q;
-    if (error) return json(400, { error: error.message });
+    if (error) {
+      logger.error('on-market search query error:', error);
+      return json(400, { error: "Invalid search parameters" });
+    }
 
     return json(200, {
       ok: true,
@@ -233,6 +249,10 @@ export async function GET(req: NextRequest) {
       deals: data ?? [],
     });
   } catch (e: any) {
-    return json(500, { error: e?.message ?? String(e) });
+    if (e instanceof AuthError) {
+      return json(e.statusCode, { error: e.message });
+    }
+    logger.error('on-market search error:', e);
+    return json(500, { error: "Unable to search deals. Please try again later." });
   }
 }

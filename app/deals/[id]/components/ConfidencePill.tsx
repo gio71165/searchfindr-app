@@ -18,11 +18,11 @@ export function ConfidencePill({
   const cls =
     analyzed === false
       ? `${base} border-slate-500/30 bg-transparent text-slate-500`
-      : icon === '⚠️' || level === 'low'
+      : icon === '⚠️' || level === 'C'
       ? `${base} border-red-500/40 bg-red-500/5 text-red-700`
-      : icon === '●' || level === 'high'
+      : icon === '●' || level === 'A'
       ? `${base} border-emerald-500/40 bg-emerald-500/5 text-emerald-700`
-      : `${base} border-blue-500/40 bg-blue-500/5 text-blue-700`;
+      : `${base} border-yellow-500/40 bg-yellow-500/5 text-yellow-700`;
 
   return (
     <span className={cls} title={title}>

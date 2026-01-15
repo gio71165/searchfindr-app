@@ -3,24 +3,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { sanitizeForPrompt, sanitizeShortText } from "@/lib/utils/sanitize";
 import { withRetry } from "@/lib/utils/retry";
+import { DealsRepository } from "@/lib/data-access/deals";
 import type { DealScoring, FinancialMetrics, CriteriaMatch, ConfidenceJson } from "@/lib/types/deal";
 
 export const runtime = "nodejs";
 
-type DataConfidence = "low" | "medium" | "high";
+type DataConfidence = "A" | "B" | "C";
 
-function normalizeLMH(input: unknown): "Low" | "Medium" | "High" {
-  const s = typeof input === "string" ? input.trim().toLowerCase() : "";
-  if (s === "low") return "Low";
-  if (s === "medium") return "Medium";
-  if (s === "high") return "High";
-
-  // Back-compat: if model returns "Tier A/B/C" by accident
-  if (s === "tier a" || s === "a") return "High";
-  if (s === "tier b" || s === "b") return "Medium";
-  if (s === "tier c" || s === "c") return "Low";
-
-  return "Low";
+function normalizeLMH(input: unknown): "A" | "B" | "C" {
+  const s = typeof input === "string" ? input.trim().toUpperCase() : "";
+  
+  // Direct A/B/C match
+  if (s === "A" || s === "TIER A") return "A";
+  if (s === "B" || s === "TIER B") return "B";
+  if (s === "C" || s === "TIER C") return "C";
+  
+  // Map old low/medium/high to A/B/C
+  const lower = s.toLowerCase();
+  if (lower === "high" || lower.includes("high")) return "A";
+  if (lower === "medium" || lower.includes("medium")) return "B";
+  if (lower === "low" || lower.includes("low")) return "C";
+  
+  // Default to C (lowest confidence)
+  return "C";
 }
 
 function normalizeABC(input: unknown): "A" | "B" | "C" {
@@ -41,33 +46,44 @@ function normalizeABC(input: unknown): "A" | "B" | "C" {
 }
 
 function normalizeDataConfidence(input: unknown): DataConfidence {
-  const s = typeof input === "string" ? input.trim().toLowerCase() : "";
-  if (s === "high") return "high";
-  if (s === "medium") return "medium";
-  return "low";
+  const s = typeof input === "string" ? input.trim().toUpperCase() : "";
+  
+  // Direct A/B/C match
+  if (s === "A" || s === "TIER A") return "A";
+  if (s === "B" || s === "TIER B") return "B";
+  if (s === "C" || s === "TIER C") return "C";
+  
+  // Map old low/medium/high to A/B/C
+  const lower = s.toLowerCase();
+  if (lower === "high" || lower.includes("high")) return "A";
+  if (lower === "medium" || lower.includes("medium")) return "B";
+  if (lower === "low" || lower.includes("low")) return "C";
+  
+  // Default to C (lowest confidence)
+  return "C";
 }
 
 function confidenceIcon(level: DataConfidence) {
-  return level === "high" ? "●" : level === "medium" ? "◑" : "⚠️";
+  return level === "A" ? "●" : level === "B" ? "◑" : "⚠️";
 }
 
 function buildDataConfidenceSummary(level: DataConfidence) {
   // IMPORTANT: make it clear this is *data/input* confidence, not model confidence
-  if (level === "high") return "High data confidence — listing includes specific operational + financial detail.";
-  if (level === "medium") return "Medium data confidence — some specifics, but key facts still missing or vague.";
-  return "Low data confidence — listing is sparse/marketing-heavy; major facts require verification.";
+  if (level === "A") return "A tier data confidence — listing includes specific operational + financial detail.";
+  if (level === "B") return "B tier data confidence — some specifics, but key facts still missing or vague.";
+  return "C tier data confidence — listing is sparse/marketing-heavy; major facts require verification.";
 }
 
 export async function POST(req: NextRequest) {
   try {
     // Authenticate request first
-    await authenticateRequest(req);
+    const { supabase: supabaseUser, user, workspace } = await authenticateRequest(req);
     
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json({ error: "Missing OPENAI_API_KEY" }, { status: 500 });
     }
 
-    const { listingText, companyName, city, state, sourceType, listingUrl } = await req.json();
+    const { listingText, companyName, city, state, sourceType, listingUrl, dealId } = await req.json();
 
     if (!listingText || String(listingText).trim().length === 0) {
       return NextResponse.json({ error: "No listing text provided." }, { status: 400 });
@@ -106,8 +122,8 @@ Return a JSON object with this EXACT structure (no extra keys):
     "industry_fit_reason": "Short explanation",
     "geography_fit": "Low | Medium | High",
     "geography_fit_reason": "Short explanation",
-    "data_confidence": "Low | Medium | High",
-    "data_confidence_reason": "One sentence explaining confidence in the INPUT data quality",
+    "data_confidence": "A | B | C",
+    "data_confidence_reason": "One sentence explaining confidence in the INPUT data quality (A = high, B = medium, C = low)",
     "final_tier": "A | B | C",
     "final_tier_reason": "Short explanation"
   },
@@ -116,14 +132,68 @@ Return a JSON object with this EXACT structure (no extra keys):
     "business_model": "Recurring / sticky / boring?",
     "owner_profile": "Age / retirement / succession notes",
     "notes_for_searcher": "Actionable takeaways"
+  },
+  "decision_framework": {
+    "verdict": "PROCEED | PARK | PASS",
+    "verdict_confidence": "HIGH | MEDIUM | LOW",
+    "primary_reason": "string",
+    "deal_killers": ["string"],
+    "proceed_conditions": ["string"],
+    "recommended_next_action": "string",
+    "estimated_time_to_decision": "string"
+  },
+  "deal_economics": {
+    "asking_price": "string | null",
+    "asking_price_confidence": "STATED | IMPLIED | UNKNOWN",
+    "revenue_ttm": "string | null",
+    "ebitda_ttm": "string | null",
+    "ebitda_margin_pct": "string | null",
+    "implied_multiple": "string | null",
+    "deal_size_band": "sub_1m | 1m_3m | 3m_5m | 5m_plus",
+    "sba_eligible": {
+      "assessment": "YES | NO | LIKELY | UNKNOWN",
+      "reasoning": "string"
+    }
   }
 }
 
 Rules:
 - Use only info stated or strongly implied in the listing.
 - If data is missing, explicitly say "Not stated" / "Unknown".
-- "data_confidence" must reflect how complete and specific the LISTING TEXT is (not 'AI uncertainty').
+- "data_confidence" MUST be A, B, or C (A = high confidence/strong data, B = medium confidence/some gaps, C = low confidence/weak data). This reflects how complete and specific the LISTING TEXT is (not 'AI uncertainty').
 - "final_tier" MUST be exactly A, B, or C (no Tier 1/2/3, no Caution).
+
+============================================================
+DECISION FRAMEWORK (REQUIRED)
+============================================================
+Provide a DECISION FRAMEWORK. You are a skeptical buyer's advisor:
+
+verdict: Should a searcher PROCEED (submit IOI), PARK (interesting but need more info), or PASS (not worth time)?
+verdict_confidence: HIGH (data is complete), MEDIUM (some gaps), LOW (major unknowns)
+primary_reason: ONE sentence for verdict
+deal_killers: Issues that make you pass immediately (empty if none)
+proceed_conditions: If PROCEED/PARK, what MUST be verified?
+recommended_next_action: Be SPECIFIC - "Schedule call with broker to clarify X" NOT "follow up"
+estimated_time_to_decision: Given listing quality, how long until LOI? (e.g., "Can decide in 1 week" | "Needs 2-3 weeks DD" | "Pass now")
+
+Be OPINIONATED. Searchers pay for judgment, not just information.
+
+============================================================
+DEAL ECONOMICS (REQUIRED)
+============================================================
+Extract DEAL ECONOMICS even if incomplete - mark as UNKNOWN if not stated.
+
+asking_price: Extract exact price if stated, else null (e.g., "$2.5M")
+asking_price_confidence: STATED | IMPLIED | UNKNOWN
+revenue_ttm: Most recent 12 months revenue
+ebitda_ttm: Most recent 12 months EBITDA
+ebitda_margin_pct: Calculate percentage
+implied_multiple: If price and EBITDA both known (e.g., "4.2x EBITDA")
+deal_size_band: sub_1m | 1m_3m | 3m_5m | 5m_plus
+sba_eligible: {
+  assessment: YES if clearly <$5M + profitable + US, NO if clearly >$5M or unprofitable, LIKELY if probable, UNKNOWN if insufficient data
+  reasoning: Why (e.g., "Under $5M, profitable, US-based = likely eligible")
+}
 
 Company:
 - Name: ${sanitizedCompanyName || ""}
@@ -185,7 +255,8 @@ Listing Text:
     scoring.final_tier = normalizeABC(scoring.final_tier);
 
     const dc = normalizeDataConfidence(scoring.data_confidence);
-    scoring.data_confidence = dc === "high" ? "High" : dc === "medium" ? "Medium" : "Low";
+    // Store as A/B/C tier
+    scoring.data_confidence = dc;
     if (typeof scoring.data_confidence_reason !== "string" || !scoring.data_confidence_reason.trim()) {
       scoring.data_confidence_reason = buildDataConfidenceSummary(dc);
     }
@@ -204,6 +275,81 @@ Listing Text:
       source: "analyze_deal",
       updated_at: new Date().toISOString(),
     };
+
+    // ✅ Save analysis outputs to database if dealId is provided
+    if (dealId) {
+      try {
+        const deals = new DealsRepository(supabaseUser, workspace.id);
+        
+        // Extract fields from analysis
+        const verdict = parsed.decision_framework?.verdict?.toLowerCase() || null;
+        const verdictReason = parsed.decision_framework?.primary_reason || null;
+        const verdictConfidence = parsed.decision_framework?.verdict_confidence?.toLowerCase() || null;
+        const nextAction = parsed.decision_framework?.recommended_next_action || null;
+        const askingPrice = parsed.deal_economics?.asking_price || null;
+        const revenueTTM = parsed.deal_economics?.revenue_ttm || null;
+        const ebitdaTTM = parsed.deal_economics?.ebitda_ttm || null;
+        const sbaEligible = parsed.deal_economics?.sba_eligible?.assessment === 'YES' ? true : 
+                           parsed.deal_economics?.sba_eligible?.assessment === 'NO' ? false : null;
+        const dealSizeBand = parsed.deal_economics?.deal_size_band || null;
+
+        // Update database - first update analysis fields
+        await deals.updateAnalysis(dealId, {
+          ai_summary: parsed.ai_summary,
+          ai_red_flags: parsed.ai_red_flags,
+          ai_financials_json: parsed.financials,
+          ai_scoring_json: parsed.scoring,
+          criteria_match_json: parsed.criteria_match,
+          ai_confidence_json: parsed.ai_confidence_json,
+        });
+
+        // Update analysis outputs (fields not in updateAnalysis method)
+        const { error: updateError } = await supabaseUser
+          .from('companies')
+          .update({
+            verdict: verdict === 'proceed' || verdict === 'park' || verdict === 'pass' ? verdict : null,
+            verdict_reason: verdictReason,
+            verdict_confidence: verdictConfidence === 'high' || verdictConfidence === 'medium' || verdictConfidence === 'low' ? verdictConfidence : null,
+            next_action: nextAction,
+            asking_price_extracted: askingPrice,
+            revenue_ttm_extracted: revenueTTM,
+            ebitda_ttm_extracted: ebitdaTTM,
+            sba_eligible: sbaEligible,
+            deal_size_band: dealSizeBand,
+            stage: 'reviewing', // Auto-advance from 'new' to 'reviewing'
+            last_action_at: new Date().toISOString(),
+          })
+          .eq('id', dealId)
+          .eq('workspace_id', workspace.id);
+
+        if (updateError) {
+          console.error('Failed to update deal analysis outputs:', updateError);
+        }
+
+        // Log activity
+        const { error: activityError } = await supabaseUser
+          .from('deal_activities')
+          .insert({
+            workspace_id: workspace.id,
+            deal_id: dealId,
+            user_id: user.id,
+            activity_type: 'on_market_analyzed',
+            description: `AI analysis complete: ${verdict ? verdict.toUpperCase() : 'Unknown'} recommendation`,
+            metadata: {
+              verdict,
+              verdict_confidence: verdictConfidence,
+              analysis_type: 'on_market'
+            }
+          });
+
+        if (activityError) {
+          console.error('Failed to log activity:', activityError);
+        }
+      } catch (dbErr) {
+        console.error('Failed to update deal:', dbErr);
+        // Don't fail the request, just log the error
+      }
+    }
 
     return NextResponse.json(parsed);
   } catch (err: unknown) {
