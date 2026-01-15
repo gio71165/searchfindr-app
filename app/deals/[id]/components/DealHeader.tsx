@@ -3,6 +3,7 @@ import { TierBadge } from './TierBadge';
 import { ConfidencePill } from './ConfidencePill';
 import { getDealConfidence } from '../lib/confidence';
 import { safeDateLabel } from '../lib/formatters';
+import type { Deal, FinancialAnalysis } from '@/lib/types/deal';
 
 export function DealHeader({
   deal,
@@ -12,12 +13,12 @@ export function DealHeader({
   onToggleSave,
   financialAnalysis,
 }: {
-  deal: any;
+  deal: Deal;
   onBack: () => void;
   canToggleSave: boolean;
   savingToggle: boolean;
   onToggleSave: () => void;
-  financialAnalysis?: any | null;
+  financialAnalysis?: FinancialAnalysis | null;
 }) {
   const isTierSource = deal?.source_type === 'on_market' || deal?.source_type === 'off_market';
   const tier = isTierSource ? ((deal?.final_tier as string | null) || null) : null;

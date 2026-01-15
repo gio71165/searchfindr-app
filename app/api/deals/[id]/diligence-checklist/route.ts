@@ -7,7 +7,9 @@ import { NotFoundError, DatabaseError } from "@/lib/data-access/base";
 export const runtime = "nodejs";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": process.env.NODE_ENV === "production"
+    ? "https://searchfindr-app.vercel.app"
+    : "http://localhost:3000",
   "Access-Control-Allow-Methods": "GET, PUT, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
@@ -22,8 +24,9 @@ export async function OPTIONS() {
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: dealId } = await params;
   try {
     const { supabase, workspace } = await authenticateRequest(req);
     const deals = new DealsRepository(supabase, workspace.id);
@@ -36,7 +39,7 @@ export async function GET(
     const checklist = await deals.getDiligenceChecklist(dealId);
 
     return NextResponse.json({ checklist }, { status: 200, headers: corsHeaders });
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e instanceof AuthError) {
       return NextResponse.json({ error: e.message }, { status: e.statusCode, headers: corsHeaders });
     }
@@ -46,9 +49,9 @@ export async function GET(
     if (e instanceof DatabaseError) {
       return NextResponse.json({ error: e.message }, { status: e.statusCode, headers: corsHeaders });
     }
-    console.error("GET diligence-checklist error:", e);
+    console.error("diligence-checklist GET error:", e);
     return NextResponse.json(
-      { error: "Server error", detail: e?.message ?? String(e) },
+      { error: "Unable to load checklist. Please try again." },
       { status: 500, headers: corsHeaders }
     );
   }
@@ -60,13 +63,13 @@ export async function GET(
  */
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id: dealId } = await params;
   try {
     const { supabase, workspace } = await authenticateRequest(req);
     const deals = new DealsRepository(supabase, workspace.id);
 
-    const dealId = params.id;
     if (!dealId) {
       return NextResponse.json({ error: "Missing deal ID" }, { status: 400, headers: corsHeaders });
     }
@@ -90,7 +93,7 @@ export async function PUT(
 
     // Validate each checklist item
     for (const [key, value] of Object.entries(checklist)) {
-      if (!value || typeof value !== "object" || typeof (value as any).checked !== "boolean") {
+      if (!value || typeof value !== "object" || !('checked' in value) || typeof (value as { checked?: unknown }).checked !== "boolean") {
         return NextResponse.json(
           { error: `Invalid checklist item format for key: ${key}. Each item must have { checked: boolean, notes?: string }` },
           { status: 400, headers: corsHeaders }
@@ -101,7 +104,7 @@ export async function PUT(
     await deals.updateDiligenceChecklist(dealId, checklist);
 
     return NextResponse.json({ success: true, checklist }, { status: 200, headers: corsHeaders });
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e instanceof AuthError) {
       return NextResponse.json({ error: e.message }, { status: e.statusCode, headers: corsHeaders });
     }
@@ -111,9 +114,9 @@ export async function PUT(
     if (e instanceof DatabaseError) {
       return NextResponse.json({ error: e.message }, { status: e.statusCode, headers: corsHeaders });
     }
-    console.error("PUT diligence-checklist error:", e);
+    console.error("diligence-checklist GET error:", e);
     return NextResponse.json(
-      { error: "Server error", detail: e?.message ?? String(e) },
+      { error: "Unable to load checklist. Please try again." },
       { status: 500, headers: corsHeaders }
     );
   }

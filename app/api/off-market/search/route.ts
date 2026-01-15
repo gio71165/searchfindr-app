@@ -1,17 +1,10 @@
 // app/api/off-market/search/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { DealsRepository } from "@/lib/data-access/deals";
+import { checkRateLimit, getRateLimitConfig } from "@/lib/api/rate-limit";
 
 export const runtime = "nodejs";
-
-// Server-side Supabase client (service role) so inserts work reliably under RLS design
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
 
 const GOOGLE_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
@@ -25,7 +18,9 @@ type Body = {
 };
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": process.env.NODE_ENV === "production"
+    ? "https://searchfindr-app.vercel.app"
+    : "http://localhost:3000",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
@@ -306,7 +301,18 @@ export async function POST(req: NextRequest) {
     }
 
     const { supabase: supabaseUser, user, workspace } = await authenticateRequest(req);
-    const deals = new DealsRepository(supabase, workspace.id);
+    
+    // Rate limiting
+    const config = getRateLimitConfig('off-market-search');
+    const rateLimit = checkRateLimit(user.id, 'off-market-search', config.limit, config.windowSeconds);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: `Rate limit exceeded. Maximum ${config.limit} requests per hour. Please try again later.` },
+        { status: 429, headers: corsHeaders }
+      );
+    }
+
+    const deals = new DealsRepository(supabaseUser, workspace.id);
 
     const body = (await req.json()) as Body;
 
@@ -538,8 +544,9 @@ export async function POST(req: NextRequest) {
     if (e instanceof AuthError) {
       return NextResponse.json({ success: false, error: e.message }, { status: e.statusCode, headers: corsHeaders });
     }
+    console.error("off-market search error:", e);
     return NextResponse.json(
-      { success: false, error: e?.message ?? "Unknown error" },
+      { success: false, error: "Unable to search off-market deals. Please try again later." },
       { status: 500, headers: corsHeaders }
     );
   }

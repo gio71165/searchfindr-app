@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { DEAL_CHAT_SYSTEM_PROMPT, buildDealChatContextBlock } from "@/lib/prompts/deal-chat";
+import { withRetry } from "@/lib/utils/retry";
 
 export type ChatRole = "user" | "assistant" | "system";
 
@@ -85,13 +86,17 @@ export async function chatForDeal(args: DealChatArgs): Promise<DealChatResult> {
   ];
 
   try {
-    const resp = await client.chat.completions.create({
-      model,
-      messages,
-      temperature: 0.2,
-      // Keeping this modest helps avoid runaway output on noisy contexts
-      max_tokens: 700,
-    });
+    const resp = await withRetry(
+      () =>
+        client.chat.completions.create({
+          model,
+          messages,
+          temperature: 0.2,
+          // Keeping this modest helps avoid runaway output on noisy contexts
+          max_tokens: 700,
+        }),
+      { maxRetries: 2, delayMs: 1000 }
+    );
 
     const answer =
       resp.choices?.[0]?.message?.content?.trim() || "I couldn't generate an answer.";

@@ -11,7 +11,9 @@ const supabaseAdmin = createClient(
 );
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": process.env.NODE_ENV === "production"
+    ? "https://searchfindr-app.vercel.app"
+    : "http://localhost:3000",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
@@ -420,6 +422,7 @@ export async function POST(req: Request) {
       200
     );
   } catch (err: any) {
-    return json({ error: err?.message || "Unknown error" }, 500);
+    console.error("capture-deal error:", err);
+    return json({ error: "Unable to capture deal. Please try again later." }, 500);
   }
 }

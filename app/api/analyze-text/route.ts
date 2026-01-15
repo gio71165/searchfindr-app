@@ -1,6 +1,7 @@
 // app/api/analyze-text/route.ts
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/utils/logger';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -14,16 +15,16 @@ const supabase =
     : null;
 
 if (!OPENAI_API_KEY) {
-  console.warn('OPENAI_API_KEY is not set in environment variables');
+  logger.warn('OPENAI_API_KEY is not set in environment variables');
 }
 if (!SUPABASE_URL) {
-  console.warn('NEXT_PUBLIC_SUPABASE_URL is not set');
+  logger.warn('NEXT_PUBLIC_SUPABASE_URL is not set');
 }
 if (!SUPABASE_SERVICE_ROLE_KEY) {
-  console.warn('SUPABASE_SERVICE_ROLE_KEY is not set');
+  logger.warn('SUPABASE_SERVICE_ROLE_KEY is not set');
 }
 if (!DEFAULT_USER_ID) {
-  console.warn('SEARCHFINDR_DEFAULT_USER_ID is not set');
+  logger.warn('SEARCHFINDR_DEFAULT_USER_ID is not set');
 }
 
 type AnalyzeTextRequest = {
@@ -134,7 +135,7 @@ Here is the listing text:
 
     if (!openAiRes.ok) {
       const textRes = await openAiRes.text();
-      console.error('OpenAI API error:', textRes);
+      logger.error('OpenAI API error:', textRes);
       return NextResponse.json(
         { error: 'Failed to call OpenAI API', details: textRes },
         { status: 502 }
@@ -148,7 +149,7 @@ Here is the listing text:
     try {
       parsed = JSON.parse(content);
     } catch (err) {
-      console.error('Failed to parse OpenAI JSON:', err, 'content:', content);
+      logger.error('Failed to parse OpenAI JSON:', err, 'content:', content);
       return NextResponse.json(
         {
           error: 'Failed to parse AI response as JSON',
@@ -175,7 +176,7 @@ Here is the listing text:
       .single();
 
     if (insertError) {
-      console.error('Supabase insert error:', insertError);
+      logger.error('Supabase insert error:', insertError);
       return NextResponse.json(
         { error: 'Failed to save deal to database', details: insertError.message },
         { status: 500 }
@@ -185,7 +186,7 @@ Here is the listing text:
     // Return the row that was actually saved
     return NextResponse.json({ data: inserted }, { status: 200 });
   } catch (err) {
-    console.error('Unexpected error in /api/analyze-text:', err);
+    logger.error('Unexpected error in /api/analyze-text:', err);
     return NextResponse.json(
       { error: 'Unexpected server error' },
       { status: 500 }

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { MapPin, Building2, Calendar } from 'lucide-react';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { SourceBadge } from './SourceBadge';
+import { Skeleton } from './Skeleton';
 
 type Deal = {
   id: string;
@@ -25,12 +26,31 @@ export function DealCard({
   onSaveToggle,
   onDelete,
   fromView,
+  isLoading,
 }: {
-  deal: Deal;
+  deal?: Deal;
   onSaveToggle?: (id: string) => void;
   onDelete?: (id: string) => void;
   fromView?: string;
+  isLoading?: boolean;
 }) {
+  if (isLoading || !deal) {
+    return (
+      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+        <Skeleton height={24} className="mb-4" width="60%" />
+        <div className="flex gap-2 mb-3">
+          <Skeleton height={20} width={80} />
+          <Skeleton height={20} width={80} />
+        </div>
+        <Skeleton lines={2} className="mb-4" />
+        <Skeleton height={40} className="mb-2" />
+        <div className="flex gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
+          <Skeleton height={36} className="flex-1" />
+          <Skeleton height={36} width={80} />
+        </div>
+      </div>
+    );
+  }
   const confidenceLevel = deal.ai_confidence_json?.level || null;
   const analyzed = Boolean(deal.ai_confidence_json);
   const preview = deal.ai_summary ? deal.ai_summary.slice(0, 120) + (deal.ai_summary.length > 120 ? '...' : '') : 'No summary available yet.';

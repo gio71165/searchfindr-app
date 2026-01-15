@@ -1,16 +1,17 @@
 import { DollarSign } from 'lucide-react';
+import type { FinancialMetrics, Deal } from '@/lib/types/deal';
 
 export function FinancialSnapshot({ 
   fin, 
   deal 
 }: { 
-  fin: any; 
-  deal?: any;
+  fin: FinancialMetrics | null; 
+  deal?: Deal | null;
 }) {
-  const revenue = fin.revenue || deal?.revenue || 'Unknown';
-  const ebitda = fin.ebitda || deal?.ebitda || 'Unknown';
-  const margin = fin.margin || null;
-  const benchmarks = fin.industry_benchmark || null;
+  const revenue = fin?.revenue || deal?.ai_financials_json?.revenue || 'Unknown';
+  const ebitda = fin?.ebitda || deal?.ai_financials_json?.ebitda || 'Unknown';
+  const margin = fin?.margin || null;
+  const benchmarks = fin?.industry_benchmark || null;
 
   const formatBenchmark = (value: string | number, range: string, withinRange: boolean) => {
     return (

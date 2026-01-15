@@ -5,8 +5,8 @@ import { chatForDeal } from "@/lib/ai/dealChat";
 import { DealsRepository } from "@/lib/data-access/deals";
 import { ChatRepository } from "@/lib/data-access/chat";
 import { NotFoundError } from "@/lib/data-access/base";
-
-type ChatRole = "user" | "assistant" | "system";
+import { sanitizeForPrompt, sanitizeShortText } from "@/lib/utils/sanitize";
+import type { ChatRole } from "@/lib/types/deal";
 
 export async function POST(req: NextRequest) {
   try {
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     // 2) Body
     const body = await req.json().catch(() => null);
     const dealId = body?.dealId;
-    const message = typeof body?.message === "string" ? body.message.trim() : "";
+    const message = sanitizeForPrompt(typeof body?.message === "string" ? body.message.trim() : "");
     const historyRaw = Array.isArray(body?.history) ? body.history : [];
 
     if (!dealId || !message) {
@@ -62,29 +62,36 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 8) Canonical deal context (server truth)
+    // 8) Canonical deal context (server truth) - sanitize text fields
     const dealContext = {
-      company_name: deal.company_name,
+      company_name: sanitizeShortText(deal.company_name),
       source_type: sourceType,
-      ai_summary: deal.ai_summary,
-      ai_red_flags: deal.ai_red_flags,
+      ai_summary: sanitizeForPrompt(deal.ai_summary ?? "", 8000),
+      ai_red_flags: sanitizeForPrompt(deal.ai_red_flags ?? "", 8000),
       ai_financials_json: deal.ai_financials_json,
       ai_scoring_json: deal.ai_scoring_json,
       criteria_match_json: deal.criteria_match_json,
       ai_confidence_json: deal.ai_confidence_json,
-      raw_listing_text: (deal.raw_listing_text ?? "").slice(0, 8000),
+      raw_listing_text: sanitizeForPrompt(deal.raw_listing_text ?? "", 8000),
       cim_storage_path: deal.cim_storage_path,
-      listing_url: deal.listing_url,
+      listing_url: sanitizeShortText(deal.listing_url),
     };
 
     // 9) Clean history
     const history = historyRaw
       .slice(-10)
-      .filter((m: any) => m && (m.role === "user" || m.role === "assistant" || m.role === "system"))
-      .map((m: any) => ({
-        role: m.role as ChatRole,
-        content: String(m.content ?? "").slice(0, 4000),
-      }));
+      .filter((m: unknown) => {
+        if (!m || typeof m !== "object") return false;
+        const role = (m as { role?: unknown }).role;
+        return role === "user" || role === "assistant" || role === "system";
+      })
+      .map((m: unknown) => {
+        const msg = m as { role?: ChatRole; content?: unknown };
+        return {
+          role: msg.role as ChatRole,
+          content: String(msg.content ?? "").slice(0, 4000),
+        };
+      });
 
     // 10) AI call
     const ai = await chatForDeal({
@@ -125,15 +132,17 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ answer, sources_used });
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e instanceof AuthError) {
       return NextResponse.json({ error: e.message }, { status: e.statusCode });
     }
     if (e instanceof NotFoundError) {
       return NextResponse.json({ error: e.message }, { status: 404 });
     }
+    const error = e instanceof Error ? e : new Error("Unknown error");
+    console.error("deal-chat POST error:", error);
     return NextResponse.json(
-      { error: "Server error", detail: e?.message ?? String(e) },
+      { error: "Unable to process chat message. Please try again." },
       { status: 500 }
     );
   }
@@ -155,11 +164,13 @@ export async function GET(req: NextRequest) {
     }));
 
     return NextResponse.json({ messages });
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e instanceof AuthError) {
       return NextResponse.json({ error: e.message }, { status: e.statusCode });
     }
-    return NextResponse.json({ error: "Server error", detail: e?.message ?? String(e) }, { status: 500 });
+    const error = e instanceof Error ? e : new Error("Unknown error");
+    console.error("deal-chat GET error:", error);
+    return NextResponse.json({ error: "Unable to load chat history. Please try again." }, { status: 500 });
   }
 }
 
@@ -174,10 +185,12 @@ export async function DELETE(req: NextRequest) {
     await chat.clearMessages(dealId, user.id);
 
     return NextResponse.json({ ok: true });
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e instanceof AuthError) {
       return NextResponse.json({ error: e.message }, { status: e.statusCode });
     }
-    return NextResponse.json({ error: "Server error", detail: e?.message ?? String(e) }, { status: 500 });
+    const error = e instanceof Error ? e : new Error("Unknown error");
+    console.error("deal-chat GET error:", error);
+    return NextResponse.json({ error: "Unable to load chat history. Please try again." }, { status: 500 });
   }
 }

@@ -5,6 +5,11 @@ import { authenticateRequest, AuthError } from '@/lib/api/auth';
 import { DealsRepository } from '@/lib/data-access/deals';
 import { NotFoundError } from '@/lib/data-access/base';
 import { CIM_ANALYSIS_INSTRUCTIONS, buildCimAnalysisUserText } from '@/lib/prompts/cim-analysis';
+import { checkRateLimit, getRateLimitConfig } from '@/lib/api/rate-limit';
+import { validateFileSize, validateFileType } from '@/lib/api/file-validation';
+import { sanitizeShortText } from '@/lib/utils/sanitize';
+import { logger } from '@/lib/utils/logger';
+import { withRetry } from '@/lib/utils/retry';
 
 export const runtime = 'nodejs';
 
@@ -15,11 +20,11 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
 
 if (!OPENAI_API_KEY) {
-  console.warn('OPENAI_API_KEY is not set. /api/process-cim will fail until you set it in .env.local');
+  logger.warn('OPENAI_API_KEY is not set. /api/process-cim will fail until you set it in .env.local');
 }
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  console.warn('Supabase server env vars missing. Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.');
+  logger.warn('Supabase server env vars missing. Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set.');
 }
 
 // ✅ Server-side Supabase client (bypasses RLS). Never use this on the client.
@@ -35,22 +40,26 @@ async function uploadPdfToOpenAI(pdfArrayBuffer: ArrayBuffer, filename: string) 
   formData.append('file', pdfBlob, filename || 'cim.pdf');
   formData.append('purpose', 'assistants');
 
-  const res = await fetch(`${OPENAI_BASE_URL}/v1/files`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: formData,
-  });
+  const res = await withRetry(
+    () =>
+      fetch(`${OPENAI_BASE_URL}/v1/files`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: formData,
+      }),
+    { maxRetries: 2, delayMs: 1000 }
+  );
 
   if (!res.ok) {
     const errorText = await res.text();
-    console.error('OpenAI file upload error:', errorText);
+    logger.error('OpenAI file upload error:', errorText);
     throw new Error('Failed to upload CIM PDF to OpenAI');
   }
 
   const json = await res.json();
-  console.log('process-cim: uploaded file id', json.id);
+  logger.info('process-cim: uploaded file id', json.id);
   return json.id as string;
 }
 
@@ -131,7 +140,7 @@ function iconForLevel(level: DataConfidenceLevel): '⚠️' | '◑' | '●' {
   return '⚠️';
 }
 
-function safeStr(v: any): string {
+function safeStr(v: unknown): string {
   return typeof v === 'string' ? v : v == null ? '' : String(v);
 }
 
@@ -146,7 +155,16 @@ function normalizeLMH(v: any): 'Low' | 'Medium' | 'High' | 'unknown' {
   return 'unknown';
 }
 
-function countUnknownScoringFields(scoring: any): number {
+function countUnknownScoringFields(scoring: {
+  succession_risk?: unknown;
+  industry_fit?: unknown;
+  geography_fit?: unknown;
+  financial_quality?: unknown;
+  revenue_durability?: unknown;
+  customer_concentration_risk?: unknown;
+  capital_intensity?: unknown;
+  deal_complexity?: unknown;
+}): number {
   const fields = [
     scoring?.succession_risk,
     scoring?.industry_fit,
@@ -172,7 +190,19 @@ function countRedFlags(parsed: any): number {
   return 0;
 }
 
-function buildCimDataConfidence(parsed: any) {
+function buildCimDataConfidence(parsed: {
+  scoring?: {
+    financial_quality?: unknown;
+    revenue_durability?: unknown;
+    customer_concentration_risk?: unknown;
+    succession_risk?: unknown;
+    industry_fit?: unknown;
+    geography_fit?: unknown;
+    capital_intensity?: unknown;
+    deal_complexity?: unknown;
+  };
+  ai_red_flags?: unknown;
+}) {
   const scoring = parsed?.scoring ?? {};
 
   const financialQuality = normalizeLMH(scoring?.financial_quality);
@@ -223,15 +253,26 @@ function buildCimDataConfidence(parsed: any) {
 
 export async function POST(req: NextRequest) {
   try {
-    console.log('process-cim: received request');
+    logger.info('process-cim: received request');
 
-    const { supabase: supabaseUser, workspace } = await authenticateRequest(req);
-    const deals = new DealsRepository(supabaseAdmin, workspace.id);
+    const { supabase: supabaseUser, user, workspace } = await authenticateRequest(req);
+    
+    // Rate limiting
+    const config = getRateLimitConfig('process-cim');
+    const rateLimit = checkRateLimit(user.id, 'process-cim', config.limit, config.windowSeconds);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: `Rate limit exceeded. Maximum ${config.limit} requests per hour. Please try again later.` },
+        { status: 429 }
+      );
+    }
+
+    const deals = new DealsRepository(supabaseUser, workspace.id);
 
     const body = await req.json();
     const companyId = body.companyId as string | undefined;
     const cimStoragePath = body.cimStoragePath as string | undefined;
-    const companyName = (body.companyName as string | null) ?? 'Unknown';
+    const companyName = sanitizeShortText((body.companyName as string | null) ?? 'Unknown');
 
     if (!companyId || !cimStoragePath) {
       return NextResponse.json({ success: false, error: 'Missing companyId or cimStoragePath' }, { status: 400 });
@@ -255,7 +296,7 @@ export async function POST(req: NextRequest) {
     const { data: publicUrlData } = supabaseAdmin.storage.from('cims').getPublicUrl(cimStoragePath);
 
     const publicUrl = publicUrlData?.publicUrl;
-    console.log('process-cim: publicUrl', publicUrl);
+    logger.info('process-cim: publicUrl', publicUrl);
 
     if (!publicUrl) {
       return NextResponse.json({ success: false, error: 'Failed to build public URL for CIM PDF.' }, { status: 500 });
@@ -263,14 +304,26 @@ export async function POST(req: NextRequest) {
 
     // 2) Download the PDF from Supabase
     const pdfRes = await fetch(publicUrl);
-    console.log('process-cim: pdf fetch status', pdfRes.status, pdfRes.statusText);
+    logger.info('process-cim: pdf fetch status', pdfRes.status, pdfRes.statusText);
 
     if (!pdfRes.ok) {
-      console.error('Failed to fetch PDF from storage:', pdfRes.status, pdfRes.statusText);
+      logger.error('Failed to fetch PDF from storage:', pdfRes.status, pdfRes.statusText);
       return NextResponse.json({ success: false, error: 'Failed to download CIM PDF from storage.' }, { status: 500 });
     }
 
     const pdfArrayBuffer = await pdfRes.arrayBuffer();
+
+    // Validate file size
+    const sizeCheck = validateFileSize(pdfArrayBuffer.byteLength);
+    if (!sizeCheck.valid) {
+      return NextResponse.json({ success: false, error: sizeCheck.error }, { status: 400 });
+    }
+
+    // Validate file type by magic bytes
+    const typeCheck = validateFileType(pdfArrayBuffer, ['pdf']);
+    if (!typeCheck.valid) {
+      return NextResponse.json({ success: false, error: typeCheck.error || 'Invalid file type' }, { status: 400 });
+    }
 
     // 3) Upload PDF directly to OpenAI so it can read the CIM itself
     const fileId = await uploadPdfToOpenAI(pdfArrayBuffer, `${companyName}.pdf`);
@@ -280,40 +333,44 @@ export async function POST(req: NextRequest) {
 
     const userText = buildCimAnalysisUserText(companyName);
 
-    // 5) Call OpenAI Responses API with the file_id and strict instructions
-    const responsesRes = await fetch(`${OPENAI_BASE_URL}/v1/responses`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4.1',
-        instructions,
-        text: { format: { type: 'json_object' } },
-        input: [
-          {
-            role: 'user',
-            content: [
-              { type: 'input_file', file_id: fileId },
-              { type: 'input_text', text: userText },
-            ],
+    // 5) Call OpenAI Responses API with the file_id and strict instructions (with retry)
+    const responsesRes = await withRetry(
+      () =>
+        fetch(`${OPENAI_BASE_URL}/v1/responses`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
           },
-        ],
-      }),
-    });
+          body: JSON.stringify({
+            model: 'gpt-4.1',
+            instructions,
+            text: { format: { type: 'json_object' } },
+            input: [
+              {
+                role: 'user',
+                content: [
+                  { type: 'input_file', file_id: fileId },
+                  { type: 'input_text', text: userText },
+                ],
+              },
+            ],
+          }),
+        }),
+      { maxRetries: 2, delayMs: 1000 }
+    );
 
     if (!responsesRes.ok) {
       const errText = await responsesRes.text();
-      console.error('OpenAI Responses API error:', errText);
-      return NextResponse.json({ success: false, error: 'OpenAI Responses API error', details: errText }, { status: 500 });
+      logger.error('OpenAI Responses API error:', errText);
+      return NextResponse.json({ success: false, error: 'Unable to process CIM document. Please try again later.' }, { status: 500 });
     }
 
     const responsesJson = await responsesRes.json();
     const contentText: string = extractOutputText(responsesJson);
 
     if (!contentText) {
-      console.error('No text content returned from OpenAI Responses API:', responsesJson);
+      logger.error('No text content returned from OpenAI Responses API:', responsesJson);
       return NextResponse.json(
         {
           success: false,
@@ -324,19 +381,19 @@ export async function POST(req: NextRequest) {
     }
 
     let parsed: {
-      deal_verdict: string;
-      ai_summary: string;
-      ai_red_flags: any; // allow string/array; we coerce it
-      financials: any;
-      qoe: any;
-      scoring: any;
-      criteria_match: any;
+      deal_verdict?: string;
+      ai_summary?: string;
+      ai_red_flags?: string | string[] | null;
+      financials?: Record<string, unknown>;
+      qoe?: Record<string, unknown>;
+      scoring?: Record<string, unknown>;
+      criteria_match?: Record<string, unknown>;
     };
 
     try {
       parsed = JSON.parse(contentText);
     } catch (jsonErr) {
-      console.error('Failed to parse OpenAI JSON:', jsonErr, contentText);
+      logger.error('Failed to parse OpenAI JSON:', jsonErr, contentText);
       return NextResponse.json(
         { success: false, error: 'Failed to parse OpenAI response as JSON. Check logs for content.' },
         { status: 500 }
@@ -344,10 +401,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Persist QoE without DB migration (unchanged behavior)
-    const criteriaToStore =
+    const criteriaToStore: CriteriaMatch & { qoe?: Record<string, unknown> | null } =
       parsed.criteria_match && typeof parsed.criteria_match === 'object'
-        ? { ...parsed.criteria_match, qoe: parsed.qoe ?? null }
-        : { qoe: parsed.qoe ?? null };
+        ? { ...parsed.criteria_match as CriteriaMatch, qoe: parsed.qoe ?? null }
+        : { qoe: parsed.qoe ?? null } as CriteriaMatch & { qoe?: Record<string, unknown> | null };
 
     const redFlagsBulleted = coerceRedFlagsToBulletedMarkdown(parsed.ai_red_flags);
 
@@ -362,13 +419,15 @@ export async function POST(req: NextRequest) {
         ai_financials_json: parsed.financials ?? null,
         ai_scoring_json: parsed.scoring ?? null,
         criteria_match_json: criteriaToStore ?? null,
-        final_tier: parsed?.scoring?.final_tier ?? null,
+        final_tier: (parsed?.scoring?.final_tier === 'A' || parsed?.scoring?.final_tier === 'B' || parsed?.scoring?.final_tier === 'C') 
+          ? parsed.scoring.final_tier 
+          : null,
         ai_confidence_json: cimDataConfidence,
       });
     } catch (err) {
-      console.error('process-cim: DB update error:', err);
+      logger.error('process-cim: DB update error:', err);
       return NextResponse.json(
-        { success: false, error: 'Failed to persist AI results to DB.', details: err instanceof Error ? err.message : String(err) },
+        { success: false, error: 'CIM analysis completed but failed to save results. Please refresh and try again.' },
         { status: 500 }
       );
     }
@@ -391,7 +450,7 @@ export async function POST(req: NextRequest) {
     if (err instanceof AuthError) {
       return NextResponse.json({ success: false, error: err.message }, { status: err.statusCode });
     }
-    console.error('Unexpected error in process-cim:', err);
-    return NextResponse.json({ success: false, error: 'Unexpected server error in process-cim.' }, { status: 500 });
+    logger.error('process-cim error:', err);
+    return NextResponse.json({ success: false, error: 'Unable to process CIM document. Please try again later.' }, { status: 500 });
   }
 }

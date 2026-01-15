@@ -6,10 +6,11 @@ import { ConfidenceBadge } from '@/components/ui/ConfidenceBadge';
 import { formatMoney, formatPct } from '../lib/formatters';
 import { normalizeRedFlags } from '../lib/normalizers';
 import { getDealConfidence } from '../lib/confidence';
+import type { Deal, FinancialAnalysis, ConfidenceJson } from '@/lib/types/deal';
 
 type Verdict = 'strong' | 'caution' | 'pass' | 'not_analyzed';
 
-function getDealVerdict(deal: any, redFlags: string[], confidence: any): Verdict {
+function getDealVerdict(deal: Deal, redFlags: string[], confidence: { level?: string; analyzed?: boolean }): Verdict {
   // Not analyzed: separate state from low/medium/high confidence
   if (confidence?.analyzed === false) {
     return 'not_analyzed';
@@ -40,14 +41,16 @@ export function ExecutiveSummaryCard({
   savingToggle,
   canToggleSave,
   financialAnalysis,
+  passing,
 }: {
-  deal: any;
+  deal: Deal;
   onSave: () => void;
   onPass: () => void;
   onRequestInfo?: () => void; // Optional - button removed but kept for backward compatibility
   savingToggle: boolean;
   canToggleSave: boolean;
-  financialAnalysis?: any | null;
+  financialAnalysis?: FinancialAnalysis | null;
+  passing?: boolean;
 }) {
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
   const confidence = getDealConfidence(deal, { financialAnalysis: financialAnalysis ?? null });
@@ -214,9 +217,10 @@ export function ExecutiveSummaryCard({
         )}
         <button
           onClick={onPass}
-          className="px-6 py-2.5 font-medium rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+          disabled={passing}
+          className="px-6 py-2.5 font-medium rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Pass on Deal
+          {passing ? 'Passing...' : 'Pass on Deal'}
         </button>
       </div>
     </div>

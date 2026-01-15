@@ -1,7 +1,8 @@
 import type { MetricRow, MarginRow, ConfidenceSignal } from './types';
+import type { FinancialMetrics, DealScoring, CriteriaMatch } from '@/lib/types/deal';
 
 // normalize JSON/string/array/object -> string[]
-export function normalizeStringArray(raw: any): string[] {
+export function normalizeStringArray(raw: unknown): string[] {
   if (!raw) return [];
 
   if (Array.isArray(raw)) {
@@ -11,12 +12,13 @@ export function normalizeStringArray(raw: any): string[] {
       .filter(Boolean);
   }
 
-  if (typeof raw === 'object') {
+  if (typeof raw === 'object' && raw !== null) {
+    const rawObj = raw as Record<string, unknown>;
     const maybe =
-      (raw as any)?.items ??
-      (raw as any)?.red_flags ??
-      (raw as any)?.ai_red_flags ??
-      (raw as any)?.flags ??
+      rawObj?.items ??
+      rawObj?.red_flags ??
+      rawObj?.ai_red_flags ??
+      rawObj?.flags ??
       null;
 
     if (maybe != null) return normalizeStringArray(maybe);
@@ -61,46 +63,52 @@ export function normalizeStringArray(raw: any): string[] {
   return asString ? [asString] : [];
 }
 
-export function normalizeRedFlags(raw: any): string[] {
+export function normalizeRedFlags(raw: unknown): string[] {
   return normalizeStringArray(raw);
 }
 
-export function normalizeMetricRows(raw: any): MetricRow[] {
+export function normalizeMetricRows(raw: unknown): MetricRow[] {
   if (!Array.isArray(raw)) return [];
   return raw
-    .map((r: any) => ({
-      year: typeof r?.year === 'string' ? r.year : String(r?.year ?? '').trim(),
-      value:
-        typeof r?.value === 'number'
-          ? r.value
-          : r?.value === null
-          ? null
-          : Number.isFinite(Number(r?.value))
-          ? Number(r?.value)
-          : null,
-      unit: typeof r?.unit === 'string' ? r.unit : null,
-      note: typeof r?.note === 'string' ? r.note : null,
-    }))
+    .map((r: unknown) => {
+      const row = r as Record<string, unknown>;
+      return {
+        year: typeof row?.year === 'string' ? row.year : String(row?.year ?? '').trim(),
+        value:
+          typeof row?.value === 'number'
+            ? row.value
+            : row?.value === null
+            ? null
+            : Number.isFinite(Number(row?.value))
+            ? Number(row?.value)
+            : null,
+        unit: typeof row?.unit === 'string' ? row.unit : null,
+        note: typeof row?.note === 'string' ? row.note : null,
+      };
+    })
     .filter((r) => Boolean(r.year))
     .slice(0, 30);
 }
 
-export function normalizeMarginRows(raw: any): MarginRow[] {
+export function normalizeMarginRows(raw: unknown): MarginRow[] {
   if (!Array.isArray(raw)) return [];
   return raw
-    .map((r: any) => ({
-      type: typeof r?.type === 'string' ? r.type : null,
-      year: typeof r?.year === 'string' ? r.year : String(r?.year ?? '').trim(),
-      value_pct:
-        typeof r?.value_pct === 'number'
-          ? r.value_pct
-          : r?.value_pct === null
-          ? null
-          : Number.isFinite(Number(r?.value_pct))
-          ? Number(r?.value_pct)
-          : null,
-      note: typeof r?.note === 'string' ? r.note : null,
-    }))
+    .map((r: unknown) => {
+      const row = r as Record<string, unknown>;
+      return {
+        type: typeof row?.type === 'string' ? row.type : null,
+        year: typeof row?.year === 'string' ? row.year : String(row?.year ?? '').trim(),
+        value_pct:
+          typeof row?.value_pct === 'number'
+            ? row.value_pct
+            : row?.value_pct === null
+            ? null
+            : Number.isFinite(Number(row?.value_pct))
+            ? Number(row?.value_pct)
+            : null,
+        note: typeof row?.note === 'string' ? row.note : null,
+      };
+    })
     .filter((r) => Boolean(r.year))
     .slice(0, 60);
 }
@@ -126,15 +134,16 @@ export function parseSignalLine(line: string): ConfidenceSignal | null {
   return { label: 'Signal', value: s };
 }
 
-export function normalizeConfidenceSignals(raw: any): ConfidenceSignal[] {
+export function normalizeConfidenceSignals(raw: unknown): ConfidenceSignal[] {
   if (!raw) return [];
 
   if (Array.isArray(raw)) {
     const out: ConfidenceSignal[] = [];
     for (const item of raw) {
       if (item && typeof item === 'object') {
-        const label = String((item as any).label ?? '').trim();
-        const value = String((item as any).value ?? '').trim();
+        const itemObj = item as Record<string, unknown>;
+        const label = String(itemObj.label ?? '').trim();
+        const value = String(itemObj.value ?? '').trim();
         if (label && value) out.push({ label, value });
         continue;
       }

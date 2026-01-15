@@ -3,8 +3,9 @@
 import React from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import { formatMoney } from '../lib/formatters';
+import type { Deal, FinancialAnalysis } from '@/lib/types/deal';
 
-export function StrengthsPanel({ deal, financialAnalysis }: { deal: any; financialAnalysis?: any | null }) {
+export function StrengthsPanel({ deal, financialAnalysis }: { deal: Deal; financialAnalysis?: FinancialAnalysis | null }) {
   const strengths: string[] = [];
   
   const fin = deal.ai_financials_json || {};

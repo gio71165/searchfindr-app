@@ -5,6 +5,9 @@ import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { DealsRepository } from "@/lib/data-access/deals";
 import { NotFoundError } from "@/lib/data-access/base";
 import { buildOffMarketDiligencePrompt } from "@/lib/prompts/off-market-diligence";
+import type { DealScoring, DataConfidence } from "@/lib/types/deal";
+import { sanitizeForPrompt, sanitizeShortText } from "@/lib/utils/sanitize";
+import { withRetry } from "@/lib/utils/retry";
 
 export const runtime = "nodejs";
 
@@ -19,7 +22,9 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 });
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": process.env.NODE_ENV === "production"
+    ? "https://searchfindr-app.vercel.app"
+    : "http://localhost:3000",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
@@ -33,7 +38,7 @@ type Body = {
   id?: string;
 };
 
-function toTextSafe(v: any) {
+function toTextSafe(v: unknown): string {
   return typeof v === "string" ? v : "";
 }
 
@@ -58,13 +63,13 @@ async function fetchHomepageText(urlStr: string) {
     if (!res.ok) return "";
     const html = await res.text();
     const text = stripHtmlToText(html);
-    return text.slice(0, 9000);
+    return sanitizeForPrompt(text, 9000);
   } catch {
     return "";
   }
 }
 
-function bullets(value: any): string | null {
+function bullets(value: unknown): string | null {
   if (!value) return null;
 
   // Array of strings
@@ -111,7 +116,7 @@ function tierToScore(tier: string | null | undefined): number | null {
   return null;
 }
 
-function normalizeDataConfidence(v: any): "low" | "medium" | "high" | null {
+function normalizeDataConfidence(v: unknown): "low" | "medium" | "high" | null {
   const s = typeof v === "string" ? v.trim().toLowerCase() : "";
   if (s === "low") return "low";
   if (s === "medium") return "medium";
@@ -123,7 +128,18 @@ function confidenceIcon(level: "low" | "medium" | "high") {
   return level === "high" ? "●" : level === "medium" ? "◑" : "⚠️";
 }
 
-function buildOffMarketConfidence(ai: any): {
+function buildOffMarketConfidence(ai: {
+  scoring?: {
+    data_confidence?: unknown;
+    tier_basis?: unknown;
+  };
+  business_model?: {
+    evidence?: unknown[];
+  };
+  owner_profile?: {
+    known?: boolean;
+  };
+}): {
   level: "low" | "medium" | "high";
   icon: "⚠️" | "◑" | "●";
   summary: string;
@@ -175,38 +191,44 @@ async function runOffMarketInitialDiligenceAI(input: {
     phone: string | null;
     rating: number | null;
     ratings_total: number | null;
-    tier_reason: any | null;
+    tier_reason: Record<string, unknown> | null;
   };
   homepageText: string;
 }) {
   const c = input.company;
 
-  const inputs = c.tier_reason && typeof c.tier_reason === "object" ? (c.tier_reason as any).inputs ?? null : null;
+  const inputs = c.tier_reason && typeof c.tier_reason === "object" && 'inputs' in c.tier_reason 
+    ? (c.tier_reason.inputs as Record<string, unknown> | undefined) ?? null 
+    : null;
 
   const prompt = buildOffMarketDiligencePrompt({
-    company_name: c.company_name ?? null,
-    website: c.website,
-    address: c.address ?? null,
-    phone: c.phone ?? null,
+    company_name: sanitizeShortText(c.company_name ?? null),
+    website: sanitizeShortText(c.website),
+    address: sanitizeShortText(c.address ?? null),
+    phone: sanitizeShortText(c.phone ?? null),
     rating: c.rating ?? null,
     ratings_total: c.ratings_total ?? null,
     homepageText: input.homepageText || "(no homepage text available)",
     inputs,
   });
 
-  const res = await fetch(`${OPENAI_BASE_URL}/v1/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      temperature: 0.2,
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-    }),
-  });
+  const res = await withRetry(
+    () =>
+      fetch(`${OPENAI_BASE_URL}/v1/chat/completions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          temperature: 0.2,
+          messages: [{ role: "user", content: prompt }],
+          response_format: { type: "json_object" },
+        }),
+      }),
+    { maxRetries: 2, delayMs: 1000 }
+  );
 
   const json = await res.json();
 
@@ -223,7 +245,33 @@ async function runOffMarketInitialDiligenceAI(input: {
     .replace(/```$/i, "")
     .trim();
 
-  const parsed: any = JSON.parse(content);
+  const parsed: {
+    ai_summary?: string;
+    ai_red_flags?: string[];
+    business_model?: {
+      services?: string[];
+      evidence?: unknown[];
+    };
+    owner_profile?: {
+      known?: boolean;
+      owner_names?: string[];
+    };
+    notes_for_searcher?: {
+      what_to_verify_first?: string[];
+    };
+    financials?: Record<string, unknown>;
+    scoring?: {
+      overall_score_0_100?: unknown;
+      final_tier?: string;
+      tier_basis?: string;
+      data_confidence?: unknown;
+    };
+    criteria_match?: {
+      business_model?: string;
+      owner_profile?: string;
+      notes_for_searcher?: string;
+    };
+  } = JSON.parse(content);
 
   if (typeof parsed?.ai_summary !== "string") throw new Error("Bad AI response: ai_summary missing");
 
@@ -242,7 +290,9 @@ async function runOffMarketInitialDiligenceAI(input: {
   if (!parsed?.criteria_match || typeof parsed.criteria_match !== "object") parsed.criteria_match = {};
 
   const ownerKnown = Boolean(parsed?.owner_profile?.known);
-  const scoreNum = Number(parsed?.scoring?.overall_score_0_100);
+  const scoreNum = typeof parsed?.scoring?.overall_score_0_100 === 'number' 
+    ? parsed.scoring.overall_score_0_100 
+    : Number(parsed?.scoring?.overall_score_0_100);
   parsed.scoring.overall_score_0_100 = clampScore(scoreNum);
 
   if (!["A", "B", "C"].includes(parsed?.scoring?.final_tier)) parsed.scoring.final_tier = "C";
@@ -277,12 +327,12 @@ async function runOffMarketInitialDiligenceAI(input: {
           .slice(0, 3)
           .join(" • ") || "contracts, team size, recurring revenue"}.`;
 
-  return parsed as {
-    ai_summary: string;
-    ai_red_flags: string[];
-    financials: any;
-    scoring: any;
-    criteria_match: any;
+  return {
+    ai_summary: parsed.ai_summary,
+    ai_red_flags: parsed.ai_red_flags,
+    financials: parsed.financials ?? {},
+    scoring: parsed.scoring ?? {},
+    criteria_match: parsed.criteria_match ?? {},
   };
 }
 
@@ -384,8 +434,9 @@ export async function POST(req: NextRequest) {
         ai_confidence_json: confidenceJson,
       });
     } catch (err) {
+      console.error("off-market diligence DB update error:", err);
       return NextResponse.json(
-        { success: false, error: "Failed to persist off-market diligence results.", details: err instanceof Error ? err.message : String(err) },
+        { success: false, error: "Analysis completed but failed to save results. Please refresh and try again." },
         { status: 500, headers: corsHeaders }
       );
     }
@@ -403,10 +454,12 @@ export async function POST(req: NextRequest) {
       },
       { headers: corsHeaders }
     );
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (e instanceof AuthError) {
       return NextResponse.json({ success: false, error: e.message }, { status: e.statusCode, headers: corsHeaders });
     }
-    return NextResponse.json({ success: false, error: e?.message ?? "Unknown error" }, { status: 500, headers: corsHeaders });
+    const error = e instanceof Error ? e : new Error("Unknown error");
+    console.error("off-market diligence error:", error);
+    return NextResponse.json({ success: false, error: "Unable to run off-market diligence. Please try again later." }, { status: 500, headers: corsHeaders });
   }
 }

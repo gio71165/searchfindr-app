@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { supabase } from '../../../supabaseClient';
 import { ExecutiveSummaryCard } from '../components/ExecutiveSummaryCard';
 import { DealChatPanel } from '../components/DealChatPanel';
 import { ConfidencePill } from '../components/ConfidencePill';
@@ -18,6 +19,7 @@ import { BackButton } from '../components/BackButton';
 import { getDealConfidence } from '../lib/confidence';
 import { normalizeRedFlags, normalizeConfidenceSignals } from '../lib/normalizers';
 import { safeDateLabel } from '../lib/formatters';
+import type { Deal } from '@/lib/types/deal';
 import { BarChart3, TrendingUp, FileCheck, CheckCircle2 } from 'lucide-react';
 
 export function CimDealView({
@@ -32,7 +34,7 @@ export function CimDealView({
   savingToggle,
   onToggleSave,
 }: {
-  deal: any;
+  deal: Deal;
   dealId: string;
   onBack: () => void;
   processingCim: boolean;
@@ -87,13 +89,47 @@ export function CimDealView({
     return normalizeConfidenceSignals(deal?.ai_confidence_json?.signals ?? null);
   }, [deal?.ai_confidence_json?.signals]);
 
-  const handlePass = () => {
-    alert('Marked as pass');
+  const [passing, setPassing] = useState(false);
+
+  const handlePass = async () => {
+    if (passing) return;
+    
+    const confirmed = window.confirm('Mark this deal as passed? This will hide it from your dashboard.');
+    if (!confirmed) return;
+
+    setPassing(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('Not signed in.');
+
+      const res = await fetch(`/api/deals/${dealId}/pass`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || 'Failed to pass deal');
+      }
+
+      // Navigate back to dashboard
+      window.location.href = '/dashboard';
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Unknown error');
+      alert(`Failed to pass deal: ${error.message}`);
+    } finally {
+      setPassing(false);
+    }
   };
 
-  const handleRequestInfo = () => {
-    alert('Coming soon');
-  };
+  // Request Info button removed - functionality not yet implemented
+  // const handleRequestInfo = () => {
+  //   alert('Coming soon');
+  // };
 
   return (
     <main className="min-h-screen bg-[#F9FAFB] dark:bg-slate-900">
@@ -107,7 +143,6 @@ export function CimDealView({
               deal={deal}
               onSave={onToggleSave}
               onPass={handlePass}
-              onRequestInfo={handleRequestInfo}
               savingToggle={savingToggle}
               canToggleSave={canToggleSave}
             />

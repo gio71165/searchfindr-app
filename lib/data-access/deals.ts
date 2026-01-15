@@ -1,40 +1,11 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { BaseRepository, DatabaseError, NotFoundError } from "./base";
+import type { Deal as DealType, DealSourceType, DealTier, FinancialMetrics, DealScoring, CriteriaMatch, ConfidenceJson } from "@/lib/types/deal";
 
 /**
- * Deal/Company entity type
+ * Deal/Company entity type (re-export from types for backwards compatibility)
  */
-export type Deal = {
-  id: string;
-  workspace_id: string;
-  company_name: string | null;
-  source_type: string | null;
-  listing_url: string | null;
-  external_id: string | null;
-  external_source: string | null;
-  location_city: string | null;
-  location_state: string | null;
-  industry: string | null;
-  score: number | null;
-  final_tier: string | null;
-  is_saved: boolean | null;
-  ai_summary: string | null;
-  ai_red_flags: string | null;
-  ai_financials_json: any | null;
-  ai_scoring_json: any | null;
-  criteria_match_json: any | null;
-  ai_confidence_json: any | null;
-  raw_listing_text: string | null;
-  cim_storage_path: string | null;
-  financials_storage_path: string | null;
-  financials_filename: string | null;
-  financials_mime: string | null;
-  created_at: string | null;
-  updated_at: string | null;
-  passed_at: string | null;
-  // Additional fields that may exist
-  [key: string]: any;
-};
+export type Deal = DealType;
 
 /**
  * Partial type for updating AI analysis fields
@@ -42,11 +13,11 @@ export type Deal = {
 export type DealAnalysisUpdate = {
   ai_summary?: string | null;
   ai_red_flags?: string | null;
-  ai_financials_json?: any | null;
-  ai_scoring_json?: any | null;
-  criteria_match_json?: any | null;
-  ai_confidence_json?: any | null;
-  final_tier?: string | null;
+  ai_financials_json?: FinancialMetrics | null;
+  ai_scoring_json?: DealScoring | null;
+  criteria_match_json?: CriteriaMatch | null;
+  ai_confidence_json?: ConfidenceJson | null;
+  final_tier?: DealTier | null;
   score?: number | null;
 };
 
@@ -159,7 +130,17 @@ export class DealsRepository extends BaseRepository {
    * @throws DatabaseError if database error occurs
    */
   async updateAnalysis(dealId: string, analysis: DealAnalysisUpdate & { website?: string | null }): Promise<Deal> {
-    const updateData: Record<string, any> = {};
+    const updateData: Partial<{
+      ai_summary: string | null;
+      ai_red_flags: string | null;
+      ai_financials_json: FinancialMetrics | null;
+      ai_scoring_json: DealScoring | null;
+      criteria_match_json: CriteriaMatch | null;
+      ai_confidence_json: ConfidenceJson | null;
+      final_tier: DealTier | null;
+      score: number | null;
+      website: string | null;
+    }> = {};
 
     if (analysis.ai_summary !== undefined) updateData.ai_summary = analysis.ai_summary;
     if (analysis.ai_red_flags !== undefined) updateData.ai_red_flags = analysis.ai_red_flags;
@@ -301,7 +282,7 @@ export class DealsRepository extends BaseRepository {
     // Get current deal to merge with existing metadata
     const deal = await this.getById(dealId);
     
-    const currentMetadata = (deal as any).metadata || {};
+    const currentMetadata = (deal.metadata && typeof deal.metadata === 'object' ? deal.metadata : {}) as Record<string, unknown>;
     const updatedMetadata = {
       ...currentMetadata,
       diligence_checklist: checklistState,
@@ -333,8 +314,14 @@ export class DealsRepository extends BaseRepository {
    */
   async getDiligenceChecklist(dealId: string): Promise<Record<string, { checked: boolean; notes?: string }> | null> {
     const deal = await this.getById(dealId);
-    const metadata = (deal as any).metadata;
-    return metadata?.diligence_checklist || null;
+    const metadata = deal.metadata && typeof deal.metadata === 'object' ? deal.metadata as Record<string, unknown> : null;
+    if (metadata && 'diligence_checklist' in metadata) {
+      const checklist = metadata.diligence_checklist;
+      if (checklist && typeof checklist === 'object' && !Array.isArray(checklist)) {
+        return checklist as Record<string, { checked: boolean; notes?: string }>;
+      }
+    }
+    return null;
   }
 
   /**

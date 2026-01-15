@@ -39,6 +39,45 @@ Very important: Tier and score MUST be EVIDENCE-BASED.
 
 Do NOT include geography/industry fit scoring.
 
+============================================================
+INDUSTRY-SPECIFIC SIGNALS (LOOK FOR THESE)
+============================================================
+For common industries, look for specific signals that indicate business quality and risks:
+
+HVAC / Trade Services / Home Services:
+- "Established X years" claims - verify if consistent with other signals
+- Technician count mentions - indicates scale and operational capacity
+- Commercial vs residential mix - commercial typically more stable, higher margins
+- Equipment fleet age - older fleet may indicate capital constraints or deferred maintenance
+- Service area coverage - too broad may indicate thin coverage, too narrow may limit growth
+- 24/7 emergency service - indicates recurring revenue potential
+- Maintenance contract mentions - recurring revenue signal
+- Licensing/certification claims - verify if mentioned (important for regulatory compliance)
+
+Professional Services (Legal, Accounting, Consulting, Marketing):
+- Partner/owner leverage - multiple partners may indicate succession risk or buyout complexity
+- Client concentration - look for mentions of "Fortune 500" or specific large clients (concentration risk)
+- Recurring revenue percentage - retainer vs project-based revenue mix
+- Industry specialization - niche focus may indicate higher margins but limited market
+- Team size and structure - junior vs senior staff ratio indicates scalability
+- "Award-winning" or industry recognition - may indicate quality but verify substance
+- Case studies or client testimonials - indicates client satisfaction and retention
+
+Manufacturing:
+- Equipment age and condition - critical for capital requirements and maintenance costs
+- Customer/supplier concentration - look for mentions of key relationships
+- Capacity utilization - "running at capacity" vs "excess capacity" signals different growth profiles
+- Custom vs standard products - custom may indicate higher margins but lower scalability
+- Location and facility details - proximity to suppliers/customers, facility size
+- Certifications (ISO, etc.) - indicates quality systems and may be required for certain customers
+- Export/import mentions - may indicate complexity or growth opportunity
+
+When you identify industry-specific signals, include them in:
+- business_model.evidence
+- financials.evidence
+- notes_for_searcher.what_to_verify_first
+- notes_for_searcher.questions_to_ask_owner
+
 Return ONLY valid JSON (no markdown) in this exact schema:
 
 {

@@ -1,0 +1,63 @@
+<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f3f6fb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#e8effa;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGradient)"/>
+  
+  <!-- Decorative circles -->
+  <circle cx="100" cy="100" r="80" fill="#4f46e5" opacity="0.1"/>
+  <circle cx="1100" cy="530" r="100" fill="#6366f1" opacity="0.1"/>
+  
+  <!-- Main content area -->
+  <g transform="translate(100, 200)">
+    <!-- Logo/Brand name -->
+    <text x="0" y="80" font-family="Arial, sans-serif" font-size="72" font-weight="700" fill="#0b1220">
+      SearchFindr
+    </text>
+    
+    <!-- Tagline -->
+    <text x="0" y="140" font-family="Arial, sans-serif" font-size="32" fill="#4f46e5" font-weight="600">
+      AI Deal Analysis for Search Funds
+    </text>
+    
+    <!-- Description -->
+    <text x="0" y="200" font-family="Arial, sans-serif" font-size="24" fill="#475569">
+      Analyze CIMs, financials, and off-market opportunities
+    </text>
+    <text x="0" y="240" font-family="Arial, sans-serif" font-size="24" fill="#475569">
+      with AI-powered due diligence
+    </text>
+    
+    <!-- Accent line -->
+    <rect x="0" y="280" width="200" height="4" fill="url(#accentGradient)" rx="2"/>
+  </g>
+  
+  <!-- Bottom right decorative element -->
+  <g transform="translate(900, 400)">
+    <rect x="0" y="0" width="250" height="180" rx="12" fill="white" opacity="0.8"/>
+    <text x="125" y="60" font-family="Arial, sans-serif" font-size="18" fill="#0b1220" text-anchor="middle" font-weight="600">
+      AI-Powered
+    </text>
+    <text x="125" y="90" font-family="Arial, sans-serif" font-size="18" fill="#0b1220" text-anchor="middle" font-weight="600">
+      Analysis
+    </text>
+    <text x="125" y="120" font-family="Arial, sans-serif" font-size="14" fill="#64748b" text-anchor="middle">
+      CIM Review
+    </text>
+    <text x="125" y="145" font-family="Arial, sans-serif" font-size="14" fill="#64748b" text-anchor="middle">
+      Financial Analysis
+    </text>
+    <text x="125" y="170" font-family="Arial, sans-serif" font-size="14" fill="#64748b" text-anchor="middle">
+      Due Diligence
+    </text>
+  </g>
+</svg>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Calculator, Loader2 } from 'lucide-react';
+import type { Deal } from '@/lib/types/deal';
 
 type CalculatorResult = {
   loanAmount: number;
@@ -11,7 +12,7 @@ type CalculatorResult = {
   paybackPeriod: number;
 };
 
-export function DealStructureCalculator({ deal }: { deal: any }) {
+export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
   const [purchasePrice, setPurchasePrice] = useState('');
   const [downPaymentPct, setDownPaymentPct] = useState('10');
   const [interestRate, setInterestRate] = useState('7.5');
@@ -70,8 +71,9 @@ export function DealStructureCalculator({ deal }: { deal: any }) {
         cashOnCashReturn: data.cash_on_cash_return,
         paybackPeriod: data.payback_period_years,
       });
-    } catch (e: any) {
-      setError(e.message || 'Failed to calculate');
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e : new Error('Unknown error');
+      setError(error.message || 'Failed to calculate');
     } finally {
       setCalculating(false);
     }

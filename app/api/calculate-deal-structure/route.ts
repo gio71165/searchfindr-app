@@ -5,7 +5,9 @@ import { authenticateRequest, AuthError } from "@/lib/api/auth";
 export const runtime = "nodejs";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": process.env.NODE_ENV === "production"
+    ? "https://searchfindr-app.vercel.app"
+    : "http://localhost:3000",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };

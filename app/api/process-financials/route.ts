@@ -7,6 +7,12 @@ import { NotFoundError } from "@/lib/data-access/base";
 import * as XLSX from "xlsx";
 import { FINANCIALS_SYSTEM_PROMPT, buildFinancialsUserMessage } from "@/lib/prompts/financials-analysis";
 import { getBenchmarkForDeal } from "@/lib/data/industry-benchmarks";
+import { checkRateLimit, getRateLimitConfig } from "@/lib/api/rate-limit";
+import { validateFileSize, validateFileType } from "@/lib/api/file-validation";
+import { sanitizeForPrompt, sanitizeShortText } from "@/lib/utils/sanitize";
+import { logger } from "@/lib/utils/logger";
+import { withRetry } from "@/lib/utils/retry";
+import type { QoeRedFlag, FinancialMetrics, ConfidenceJson, OwnerInterviewQuestion } from "@/lib/types/deal";
 
 export const runtime = "nodejs";
 
@@ -26,7 +32,9 @@ const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 /* ───────────────────────── CORS ───────────────────────── */
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": process.env.NODE_ENV === "production"
+    ? "https://searchfindr-app.vercel.app"
+    : "http://localhost:3000",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
@@ -37,7 +45,7 @@ export async function OPTIONS() {
 
 /* ───────────────────────── HELPERS ───────────────────────── */
 
-function clampStringArray(v: any): string[] {
+function clampStringArray(v: unknown): string[] {
   if (!Array.isArray(v)) return [];
   return v
     .filter((x) => typeof x === "string")
@@ -46,7 +54,7 @@ function clampStringArray(v: any): string[] {
     .slice(0, 25);
 }
 
-function clampConfidenceLabel(v: any): string {
+function clampConfidenceLabel(v: unknown): string {
   if (typeof v !== "string")
     return "Operational Performance: Unknown | Financial Controls: Unknown";
   return v.trim().slice(0, 140);
@@ -72,7 +80,8 @@ function buildConfidenceJson(label: string) {
   if (lower.includes("strong") || lower.includes("high")) level = "High";
 
   return {
-    level,
+    level: level as 'low' | 'medium' | 'high',
+    icon: level === 'High' ? '●' as const : level === 'Medium' ? '◑' as const : '⚠️' as const,
     label,
     bullets,
     source: "financial_analysis",
@@ -129,11 +138,15 @@ async function uploadToOpenAI(bytes: ArrayBuffer, filename: string) {
   form.append("purpose", "assistants");
   form.append("file", new Blob([bytes]), filename);
 
-  const res = await fetch(`${OPENAI_BASE_URL}/v1/files`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
-    body: form,
-  });
+  const res = await withRetry(
+    () =>
+      fetch(`${OPENAI_BASE_URL}/v1/files`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${OPENAI_API_KEY}` },
+        body: form,
+      }),
+    { maxRetries: 2, delayMs: 1000 }
+  );
 
   const raw = await res.text().catch(() => "");
   if (!res.ok) throw new Error(`OpenAI file upload failed${raw ? `: ${raw}` : ""}`);
@@ -143,7 +156,11 @@ async function uploadToOpenAI(bytes: ArrayBuffer, filename: string) {
   return json.id as string;
 }
 
-function extractTextFromOutput(output: any[]): string | null {
+function extractTextFromOutput(output: Array<{
+  content?: Array<{
+    text?: string | { value?: string };
+  }>;
+}>): string | null {
   for (const item of output ?? []) {
     for (const block of item?.content ?? []) {
       // Some responses payloads shape text as { type:'output_text', text:'...' } or block.text
@@ -167,7 +184,16 @@ async function callOpenAIJson(args: {
   const system = FINANCIALS_SYSTEM_PROMPT.template;
   const userMessage = buildFinancialsUserMessage();
 
-  const input: any[] = [
+  type MessageContent = 
+    | { type: "input_text"; text: string }
+    | { type: "input_file"; file_id: string };
+  
+  type Message = {
+    role: "system" | "user";
+    content: string | MessageContent[];
+  };
+  
+  const input: Message[] = [
     { role: "system", content: system },
     {
       role: "user",
@@ -176,9 +202,10 @@ async function callOpenAIJson(args: {
   ];
 
   if (args.extractedText) {
+    const sanitizedText = sanitizeForPrompt(args.extractedText, 18000);
     input.push({
       role: "user",
-      content: [{ type: "input_text", text: args.extractedText.slice(0, 18000) }],
+      content: [{ type: "input_text", text: sanitizedText }],
     });
   }
 
@@ -192,19 +219,23 @@ async function callOpenAIJson(args: {
     });
   }
 
-  const res = await fetch(`${OPENAI_BASE_URL}/v1/responses`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4.1-mini",
-      input,
-      temperature: 0.2,
-      text: { format: { type: "json_object" } },
-    }),
-  });
+  const res = await withRetry(
+    () =>
+      fetch(`${OPENAI_BASE_URL}/v1/responses`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4.1-mini",
+          input,
+          temperature: 0.2,
+          text: { format: { type: "json_object" } },
+        }),
+      }),
+    { maxRetries: 2, delayMs: 1000 }
+  );
 
   const raw = await res.text().catch(() => "");
   if (!res.ok) throw new Error(`OpenAI response failed${raw ? `: ${raw}` : ""}`);
@@ -279,8 +310,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { user, workspace } = await authenticateRequest(req);
-    const deals = new DealsRepository(supabaseAdmin, workspace.id);
+    const { supabase: supabaseUser, user, workspace } = await authenticateRequest(req);
+    
+    // Rate limiting
+    const config = getRateLimitConfig('process-financials');
+    const rateLimit = checkRateLimit(user.id, 'process-financials', config.limit, config.windowSeconds);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: `Rate limit exceeded. Maximum ${config.limit} requests per hour. Please try again later.` },
+        { status: 429, headers: corsHeaders }
+      );
+    }
+
+    const deals = new DealsRepository(supabaseUser, workspace.id);
 
     const body = await req.json().catch(() => null);
     const dealId = body?.deal_id;
@@ -308,7 +350,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Download
-    const filename = company.financials_filename || "financials";
+    const filename = sanitizeShortText(company.financials_filename || "financials");
     const mime = company.financials_mime || "";
 
     const { data: file, error: dlErr } = await supabaseAdmin.storage
@@ -316,8 +358,8 @@ export async function POST(req: NextRequest) {
       .download(company.financials_storage_path);
 
     if (dlErr) {
-      console.error("financials download error:", dlErr);
-      return NextResponse.json({ error: "Failed to download financials file." }, { status: 500, headers: corsHeaders });
+      logger.error("financials download error:", dlErr);
+      return NextResponse.json({ error: "Unable to access financials file. Please check the file and try again." }, { status: 500, headers: corsHeaders });
     }
 
     if (!file) {
@@ -329,17 +371,38 @@ export async function POST(req: NextRequest) {
 
     const bytes = await file.arrayBuffer();
 
+    // Validate file size
+    const sizeCheck = validateFileSize(bytes.byteLength);
+    if (!sizeCheck.valid) {
+      return NextResponse.json({ error: sizeCheck.error }, { status: 400, headers: corsHeaders });
+    }
+
+    // Validate file type by magic bytes
+    const expectedTypes = ['pdf', 'csv', 'xlsx', 'xls'];
+    const typeCheck = validateFileType(bytes, expectedTypes);
+    if (!typeCheck.valid) {
+      return NextResponse.json({ error: typeCheck.error || 'Invalid file type' }, { status: 400, headers: corsHeaders });
+    }
+
     // Extract / attach
     let extractedText: string | undefined;
     let openaiFileId: string | undefined;
 
-    if (isXlsx(mime, filename)) extractedText = xlsxToCsvText(bytes);
-    else if (isCsv(mime, filename)) extractedText = new TextDecoder().decode(bytes).slice(0, 18000);
-    else if (isPdf(mime, filename)) openaiFileId = await uploadToOpenAI(bytes, filename);
-    else {
+    if (isXlsx(mime, filename)) {
+      const csvText = xlsxToCsvText(bytes);
+      extractedText = sanitizeForPrompt(csvText, 18000);
+    } else if (isCsv(mime, filename)) {
       const decoded = new TextDecoder().decode(bytes);
-      if (decoded?.trim()) extractedText = decoded.slice(0, 18000);
-      else openaiFileId = await uploadToOpenAI(bytes, filename);
+      extractedText = sanitizeForPrompt(decoded, 18000);
+    } else if (isPdf(mime, filename)) {
+      openaiFileId = await uploadToOpenAI(bytes, filename);
+    } else {
+      const decoded = new TextDecoder().decode(bytes);
+      if (decoded?.trim()) {
+        extractedText = sanitizeForPrompt(decoded, 18000);
+      } else {
+        openaiFileId = await uploadToOpenAI(bytes, filename);
+      }
     }
 
     // AI
@@ -459,8 +522,8 @@ export async function POST(req: NextRequest) {
       );
 
     if (upsertErr) {
-      console.error("financial_analyses upsert error:", upsertErr);
-      return NextResponse.json({ error: "Failed to save financial analysis." }, { status: 500, headers: corsHeaders });
+      logger.error("financial_analyses upsert error:", upsertErr);
+      return NextResponse.json({ error: "Unable to save financial analysis. Please try again." }, { status: 500, headers: corsHeaders });
     }
 
     // ✅ Update company confidence AND make "Why it matters" update (ai_summary)
@@ -477,18 +540,19 @@ export async function POST(req: NextRequest) {
         ai_financials_json: enhancedFinancialsJson,
       });
     } catch (err) {
-      console.error("companies update ai_confidence_json/ai_summary/ai_financials_json error:", err);
-      return NextResponse.json({ error: "Failed to update company data." }, { status: 500, headers: corsHeaders });
+      logger.error("companies update ai_confidence_json/ai_summary/ai_financials_json error:", err);
+      return NextResponse.json({ error: "Analysis completed but failed to save results. Please refresh and try again." }, { status: 500, headers: corsHeaders });
     }
 
     return NextResponse.json({ ok: true }, { status: 200, headers: corsHeaders });
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: err.statusCode, headers: corsHeaders });
     }
-    console.error("process-financials error:", err);
+    const error = err instanceof Error ? err : new Error("Unknown error");
+    logger.error("process-financials error:", error);
     return NextResponse.json(
-      { error: err?.message || "Unknown error" },
+      { error: "Unable to process financials. Please try again later." },
       { status: 500, headers: corsHeaders }
     );
   }

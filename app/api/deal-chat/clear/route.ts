@@ -63,13 +63,16 @@ export async function POST(req: Request) {
       .eq("user_id", userId);
 
     if (delErr) {
-      return NextResponse.json({ error: "Failed to clear messages", detail: delErr.message }, { status: 500 });
+      console.error("deal-chat clear error:", delErr);
+      return NextResponse.json({ error: "Unable to clear chat messages. Please try again." }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true });
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const error = e instanceof Error ? e : new Error("Unknown error");
+    console.error("deal-chat clear catch error:", error);
     return NextResponse.json(
-      { error: "Server error", detail: e?.message ?? String(e) },
+      { error: "Unable to clear chat. Please try again." },
       { status: 500 }
     );
   }

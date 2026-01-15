@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import { supabase } from '../../../supabaseClient';
 import { ExecutiveSummaryCard } from '../components/ExecutiveSummaryCard';
 import { DealChatPanel } from '../components/DealChatPanel';
 import { AIInvestmentMemo } from '../components/AIInvestmentMemo';
@@ -13,6 +15,7 @@ import { SearcherSnapshot } from '../components/SearcherSnapshot';
 import { DealStructureCalculator } from '../components/DealStructureCalculator';
 import { BackButton } from '../components/BackButton';
 import { normalizeRedFlags } from '../lib/normalizers';
+import type { Deal } from '@/lib/types/deal';
 import { TrendingUp, BarChart3, CheckCircle2 } from 'lucide-react';
 
 export function OnMarketDealView({
@@ -26,7 +29,7 @@ export function OnMarketDealView({
   savingToggle,
   onToggleSave,
 }: {
-  deal: any;
+  deal: Deal;
   dealId: string;
   onBack: () => void;
   analyzing: boolean;
@@ -43,8 +46,40 @@ export function OnMarketDealView({
   const qoeRedFlags = fin.qoe_red_flags || [];
   const ownerQuestions = fin.owner_interview_questions || [];
 
-  const handlePass = () => {
-    alert('Marked as pass');
+  const [passing, setPassing] = useState(false);
+
+  const handlePass = async () => {
+    if (passing) return;
+    
+    const confirmed = window.confirm('Mark this deal as passed? This will hide it from your dashboard.');
+    if (!confirmed) return;
+
+    setPassing(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('Not signed in.');
+
+      const res = await fetch(`/api/deals/${dealId}/pass`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || 'Failed to pass deal');
+      }
+
+      window.location.href = '/dashboard';
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Unknown error');
+      alert(`Failed to pass deal: ${error.message}`);
+    } finally {
+      setPassing(false);
+    }
   };
 
   const handleRequestInfo = () => {
@@ -66,6 +101,7 @@ export function OnMarketDealView({
               onRequestInfo={handleRequestInfo}
               savingToggle={savingToggle}
               canToggleSave={canToggleSave}
+              passing={passing}
             />
 
             {/* Initial Diligence Run Strip */}

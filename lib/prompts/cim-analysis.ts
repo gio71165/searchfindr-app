@@ -123,6 +123,13 @@ If a metric is not provided anywhere in the CIM:
 - Set the relevant field to null or "unknown".
 - DO NOT infer or approximate.
 
+When data is incomplete or unclear:
+- State what you assumed in the key_assumptions array.
+- Example: "Assumed revenue figures are annual based on context"
+- Example: "Assumed EBITDA includes owner salary since not specified"
+- Example: "Assumed customer concentration is low based on business model description, but requires verification"
+- Example: "Assumed working capital needs are minimal based on service business model, but AR/AP aging not provided"
+
 ============================================================
 QUALITY OF EARNINGS / ADDBACKS (QoE) — STRICT (ADDED)
 ============================================================
@@ -512,6 +519,10 @@ You MUST return JSON ONLY, matching this schema exactly:
       "category": "Revenue" | "Operations" | "Financials" | "Customers" | "Market",
       "question": "string"
     }
+  ],
+
+  "key_assumptions": [
+    "string"
   ]
 }
 `.trim(),

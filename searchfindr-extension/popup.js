@@ -17,10 +17,35 @@ const LEARN_MORE_URL = "https://searchfindr-app.vercel.app/extension/help";
 const APP_HOME_URL = "https://searchfindr-app.vercel.app/dashboard";
 
 // Storage key
-const TOKEN_KEY = "sf_access_token";
+const TOKEN_KEY = "searchfindr_auth_token";
+const SESSION_STORAGE = chrome.storage.session;
 
-// Prefer local for auth tokens
-const STORAGE = chrome.storage.local;
+function encodeToken(token) {
+  return btoa(token + "::" + Date.now());
+}
+
+function decodeToken(encoded) {
+  try {
+    const decoded = atob(encoded);
+    const [token] = decoded.split("::");
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+async function saveToken(token) {
+  await SESSION_STORAGE.set({ [TOKEN_KEY]: encodeToken(token) });
+}
+
+async function getToken() {
+  const result = await SESSION_STORAGE.get(TOKEN_KEY);
+  return result[TOKEN_KEY] ? decodeToken(result[TOKEN_KEY]) : null;
+}
+
+async function clearToken() {
+  await SESSION_STORAGE.remove(TOKEN_KEY);
+}
 
 // ---- DOM ----
 const statusEl = document.getElementById("status");
@@ -165,15 +190,7 @@ function render() {
 }
 
 // ---- Storage helpers ----
-async function getToken() {
-  const res = await STORAGE.get([TOKEN_KEY]);
-  const t = res[TOKEN_KEY];
-  return typeof t === "string" && t.trim() ? t.trim() : null;
-}
-
-async function clearToken() {
-  await STORAGE.remove([TOKEN_KEY]);
-}
+// (getToken and clearToken are now defined at top of file)
 
 // ---- Navigation ----
 // No chrome.tabs.create() -> avoids "tabs" permission concerns.

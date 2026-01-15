@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CheckSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
 
@@ -23,6 +23,7 @@ export function DiligenceChecklist({
   const [checklistState, setChecklistState] = useState<ChecklistItem[]>([]);
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize checklist from items
   useEffect(() => {
@@ -123,7 +124,14 @@ export function DiligenceChecklist({
       item.id === id ? { ...item, notes } : item
     );
     setChecklistState(newState);
-    saveState(newState);
+    
+    // Debounce save: clear existing timer, set new one
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      saveState(newState);
+    }, 500);
   };
 
   const toggleNotes = (id: string) => {

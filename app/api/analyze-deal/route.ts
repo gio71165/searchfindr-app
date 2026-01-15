@@ -1,5 +1,9 @@
 // app/api/analyze-deal/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { authenticateRequest, AuthError } from "@/lib/api/auth";
+import { sanitizeForPrompt, sanitizeShortText } from "@/lib/utils/sanitize";
+import { withRetry } from "@/lib/utils/retry";
+import type { DealScoring, FinancialMetrics, CriteriaMatch, ConfidenceJson } from "@/lib/types/deal";
 
 export const runtime = "nodejs";
 
@@ -54,8 +58,11 @@ function buildDataConfidenceSummary(level: DataConfidence) {
   return "Low data confidence — listing is sparse/marketing-heavy; major facts require verification.";
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    // Authenticate request first
+    await authenticateRequest(req);
+    
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json({ error: "Missing OPENAI_API_KEY" }, { status: 500 });
     }
@@ -65,6 +72,13 @@ export async function POST(req: Request) {
     if (!listingText || String(listingText).trim().length === 0) {
       return NextResponse.json({ error: "No listing text provided." }, { status: 400 });
     }
+
+    // Sanitize all user inputs
+    const sanitizedCompanyName = sanitizeShortText(companyName);
+    const sanitizedCity = sanitizeShortText(city);
+    const sanitizedState = sanitizeShortText(state);
+    const sanitizedListingUrl = sanitizeShortText(listingUrl);
+    const sanitizedListingText = sanitizeForPrompt(listingText);
 
     // 🧠 AI PROMPT — updated schema
     const prompt = `
@@ -112,37 +126,41 @@ Rules:
 - "final_tier" MUST be exactly A, B, or C (no Tier 1/2/3, no Caution).
 
 Company:
-- Name: ${companyName || ""}
-- Location: ${city || ""} ${state || ""}
+- Name: ${sanitizedCompanyName || ""}
+- Location: ${sanitizedCity || ""} ${sanitizedState || ""}
 - Source: ${sourceType || ""}
-- URL: ${listingUrl || ""}
+- URL: ${sanitizedListingUrl || ""}
 
 Listing Text:
-"""${listingText}"""
+"""${sanitizedListingText}"""
 `.trim();
 
-    // 🧠 CALL OPENAI
-    const aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "You are a precise M&A analyst for search funds." },
-          { role: "user", content: prompt },
-        ],
-        response_format: { type: "json_object" },
-        temperature: 0.2,
-      }),
-    });
+    // 🧠 CALL OPENAI with retry logic
+    const aiResponse = await withRetry(
+      () =>
+        fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: "You are a precise M&A analyst for search funds." },
+              { role: "user", content: prompt },
+            ],
+            response_format: { type: "json_object" },
+            temperature: 0.2,
+          }),
+        }),
+      { maxRetries: 2, delayMs: 1000 }
+    );
 
     if (!aiResponse.ok) {
       const errorBody = await aiResponse.text();
       console.error("OpenAI error:", errorBody);
-      return NextResponse.json({ error: "OpenAI API error. Check server logs." }, { status: 500 });
+      return NextResponse.json({ error: "Unable to analyze deal. Please try again later." }, { status: 500 });
     }
 
     // 🧠 PARSE OPENAI RESPONSE
@@ -154,7 +172,7 @@ Listing Text:
       parsed = JSON.parse(content);
     } catch (err) {
       console.error("JSON Parse Error:", err, content);
-      return NextResponse.json({ error: "Invalid AI JSON format" }, { status: 500 });
+      return NextResponse.json({ error: "Unable to process analysis results. Please try again." }, { status: 500 });
     }
 
     // ✅ Normalize outputs so UI never sees old/dirty labels
@@ -188,8 +206,12 @@ Listing Text:
     };
 
     return NextResponse.json(parsed);
-  } catch (err: any) {
-    console.error("Analyze Deal Error:", err);
-    return NextResponse.json({ error: err?.message || "Unknown server error" }, { status: 500 });
+  } catch (err: unknown) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: err.statusCode });
+    }
+    const error = err instanceof Error ? err : new Error("Unknown error");
+    console.error("analyze-deal error:", error);
+    return NextResponse.json({ error: "Unable to analyze deal. Please try again later." }, { status: 500 });
   }
 }

@@ -1,9 +1,11 @@
+import type { DealScoring } from '@/lib/types/deal';
+
 export function RiskSignalsCard({ 
   scoring, 
   title = "",
   subtitle 
 }: { 
-  scoring: any;
+  scoring: DealScoring | null;
   title?: string;
   subtitle?: string;
 }) {

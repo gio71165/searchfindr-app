@@ -13,6 +13,7 @@ import { SearchBar } from "@/components/ui/SearchBar";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useDashboardStats } from "./hooks/useDashboardStats";
+import { Skeleton } from "@/components/ui/Skeleton";
 import {
   Building2,
   TrendingUp,
@@ -1104,9 +1105,26 @@ export default function DashboardPage() {
               </div>
 
               {loadingDeals ? (
-                <div className="py-16 text-center">
-                  <p className="text-sm opacity-80">Loading deals…</p>
-                </div>
+                viewMode === "list" ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 5 }).map((_, idx) => (
+                      <div key={`skeleton-list-${idx}`} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                        <div className="flex items-center gap-4">
+                          <Skeleton height={20} width={20} />
+                          <Skeleton height={20} width="30%" />
+                          <Skeleton height={20} width="20%" />
+                          <Skeleton height={20} width="15%" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {Array.from({ length: 8 }).map((_, idx) => (
+                      <DealCard key={`skeleton-${idx}`} isLoading={true} />
+                    ))}
+                  </div>
+                )
               ) : filteredAndSortedDeals.length === 0 ? (
                 <EmptyState
                   icon={Bookmark}
@@ -1231,9 +1249,26 @@ export default function DashboardPage() {
               </div>
 
               {loadingDeals ? (
-                <div className="py-16 text-center">
-                  <p className="text-sm opacity-80">Loading deals…</p>
-                </div>
+                viewMode === "list" ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 5 }).map((_, idx) => (
+                      <div key={`skeleton-list-${idx}`} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                        <div className="flex items-center gap-4">
+                          <Skeleton height={20} width={20} />
+                          <Skeleton height={20} width="30%" />
+                          <Skeleton height={20} width="20%" />
+                          <Skeleton height={20} width="15%" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {Array.from({ length: 8 }).map((_, idx) => (
+                      <DealCard key={`skeleton-${idx}`} isLoading={true} />
+                    ))}
+                  </div>
+                )
               ) : filteredAndSortedDeals.length === 0 ? (
                 <EmptyState
                   icon={Chrome}
@@ -1438,9 +1473,26 @@ export default function DashboardPage() {
               </div>
 
               {loadingDeals ? (
-                <div className="py-16 text-center">
-                  <p className="text-sm opacity-80">Loading deals…</p>
-                </div>
+                viewMode === "list" ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 5 }).map((_, idx) => (
+                      <div key={`skeleton-list-${idx}`} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                        <div className="flex items-center gap-4">
+                          <Skeleton height={20} width={20} />
+                          <Skeleton height={20} width="30%" />
+                          <Skeleton height={20} width="20%" />
+                          <Skeleton height={20} width="15%" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {Array.from({ length: 8 }).map((_, idx) => (
+                      <DealCard key={`skeleton-${idx}`} isLoading={true} />
+                    ))}
+                  </div>
+                )
               ) : filteredAndSortedDeals.length === 0 ? (
                 <EmptyState
                   icon={SearchIcon}
@@ -1547,9 +1599,26 @@ export default function DashboardPage() {
               </div>
 
               {loadingDeals ? (
-                <div className="py-16 text-center">
-                  <p className="text-sm opacity-80">Loading deals…</p>
-                </div>
+                viewMode === "list" ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 5 }).map((_, idx) => (
+                      <div key={`skeleton-list-${idx}`} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                        <div className="flex items-center gap-4">
+                          <Skeleton height={20} width={20} />
+                          <Skeleton height={20} width="30%" />
+                          <Skeleton height={20} width="20%" />
+                          <Skeleton height={20} width="15%" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {Array.from({ length: 8 }).map((_, idx) => (
+                      <DealCard key={`skeleton-${idx}`} isLoading={true} />
+                    ))}
+                  </div>
+                )
               ) : filteredAndSortedDeals.length === 0 ? (
                 <EmptyState
                   icon={FileText}
@@ -1653,9 +1722,26 @@ export default function DashboardPage() {
               </div>
 
               {loadingDeals ? (
-                <div className="py-16 text-center">
-                  <p className="text-sm opacity-80">Loading deals…</p>
-                </div>
+                viewMode === "list" ? (
+                  <div className="space-y-2">
+                    {Array.from({ length: 5 }).map((_, idx) => (
+                      <div key={`skeleton-list-${idx}`} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                        <div className="flex items-center gap-4">
+                          <Skeleton height={20} width={20} />
+                          <Skeleton height={20} width="30%" />
+                          <Skeleton height={20} width="20%" />
+                          <Skeleton height={20} width="15%" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {Array.from({ length: 8 }).map((_, idx) => (
+                      <DealCard key={`skeleton-${idx}`} isLoading={true} />
+                    ))}
+                  </div>
+                )
               ) : filteredAndSortedDeals.length === 0 ? (
                 <EmptyState
                   icon={DollarSign}

@@ -3,11 +3,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../../supabaseClient';
 import type { ChatMsg } from '../lib/types';
+import type { Deal } from '@/lib/types/deal';
 import { User, Bot, Send, Copy, Loader2, X, MessageCircle } from 'lucide-react';
 
-export function DealChatPanel({ dealId, deal }: { dealId: string; deal: any }) {
+export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) {
   // Chat is now available on ALL deal types
-  const canUseChat = true;
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -86,7 +86,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: any }) {
 
   // Load persisted chat history
   const fetchMessages = React.useCallback(async () => {
-    if (!dealId || !canUseChat) return;
+    if (!dealId) return;
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -105,9 +105,9 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: any }) {
 
       if (loaded.length > 0) {
         setMessages(
-          loaded.map((m: any) => ({
-            role: m.role,
-            content: m.content,
+          loaded.map((m: { role?: string; content?: string }) => ({
+            role: m.role || 'assistant',
+            content: m.content || '',
             ts: Date.now(),
           }))
         );
@@ -123,7 +123,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: any }) {
     } catch {
       // ignore
     }
-  }, [dealId, canUseChat]);
+  }, [dealId]);
 
   useEffect(() => {
     fetchMessages();
@@ -153,7 +153,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: any }) {
   }, [messages]);
 
   const handleClearChat = async () => {
-    if (!dealId || !canUseChat) return;
+    if (!dealId) return;
     const yes = window.confirm("Clear all chat history for this deal?");
     if (!yes) return;
 
@@ -195,11 +195,6 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: any }) {
     const text = (q || "").trim();
     if (!text || sending) return;
 
-    if (!canUseChat) {
-      setErr("Chat is only enabled for CIM and on-market deals.");
-      return;
-    }
-
     setErr(null);
     setSending(true);
 
@@ -229,7 +224,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: any }) {
       });
 
       const raw = await res.text();
-      let json: any = null;
+      let json: { answer?: string; content?: string; error?: string } | null = null;
       try {
         json = JSON.parse(raw);
       } catch {}
@@ -240,8 +235,9 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: any }) {
       if (!answer) throw new Error("No answer returned from chat route.");
 
       setMessages((prev) => [...prev, { role: "assistant", content: answer, ts: Date.now() }]);
-    } catch (e: any) {
-      setErr(e?.message || "Failed to send chat.");
+    } catch (e: unknown) {
+      const error = e instanceof Error ? e : new Error('Unknown error');
+      setErr(error.message || "Failed to send chat.");
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: "Sorry — chat failed. Try again.", ts: Date.now() },
@@ -405,7 +401,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: any }) {
                 }
               }
             }}
-            disabled={sending || !canUseChat}
+            disabled={sending}
             placeholder="Ask about this deal..."
             className="flex-1 min-h-[60px] px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
             rows={2}
@@ -417,7 +413,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: any }) {
                 setInput("");
               }
             }}
-            disabled={sending || !canUseChat || !input.trim()}
+            disabled={sending || !input.trim()}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
           >
             {sending ? (
@@ -459,17 +455,26 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: any }) {
       )}
 
       {/* Mobile Drawer */}
-      {isMobileDrawerOpen && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/50 z-40"
-            onClick={() => setIsMobileDrawerOpen(false)}
-          />
-          <div className="fixed bottom-0 left-0 right-0 z-50 h-[80vh] rounded-t-xl overflow-hidden">
-            {chatContent}
-          </div>
-        </>
-      )}
+      <>
+        {/* Backdrop */}
+        <div
+          className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ease-in-out ${
+            isMobileDrawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          onClick={() => setIsMobileDrawerOpen(false)}
+        />
+        {/* Drawer */}
+        <div
+          className={`
+            fixed bottom-0 left-0 right-0 z-50 h-[80vh] 
+            rounded-t-xl overflow-hidden 
+            transition-transform duration-300 ease-in-out
+            ${isMobileDrawerOpen ? 'translate-y-0' : 'translate-y-full pointer-events-none'}
+          `}
+        >
+          {chatContent}
+        </div>
+      </>
     </>
   );
 }

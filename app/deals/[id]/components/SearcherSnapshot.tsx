@@ -1,4 +1,6 @@
-export function SearcherSnapshot({ criteria }: { criteria: any }) {
+import type { CriteriaMatch } from '@/lib/types/deal';
+
+export function SearcherSnapshot({ criteria }: { criteria: CriteriaMatch | null }) {
   return (
     <div className="text-sm space-y-4">
       {!criteria || Object.keys(criteria).length === 0 ? (
