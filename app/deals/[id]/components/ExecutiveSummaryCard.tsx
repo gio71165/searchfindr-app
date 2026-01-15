@@ -57,9 +57,9 @@ export function ExecutiveSummaryCard({
   const verdict = getDealVerdict(deal, redFlags, confidence);
   
   const fin = deal.ai_financials_json || {};
-  const revenue = fin.revenue || deal.revenue || 'Not stated';
-  const ebitda = fin.ebitda || deal.ebitda || 'Not stated';
-  const margin = fin.margin || 'Not stated';
+  const revenue = (typeof fin.revenue === 'string' ? fin.revenue : null) || 'Not stated';
+  const ebitda = (typeof fin.ebitda === 'string' ? fin.ebitda : null) || 'Not stated';
+  const margin = (typeof fin.margin === 'string' ? fin.margin : null) || 'Not stated';
   
   const location = [deal.location_city, deal.location_state].filter(Boolean).join(', ') || 'Location not specified';
   const industry = deal.industry || 'Industry not specified';

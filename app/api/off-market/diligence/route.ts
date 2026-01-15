@@ -5,7 +5,7 @@ import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { DealsRepository } from "@/lib/data-access/deals";
 import { NotFoundError } from "@/lib/data-access/base";
 import { buildOffMarketDiligencePrompt } from "@/lib/prompts/off-market-diligence";
-import type { DealScoring, DataConfidence } from "@/lib/types/deal";
+import type { DealScoring, DataConfidence, Deal } from "@/lib/types/deal";
 import { sanitizeForPrompt, sanitizeShortText } from "@/lib/utils/sanitize";
 import { withRetry } from "@/lib/utils/retry";
 
@@ -293,15 +293,16 @@ async function runOffMarketInitialDiligenceAI(input: {
   const scoreNum = typeof parsed?.scoring?.overall_score_0_100 === 'number' 
     ? parsed.scoring.overall_score_0_100 
     : Number(parsed?.scoring?.overall_score_0_100);
-  parsed.scoring.overall_score_0_100 = clampScore(scoreNum);
+  const clampedScore = clampScore(scoreNum);
 
-  const finalTier = parsed?.scoring?.final_tier ?? "";
-  if (!["A", "B", "C"].includes(finalTier)) parsed.scoring.final_tier = "C";
+  let finalTier = parsed?.scoring?.final_tier ?? "";
+  if (!["A", "B", "C"].includes(finalTier)) finalTier = "C";
 
   // Guardrail: owner unknown => no A, score <= 69
+  let adjustedScore = clampedScore;
   if (!ownerKnown) {
-    if (parsed.scoring.final_tier === "A") parsed.scoring.final_tier = "B";
-    if (parsed.scoring.overall_score_0_100 > 69) parsed.scoring.overall_score_0_100 = 69;
+    if (finalTier === "A") finalTier = "B";
+    if (clampedScore > 69) adjustedScore = 69;
     if (typeof parsed.scoring.tier_basis !== "string" || !parsed.scoring.tier_basis.trim()) {
       parsed.scoring.tier_basis = "Tier is capped because ownership could not be verified from the homepage text.";
     }
@@ -328,11 +329,31 @@ async function runOffMarketInitialDiligenceAI(input: {
           .slice(0, 3)
           .join(" • ") || "contracts, team size, recurring revenue"}.`;
 
+  // Normalize data_confidence and build properly typed scoring
+  const normalizedDataConfidence: DataConfidence | undefined = parsed.scoring?.data_confidence 
+    ? (typeof parsed.scoring.data_confidence === 'string' 
+        ? (parsed.scoring.data_confidence.toLowerCase() === 'low' ? 'low' 
+           : parsed.scoring.data_confidence.toLowerCase() === 'medium' ? 'medium'
+           : parsed.scoring.data_confidence.toLowerCase() === 'high' ? 'high'
+           : undefined)
+        : undefined)
+    : undefined;
+
+  const normalizedScoring: DealScoring = {
+    ...(parsed.scoring ?? {}),
+    overall_score_0_100: adjustedScore,
+    final_tier: (finalTier === "A" || finalTier === "B" || finalTier === "C") ? finalTier : undefined,
+    data_confidence: normalizedDataConfidence,
+    tier_basis: typeof parsed.scoring?.tier_basis === "string" && parsed.scoring.tier_basis.trim()
+      ? parsed.scoring.tier_basis
+      : (!ownerKnown ? "Tier is capped because ownership could not be verified from the homepage text." : undefined),
+  };
+
   return {
     ai_summary: parsed.ai_summary,
     ai_red_flags: parsed.ai_red_flags,
     financials: parsed.financials ?? {},
-    scoring: parsed.scoring ?? {},
+    scoring: normalizedScoring,
     criteria_match: parsed.criteria_match ?? {},
   };
 }
@@ -398,15 +419,23 @@ export async function POST(req: NextRequest) {
 
     const homepageText = await fetchHomepageText(website);
 
+    // Access off-market specific fields (exist in DB but not in Deal type)
+    const companyWithExtras = company as Deal & {
+      address?: string | null;
+      phone?: string | null;
+      rating?: number | null;
+      ratings_total?: number | null;
+      tier_reason?: Record<string, unknown> | null;
+    };
     const ai = await runOffMarketInitialDiligenceAI({
       company: {
         company_name: company.company_name ?? null,
         website,
-        address: company.address ?? null,
-        phone: company.phone ?? null,
-        rating: company.rating ?? null,
-        ratings_total: company.ratings_total ?? null,
-        tier_reason: company.tier_reason ?? null,
+        address: companyWithExtras.address ?? null,
+        phone: companyWithExtras.phone ?? null,
+        rating: companyWithExtras.rating ?? null,
+        ratings_total: companyWithExtras.ratings_total ?? null,
+        tier_reason: companyWithExtras.tier_reason ?? null,
       },
       homepageText,
     });

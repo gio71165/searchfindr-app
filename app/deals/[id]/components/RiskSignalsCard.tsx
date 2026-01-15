@@ -14,7 +14,7 @@ export function RiskSignalsCard({
       {title && <h2 className="text-lg font-semibold mb-1">{title}</h2>}
       {subtitle && <p className="text-xs text-slate-600 dark:text-slate-400 mb-4">{subtitle}</p>}
 
-      {Object.keys(scoring).length === 0 ? (
+      {!scoring || Object.keys(scoring).length === 0 ? (
         <p className="text-sm text-slate-600 dark:text-slate-400">No structured signals stored yet.</p>
       ) : (
         <div className="space-y-4">

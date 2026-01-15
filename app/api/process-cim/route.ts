@@ -10,6 +10,7 @@ import { validateFileSize, validateFileType } from '@/lib/api/file-validation';
 import { sanitizeShortText } from '@/lib/utils/sanitize';
 import { logger } from '@/lib/utils/logger';
 import { withRetry } from '@/lib/utils/retry';
+import type { CriteriaMatch } from '@/lib/types/deal';
 
 export const runtime = 'nodejs';
 

@@ -34,7 +34,7 @@ export function DealHeader({
       <h1 className="text-3xl font-semibold mb-1">{deal.company_name || 'Untitled Company'}</h1>
       <p className="text-sm text-muted-foreground">
         {deal.location_city && `${deal.location_city}, `}
-        {deal.location_state || deal.address || ''}
+        {deal.location_state || (deal.metadata?.address as string | undefined) || ''}
       </p>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">

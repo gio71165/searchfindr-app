@@ -374,7 +374,7 @@ export default function DashboardPage() {
       filtered = filtered.filter((deal) => deal.source_type === "cim_pdf");
     } else if (activeTab === "financials") {
       filtered = filtered.filter((deal) => deal.source_type === "financials");
-    } else if (activeTab !== "all") {
+    } else if (activeTab === "on_market" || activeTab === "off_market" || activeTab === "cim_pdf") {
       filtered = filtered.filter((deal) => deal.source_type === activeTab);
     }
 
@@ -452,8 +452,7 @@ export default function DashboardPage() {
     };
     parts.push(tabNames[activeTab]);
     if (activeStatFilter !== "none") {
-      const statNames: Record<typeof activeStatFilter, string> = {
-        none: "",
+      const statNames: Record<"saved" | "new_today" | "high_confidence", string> = {
         new_today: "New Today",
         saved: "Saved",
         high_confidence: "High Confidence",
@@ -660,6 +659,7 @@ export default function DashboardPage() {
           owner_name: null,
           ai_summary: null,
           ai_confidence_json: null,
+          passed_at: null,
         },
         ...prev,
       ]);
@@ -766,6 +766,7 @@ export default function DashboardPage() {
           owner_name: null,
           ai_summary: null,
           ai_confidence_json: null,
+          passed_at: null,
         },
         ...prev,
       ]);

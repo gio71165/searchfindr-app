@@ -318,7 +318,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
                 <p className="whitespace-pre-line text-xs leading-relaxed">{m.content}</p>
                 <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                    {formatTime(m.ts)}
+                    {formatTime(m.ts ?? Date.now())}
                   </span>
                   <button
                     onClick={() => copyMessage(m.content, msgId)}

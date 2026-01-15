@@ -23,7 +23,8 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
 
   // Try to extract purchase price from deal data
   const fin = deal?.ai_financials_json || {};
-  const estimatedPrice = fin.estimated_purchase_price || fin.purchase_price || '';
+  const finAny = fin as Record<string, unknown>;
+  const estimatedPrice = (finAny.estimated_purchase_price as string | undefined) || (finAny.purchase_price as string | undefined) || '';
 
   const handleCalculate = async () => {
     const price = parseFloat(purchasePrice);
