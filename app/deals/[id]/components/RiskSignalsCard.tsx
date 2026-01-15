@@ -45,13 +45,10 @@ export function RiskSignalsCard({
               )}
             </div>
           )}
-          {scoring.financial_quality && (
+          {scoring.operational_quality_signal && (
             <div>
-              <p className="font-semibold text-slate-900 dark:text-slate-100">Financial statement quality</p>
-              <p className="text-slate-700 dark:text-slate-300">{scoring.financial_quality}</p>
-              {scoring.financial_quality_reason && (
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{scoring.financial_quality_reason}</p>
-              )}
+              <p className="font-semibold text-slate-900 dark:text-slate-100">Operational quality</p>
+              <p className="text-slate-700 dark:text-slate-300">{scoring.operational_quality_signal}</p>
             </div>
           )}
         </div>
