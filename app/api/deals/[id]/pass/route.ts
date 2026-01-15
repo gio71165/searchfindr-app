@@ -3,16 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { DealsRepository } from "@/lib/data-access/deals";
 import { NotFoundError, DatabaseError } from "@/lib/data-access/base";
+import { getCorsHeaders } from "@/lib/api/security";
 
 export const runtime = "nodejs";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": process.env.NODE_ENV === "production"
-    ? "https://searchfindr-app.vercel.app"
-    : "http://localhost:3000",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const corsHeaders = getCorsHeaders();
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 200, headers: corsHeaders });
@@ -20,7 +15,8 @@ export async function OPTIONS() {
 
 /**
  * POST /api/deals/[id]/pass
- * Marks a deal as passed (sets passed_at timestamp)
+ * Marks a deal as passed (sets passed_at timestamp, stage, and reason)
+ * Body: { pass_reason: string, pass_notes?: string | null }
  */
 export async function POST(
   req: NextRequest,
@@ -35,7 +31,15 @@ export async function POST(
       return NextResponse.json({ error: "Missing deal ID" }, { status: 400, headers: corsHeaders });
     }
 
-    await deals.passDeal(dealId);
+    const body = await req.json().catch(() => ({}));
+    const passReason = body.pass_reason;
+    const passNotes = body.pass_notes || null;
+
+    if (!passReason || typeof passReason !== 'string') {
+      return NextResponse.json({ error: "pass_reason is required" }, { status: 400, headers: corsHeaders });
+    }
+
+    await deals.passDeal(dealId, passReason, passNotes);
 
     return NextResponse.json({ success: true, message: "Deal marked as passed" }, { status: 200, headers: corsHeaders });
   } catch (e: unknown) {
