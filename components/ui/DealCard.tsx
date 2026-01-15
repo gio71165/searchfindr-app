@@ -94,7 +94,12 @@ export function DealCard({
       </div>
     );
   }
-  const confidenceLevel = deal.ai_confidence_json?.level || null;
+  // Convert confidence level from 'low'|'medium'|'high' to 'A'|'B'|'C' format
+  const rawLevel = deal.ai_confidence_json?.level;
+  let confidenceLevel: 'A' | 'B' | 'C' | null = null;
+  if (rawLevel === 'high' || rawLevel === 'A') confidenceLevel = 'A';
+  else if (rawLevel === 'medium' || rawLevel === 'B') confidenceLevel = 'B';
+  else if (rawLevel === 'low' || rawLevel === 'C') confidenceLevel = 'C';
   const analyzed = Boolean(deal.ai_confidence_json);
   const preview = deal.ai_summary ? deal.ai_summary.slice(0, 120) + (deal.ai_summary.length > 120 ? '...' : '') : 'No summary available yet.';
 
