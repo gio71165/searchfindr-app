@@ -1,5 +1,8 @@
 // lib/api/rate-limit.ts
-// Simple in-memory rate limiting per user per endpoint
+// Distributed rate limiting with Supabase fallback to in-memory
+
+import { SupabaseClient } from '@supabase/supabase-js';
+import { checkRateLimitSupabase } from './rate-limit-supabase';
 
 type RateLimitKey = string; // Format: "userId:endpoint"
 type RateLimitEntry = {
@@ -7,7 +10,7 @@ type RateLimitEntry = {
   resetAt: number; // Timestamp when the window resets
 };
 
-// In-memory store (for production, consider Redis or database)
+// In-memory store (fallback if Supabase table doesn't exist)
 const rateLimitStore = new Map<RateLimitKey, RateLimitEntry>();
 
 // Cleanup old entries every 5 minutes
@@ -22,18 +25,29 @@ setInterval(() => {
 
 /**
  * Check if a user has exceeded the rate limit for an endpoint
+ * Uses Supabase for distributed rate limiting if supabase client is provided,
+ * otherwise falls back to in-memory storage.
+ * 
  * @param userId - User ID
  * @param endpoint - Endpoint name (e.g., "process-cim", "process-financials", "off-market-search")
  * @param limit - Maximum requests allowed
  * @param windowSeconds - Time window in seconds (default: 3600 for 1 hour)
+ * @param supabase - Optional Supabase client for distributed rate limiting
  * @returns Object with `allowed` boolean and `remaining` count
  */
-export function checkRateLimit(
+export async function checkRateLimit(
   userId: string,
   endpoint: string,
   limit: number,
-  windowSeconds: number = 3600
-): { allowed: boolean; remaining: number; resetAt: number } {
+  windowSeconds: number = 3600,
+  supabase?: SupabaseClient
+): Promise<{ allowed: boolean; remaining: number; resetAt: number }> {
+  // Use Supabase if provided (distributed rate limiting)
+  if (supabase) {
+    return await checkRateLimitSupabase(supabase, userId, endpoint, limit, windowSeconds);
+  }
+
+  // Fallback to in-memory (for development or if Supabase table doesn't exist)
   const key: RateLimitKey = `${userId}:${endpoint}`;
   const now = Date.now();
   const resetAt = now + windowSeconds * 1000;
@@ -62,6 +76,10 @@ export function getRateLimitConfig(endpoint: string): { limit: number; windowSec
     "process-cim": { limit: 10, windowSeconds: 3600 }, // 10/hour
     "process-financials": { limit: 20, windowSeconds: 3600 }, // 20/hour
     "off-market-search": { limit: 5, windowSeconds: 3600 }, // 5/hour
+    "on-market-search": { limit: 100, windowSeconds: 3600 }, // 100/hour
+    "analyze-text": { limit: 20, windowSeconds: 3600 }, // 20/hour
+    "capture-deal": { limit: 30, windowSeconds: 3600 }, // 30/hour
+    "deal-chat": { limit: 60, windowSeconds: 3600 }, // 60/hour (already has per-deal limits)
   };
 
   return configs[endpoint] || { limit: 10, windowSeconds: 3600 };
