@@ -39,12 +39,12 @@ export function DealListView({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 overflow-hidden">
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-          <thead className="bg-slate-50 dark:bg-slate-900">
+        <table className="min-w-full divide-y divide-slate-200">
+          <thead className="bg-slate-50">
             <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider w-12">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider w-12">
                 <input
                   type="checkbox"
                   checked={deals.length > 0 && deals.every((d) => selectedIds.has(d.id))}
@@ -66,30 +66,30 @@ export function DealListView({
                   className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Company
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Source
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Location
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Confidence
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Tier
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Date
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
+              <th className="px-4 py-3 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+          <tbody className="bg-white divide-y divide-slate-200">
             {deals.map((deal, idx) => {
               const location = [deal.location_city, deal.location_state].filter(Boolean).join(', ') || '—';
               const confidenceLevel = deal.ai_confidence_json?.level || null;
@@ -99,7 +99,7 @@ export function DealListView({
               return (
                 <tr
                   key={deal.id}
-                  className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer"
+                  className="hover:bg-slate-50 transition-colors cursor-pointer"
                   onClick={() => {
                     window.location.href = `/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`;
                   }}
@@ -116,7 +116,7 @@ export function DealListView({
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`}
-                        className="text-sm font-semibold text-slate-900 dark:text-slate-100 hover:text-blue-600 dark:hover:text-blue-400"
+                        className="text-sm font-semibold text-slate-900 hover:text-blue-600"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {deal.company_name || 'Untitled Deal'}
@@ -126,7 +126,7 @@ export function DealListView({
                       )}
                     </div>
                     {deal.industry && (
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 flex items-center gap-1">
+                      <div className="text-xs text-slate-500 mt-1 flex items-center gap-1">
                         <Building2 className="h-3 w-3" />
                         {deal.industry}
                       </div>
@@ -136,7 +136,7 @@ export function DealListView({
                     <SourceBadge source={deal.source_type} />
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                    <div className="text-sm text-slate-600 flex items-center gap-1">
                       <MapPin className="h-3 w-3" />
                       {location}
                     </div>
@@ -146,7 +146,7 @@ export function DealListView({
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     {deal.final_tier ? (
-                      <span className="inline-flex items-center rounded-full border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 px-2 py-0.5 text-xs font-medium uppercase">
+                      <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 text-amber-700 px-2 py-0.5 text-xs font-medium uppercase">
                         Tier {deal.final_tier}
                       </span>
                     ) : (
@@ -154,7 +154,7 @@ export function DealListView({
                     )}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    <div className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1">
+                    <div className="text-sm text-slate-600 flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
                       {date}
                     </div>
@@ -167,7 +167,7 @@ export function DealListView({
                             e.stopPropagation();
                             onSaveToggle(deal.id);
                           }}
-                          className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded transition-colors"
+                          className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                           title={deal.is_saved ? 'Unsave' : 'Save'}
                         >
                           <Star className={`h-4 w-4 ${deal.is_saved ? 'text-yellow-500 fill-yellow-500' : ''}`} />
@@ -181,7 +181,7 @@ export function DealListView({
                               onDelete(deal.id);
                             }
                           }}
-                          className="p-1.5 text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded transition-colors"
+                          className="p-1.5 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                           title="Delete"
                         >
                           <Trash2 className="h-4 w-4" />

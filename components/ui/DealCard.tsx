@@ -36,7 +36,7 @@ export function DealCard({
 }) {
   if (isLoading || !deal) {
     return (
-      <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+      <div className="rounded-xl border border-slate-200 bg-white p-6">
         <Skeleton height={24} className="mb-4" width="60%" />
         <div className="flex gap-2 mb-3">
           <Skeleton height={20} width={80} />
@@ -44,7 +44,7 @@ export function DealCard({
         </div>
         <Skeleton lines={2} className="mb-4" />
         <Skeleton height={40} className="mb-2" />
-        <div className="flex gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
+        <div className="flex gap-2 pt-4 border-t border-slate-200">
           <Skeleton height={36} className="flex-1" />
           <Skeleton height={36} width={80} />
         </div>
@@ -58,14 +58,14 @@ export function DealCard({
   const location = [deal.location_city, deal.location_state].filter(Boolean).join(', ') || null;
 
   return (
-    <div className="group rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6 hover:shadow-lg transition-all hover:border-blue-300 dark:hover:border-blue-600">
+    <div className="group rounded-xl border border-slate-200 bg-white p-6 hover:shadow-lg transition-all hover:border-blue-300">
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex-1 min-w-0">
           <Link
             href={`/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`}
             className="block"
           >
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors mb-2">
+            <h3 className="text-lg font-semibold text-slate-900 group-hover:text-blue-600 transition-colors mb-2">
               {deal.company_name || 'Untitled Deal'}
             </h3>
           </Link>
@@ -73,7 +73,7 @@ export function DealCard({
           <div className="flex flex-wrap items-center gap-2 mb-3">
             <SourceBadge source={deal.source_type} />
             {deal.final_tier && (
-              <span className="inline-flex items-center rounded-full border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 px-2.5 py-1 text-xs font-medium uppercase">
+              <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 text-amber-700 px-2.5 py-1 text-xs font-medium uppercase">
                 Tier {deal.final_tier}
               </span>
             )}
@@ -84,33 +84,33 @@ export function DealCard({
 
       <div className="space-y-2 mb-4">
         {location && (
-          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
             <MapPin className="h-4 w-4" />
             <span>{location}</span>
           </div>
         )}
 
         {deal.industry && (
-          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+          <div className="flex items-center gap-2 text-sm text-slate-600">
             <Building2 className="h-4 w-4" />
             <span>{deal.industry}</span>
           </div>
         )}
 
         {deal.created_at && (
-          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-500">
+          <div className="flex items-center gap-2 text-sm text-slate-500">
             <Calendar className="h-4 w-4" />
             <span>{new Date(deal.created_at).toLocaleDateString()}</span>
           </div>
         )}
       </div>
 
-      <p className="text-sm text-slate-600 dark:text-slate-400 mb-4 line-clamp-2">{preview}</p>
+      <p className="text-sm text-slate-600 mb-4 line-clamp-2">{preview}</p>
 
-      <div className="flex items-center gap-2 pt-4 border-t border-slate-200 dark:border-slate-700">
+      <div className="flex items-center gap-2 pt-4 border-t border-slate-200">
         <Link
           href={`/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`}
-          className="flex-1 text-center px-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 rounded-lg transition-colors"
+          className="flex-1 text-center px-4 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
         >
           View Details
         </Link>
@@ -120,7 +120,7 @@ export function DealCard({
               e.stopPropagation();
               onSaveToggle(deal.id);
             }}
-            className="px-4 py-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
           >
             {deal.is_saved ? 'Unsave' : 'Save'}
           </button>
@@ -133,7 +133,7 @@ export function DealCard({
                 onDelete(deal.id);
               }
             }}
-            className="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
             Delete
           </button>

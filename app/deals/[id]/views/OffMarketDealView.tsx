@@ -108,7 +108,7 @@ export function OffMarketDealView({
   };
 
   return (
-    <main className="min-h-screen bg-[#F9FAFB] dark:bg-slate-900">
+    <main className="min-h-screen bg-[#F9FAFB]">
       <div className="max-w-7xl mx-auto py-8 px-4">
         <BackButton dealSourceType={deal.source_type} />
         <div className="flex gap-6">
@@ -126,24 +126,24 @@ export function OffMarketDealView({
             />
 
             {ratingLine && (
-              <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-3">
-                <span className="inline-flex items-center rounded-full border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-3 py-1 text-xs text-slate-700 dark:text-slate-300">
+              <div className="rounded-lg border border-slate-200 bg-white p-3">
+                <span className="inline-flex items-center rounded-full border border-slate-300 bg-slate-50 px-3 py-1 text-xs text-slate-700">
                   Google {ratingLine}
                 </span>
               </div>
             )}
 
             {/* Initial Diligence Run Strip */}
-            <section className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+            <section className="rounded-lg border border-slate-200 bg-white p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-semibold">Initial Diligence</h2>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">Runs AI based on the company's website + available inputs.</p>
+                  <p className="text-xs text-slate-600">Runs AI based on the company's website + available inputs.</p>
                 </div>
                 <button
                   onClick={onRunInitialDiligence}
                   disabled={running}
-                  className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50"
                 >
                   {running ? 'Running…' : deal.ai_summary ? 'Re-run' : 'Run'}
                 </button>
@@ -158,10 +158,10 @@ export function OffMarketDealView({
             <RedFlagsPanel redFlags={redFlags} />
 
             {/* Strengths */}
-            <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500 dark:border-l-green-600 p-6">
+            <div className="rounded-lg border border-green-200 bg-green-50 border-l-4 border-l-green-500 p-6">
               <div className="flex items-center gap-2 mb-4">
-                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Strengths</h3>
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <h3 className="text-xl font-semibold text-slate-900">Strengths</h3>
               </div>
               <StrengthsPanel deal={deal} />
             </div>
@@ -174,50 +174,50 @@ export function OffMarketDealView({
 
             {/* Owner Signals */}
             {ownerSignals && (
-              <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+              <div className="rounded-lg border border-slate-200 bg-white p-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <User className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                  <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Owner Signals (Probabilistic)</h3>
+                  <User className="h-5 w-5 text-slate-600" />
+                  <h3 className="text-xl font-semibold text-slate-900">Owner Signals (Probabilistic)</h3>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div>
-                    <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">Likely owner-operated</p>
-                    <p className="font-medium text-slate-900 dark:text-slate-100">
+                    <p className="text-xs uppercase text-slate-600 mb-1">Likely owner-operated</p>
+                    <p className="font-medium text-slate-900">
                       {ownerSignals.likely_owner_operated ? 'Yes' : 'No'}
-                      {confidencePct !== null && <span className="text-xs text-slate-600 dark:text-slate-400"> ({confidencePct}%)</span>}
+                      {confidencePct !== null && <span className="text-xs text-slate-600"> ({confidencePct}%)</span>}
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">Owner named on site</p>
-                    <p className="font-medium text-slate-900 dark:text-slate-100">
+                    <p className="text-xs uppercase text-slate-600 mb-1">Owner named on site</p>
+                    <p className="font-medium text-slate-900">
                       {ownerSignals.owner_named_on_site ? 'Yes' : 'No'}
                       {ownerSignals.owner_named_on_site && ownerSignals.owner_name && (
-                        <span className="text-xs text-slate-600 dark:text-slate-400"> — {ownerSignals.owner_name}</span>
+                        <span className="text-xs text-slate-600"> — {ownerSignals.owner_name}</span>
                       )}
                     </p>
                   </div>
 
                   <div>
-                    <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">Generation hint</p>
-                    <p className="font-medium text-slate-900 dark:text-slate-100">{ownerSignals.generation_hint || 'unknown'}</p>
+                    <p className="text-xs uppercase text-slate-600 mb-1">Generation hint</p>
+                    <p className="font-medium text-slate-900">{ownerSignals.generation_hint || 'unknown'}</p>
                   </div>
 
                   <div>
-                    <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">Key-person dependency risk</p>
-                    <p className="font-medium text-slate-900 dark:text-slate-100">{ownerSignals.owner_dependency_risk || 'Unknown'}</p>
+                    <p className="text-xs uppercase text-slate-600 mb-1">Key-person dependency risk</p>
+                    <p className="font-medium text-slate-900">{ownerSignals.owner_dependency_risk || 'Unknown'}</p>
                   </div>
 
                   <div className="sm:col-span-2">
-                    <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">Years in business</p>
-                    <p className="font-medium text-slate-900 dark:text-slate-100">{ownerSignals.years_in_business || 'Unknown'}</p>
+                    <p className="text-xs uppercase text-slate-600 mb-1">Years in business</p>
+                    <p className="font-medium text-slate-900">{ownerSignals.years_in_business || 'Unknown'}</p>
                   </div>
                 </div>
 
                 {Array.isArray(ownerSignals.evidence) && ownerSignals.evidence.length > 0 && (
                   <div className="mt-4">
-                    <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-2">Evidence</p>
-                    <ul className="list-disc list-inside space-y-1 text-sm text-slate-700 dark:text-slate-300">
+                    <p className="text-xs uppercase text-slate-600 mb-2">Evidence</p>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
                       {ownerSignals.evidence.slice(0, 6).map((e: string, idx: number) => (
                         <li key={idx}>{e}</li>
                       ))}
@@ -227,8 +227,8 @@ export function OffMarketDealView({
 
                 {Array.isArray(ownerSignals.missing_info) && ownerSignals.missing_info.length > 0 && (
                   <div className="mt-4">
-                    <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-2">Missing info</p>
-                    <ul className="list-disc list-inside space-y-1 text-sm text-slate-700 dark:text-slate-300">
+                    <p className="text-xs uppercase text-slate-600 mb-2">Missing info</p>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
                       {ownerSignals.missing_info.slice(0, 6).map((m: string, idx: number) => (
                         <li key={idx}>{m}</li>
                       ))}
@@ -245,10 +245,10 @@ export function OffMarketDealView({
             <OwnerInterviewQuestions questions={ownerQuestions} />
 
             {/* Scoring Breakdown */}
-            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+            <div className="rounded-lg border border-slate-200 bg-white p-6">
               <div className="flex items-center gap-2 mb-4">
-                <BarChart3 className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Scoring Breakdown</h3>
+                <BarChart3 className="h-5 w-5 text-slate-600" />
+                <h3 className="text-xl font-semibold text-slate-900">Scoring Breakdown</h3>
               </div>
               <RiskSignalsCard
                 scoring={scoring}
@@ -258,10 +258,10 @@ export function OffMarketDealView({
             </div>
 
             {/* Searcher Fit Analysis */}
-            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+            <div className="rounded-lg border border-slate-200 bg-white p-6">
               <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Searcher Fit Analysis</h3>
+                <TrendingUp className="h-5 w-5 text-slate-600" />
+                <h3 className="text-xl font-semibold text-slate-900">Searcher Fit Analysis</h3>
               </div>
               <SearcherSnapshot criteria={criteria} />
             </div>

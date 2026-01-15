@@ -40,39 +40,6 @@
   --ai-input-border: rgba(11, 18, 32, 0.18);
 }
 
-:root.dark {
-  /* App */
-  --background: #0b1220;
-  --foreground: #eef2f7;
-
-  --surface: #101a2c;
-  --muted: #14213a;
-  --hover: rgba(255, 255, 255, 0.06);
-
-  --border: rgba(255, 255, 255, 0.12);
-
-  --input-bg: #0f172a;
-  --input-border: rgba(255, 255, 255, 0.16);
-
-  --ui-strong: #ffffff;
-  --ui-strong-hover: #f3f4f6;
-
-  color-scheme: dark;
-
-  /* =========================
-     AI Chat (dark distinct)
-     ========================= */
-  --ai-chat-bg: #071226;              /* deeper than app bg */
-  --ai-chat-border: rgba(255, 255, 255, 0.14);
-  --ai-chat-hover: rgba(255, 255, 255, 0.07);
-
-  --ai-bubble-assistant-bg: #0c1a33;
-  --ai-bubble-user-bg: #0b1730;
-  --ai-bubble-prompt-bg: #0b1a35;
-
-  --ai-input-bg: #0f172a;
-  --ai-input-border: rgba(255, 255, 255, 0.16);
-}
 
 html,
 body {
@@ -112,7 +79,6 @@ select option {
   cursor: pointer;
   transition: background 150ms ease, color 150ms ease, border-color 150ms ease, opacity 150ms ease;
 }
-:root.dark .btn-main { color: #0b1220; }
 .btn-main:hover { background: var(--ui-strong-hover); border-color: var(--ui-strong-hover); }
 .btn-main:disabled { opacity: 0.6; cursor: not-allowed; }
 
@@ -132,7 +98,6 @@ select option {
 }
 .view-pill:hover { background: var(--muted); }
 .view-pill--active { background: var(--ui-strong); border-color: var(--ui-strong); color: #ffffff; }
-:root.dark .view-pill--active { color: #0b1220; }
 .view-pill:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* =========================
@@ -146,7 +111,6 @@ select option {
 }
 .table-header { background: var(--muted); }
 .table-row { border-top: 1px solid rgba(11, 18, 32, 0.06); }
-:root.dark .table-row { border-top: 1px solid rgba(255, 255, 255, 0.08); }
 .table-row:hover { background: var(--hover); }
 
 .card-section {
@@ -166,7 +130,6 @@ select option {
   border-radius: 1rem;
   box-shadow: 0 10px 30px rgba(0,0,0,0.08);
 }
-:root.dark .ai-chat-panel { box-shadow: 0 16px 44px rgba(0,0,0,0.50); }
 
 .ai-chat-divider { border-color: var(--ai-chat-border); }
 
@@ -226,9 +189,4 @@ select option {
   padding: 1.25rem;
   background: #ffe3e3;
   color: #7f1d1d;
-}
-:root.dark .card-red {
-  background: rgba(220, 38, 38, 0.18);
-  border-color: rgba(252, 165, 165, 0.7);
-  color: #fecaca;
 }

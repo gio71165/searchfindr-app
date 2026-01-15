@@ -20,11 +20,11 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-      <div className="rounded-full bg-slate-100 dark:bg-slate-800 p-6 mb-4">
-        <Icon className="h-12 w-12 text-slate-400 dark:text-slate-500" />
+      <div className="rounded-full bg-slate-100 p-6 mb-4">
+        <Icon className="h-12 w-12 text-slate-400" />
       </div>
-      <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mb-2">{title}</h3>
-      <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md mb-6">{description}</p>
+      <h3 className="text-xl font-semibold text-slate-900 mb-2">{title}</h3>
+      <p className="text-sm text-slate-600 max-w-md mb-6">{description}</p>
       <div className="flex flex-wrap items-center gap-3 justify-center">
         <button
           onClick={onAction}
@@ -35,7 +35,7 @@ export function EmptyState({
         {secondaryActionLabel && onSecondaryAction && (
           <button
             onClick={onSecondaryAction}
-            className="px-6 py-2.5 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-medium rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            className="px-6 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors"
           >
             {secondaryActionLabel}
           </button>

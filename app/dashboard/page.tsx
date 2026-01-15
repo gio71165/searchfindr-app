@@ -4,7 +4,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback, type ChangeEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../supabaseClient";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { StatCard } from "@/components/ui/StatCard";
 import { ActionButton } from "@/components/ui/ActionButton";
 import { DealCard } from "@/components/ui/DealCard";
@@ -890,7 +889,7 @@ function DashboardPageContent() {
           <h1 className="text-3xl font-bold tracking-tight">
             Welcome{email ? `, ${email.split("@")[0]}` : ""}
           </h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
+          <p className="text-sm text-slate-600">
             Quickly evaluate deals and find the good ones
           </p>
         </div>
@@ -941,7 +940,7 @@ function DashboardPageContent() {
       </section>
 
       {/* Tab Bar */}
-      <section className="border-b border-slate-200 dark:border-slate-700">
+      <section className="border-b border-slate-200">
         <div className="flex gap-1">
           <button
             onClick={() => {
@@ -950,8 +949,8 @@ function DashboardPageContent() {
             }}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "saved"
-                ? "border-blue-600 text-blue-600 dark:text-blue-400 font-semibold"
-                : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                ? "border-blue-600 text-blue-600 font-semibold"
+                : "border-transparent text-slate-600 hover:text-slate-900"
             }`}
           >
             Saved Deals
@@ -963,8 +962,8 @@ function DashboardPageContent() {
             }}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "on_market"
-                ? "border-blue-600 text-blue-600 dark:text-blue-400 font-semibold"
-                : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                ? "border-blue-600 text-blue-600 font-semibold"
+                : "border-transparent text-slate-600 hover:text-slate-900"
             }`}
           >
             On-Market
@@ -976,8 +975,8 @@ function DashboardPageContent() {
             }}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "off_market"
-                ? "border-blue-600 text-blue-600 dark:text-blue-400 font-semibold"
-                : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                ? "border-blue-600 text-blue-600 font-semibold"
+                : "border-transparent text-slate-600 hover:text-slate-900"
             }`}
           >
             Off-Market
@@ -989,8 +988,8 @@ function DashboardPageContent() {
             }}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "cim_pdf"
-                ? "border-blue-600 text-blue-600 dark:text-blue-400 font-semibold"
-                : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                ? "border-blue-600 text-blue-600 font-semibold"
+                : "border-transparent text-slate-600 hover:text-slate-900"
             }`}
           >
             CIM Uploads
@@ -1002,8 +1001,8 @@ function DashboardPageContent() {
             }}
             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === "financials"
-                ? "border-blue-600 text-blue-600 dark:text-blue-400 font-semibold"
-                : "border-transparent text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                ? "border-blue-600 text-blue-600 font-semibold"
+                : "border-transparent text-slate-600 hover:text-slate-900"
             }`}
           >
             Financials
@@ -1026,10 +1025,10 @@ function DashboardPageContent() {
         <div
           className={`rounded-xl border p-4 ${
             cimUploadStatus === "uploaded"
-              ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300"
+              ? "bg-green-50 border-green-200 text-green-700"
               : cimUploadStatus === "error"
-                ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"
-                : "bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
+                ? "bg-red-50 border-red-200 text-red-700"
+                : "bg-blue-50 border-blue-200 text-blue-700"
           }`}
         >
           <div className="font-semibold">
@@ -1045,10 +1044,10 @@ function DashboardPageContent() {
         <div
           className={`rounded-xl border p-4 ${
             finUploadStatus === "uploaded"
-              ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300"
+              ? "bg-green-50 border-green-200 text-green-700"
               : finUploadStatus === "error"
-                ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300"
-                : "bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300"
+                ? "bg-red-50 border-red-200 text-red-700"
+                : "bg-blue-50 border-blue-200 text-blue-700"
           }`}
         >
           <div className="font-semibold">
@@ -1075,8 +1074,8 @@ function DashboardPageContent() {
                     onClick={() => setViewMode("list")}
                     className={`p-2 rounded-lg border transition-colors ${
                       viewMode === "list"
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400"
-                        : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        ? "border-blue-600 bg-blue-50 text-blue-600"
+                        : "border-slate-300 text-slate-600 hover:bg-slate-50"
                     }`}
                     title="List view"
                   >
@@ -1086,8 +1085,8 @@ function DashboardPageContent() {
                     onClick={() => setViewMode("cards")}
                     className={`p-2 rounded-lg border transition-colors ${
                       viewMode === "cards"
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400"
-                        : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        ? "border-blue-600 bg-blue-50 text-blue-600"
+                        : "border-slate-300 text-slate-600 hover:bg-slate-50"
                     }`}
                     title="Card view"
                   >
@@ -1105,7 +1104,7 @@ function DashboardPageContent() {
                 />
                 <div className="flex items-center gap-3">
                   <select
-                    className="rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-1.5 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={sortKey}
                     onChange={(e) => setSortKey(e.target.value as SortKey)}
                   >
@@ -1123,7 +1122,7 @@ function DashboardPageContent() {
                 viewMode === "list" ? (
                   <div className="space-y-2">
                     {Array.from({ length: 5 }).map((_, idx) => (
-                      <div key={`skeleton-list-${idx}`} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                      <div key={`skeleton-list-${idx}`} className="rounded-lg border border-slate-200 bg-white p-4">
                         <div className="flex items-center gap-4">
                           <Skeleton height={20} width={20} />
                           <Skeleton height={20} width="30%" />
@@ -1185,23 +1184,23 @@ function DashboardPageContent() {
         {activeTab === "on_market" && (
           <>
             {/* Coming Soon Banner */}
-            <section className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 p-4 mb-6">
-              <p className="text-sm text-blue-900 dark:text-blue-100">
+            <section className="rounded-lg border border-blue-200 bg-blue-50 p-4 mb-6">
+              <p className="text-sm text-blue-900">
                 <span className="text-lg mr-2">📢</span>
                 <strong>Browse All Listings (Coming Soon)</strong> - Search BizBuySell, Synergy, and more directly from SearchFindr
               </p>
             </section>
 
-            <section className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20 p-6">
+            <section className="rounded-xl border border-blue-200 bg-blue-50 p-6">
               <div className="flex items-start gap-4">
-                <div className="rounded-full bg-blue-100 dark:bg-blue-900 p-3">
-                  <Chrome className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                <div className="rounded-full bg-blue-100 p-3">
+                  <Chrome className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                  <h3 className="text-lg font-semibold text-blue-900 mb-2">
                     Use the Chrome Extension to capture deals
                   </h3>
-                  <p className="text-sm text-blue-700 dark:text-blue-300 mb-4">
+                  <p className="text-sm text-blue-700 mb-4">
                     Connect the SearchFindr Chrome extension to save deals directly from BizBuySell, Synergy, and other broker sites.
                   </p>
                   <button
@@ -1215,16 +1214,16 @@ function DashboardPageContent() {
             </section>
 
             {/* Refresh Banner - Important Notice */}
-            <section className="rounded-lg border-2 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 p-4 mb-4">
+            <section className="rounded-lg border-2 border-amber-300 bg-amber-50 p-4 mb-4">
               <div className="flex items-start gap-3">
                 <div className="flex-shrink-0 mt-0.5">
-                  <RefreshCw className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                  <RefreshCw className="h-5 w-5 text-amber-600" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                  <p className="text-sm font-semibold text-amber-900 mb-1">
                     📢 Important: Refresh Required After Sending Deals
                   </p>
-                  <p className="text-xs text-amber-800 dark:text-amber-200 mb-3">
+                  <p className="text-xs text-amber-800 mb-3">
                     After using the Chrome extension to send a deal to SearchFindr, you <strong>must refresh this page</strong> to see the new deal appear in your list. The deal won't show up automatically until you refresh.
                   </p>
                   <button
@@ -1246,7 +1245,7 @@ function DashboardPageContent() {
                   <button
                     onClick={refreshDeals}
                     disabled={refreshing}
-                    className="p-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+                    className="p-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
                     title="Refresh deals list"
                   >
                     <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
@@ -1255,8 +1254,8 @@ function DashboardPageContent() {
                     onClick={() => setViewMode("list")}
                     className={`p-2 rounded-lg border transition-colors ${
                       viewMode === "list"
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400"
-                        : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        ? "border-blue-600 bg-blue-50 text-blue-600"
+                        : "border-slate-300 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
                     <List className="h-5 w-5" />
@@ -1265,8 +1264,8 @@ function DashboardPageContent() {
                     onClick={() => setViewMode("cards")}
                     className={`p-2 rounded-lg border transition-colors ${
                       viewMode === "cards"
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400"
-                        : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        ? "border-blue-600 bg-blue-50 text-blue-600"
+                        : "border-slate-300 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
                     <Grid3x3 className="h-5 w-5" />
@@ -1283,7 +1282,7 @@ function DashboardPageContent() {
                 />
                 <div className="flex items-center gap-3">
                   <select
-                    className="rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-1.5 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={sortKey}
                     onChange={(e) => setSortKey(e.target.value as SortKey)}
                   >
@@ -1301,7 +1300,7 @@ function DashboardPageContent() {
                 viewMode === "list" ? (
                   <div className="space-y-2">
                     {Array.from({ length: 5 }).map((_, idx) => (
-                      <div key={`skeleton-list-${idx}`} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                      <div key={`skeleton-list-${idx}`} className="rounded-lg border border-slate-200 bg-white p-4">
                         <div className="flex items-center gap-4">
                           <Skeleton height={20} width={20} />
                           <Skeleton height={20} width="30%" />
@@ -1360,9 +1359,9 @@ function DashboardPageContent() {
         {/* Off-Market Tab */}
         {activeTab === "off_market" && (
           <>
-            <section className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+            <section className="rounded-xl border border-slate-200 bg-white p-6">
               <h2 className="text-lg font-semibold mb-4">Off-Market Discovery</h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400 mb-6">
+              <p className="text-sm text-slate-600 mb-6">
                 Add industries + enter city/state + radius. Results appear in Off-market as leads.
               </p>
 
@@ -1372,7 +1371,7 @@ function DashboardPageContent() {
                   <div className="flex flex-col gap-3">
                     <div className="flex flex-col gap-2 md:flex-row md:items-center">
                       <select
-                        className="flex-1 rounded-xl border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         value={offIndustryToAdd}
                         onChange={(e) => setOffIndustryToAdd(e.target.value)}
                       >
@@ -1396,7 +1395,7 @@ function DashboardPageContent() {
                         {offIndustries.map((ind) => (
                           <span
                             key={ind}
-                            className="inline-flex items-center gap-2 rounded-full border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 px-3 py-1.5 text-sm"
+                            className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm"
                           >
                             <span className="font-semibold">{ind}</span>
                             <button
@@ -1419,7 +1418,7 @@ function DashboardPageContent() {
                   <div>
                     <label className="text-sm font-semibold mb-2 block">City</label>
                     <input
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={offCity}
                       onChange={(e) => setOffCity(e.target.value)}
                       placeholder="e.g. Austin"
@@ -1429,7 +1428,7 @@ function DashboardPageContent() {
                   <div>
                     <label className="text-sm font-semibold mb-2 block">State</label>
                     <select
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={offState}
                       onChange={(e) => setOffState(e.target.value)}
                     >
@@ -1444,7 +1443,7 @@ function DashboardPageContent() {
                   <div>
                     <label className="text-sm font-semibold mb-2 block">Radius (miles)</label>
                     <select
-                      className="w-full rounded-xl border border-slate-300 dark:border-slate-600 px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={offRadiusMiles}
                       onChange={(e) => setOffRadiusMiles(Number(e.target.value))}
                     >
@@ -1466,7 +1465,7 @@ function DashboardPageContent() {
                     {offSearching ? "Searching…" : "Search"}
                   </button>
                   {offSearchStatus && (
-                    <span className="text-sm text-slate-600 dark:text-slate-400">{offSearchStatus}</span>
+                    <span className="text-sm text-slate-600">{offSearchStatus}</span>
                   )}
                 </div>
               </div>
@@ -1480,8 +1479,8 @@ function DashboardPageContent() {
                     onClick={() => setViewMode("list")}
                     className={`p-2 rounded-lg border transition-colors ${
                       viewMode === "list"
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400"
-                        : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        ? "border-blue-600 bg-blue-50 text-blue-600"
+                        : "border-slate-300 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
                     <List className="h-5 w-5" />
@@ -1490,8 +1489,8 @@ function DashboardPageContent() {
                     onClick={() => setViewMode("cards")}
                     className={`p-2 rounded-lg border transition-colors ${
                       viewMode === "cards"
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400"
-                        : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        ? "border-blue-600 bg-blue-50 text-blue-600"
+                        : "border-slate-300 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
                     <Grid3x3 className="h-5 w-5" />
@@ -1508,7 +1507,7 @@ function DashboardPageContent() {
                 />
                 <div className="flex items-center gap-3">
                   <select
-                    className="rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-1.5 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={sortKey}
                     onChange={(e) => setSortKey(e.target.value as SortKey)}
                   >
@@ -1526,7 +1525,7 @@ function DashboardPageContent() {
                 viewMode === "list" ? (
                   <div className="space-y-2">
                     {Array.from({ length: 5 }).map((_, idx) => (
-                      <div key={`skeleton-list-${idx}`} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                      <div key={`skeleton-list-${idx}`} className="rounded-lg border border-slate-200 bg-white p-4">
                         <div className="flex items-center gap-4">
                           <Skeleton height={20} width={20} />
                           <Skeleton height={20} width="30%" />
@@ -1607,8 +1606,8 @@ function DashboardPageContent() {
                     onClick={() => setViewMode("list")}
                     className={`p-2 rounded-lg border transition-colors ${
                       viewMode === "list"
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400"
-                        : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        ? "border-blue-600 bg-blue-50 text-blue-600"
+                        : "border-slate-300 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
                     <List className="h-5 w-5" />
@@ -1617,8 +1616,8 @@ function DashboardPageContent() {
                     onClick={() => setViewMode("cards")}
                     className={`p-2 rounded-lg border transition-colors ${
                       viewMode === "cards"
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400"
-                        : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        ? "border-blue-600 bg-blue-50 text-blue-600"
+                        : "border-slate-300 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
                     <Grid3x3 className="h-5 w-5" />
@@ -1635,7 +1634,7 @@ function DashboardPageContent() {
                 />
                 <div className="flex items-center gap-3">
                   <select
-                    className="rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-1.5 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={sortKey}
                     onChange={(e) => setSortKey(e.target.value as SortKey)}
                   >
@@ -1653,7 +1652,7 @@ function DashboardPageContent() {
                 viewMode === "list" ? (
                   <div className="space-y-2">
                     {Array.from({ length: 5 }).map((_, idx) => (
-                      <div key={`skeleton-list-${idx}`} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                      <div key={`skeleton-list-${idx}`} className="rounded-lg border border-slate-200 bg-white p-4">
                         <div className="flex items-center gap-4">
                           <Skeleton height={20} width={20} />
                           <Skeleton height={20} width="30%" />
@@ -1730,8 +1729,8 @@ function DashboardPageContent() {
                     onClick={() => setViewMode("list")}
                     className={`p-2 rounded-lg border transition-colors ${
                       viewMode === "list"
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400"
-                        : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        ? "border-blue-600 bg-blue-50 text-blue-600"
+                        : "border-slate-300 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
                     <List className="h-5 w-5" />
@@ -1740,8 +1739,8 @@ function DashboardPageContent() {
                     onClick={() => setViewMode("cards")}
                     className={`p-2 rounded-lg border transition-colors ${
                       viewMode === "cards"
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950/20 text-blue-600 dark:text-blue-400"
-                        : "border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        ? "border-blue-600 bg-blue-50 text-blue-600"
+                        : "border-slate-300 text-slate-600 hover:bg-slate-50"
                     }`}
                   >
                     <Grid3x3 className="h-5 w-5" />
@@ -1758,7 +1757,7 @@ function DashboardPageContent() {
                 />
                 <div className="flex items-center gap-3">
                   <select
-                    className="rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-1.5 text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={sortKey}
                     onChange={(e) => setSortKey(e.target.value as SortKey)}
                   >
@@ -1776,7 +1775,7 @@ function DashboardPageContent() {
                 viewMode === "list" ? (
                   <div className="space-y-2">
                     {Array.from({ length: 5 }).map((_, idx) => (
-                      <div key={`skeleton-list-${idx}`} className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+                      <div key={`skeleton-list-${idx}`} className="rounded-lg border border-slate-200 bg-white p-4">
                         <div className="flex items-center gap-4">
                           <Skeleton height={20} width={20} />
                           <Skeleton height={20} width="30%" />
@@ -1834,32 +1833,32 @@ function DashboardPageContent() {
 
       {/* Error Message */}
       {errorMsg && (
-        <div className="rounded-xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/20 p-4 text-red-700 dark:text-red-300">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
           {errorMsg}
         </div>
       )}
 
       {/* Bulk Actions Bar */}
       {selectedIds.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-3 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg shadow-lg">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{selectedIds.size} selected</span>
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-3 bg-white border border-slate-300 rounded-lg shadow-lg">
+          <span className="text-sm font-medium text-slate-700">{selectedIds.size} selected</span>
           <button
             onClick={clearSelection}
-            className="text-sm text-slate-600 dark:text-slate-400 hover:underline"
+            className="text-sm text-slate-600 hover:underline"
           >
             Clear
           </button>
           <button
             onClick={bulkSaveSelected}
             disabled={bulkBusy}
-            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50"
           >
             {bulkBusy ? "Working…" : "Save Selected"}
           </button>
           <button
             onClick={bulkDeleteSelected}
             disabled={bulkBusy}
-            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 disabled:opacity-50"
+            className="px-3 py-1.5 text-sm font-medium rounded-lg border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50"
           >
             {bulkBusy ? "Working…" : "Delete Selected"}
           </button>
@@ -1872,7 +1871,7 @@ function DashboardPageContent() {
 export default function DashboardPage() {
   return (
     <Suspense fallback={
-      <main className="min-h-screen bg-[#F9FAFB] dark:bg-slate-900">
+      <main className="min-h-screen bg-[#F9FAFB]">
         <div className="max-w-7xl mx-auto py-10 px-4">
           <div className="text-center">Loading dashboard...</div>
         </div>

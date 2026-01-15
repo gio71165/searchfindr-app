@@ -10,17 +10,17 @@ export function AIInvestmentMemo({
   const hasContent = Boolean(summary);
   
   return (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+    <div className="rounded-lg border border-slate-200 bg-white p-6">
       <div className="flex items-center gap-2 mb-4">
-        <FileText className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-        <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">AI Investment Memo</h3>
+        <FileText className="h-5 w-5 text-slate-600" />
+        <h3 className="text-xl font-semibold text-slate-900">AI Investment Memo</h3>
       </div>
       {hasContent ? (
-        <div className="whitespace-pre-line text-sm leading-relaxed text-slate-700 dark:text-slate-300">
+        <div className="whitespace-pre-line text-sm leading-relaxed text-slate-700">
           {summary}
         </div>
       ) : (
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+        <p className="text-sm text-slate-600">
           {emptyText || 'No diligence memo available yet.'}
         </p>
       )}

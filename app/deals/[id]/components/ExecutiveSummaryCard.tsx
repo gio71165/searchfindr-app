@@ -78,33 +78,33 @@ export function ExecutiveSummaryCard({
       icon: CheckCircle2,
       label: 'Strong Opportunity',
       color: 'green',
-      bgColor: 'bg-green-50 dark:bg-green-950/20',
-      borderColor: 'border-green-200 dark:border-green-800',
-      textColor: 'text-green-700 dark:text-green-300',
+      bgColor: 'bg-green-50',
+      borderColor: 'border-green-200',
+      textColor: 'text-green-700',
     },
     caution: {
       icon: AlertTriangle,
       label: 'Proceed with Caution',
       color: 'yellow',
-      bgColor: 'bg-yellow-50 dark:bg-yellow-950/20',
-      borderColor: 'border-yellow-200 dark:border-yellow-800',
-      textColor: 'text-yellow-700 dark:text-yellow-300',
+      bgColor: 'bg-yellow-50',
+      borderColor: 'border-yellow-200',
+      textColor: 'text-yellow-700',
     },
     pass: {
       icon: XCircle,
       label: 'Pass',
       color: 'red',
-      bgColor: 'bg-red-50 dark:bg-red-950/20',
-      borderColor: 'border-red-200 dark:border-red-800',
-      textColor: 'text-red-700 dark:text-red-300',
+      bgColor: 'bg-red-50',
+      borderColor: 'border-red-200',
+      textColor: 'text-red-700',
     },
     not_analyzed: {
       icon: Circle,
       label: 'Not Analyzed',
       color: 'gray',
-      bgColor: 'bg-slate-50 dark:bg-slate-950/20',
-      borderColor: 'border-slate-200 dark:border-slate-800',
-      textColor: 'text-slate-700 dark:text-slate-300',
+      bgColor: 'bg-slate-50',
+      borderColor: 'border-slate-200',
+      textColor: 'text-slate-700',
     },
   };
   
@@ -121,7 +121,7 @@ export function ExecutiveSummaryCard({
           </div>
           <div>
             <h2 className={`text-2xl font-bold ${config.textColor}`}>{config.label}</h2>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+            <p className="text-sm text-slate-600 mt-1">
               Based on confidence level and risk assessment
             </p>
           </div>
@@ -133,55 +133,55 @@ export function ExecutiveSummaryCard({
       {/* Key Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         <div>
-          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
             <DollarSign className="h-4 w-4" />
             <span>Revenue</span>
           </div>
-          <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+          <p className="text-3xl font-bold text-slate-900">
             {typeof revenue === 'string' ? revenue : formatMoney(revenue)}
           </p>
         </div>
         
         <div>
-          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
             <TrendingUp className="h-4 w-4" />
             <span>EBITDA</span>
           </div>
-          <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+          <p className="text-3xl font-bold text-slate-900">
             {typeof ebitda === 'string' ? ebitda : formatMoney(ebitda)}
           </p>
           {margin && margin !== 'Not stated' && (
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">Margin: {margin}</p>
+            <p className="text-sm text-slate-600 mt-1">Margin: {margin}</p>
           )}
         </div>
         
         <div>
-          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
             <MapPin className="h-4 w-4" />
             <span>Location</span>
           </div>
-          <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">{location}</p>
+          <p className="text-lg font-semibold text-slate-900">{location}</p>
         </div>
         
         <div>
-          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
             <Building2 className="h-4 w-4" />
             <span>Industry</span>
           </div>
-          <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">{industry}</p>
+          <p className="text-lg font-semibold text-slate-900">{industry}</p>
         </div>
       </div>
       
       {/* Confidence Score */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Confidence Score</span>
-          <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+          <span className="text-sm font-medium text-slate-700">Confidence Score</span>
+          <span className="text-sm font-bold text-slate-900">
             {confidenceScore !== null ? `${confidenceScore}/100` : '—'}
           </span>
         </div>
         {confidenceScore !== null ? (
-          <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3">
+          <div className="w-full bg-slate-200 rounded-full h-3">
             <div
               className={`h-3 rounded-full transition-all ${
                 confidenceScore >= 70
@@ -194,21 +194,21 @@ export function ExecutiveSummaryCard({
             />
           </div>
         ) : (
-          <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3">
-            <div className="h-3 rounded-full bg-slate-400 dark:bg-slate-600" style={{ width: '0%' }} />
+          <div className="w-full bg-slate-200 rounded-full h-3">
+            <div className="h-3 rounded-full bg-slate-400" style={{ width: '0%' }} />
           </div>
         )}
       </div>
       
       {/* Primary Actions */}
-      <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+      <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-slate-200">
         {canToggleSave && (
           <button
             onClick={onSave}
             disabled={savingToggle}
             className={`px-6 py-2.5 font-medium rounded-lg transition-colors ${
               deal.is_saved
-                ? 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                ? 'bg-slate-100 text-slate-700
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
             } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
@@ -218,7 +218,7 @@ export function ExecutiveSummaryCard({
         <button
           onClick={onPass}
           disabled={passing}
-          className="px-6 py-2.5 font-medium rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-2.5 font-medium rounded-lg border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {passing ? 'Passing...' : 'Pass on Deal'}
         </button>

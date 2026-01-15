@@ -87,7 +87,7 @@ export function OnMarketDealView({
   };
 
   return (
-    <main className="min-h-screen bg-[#F9FAFB] dark:bg-slate-900">
+    <main className="min-h-screen bg-[#F9FAFB]">
       <div className="max-w-7xl mx-auto py-8 px-4">
         <BackButton dealSourceType={deal.source_type} />
         <div className="flex gap-6">
@@ -105,16 +105,16 @@ export function OnMarketDealView({
             />
 
             {/* Initial Diligence Run Strip */}
-            <section className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+            <section className="rounded-lg border border-slate-200 bg-white p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-semibold">Initial Diligence</h2>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">Runs AI based on listing text captured from the browser extension.</p>
+                  <p className="text-xs text-slate-600">Runs AI based on listing text captured from the browser extension.</p>
                 </div>
                 <button
                   onClick={onRunInitialDiligence}
                   disabled={analyzing}
-                  className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50"
                 >
                   {analyzing ? 'Running…' : deal.ai_summary ? 'Re-run' : 'Run'}
                 </button>
@@ -129,10 +129,10 @@ export function OnMarketDealView({
             <RedFlagsPanel redFlags={redFlags} />
 
             {/* Strengths */}
-            <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500 dark:border-l-green-600 p-6">
+            <div className="rounded-lg border border-green-200 bg-green-50 border-l-4 border-l-green-500 p-6">
               <div className="flex items-center gap-2 mb-4">
-                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Strengths</h3>
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <h3 className="text-xl font-semibold text-slate-900">Strengths</h3>
               </div>
               <StrengthsPanel deal={deal} />
             </div>
@@ -150,10 +150,10 @@ export function OnMarketDealView({
             <OwnerInterviewQuestions questions={ownerQuestions} />
 
             {/* Scoring Breakdown */}
-            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+            <div className="rounded-lg border border-slate-200 bg-white p-6">
               <div className="flex items-center gap-2 mb-4">
-                <BarChart3 className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Scoring Breakdown</h3>
+                <BarChart3 className="h-5 w-5 text-slate-600" />
+                <h3 className="text-xl font-semibold text-slate-900">Scoring Breakdown</h3>
               </div>
               <RiskSignalsCard
                 scoring={scoring}
@@ -163,10 +163,10 @@ export function OnMarketDealView({
             </div>
 
             {/* Searcher Fit Analysis */}
-            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+            <div className="rounded-lg border border-slate-200 bg-white p-6">
               <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Searcher Fit Analysis</h3>
+                <TrendingUp className="h-5 w-5 text-slate-600" />
+                <h3 className="text-xl font-semibold text-slate-900">Searcher Fit Analysis</h3>
               </div>
               <SearcherSnapshot criteria={criteria} />
             </div>

@@ -28,10 +28,10 @@ export function FinancialSnapshot({
   const formatBenchmark = (value: string | number, range: string, withinRange: boolean) => {
     return (
       <div className="flex items-center gap-2 text-sm">
-        <span className="text-slate-700 dark:text-slate-300">
+        <span className="text-slate-700">
           {value} (Industry: {range})
         </span>
-        <span className={withinRange ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}>
+        <span className={withinRange ? 'text-green-600' : 'text-yellow-600'}>
           {withinRange ? '✅' : '⚠️'}
         </span>
       </div>
@@ -40,27 +40,27 @@ export function FinancialSnapshot({
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+      <div className="rounded-lg border border-slate-200 bg-white p-6">
         <div className="flex items-center gap-2 mb-4">
-          <DollarSign className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Financial Details</h3>
+          <DollarSign className="h-5 w-5 text-slate-600" />
+          <h3 className="text-xl font-semibold text-slate-900">Financial Details</h3>
         </div>
 
         <div className="space-y-4 text-sm">
           <div>
-            <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">TTM Revenue</p>
-            <p className="font-medium text-slate-900 dark:text-slate-100">{revenue}</p>
+            <p className="text-xs uppercase text-slate-600 mb-1">TTM Revenue</p>
+            <p className="font-medium text-slate-900">{revenue}</p>
           </div>
 
           <div>
-            <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">TTM EBITDA</p>
-            <p className="font-medium text-slate-900 dark:text-slate-100">{ebitda}</p>
+            <p className="text-xs uppercase text-slate-600 mb-1">TTM EBITDA</p>
+            <p className="font-medium text-slate-900">{ebitda}</p>
           </div>
 
           {margin && (
             <div>
-              <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">EBITDA Margin</p>
-              <p className="font-medium text-slate-900 dark:text-slate-100">{margin}</p>
+              <p className="text-xs uppercase text-slate-600 mb-1">EBITDA Margin</p>
+              <p className="font-medium text-slate-900">{margin}</p>
             </div>
           )}
 
@@ -69,8 +69,8 @@ export function FinancialSnapshot({
             const rev1y = finAny.revenue_1y_ago;
             return typeof rev1y === 'string' && rev1y ? (
               <div>
-                <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">Revenue (1Y ago)</p>
-                <p className="font-medium text-slate-900 dark:text-slate-100">{rev1y}</p>
+                <p className="text-xs uppercase text-slate-600 mb-1">Revenue (1Y ago)</p>
+                <p className="font-medium text-slate-900">{rev1y}</p>
               </div>
             ) : null;
           })()}
@@ -80,8 +80,8 @@ export function FinancialSnapshot({
             const rev2y = finAny.revenue_2y_ago;
             return typeof rev2y === 'string' && rev2y ? (
               <div>
-                <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">Revenue (2Y ago)</p>
-                <p className="font-medium text-slate-900 dark:text-slate-100">{rev2y}</p>
+                <p className="text-xs uppercase text-slate-600 mb-1">Revenue (2Y ago)</p>
+                <p className="font-medium text-slate-900">{rev2y}</p>
               </div>
             ) : null;
           })()}
@@ -91,16 +91,16 @@ export function FinancialSnapshot({
             const cagr = finAny.revenue_cagr_3y;
             return typeof cagr === 'string' && cagr ? (
               <div>
-                <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">3Y Revenue CAGR</p>
-                <p className="font-medium text-slate-900 dark:text-slate-100">{cagr}</p>
+                <p className="text-xs uppercase text-slate-600 mb-1">3Y Revenue CAGR</p>
+                <p className="font-medium text-slate-900">{cagr}</p>
               </div>
             ) : null;
           })()}
 
           {fin?.customer_concentration && typeof fin.customer_concentration === 'string' && (
             <div>
-              <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">Customer Concentration</p>
-              <p className="font-medium text-slate-900 dark:text-slate-100">{fin.customer_concentration}</p>
+              <p className="text-xs uppercase text-slate-600 mb-1">Customer Concentration</p>
+              <p className="font-medium text-slate-900">{fin.customer_concentration}</p>
             </div>
           )}
 
@@ -109,8 +109,8 @@ export function FinancialSnapshot({
             const capex = finAny.capex_intensity;
             return typeof capex === 'string' && capex ? (
               <div>
-                <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">Capex Intensity</p>
-                <p className="font-medium text-slate-900 dark:text-slate-100">{capex}</p>
+                <p className="text-xs uppercase text-slate-600 mb-1">Capex Intensity</p>
+                <p className="font-medium text-slate-900">{capex}</p>
               </div>
             ) : null;
           })()}
@@ -120,8 +120,8 @@ export function FinancialSnapshot({
             const wc = finAny.working_capital_needs;
             return typeof wc === 'string' && wc ? (
               <div>
-                <p className="text-xs uppercase text-slate-600 dark:text-slate-400 mb-1">Working Capital</p>
-                <p className="font-medium text-slate-900 dark:text-slate-100">{wc}</p>
+                <p className="text-xs uppercase text-slate-600 mb-1">Working Capital</p>
+                <p className="font-medium text-slate-900">{wc}</p>
               </div>
             ) : null;
           })()}
@@ -129,8 +129,8 @@ export function FinancialSnapshot({
 
         {/* Industry Benchmarks */}
         {benchmarks && typeof benchmarks === 'object' && (
-          <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
-            <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Industry Benchmarks</h4>
+          <div className="mt-6 pt-6 border-t border-slate-200">
+            <h4 className="text-sm font-semibold text-slate-900 mb-3">Industry Benchmarks</h4>
             <div className="space-y-2">
               {(() => {
                 const bm = benchmarks as Record<string, unknown>;

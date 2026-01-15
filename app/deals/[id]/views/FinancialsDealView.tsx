@@ -145,7 +145,7 @@ export function FinancialsDealView({
   };
 
   return (
-    <main className="min-h-screen bg-[#F9FAFB] dark:bg-slate-900">
+    <main className="min-h-screen bg-[#F9FAFB]">
       <div className="max-w-7xl mx-auto py-8 px-4">
         <BackButton dealSourceType={deal.source_type} />
         <div className="flex gap-6">
@@ -164,26 +164,26 @@ export function FinancialsDealView({
             />
 
             {/* Financial Analysis Run Strip */}
-            <section className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+            <section className="rounded-lg border border-slate-200 bg-white p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-sm font-semibold">Financial Analysis</h2>
-                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                  <p className="text-xs text-slate-600">
                     Runs AI on the uploaded financials attached to this deal. Skeptical read on earnings quality, missing items, and risk signals.
                   </p>
                 </div>
                 <button
                   onClick={onRun}
                   disabled={running}
-                  className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50"
+                  className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50"
                 >
                   {running ? 'Running…' : analysis ? 'Re-run Financial Analysis' : 'Run Financial Analysis'}
                 </button>
               </div>
               {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
-              {showLoadingLine && <p className="text-sm mt-3 text-slate-600 dark:text-slate-400">Loading analysis…</p>}
+              {showLoadingLine && <p className="text-sm mt-3 text-slate-600">Loading analysis…</p>}
               {!hasAnyAnalysis && (
-                <p className="text-sm mt-3 text-slate-600 dark:text-slate-400">
+                <p className="text-sm mt-3 text-slate-600">
                   No analysis yet. Click "Run Financial Analysis" to generate outputs and populate sections below.
                 </p>
               )}
@@ -196,37 +196,37 @@ export function FinancialsDealView({
             <RedFlagsPanel redFlags={redFlags} />
 
             {/* Strengths (Green Flags) */}
-            <div className="rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/20 border-l-4 border-l-green-500 dark:border-l-green-600 p-6">
+            <div className="rounded-lg border border-green-200 bg-green-50 border-l-4 border-l-green-500 p-6">
               <div className="flex items-center gap-2 mb-4">
-                <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Strengths (Green Flags)</h3>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <h3 className="text-xl font-semibold text-slate-900">Strengths (Green Flags)</h3>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
                   {greenFlags.length}
                 </span>
               </div>
               {hasAnyAnalysis ? (
                 greenFlags.length === 0 ? (
-                  <p className="text-sm text-slate-600 dark:text-slate-400">No green flags returned.</p>
+                  <p className="text-sm text-slate-600">No green flags returned.</p>
                 ) : (
                   <ul className="space-y-2">
                     {greenFlags.map((x, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm">
-                        <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
-                        <span className="text-slate-700 dark:text-slate-300">{x}</span>
+                        <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <span className="text-slate-700">{x}</span>
                       </li>
                     ))}
                   </ul>
                 )
               ) : (
-                <p className="text-sm text-slate-600 dark:text-slate-400">Green flags will populate here after you run Financial Analysis.</p>
+                <p className="text-sm text-slate-600">Green flags will populate here after you run Financial Analysis.</p>
               )}
             </div>
 
             {/* Data Confidence */}
-            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+            <div className="rounded-lg border border-slate-200 bg-white p-6">
               <div className="flex items-center gap-2 mb-4">
-                <FileCheck className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Data Confidence & Read Quality</h3>
+                <FileCheck className="h-5 w-5 text-slate-600" />
+                <h3 className="text-xl font-semibold text-slate-900">Data Confidence & Read Quality</h3>
               </div>
               <div className="flex flex-wrap items-center gap-2 mb-4">
                 <ConfidencePill
@@ -239,60 +239,60 @@ export function FinancialsDealView({
               </div>
               {hasAnyAnalysis ? (
                 signals.length === 0 ? (
-                  <p className="text-sm text-slate-600 dark:text-slate-400">No confidence signals returned.</p>
+                  <p className="text-sm text-slate-600">No confidence signals returned.</p>
                 ) : (
                   <SignalsGrid signals={signals} />
                 )
               ) : (
-                <p className="text-sm text-slate-600 dark:text-slate-400">Run Financial Analysis to generate read-quality signals.</p>
+                <p className="text-sm text-slate-600">Run Financial Analysis to generate read-quality signals.</p>
               )}
             </div>
 
             {/* YoY Trends */}
-            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+            <div className="rounded-lg border border-slate-200 bg-white p-6">
               <div className="flex items-center gap-2 mb-4">
-                <TrendingUp className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">YoY Trends</h3>
+                <TrendingUp className="h-5 w-5 text-slate-600" />
+                <h3 className="text-xl font-semibold text-slate-900">YoY Trends</h3>
               </div>
               {hasAnyAnalysis ? (
                 yoy.length === 0 ? (
-                  <p className="text-sm text-slate-600 dark:text-slate-400">No YoY trends returned.</p>
+                  <p className="text-sm text-slate-600">No YoY trends returned.</p>
                 ) : (
-                  <ul className="list-disc list-inside space-y-1 text-sm text-slate-700 dark:text-slate-300">
+                  <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
                     {yoy.slice(0, 20).map((t: string, idx: number) => (
                       <li key={idx}>{t}</li>
                     ))}
                   </ul>
                 )
               ) : (
-                <p className="text-sm text-slate-600 dark:text-slate-400">YoY trends will appear here after you run Financial Analysis.</p>
+                <p className="text-sm text-slate-600">YoY trends will appear here after you run Financial Analysis.</p>
               )}
             </div>
 
             {/* Missing Items */}
-            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+            <div className="rounded-lg border border-slate-200 bg-white p-6">
               <div className="flex items-center gap-2 mb-4">
-                <AlertTriangle className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Missing / Unclear Items</h3>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                <AlertTriangle className="h-5 w-5 text-slate-600" />
+                <h3 className="text-xl font-semibold text-slate-900">Missing / Unclear Items</h3>
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
                   {missingItems.length}
                 </span>
               </div>
               {hasAnyAnalysis ? (
                 missingItems.length === 0 ? (
-                  <p className="text-sm text-slate-600 dark:text-slate-400">Nothing flagged as missing or unclear.</p>
+                  <p className="text-sm text-slate-600">Nothing flagged as missing or unclear.</p>
                 ) : (
                   <ul className="space-y-2">
                     {missingItems.map((x, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm">
-                        <AlertTriangle className="h-5 w-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
-                        <span className="text-slate-700 dark:text-slate-300">{x}</span>
+                        <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                        <span className="text-slate-700">{x}</span>
                       </li>
                     ))}
                   </ul>
                 )
               ) : (
-                <p className="text-sm text-slate-600 dark:text-slate-400">Missing or unclear items will populate here after you run Financial Analysis.</p>
+                <p className="text-sm text-slate-600">Missing or unclear items will populate here after you run Financial Analysis.</p>
               )}
             </div>
 
@@ -303,51 +303,51 @@ export function FinancialsDealView({
             <DiligenceChecklist items={diligenceNotes} dealId={dealId} emptyText="No diligence checklist items returned." />
 
             {/* Key Metrics */}
-            <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+            <div className="rounded-lg border border-slate-200 bg-white p-6">
               <div className="flex items-center gap-2 mb-4">
-                <BarChart3 className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Key Metrics</h3>
+                <BarChart3 className="h-5 w-5 text-slate-600" />
+                <h3 className="text-xl font-semibold text-slate-900">Key Metrics</h3>
               </div>
               {!hasAnyAnalysis ? (
-                <p className="text-sm text-slate-600 dark:text-slate-400">Key metrics will populate here after you run Financial Analysis.</p>
+                <p className="text-sm text-slate-600">Key metrics will populate here after you run Financial Analysis.</p>
               ) : allYears.length === 0 ? (
-                <p className="text-sm text-slate-600 dark:text-slate-400">No structured metrics extracted.</p>
+                <p className="text-sm text-slate-600">No structured metrics extracted.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full text-left text-xs">
-                    <thead className="bg-slate-50 dark:bg-slate-700">
+                    <thead className="bg-slate-50">
                       <tr>
-                        <th className="px-3 py-2 font-semibold text-slate-700 dark:text-slate-300">Metric</th>
+                        <th className="px-3 py-2 font-semibold text-slate-700">Metric</th>
                         {allYears.map((y) => (
-                          <th key={y} className="px-3 py-2 font-semibold text-slate-700 dark:text-slate-300">
+                          <th key={y} className="px-3 py-2 font-semibold text-slate-700">
                             {y}
                           </th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                    <tbody className="divide-y divide-slate-200">
                       <tr>
-                        <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100">Revenue</td>
+                        <td className="px-3 py-2 font-medium text-slate-900">Revenue</td>
                         {allYears.map((y) => (
-                          <td key={y} className="px-3 py-2 text-slate-700 dark:text-slate-300">
+                          <td key={y} className="px-3 py-2 text-slate-700">
                             {formatMoney(yearToRevenue.get(y)?.value ?? null)}
                           </td>
                         ))}
                       </tr>
 
                       <tr>
-                        <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100">EBITDA</td>
+                        <td className="px-3 py-2 font-medium text-slate-900">EBITDA</td>
                         {allYears.map((y) => (
-                          <td key={y} className="px-3 py-2 text-slate-700 dark:text-slate-300">
+                          <td key={y} className="px-3 py-2 text-slate-700">
                             {formatMoney(yearToEbitda.get(y)?.value ?? null)}
                           </td>
                         ))}
                       </tr>
 
                       <tr>
-                        <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100">Net Income</td>
+                        <td className="px-3 py-2 font-medium text-slate-900">Net Income</td>
                         {allYears.map((y) => (
-                          <td key={y} className="px-3 py-2 text-slate-700 dark:text-slate-300">
+                          <td key={y} className="px-3 py-2 text-slate-700">
                             {formatMoney(yearToNet.get(y)?.value ?? null)}
                           </td>
                         ))}
@@ -357,9 +357,9 @@ export function FinancialsDealView({
                         const map = marginsByTypeYear.get(mt);
                         return (
                           <tr key={mt}>
-                            <td className="px-3 py-2 font-medium text-slate-900 dark:text-slate-100">{mt}</td>
+                            <td className="px-3 py-2 font-medium text-slate-900">{mt}</td>
                             {allYears.map((y) => (
-                              <td key={y} className="px-3 py-2 text-slate-700 dark:text-slate-300">
+                              <td key={y} className="px-3 py-2 text-slate-700">
                                 {formatPct(map?.get(y)?.value_pct ?? null)}
                               </td>
                             ))}
@@ -372,7 +372,7 @@ export function FinancialsDealView({
               )}
             </div>
 
-            <div className="pt-2 text-xs text-slate-500 dark:text-slate-400">
+            <div className="pt-2 text-xs text-slate-500">
               SearchFindr surfaces prioritization signals. Final judgment remains with the buyer.
             </div>
           </div>

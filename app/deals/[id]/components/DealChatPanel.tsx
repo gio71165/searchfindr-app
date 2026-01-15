@@ -268,24 +268,24 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
   // Chat is always available now
 
   const chatContent = (
-    <div className="flex flex-col h-full bg-white dark:bg-slate-800 border-l border-slate-200 dark:border-slate-700 shadow-lg">
+    <div className="flex flex-col h-full bg-white border-l border-slate-200 shadow-lg">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+      <div className="flex items-center justify-between p-4 border-b border-slate-200">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">AI Assistant</h2>
-          <p className="text-xs text-slate-600 dark:text-slate-400">Ask about this deal</p>
+          <h2 className="text-lg font-semibold text-slate-900">AI Assistant</h2>
+          <p className="text-xs text-slate-600">Ask about this deal</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleClearChat}
-            className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 underline"
+            className="text-xs text-slate-600 hover:text-slate-900 underline"
           >
             Clear
           </button>
           {isMobile && (
             <button
               onClick={() => setIsMobileDrawerOpen(false)}
-              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700"
+              className="p-1.5 rounded-lg hover:bg-slate-100"
             >
               <X className="h-4 w-4" />
             </button>
@@ -304,25 +304,25 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
               className={`flex items-start gap-2 ${isUser ? "justify-end" : "justify-start"}`}
             >
               {!isUser && (
-                <div className="h-6 w-6 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
-                  <Bot className="h-3 w-3 text-slate-600 dark:text-slate-400" />
+                <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                  <Bot className="h-3 w-3 text-slate-600" />
                 </div>
               )}
               <div
                 className={`group relative max-w-[85%] rounded-lg px-3 py-2 ${
                   isUser
                     ? "bg-blue-600 text-white"
-                    : "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100"
+                    : "bg-slate-100 text-slate-900"
                 }`}
               >
                 <p className="whitespace-pre-line text-xs leading-relaxed">{m.content}</p>
                 <div className="absolute top-1 right-1 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                  <span className="text-[10px] text-slate-500">
                     {formatTime(m.ts ?? Date.now())}
                   </span>
                   <button
                     onClick={() => copyMessage(m.content, msgId)}
-                    className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                    className="p-0.5 rounded hover:bg-slate-200 transition-colors"
                     title="Copy"
                   >
                     <Copy className="h-2.5 w-2.5" />
@@ -335,8 +335,8 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
                 )}
               </div>
               {isUser && (
-                <div className="h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
-                  <User className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <User className="h-3 w-3 text-blue-600" />
                 </div>
               )}
             </div>
@@ -344,11 +344,11 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
         })}
         {sending && (
           <div className="flex items-start gap-2">
-            <div className="h-6 w-6 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
-              <Bot className="h-3 w-3 text-slate-600 dark:text-slate-400" />
+            <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+              <Bot className="h-3 w-3 text-slate-600" />
             </div>
-            <div className="bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2">
-              <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+            <div className="bg-slate-100 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2 text-xs text-slate-600">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 <span>Analyzing...</span>
               </div>
@@ -360,13 +360,13 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
 
       {/* Error */}
       {err && (
-        <div className="px-4 py-2 border-t border-slate-200 dark:border-slate-700 bg-red-50 dark:bg-red-950/20">
-          <p className="text-xs text-red-700 dark:text-red-300">{err}</p>
+        <div className="px-4 py-2 border-t border-slate-200 bg-red-50">
+          <p className="text-xs text-red-700">{err}</p>
         </div>
       )}
 
       {/* Input */}
-      <div className="border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-4">
+      <div className="border-t border-slate-200 bg-white p-4">
         {/* Prompt Chips */}
         {corePrompts.length > 0 && (
           <div className="flex gap-2 flex-wrap mb-2">
@@ -375,7 +375,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
                 key={idx}
                 onClick={() => onClickPrompt(prompt)}
                 disabled={sending}
-                className="px-3 py-1 text-xs rounded-full border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                className="px-3 py-1 text-xs rounded-full border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
               >
                 {prompt.text}
               </button>
@@ -403,7 +403,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
             }}
             disabled={sending}
             placeholder="Ask about this deal..."
-            className="flex-1 min-h-[60px] px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
+            className="flex-1 min-h-[60px] px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
             rows={2}
           />
           <button
@@ -423,7 +423,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
             )}
           </button>
         </div>
-        <p className="mt-1.5 text-[10px] text-slate-500 dark:text-slate-400">
+        <p className="mt-1.5 text-[10px] text-slate-500">
           AI outputs are signals, not conclusions.
         </p>
       </div>

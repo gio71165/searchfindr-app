@@ -46,7 +46,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="min-h-screen bg-[#F9FAFB] dark:bg-slate-900">
+      <body className="min-h-screen bg-[#F9FAFB]">
         <ErrorBoundary>
           <Navigation />
           {children}

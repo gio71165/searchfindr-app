@@ -78,7 +78,7 @@ export function StrengthsPanel({ deal, financialAnalysis }: { deal: Deal; financ
   
   if (uniqueStrengths.length === 0) {
     return (
-      <div className="text-sm text-slate-600 dark:text-slate-400">
+      <div className="text-sm text-slate-600">
         No specific strengths identified yet. Run analysis to generate strengths.
       </div>
     );
@@ -88,8 +88,8 @@ export function StrengthsPanel({ deal, financialAnalysis }: { deal: Deal; financ
     <ul className="space-y-2">
       {uniqueStrengths.map((strength, idx) => (
         <li key={idx} className="flex items-start gap-2 text-sm">
-          <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
-          <span className="text-slate-700 dark:text-slate-300">{strength}</span>
+          <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+          <span className="text-slate-700">{strength}</span>
         </li>
       ))}
     </ul>

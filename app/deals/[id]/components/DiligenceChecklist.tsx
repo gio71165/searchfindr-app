@@ -148,23 +148,23 @@ export function DiligenceChecklist({
   const totalCount = checklistState.length;
 
   return (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-6">
+    <div className="rounded-lg border border-slate-200 bg-white p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <CheckSquare className="h-5 w-5 text-slate-600 dark:text-slate-400" />
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+          <CheckSquare className="h-5 w-5 text-slate-600" />
+          <h3 className="text-xl font-semibold text-slate-900">
             Due Diligence Checklist
           </h3>
         </div>
         {totalCount > 0 && (
-          <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
             {completedCount}/{totalCount} completed
           </span>
         )}
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-slate-600 dark:text-slate-400">{emptyText || 'No checklist generated yet.'}</p>
+        <p className="text-sm text-slate-600">{emptyText || 'No checklist generated yet.'}</p>
       ) : (
         <ul className="space-y-3">
           {checklistState.map((item) => (
@@ -180,15 +180,15 @@ export function DiligenceChecklist({
                   <span
                     className={`text-sm flex-1 ${
                       item.completed
-                        ? 'text-slate-500 dark:text-slate-400 line-through'
-                        : 'text-slate-700 dark:text-slate-300'
+                        ? 'text-slate-500 line-through'
+                        : 'text-slate-700'
                     }`}
                   >
                     {item.text}
                   </span>
                   <button
                     onClick={() => toggleNotes(item.id)}
-                    className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                    className="text-xs text-slate-500 hover:text-slate-700"
                   >
                     {expandedNotes.has(item.id) ? (
                       <ChevronUp className="h-4 w-4" />
@@ -202,7 +202,7 @@ export function DiligenceChecklist({
                     value={item.notes || ''}
                     onChange={(e) => updateNotes(item.id, e.target.value)}
                     placeholder="Add notes..."
-                    className="mt-2 w-full px-3 py-2 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    className="mt-2 w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                     rows={2}
                   />
                 )}
@@ -212,7 +212,7 @@ export function DiligenceChecklist({
         </ul>
       )}
       {saving && (
-        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Saving...</p>
+        <p className="mt-2 text-xs text-slate-500">Saving...</p>
       )}
     </div>
   );

@@ -12,7 +12,7 @@ export function ConfidenceBadge({
 }) {
   if (!analyzed) {
     return (
-      <span className={`inline-flex items-center gap-1.5 rounded-full border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 ${size === 'small' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs'}`}>
+      <span className={`inline-flex items-center gap-1.5 rounded-full border border-slate-300 bg-slate-50 text-slate-600 ${size === 'small' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs'}`}>
         <Circle className="h-3 w-3" />
         <span>Not analyzed</span>
       </span>
@@ -22,23 +22,23 @@ export function ConfidenceBadge({
   const config = {
     high: {
       icon: CheckCircle2,
-      color: 'text-emerald-700 dark:text-emerald-300',
-      bg: 'bg-emerald-50 dark:bg-emerald-950/20',
-      border: 'border-emerald-200 dark:border-emerald-800',
+      color: 'text-emerald-700',
+      bg: 'bg-emerald-50',
+      border: 'border-emerald-200',
       label: 'High confidence',
     },
     medium: {
       icon: Circle,
-      color: 'text-yellow-700 dark:text-yellow-300',
-      bg: 'bg-yellow-50 dark:bg-yellow-950/20',
-      border: 'border-yellow-200 dark:border-yellow-800',
+      color: 'text-yellow-700',
+      bg: 'bg-yellow-50',
+      border: 'border-yellow-200',
       label: 'Medium confidence',
     },
     low: {
       icon: AlertCircle,
-      color: 'text-red-700 dark:text-red-300',
-      bg: 'bg-red-50 dark:bg-red-950/20',
-      border: 'border-red-200 dark:border-red-800',
+      color: 'text-red-700',
+      bg: 'bg-red-50',
+      border: 'border-red-200',
       label: 'Low confidence',
     },
   };
