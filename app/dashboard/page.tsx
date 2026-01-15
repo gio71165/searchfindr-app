@@ -1,7 +1,7 @@
 // app/dashboard/page.tsx
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, type ChangeEvent, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "../supabaseClient";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -169,7 +169,7 @@ function getConfidenceLevel(deal: Company): ConfidenceLevel | null {
   return deal.ai_confidence_json?.level || null;
 }
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -1866,5 +1866,19 @@ export default function DashboardPage() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-[#F9FAFB] dark:bg-slate-900">
+        <div className="max-w-7xl mx-auto py-10 px-4">
+          <div className="text-center">Loading dashboard...</div>
+        </div>
+      </main>
+    }>
+      <DashboardPageContent />
+    </Suspense>
   );
 }
