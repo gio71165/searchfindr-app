@@ -39,10 +39,10 @@ export function StrengthsPanel({ deal, financialAnalysis }: { deal: Deal; financ
     }
   }
   
-  // High confidence score
+  // A tier confidence (level is 'A' | 'B' | 'C', not 'high')
   const confidence = deal.ai_confidence_json;
-  if (confidence?.level === 'high') {
-    strengths.push('High data confidence - complete and reliable information');
+  if (confidence?.level === 'A') {
+    strengths.push('A tier data confidence - complete and reliable information');
   }
   
   // Good industry fit
