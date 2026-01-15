@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { DealsRepository } from "@/lib/data-access/deals";
 import { checkRateLimit, getRateLimitConfig } from "@/lib/api/rate-limit";
+import { validateUrl, validateInputLength, getCorsHeaders } from "@/lib/api/security";
+import { logger } from "@/lib/utils/logger";
 
 export const runtime = "nodejs";
 
@@ -17,13 +19,7 @@ type Body = {
   radius_miles: number;
 };
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": process.env.NODE_ENV === "production"
-    ? "https://searchfindr-app.vercel.app"
-    : "http://localhost:3000",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const corsHeaders = getCorsHeaders();
 
 const ALLOWED_RADIUS_MILES = [5, 10, 15, 25, 50, 75, 100];
 
@@ -172,17 +168,50 @@ async function googlePlaceDetails(placeId: string) {
   return json.result as any;
 }
 
-// V1: fetch ONLY homepage text (no crawling)
+// V1: fetch ONLY homepage text (no crawling) with SSRF protection
 async function fetchHomepageText(urlStr: string) {
+  // SSRF Protection: Validate URL before fetching
+  if (!validateUrl(urlStr)) {
+    logger.warn('off-market search: Invalid URL blocked', { url: urlStr });
+    return "";
+  }
+
   try {
+    // Add timeout and size limits to prevent DoS
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
     const res = await fetch(urlStr, {
       redirect: "follow",
+      signal: controller.signal,
       headers: { "User-Agent": "SearchFindrBot/1.0 (+https://searchfindr.local)" },
     });
 
+    clearTimeout(timeoutId);
+
     if (!res.ok) return "";
 
-    const html = await res.text();
+    // Limit response size to prevent memory exhaustion
+    const reader = res.body?.getReader();
+    if (!reader) return "";
+
+    let html = "";
+    const maxSize = 500000; // 500KB max
+    let totalSize = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      
+      totalSize += value.length;
+      if (totalSize > maxSize) {
+        reader.cancel();
+        break;
+      }
+
+      html += new TextDecoder().decode(value);
+    }
+
     const cleaned = html
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
       .replace(/<style[\s\S]*?<\/style>/gi, " ")
@@ -191,7 +220,12 @@ async function fetchHomepageText(urlStr: string) {
       .trim();
 
     return cleaned.slice(0, 6000);
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      logger.warn('off-market search: URL fetch timeout', { url: urlStr });
+    } else {
+      logger.warn('off-market search: URL fetch error', { url: urlStr, error });
+    }
     return "";
   }
 }
@@ -304,7 +338,7 @@ export async function POST(req: NextRequest) {
     
     // Rate limiting
     const config = getRateLimitConfig('off-market-search');
-    const rateLimit = checkRateLimit(user.id, 'off-market-search', config.limit, config.windowSeconds);
+    const rateLimit = await checkRateLimit(user.id, 'off-market-search', config.limit, config.windowSeconds, supabaseUser);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { success: false, error: `Rate limit exceeded. Maximum ${config.limit} requests per hour. Please try again later.` },
@@ -322,6 +356,19 @@ export async function POST(req: NextRequest) {
 
     const location = toTextSafe(body.location).trim();
     const radiusMiles = Number(body.radius_miles);
+
+    // Input length validation
+    const locationError = validateInputLength(location, 200, 'Location');
+    if (locationError) {
+      return NextResponse.json({ success: false, error: locationError }, { status: 400, headers: corsHeaders });
+    }
+
+    for (const industry of industries) {
+      const industryError = validateInputLength(industry, 100, 'Industry');
+      if (industryError) {
+        return NextResponse.json({ success: false, error: industryError }, { status: 400, headers: corsHeaders });
+      }
+    }
 
     if (industries.length === 0) {
       return NextResponse.json({ success: false, error: "Select at least one industry" }, { status: 400, headers: corsHeaders });
