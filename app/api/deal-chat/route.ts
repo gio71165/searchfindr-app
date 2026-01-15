@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
 
     // 8) Canonical deal context (server truth) - sanitize text fields
     const dealContext = {
-      company_name: sanitizeShortText(deal.company_name),
+      company_name: sanitizeShortText(deal.company_name ?? ""),
       source_type: sourceType,
       ai_summary: sanitizeForPrompt(deal.ai_summary ?? "", 8000),
       ai_red_flags: sanitizeForPrompt(deal.ai_red_flags ?? "", 8000),
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
       ai_confidence_json: deal.ai_confidence_json,
       raw_listing_text: sanitizeForPrompt(deal.raw_listing_text ?? "", 8000),
       cim_storage_path: deal.cim_storage_path,
-      listing_url: sanitizeShortText(deal.listing_url),
+      listing_url: sanitizeShortText(deal.listing_url ?? ""),
     };
 
     // 9) Clean history
@@ -190,7 +190,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: e.message }, { status: e.statusCode });
     }
     const error = e instanceof Error ? e : new Error("Unknown error");
-    console.error("deal-chat GET error:", error);
-    return NextResponse.json({ error: "Unable to load chat history. Please try again." }, { status: 500 });
+    console.error("deal-chat DELETE error:", error);
+    return NextResponse.json({ error: "Unable to clear chat history. Please try again." }, { status: 500 });
   }
 }
