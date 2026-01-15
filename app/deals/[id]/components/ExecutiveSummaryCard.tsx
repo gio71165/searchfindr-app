@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { CheckCircle2, AlertTriangle, XCircle, TrendingUp, MapPin, Building2, DollarSign, Circle } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle, TrendingUp, MapPin, Building2, DollarSign, Circle, ExternalLink } from 'lucide-react';
 import { ConfidenceBadge } from '@/components/ui/ConfidenceBadge';
 import { formatMoney, formatPct } from '../lib/formatters';
 import { normalizeRedFlags } from '../lib/normalizers';
@@ -171,6 +171,21 @@ export function ExecutiveSummaryCard({
           <p className="text-lg font-semibold text-slate-900">{industry}</p>
         </div>
       </div>
+      
+      {/* Source Link - View Original Listing/Website */}
+      {((deal.source_type === 'on_market' && deal.listing_url) || (deal.source_type === 'off_market' && deal.website)) && (
+        <div className="mb-6 pt-4 border-t border-slate-200">
+          <a
+            href={deal.source_type === 'on_market' ? deal.listing_url! : deal.website!}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+          >
+            <ExternalLink className="h-4 w-4" />
+            <span>{deal.source_type === 'on_market' ? 'View Listing' : 'View Website'}</span>
+          </a>
+        </div>
+      )}
       
       {/* Confidence Score */}
       <div className="mb-6">
