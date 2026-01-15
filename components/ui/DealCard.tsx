@@ -18,7 +18,7 @@ type Deal = {
   source_type: string | null;
   created_at: string | null;
   ai_confidence_json?: {
-    level?: 'low' | 'medium' | 'high' | null;
+    level?: 'A' | 'B' | 'C' | 'low' | 'medium' | 'high' | null;
   } | null;
   final_tier?: string | null;
   ai_summary?: string | null;
@@ -94,12 +94,13 @@ export function DealCard({
       </div>
     );
   }
-  // Convert confidence level from 'low'|'medium'|'high' to 'A'|'B'|'C' format
+  // Convert confidence level to 'A'|'B'|'C' format
+  // ai_confidence_json.level can be 'A' | 'B' | 'C' (from ConfidenceJson type)
   const rawLevel = deal.ai_confidence_json?.level;
   let confidenceLevel: 'A' | 'B' | 'C' | null = null;
-  if (rawLevel === 'high' || rawLevel === 'A') confidenceLevel = 'A';
-  else if (rawLevel === 'medium' || rawLevel === 'B') confidenceLevel = 'B';
-  else if (rawLevel === 'low' || rawLevel === 'C') confidenceLevel = 'C';
+  if (rawLevel === 'A' || rawLevel === 'high') confidenceLevel = 'A';
+  else if (rawLevel === 'B' || rawLevel === 'medium') confidenceLevel = 'B';
+  else if (rawLevel === 'C' || rawLevel === 'low') confidenceLevel = 'C';
   const analyzed = Boolean(deal.ai_confidence_json);
   const preview = deal.ai_summary ? deal.ai_summary.slice(0, 120) + (deal.ai_summary.length > 120 ? '...' : '') : 'No summary available yet.';
 
