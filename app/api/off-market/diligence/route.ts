@@ -295,7 +295,8 @@ async function runOffMarketInitialDiligenceAI(input: {
     : Number(parsed?.scoring?.overall_score_0_100);
   parsed.scoring.overall_score_0_100 = clampScore(scoreNum);
 
-  if (!["A", "B", "C"].includes(parsed?.scoring?.final_tier)) parsed.scoring.final_tier = "C";
+  const finalTier = parsed?.scoring?.final_tier ?? "";
+  if (!["A", "B", "C"].includes(finalTier)) parsed.scoring.final_tier = "C";
 
   // Guardrail: owner unknown => no A, score <= 69
   if (!ownerKnown) {
