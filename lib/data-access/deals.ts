@@ -49,6 +49,7 @@ export type DealListFilters = {
   offset?: number;
   source_type?: string;
   is_saved?: boolean;
+  include_archived?: boolean; // If true, include archived deals. Default: false (exclude archived)
 };
 
 /**
@@ -58,12 +59,40 @@ export type DealListFilters = {
 export class DealsRepository extends BaseRepository {
   /**
    * Gets a single deal by ID, workspace-scoped.
+   * By default, excludes archived deals. Use getByIdIncludingArchived to get archived deals.
    * @param dealId - The deal ID
    * @returns The deal object
-   * @throws NotFoundError if deal not found
+   * @throws NotFoundError if deal not found or is archived
    * @throws DatabaseError if database error occurs
    */
   async getById(dealId: string): Promise<Deal> {
+    const { data, error } = await this.ensureWorkspaceScope(
+      this.supabase.from("companies").select("*").eq("id", dealId).is("archived_at", null)
+    ).single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        // No rows returned
+        throw new NotFoundError(`Deal with id ${dealId} not found`);
+      }
+      this.handleError(error, "Failed to get deal");
+    }
+
+    if (!data) {
+      throw new NotFoundError(`Deal with id ${dealId} not found`);
+    }
+
+    return data as Deal;
+  }
+
+  /**
+   * Gets a single deal by ID including archived deals, workspace-scoped.
+   * @param dealId - The deal ID
+   * @returns The deal object (may be archived)
+   * @throws NotFoundError if deal not found
+   * @throws DatabaseError if database error occurs
+   */
+  async getByIdIncludingArchived(dealId: string): Promise<Deal> {
     const { data, error } = await this.ensureWorkspaceScope(
       this.supabase.from("companies").select("*").eq("id", dealId)
     ).single();
@@ -85,13 +114,19 @@ export class DealsRepository extends BaseRepository {
 
   /**
    * Lists deals for the workspace with optional filters and pagination.
-   * @param filters - Optional filters including limit, offset, source_type, is_saved
+   * By default, excludes archived deals unless include_archived is true.
+   * @param filters - Optional filters including limit, offset, source_type, is_saved, include_archived
    * @returns Array of deals
    * @throws DatabaseError if database error occurs
    */
   async list(filters?: DealListFilters): Promise<Deal[]> {
     const baseQuery = this.supabase.from("companies").select("*");
     let query = this.ensureWorkspaceScope(baseQuery);
+
+    // Filter out archived deals by default
+    if (!filters?.include_archived) {
+      query = query.is("archived_at", null) as typeof query;
+    }
 
     if (filters?.source_type) {
       query = query.eq("source_type", filters.source_type) as typeof query;
@@ -325,15 +360,25 @@ export class DealsRepository extends BaseRepository {
   }
 
   /**
-   * Marks a deal as passed (sets passed_at timestamp).
+   * Marks a deal as passed (sets passed_at timestamp, stage, and reason).
    * @param dealId - The deal ID
+   * @param passReason - The reason for passing (required)
+   * @param passNotes - Additional notes (optional)
    * @returns The updated deal
    * @throws NotFoundError if deal not found
    * @throws DatabaseError if database error occurs
    */
-  async passDeal(dealId: string): Promise<Deal> {
+  async passDeal(dealId: string, passReason: string, passNotes?: string | null): Promise<Deal> {
+    const now = new Date().toISOString();
     const { data, error } = await this.ensureWorkspaceScope(
-      this.supabase.from("companies").update({ passed_at: new Date().toISOString() }).eq("id", dealId)
+      this.supabase.from("companies").update({ 
+        passed_at: now,
+        stage: 'passed',
+        verdict: 'pass',
+        pass_reason: passReason,
+        pass_notes: passNotes || null,
+        last_action_at: now,
+      }).eq("id", dealId)
     ).select().single();
 
     if (error) {
@@ -347,6 +392,25 @@ export class DealsRepository extends BaseRepository {
       throw new NotFoundError(`Deal with id ${dealId} not found`);
     }
 
+    // Log activity
+    try {
+      const { data: userData } = await this.supabase.auth.getUser();
+      await this.supabase.from("deal_activities").insert({
+        workspace_id: this.workspaceId,
+        deal_id: dealId,
+        user_id: userData?.user?.id || null,
+        activity_type: 'passed',
+        description: `Passed: ${passReason}`,
+        metadata: {
+          reason: passReason,
+          notes: passNotes || null,
+        },
+      });
+    } catch (activityError) {
+      // Don't fail the whole operation if activity logging fails
+      console.error("Failed to log activity:", activityError);
+    }
+
     return data as Deal;
   }
 
@@ -357,5 +421,80 @@ export class DealsRepository extends BaseRepository {
    */
   static filterOutPassedDeals<T extends { passed_at?: string | null }>(deals: T[]): T[] {
     return deals.filter((deal) => !deal.passed_at);
+  }
+
+  /**
+   * Archives a deal (soft delete) by setting archived_at timestamp.
+   * @param dealId - The deal ID
+   * @returns The updated deal
+   * @throws NotFoundError if deal not found
+   * @throws DatabaseError if database error occurs
+   */
+  async archive(dealId: string): Promise<Deal> {
+    const now = new Date().toISOString();
+    const { data, error } = await this.ensureWorkspaceScope(
+      this.supabase.from("companies").update({ archived_at: now }).eq("id", dealId)
+    ).select().single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        throw new NotFoundError(`Deal with id ${dealId} not found`);
+      }
+      this.handleError(error, "Failed to archive deal");
+    }
+
+    if (!data) {
+      throw new NotFoundError(`Deal with id ${dealId} not found`);
+    }
+
+    // Log activity
+    try {
+      const { data: userData } = await this.supabase.auth.getUser();
+      await this.supabase.from("deal_activities").insert({
+        workspace_id: this.workspaceId,
+        deal_id: dealId,
+        user_id: userData?.user?.id || null,
+        activity_type: 'archived',
+        description: 'Deal archived',
+        metadata: {},
+      });
+    } catch (activityError) {
+      // Don't fail the whole operation if activity logging fails
+      console.error("Failed to log activity:", activityError);
+    }
+
+    return data as Deal;
+  }
+
+  /**
+   * Permanently deletes a deal and its related data.
+   * Only allows deletion if the deal is already archived OR if force is true.
+   * Related data (deal_activities, deal_chat_messages) will be deleted via CASCADE.
+   * @param dealId - The deal ID
+   * @param force - If true, allows deletion even if not archived (requires strong confirmation on client)
+   * @returns void
+   * @throws NotFoundError if deal not found
+   * @throws DatabaseError if database error occurs or deal is not archived and force is false
+   */
+  async delete(dealId: string, force: boolean = false): Promise<void> {
+    // First, get the deal to check if it's archived
+    const deal = await this.getByIdIncludingArchived(dealId);
+
+    // Safety check: only allow deletion if archived or force is true
+    if (!force && !deal.archived_at) {
+      throw new DatabaseError("Cannot delete deal that is not archived. Archive it first or use force=true.", 400);
+    }
+
+    // Delete the deal (CASCADE will handle related tables)
+    const { error } = await this.ensureWorkspaceScope(
+      this.supabase.from("companies").delete().eq("id", dealId)
+    );
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        throw new NotFoundError(`Deal with id ${dealId} not found`);
+      }
+      this.handleError(error, "Failed to delete deal");
+    }
   }
 }

@@ -14,9 +14,9 @@ export type DealSourceType = 'on_market' | 'off_market' | 'cim_pdf' | 'financial
 export type DealTier = 'A' | 'B' | 'C';
 
 /**
- * Data confidence level
+ * Data confidence level (tier-based: A = high, B = medium, C = low)
  */
-export type DataConfidence = 'low' | 'medium' | 'high' | 'Low' | 'Medium' | 'High';
+export type DataConfidence = 'A' | 'B' | 'C';
 
 /**
  * Risk/Score level
@@ -94,7 +94,7 @@ export interface ConfidenceSignal {
  * Confidence JSON structure
  */
 export interface ConfidenceJson {
-  level: 'low' | 'medium' | 'high';
+  level: 'A' | 'B' | 'C';
   icon?: '⚠️' | '◑' | '●';
   label?: string;
   summary?: string;
@@ -121,7 +121,7 @@ export interface DealScoring {
   final_tier?: DealTier;
   final_tier_reason?: string;
   tier_basis?: string;
-  overall_score_0_100?: number;
+  overall_score_0_100?: number; // Deprecated: kept for backward compatibility, not used in UI
 }
 
 /**
@@ -166,6 +166,16 @@ export interface CriteriaMatch {
   owner_profile?: string;
   notes_for_searcher?: string;
   source_inputs?: Record<string, unknown>;
+  // Verdict fields (may be stored here or as separate columns)
+  verdict?: string;
+  verdict_confidence?: string;
+  primary_reason?: string;
+  recommended_next_action?: string;
+  // Economics fields
+  asking_price?: string;
+  asking_price_confidence?: string;
+  ebitda_ttm?: string;
+  sba_eligible?: boolean;
 }
 
 /**
@@ -177,7 +187,7 @@ export interface DealAnalysis {
   risks: string[];
   opportunities?: string[];
   recommendation?: string;
-  confidence_score?: number;
+  confidence_score?: number; // Deprecated: kept for backward compatibility, not used in UI
   ai_summary?: string;
   ai_red_flags?: string | string[];
   scoring?: DealScoring;
@@ -220,6 +230,23 @@ export interface Deal {
   created_at: string;
   updated_at: string;
   passed_at: string | null;
+  // Verdict and analysis fields
+  verdict?: string | null;
+  verdict_confidence?: string | null;
+  verdict_reason?: string | null;
+  next_action?: string | null;
+  // Deal economics
+  asking_price_extracted?: string | null;
+  ebitda_ttm_extracted?: string | null;
+  sba_eligible?: boolean | null;
+  // Stage tracking
+  stage?: string | null;
+  last_action_at?: string | null;
+  // Reminder fields
+  next_action_date?: string | null;
+  reminded_at?: string | null;
+  // Archive field
+  archived_at?: string | null;
 }
 
 /**

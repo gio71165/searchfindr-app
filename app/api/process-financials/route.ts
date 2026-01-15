@@ -9,6 +9,7 @@ import { FINANCIALS_SYSTEM_PROMPT, buildFinancialsUserMessage } from "@/lib/prom
 import { getBenchmarkForDeal } from "@/lib/data/industry-benchmarks";
 import { checkRateLimit, getRateLimitConfig } from "@/lib/api/rate-limit";
 import { validateFileSize, validateFileType } from "@/lib/api/file-validation";
+import { validateStoragePath, getCorsHeaders } from "@/lib/api/security";
 import { sanitizeForPrompt, sanitizeShortText } from "@/lib/utils/sanitize";
 import { logger } from "@/lib/utils/logger";
 import { withRetry } from "@/lib/utils/retry";
@@ -31,13 +32,7 @@ const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 
 /* ───────────────────────── CORS ───────────────────────── */
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": process.env.NODE_ENV === "production"
-    ? "https://searchfindr-app.vercel.app"
-    : "http://localhost:3000",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const corsHeaders = getCorsHeaders();
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 200, headers: corsHeaders });
@@ -65,7 +60,7 @@ function clampConfidenceLabel(v: unknown): string {
  * Example input:
  * "Operational Performance: Mixed | Financial Controls: Weak"
  */
-function buildConfidenceJson(label: string) {
+function buildConfidenceJson(label: string): ConfidenceJson {
   const bullets: string[] = [];
 
   const parts = label.split("|").map((p) => p.trim());
@@ -73,15 +68,15 @@ function buildConfidenceJson(label: string) {
     if (p) bullets.push(p);
   }
 
-  // Pick a conservative top-level level
-  let level: "High" | "Medium" | "Low" = "Medium";
+  // Pick a conservative top-level level and convert to A/B/C format
+  let level: "A" | "B" | "C" = "B"; // Default to medium
   const lower = label.toLowerCase();
-  if (lower.includes("weak") || lower.includes("low")) level = "Low";
-  if (lower.includes("strong") || lower.includes("high")) level = "High";
+  if (lower.includes("weak") || lower.includes("low")) level = "C"; // Low -> C
+  if (lower.includes("strong") || lower.includes("high")) level = "A"; // High -> A
 
   return {
-    level: level as 'low' | 'medium' | 'high',
-    icon: level === 'High' ? '●' as const : level === 'Medium' ? '◑' as const : '⚠️' as const,
+    level,
+    icon: level === 'A' ? '●' as const : level === 'B' ? '◑' as const : '⚠️' as const,
     label,
     bullets,
     source: "financial_analysis",
@@ -277,6 +272,8 @@ async function callOpenAIJson(args: {
     missing_items: clampStringArray(parsed.missing_items),
     diligence_notes: clampStringArray(parsed.diligence_notes),
     qoe_red_flags: qoeRedFlags,
+    decision_framework: parsed.decision_framework,
+    deal_economics: parsed.deal_economics,
   };
 }
 
@@ -314,7 +311,7 @@ export async function POST(req: NextRequest) {
     
     // Rate limiting
     const config = getRateLimitConfig('process-financials');
-    const rateLimit = checkRateLimit(user.id, 'process-financials', config.limit, config.windowSeconds);
+    const rateLimit = await checkRateLimit(user.id, 'process-financials', config.limit, config.windowSeconds, supabaseUser);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { error: `Rate limit exceeded. Maximum ${config.limit} requests per hour. Please try again later.` },
@@ -347,6 +344,16 @@ export async function POST(req: NextRequest) {
 
     if (!company.financials_storage_path) {
       return NextResponse.json({ error: "Missing financials_storage_path" }, { status: 400, headers: corsHeaders });
+    }
+
+    // Validate storage path to prevent path traversal attacks
+    if (!validateStoragePath(company.financials_storage_path)) {
+      logger.warn('process-financials: Invalid storage path attempted', { 
+        path: company.financials_storage_path, 
+        userId: user.id,
+        dealId 
+      });
+      return NextResponse.json({ error: "Invalid storage path" }, { status: 400, headers: corsHeaders });
     }
 
     // Download
@@ -526,6 +533,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unable to save financial analysis. Please try again." }, { status: 500, headers: corsHeaders });
     }
 
+    // ✅ Extract fields from analysis
+    const verdict = analysis.decision_framework?.verdict?.toLowerCase() || null;
+    const verdictReason = analysis.decision_framework?.primary_reason || null;
+    const verdictConfidence = analysis.decision_framework?.verdict_confidence?.toLowerCase() || null;
+    const nextAction = analysis.decision_framework?.recommended_next_action || null;
+    const askingPrice = analysis.deal_economics?.asking_price || null;
+    const revenueTTM = analysis.deal_economics?.revenue_ttm || null;
+    const ebitdaTTM = analysis.deal_economics?.ebitda_ttm || null;
+    const sbaEligible = analysis.deal_economics?.sba_eligible?.assessment === 'YES' ? true : 
+                       analysis.deal_economics?.sba_eligible?.assessment === 'NO' ? false : null;
+    const dealSizeBand = analysis.deal_economics?.deal_size_band || null;
+
     // ✅ Update company confidence AND make "Why it matters" update (ai_summary)
     // Also store enhanced financials JSON with QoE red flags, benchmarks, and questions
     const whyItMatters =
@@ -539,9 +558,57 @@ export async function POST(req: NextRequest) {
         ai_summary: whyItMatters,
         ai_financials_json: enhancedFinancialsJson,
       });
+
+      // Update analysis outputs (fields not in updateAnalysis method)
+      const { error: updateError } = await supabaseUser
+        .from('companies')
+        .update({
+          verdict: verdict === 'proceed' || verdict === 'park' || verdict === 'pass' ? verdict : null,
+          verdict_reason: verdictReason,
+          verdict_confidence: verdictConfidence === 'high' || verdictConfidence === 'medium' || verdictConfidence === 'low' ? verdictConfidence : null,
+          next_action: nextAction,
+          asking_price_extracted: askingPrice,
+          revenue_ttm_extracted: revenueTTM,
+          ebitda_ttm_extracted: ebitdaTTM,
+          sba_eligible: sbaEligible,
+          deal_size_band: dealSizeBand,
+          stage: 'reviewing', // Auto-advance from 'new' to 'reviewing'
+          last_action_at: new Date().toISOString(),
+        })
+        .eq('id', dealId)
+        .eq('workspace_id', workspace.id);
+
+      if (updateError) {
+        logger.error('Failed to update deal analysis outputs:', updateError);
+      }
     } catch (err) {
       logger.error("companies update ai_confidence_json/ai_summary/ai_financials_json error:", err);
       return NextResponse.json({ error: "Analysis completed but failed to save results. Please refresh and try again." }, { status: 500, headers: corsHeaders });
+    }
+
+    // Log activity
+    try {
+      const { error: activityError } = await supabaseUser
+        .from('deal_activities')
+        .insert({
+          workspace_id: workspace.id,
+          deal_id: dealId,
+          user_id: user.id,
+          activity_type: 'financials_analyzed',
+          description: `AI analysis complete: ${verdict ? verdict.toUpperCase() : 'Unknown'} recommendation`,
+          metadata: {
+            verdict,
+            verdict_confidence: verdictConfidence,
+            analysis_type: 'financials'
+          }
+        });
+
+      if (activityError) {
+        console.error('Failed to log activity:', activityError);
+      }
+    } catch (activityErr) {
+      console.error('Failed to log activity:', activityErr);
+      // Don't fail the request, just log the error
     }
 
     return NextResponse.json({ ok: true }, { status: 200, headers: corsHeaders });
