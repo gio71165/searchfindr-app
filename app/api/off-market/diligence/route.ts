@@ -116,16 +116,25 @@ function tierToScore(tier: string | null | undefined): number | null {
   return null;
 }
 
-function normalizeDataConfidence(v: unknown): "low" | "medium" | "high" | null {
-  const s = typeof v === "string" ? v.trim().toLowerCase() : "";
-  if (s === "low") return "low";
-  if (s === "medium") return "medium";
-  if (s === "high") return "high";
+function normalizeDataConfidence(v: unknown): "A" | "B" | "C" | null {
+  const s = typeof v === "string" ? v.trim().toUpperCase() : "";
+  
+  // Direct A/B/C match
+  if (s === "A" || s === "TIER A") return "A";
+  if (s === "B" || s === "TIER B") return "B";
+  if (s === "C" || s === "TIER C") return "C";
+  
+  // Map old low/medium/high to A/B/C
+  const lower = typeof v === "string" ? v.trim().toLowerCase() : "";
+  if (lower === "high" || lower.includes("high")) return "A";
+  if (lower === "medium" || lower.includes("medium")) return "B";
+  if (lower === "low" || lower.includes("low")) return "C";
+  
   return null;
 }
 
-function confidenceIcon(level: "low" | "medium" | "high") {
-  return level === "high" ? "●" : level === "medium" ? "◑" : "⚠️";
+function confidenceIcon(level: "A" | "B" | "C") {
+  return level === "A" ? "●" : level === "B" ? "◑" : "⚠️";
 }
 
 function buildOffMarketConfidence(ai: {
@@ -140,25 +149,25 @@ function buildOffMarketConfidence(ai: {
     known?: boolean;
   };
 }): {
-  level: "low" | "medium" | "high";
+  level: "A" | "B" | "C";
   icon: "⚠️" | "◑" | "●";
   summary: string;
   signals: { label: string; value: string }[];
   source: "off_market";
   updated_at: string;
 } {
-  const dc = normalizeDataConfidence(ai?.scoring?.data_confidence) ?? "low";
+  const dc = normalizeDataConfidence(ai?.scoring?.data_confidence) ?? "C";
 
   const tierBasis = typeof ai?.scoring?.tier_basis === "string" ? ai.scoring.tier_basis.trim() : "";
   const evidenceCount = Array.isArray(ai?.business_model?.evidence) ? ai.business_model.evidence.length : 0;
 
   let reason = "";
-  if (dc === "high") {
-    reason = "High data confidence — clear services + operational detail visible in available inputs.";
-  } else if (dc === "medium") {
-    reason = "Medium data confidence — some operational detail visible, but key details still need verification.";
+  if (dc === "A") {
+    reason = "A tier data confidence — clear services + operational detail visible in available inputs.";
+  } else if (dc === "B") {
+    reason = "B tier data confidence — some operational detail visible, but key details still need verification.";
   } else {
-    reason = "Low data confidence — limited/marketing-only inputs; major facts require verification.";
+    reason = "C tier data confidence — limited/marketing-only inputs; major facts require verification.";
   }
 
   if (tierBasis) {
@@ -271,6 +280,22 @@ async function runOffMarketInitialDiligenceAI(input: {
       owner_profile?: string;
       notes_for_searcher?: string;
     };
+    decision_framework?: {
+      verdict?: string;
+      verdict_confidence?: string;
+      primary_reason?: string;
+      recommended_next_action?: string;
+      outreach_priority?: string;
+    };
+    deal_economics?: {
+      asking_price?: string | null;
+      revenue_ttm?: string | null;
+      ebitda_ttm?: string | null;
+      deal_size_band?: string;
+      sba_eligible?: {
+        assessment?: string;
+      };
+    };
   } = JSON.parse(content);
 
   if (typeof parsed?.ai_summary !== "string") throw new Error("Bad AI response: ai_summary missing");
@@ -329,13 +354,21 @@ async function runOffMarketInitialDiligenceAI(input: {
           .slice(0, 3)
           .join(" • ") || "contracts, team size, recurring revenue"}.`;
 
-  // Normalize data_confidence and build properly typed scoring
+  // Normalize data_confidence to A/B/C tier
   const normalizedDataConfidence: DataConfidence | undefined = parsed.scoring?.data_confidence 
     ? (typeof parsed.scoring.data_confidence === 'string' 
-        ? (parsed.scoring.data_confidence.toLowerCase() === 'low' ? 'low' 
-           : parsed.scoring.data_confidence.toLowerCase() === 'medium' ? 'medium'
-           : parsed.scoring.data_confidence.toLowerCase() === 'high' ? 'high'
-           : undefined)
+        ? ((): DataConfidence | undefined => {
+            const s = parsed.scoring.data_confidence.toUpperCase();
+            if (s === 'A' || s === 'TIER A') return 'A' as DataConfidence;
+            if (s === 'B' || s === 'TIER B') return 'B' as DataConfidence;
+            if (s === 'C' || s === 'TIER C') return 'C' as DataConfidence;
+            // Map old low/medium/high to A/B/C
+            const lower = parsed.scoring.data_confidence.toLowerCase();
+            if (lower === 'high' || lower.includes('high')) return 'A' as DataConfidence;
+            if (lower === 'medium' || lower.includes('medium')) return 'B' as DataConfidence;
+            if (lower === 'low' || lower.includes('low')) return 'C' as DataConfidence;
+            return undefined;
+          })()
         : undefined)
     : undefined;
 
@@ -355,6 +388,8 @@ async function runOffMarketInitialDiligenceAI(input: {
     financials: parsed.financials ?? {},
     scoring: normalizedScoring,
     criteria_match: parsed.criteria_match ?? {},
+    decision_framework: parsed.decision_framework,
+    deal_economics: parsed.deal_economics,
   };
 }
 
@@ -374,8 +409,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Missing OPENAI_API_KEY" }, { status: 500, headers: corsHeaders });
     }
 
-    const { supabase: supabaseUser, workspace } = await authenticateRequest(req);
-    const deals = new DealsRepository(supabase, workspace.id);
+    const { supabase: supabaseUser, user, workspace } = await authenticateRequest(req);
+    const deals = new DealsRepository(supabaseUser, workspace.id);
 
     const body = (await req.json()) as Body;
 
@@ -450,6 +485,19 @@ export async function POST(req: NextRequest) {
 
     const redFlagsBulleted = bullets(ai.ai_red_flags);
 
+    // ✅ Extract fields from analysis
+    const verdict = ai.decision_framework?.verdict?.toLowerCase() || null;
+    const verdictReason = ai.decision_framework?.primary_reason || null;
+    const verdictConfidence = ai.decision_framework?.verdict_confidence?.toLowerCase() || null;
+    const nextAction = ai.decision_framework?.recommended_next_action || null;
+    const askingPrice = ai.deal_economics?.asking_price || null;
+    const revenueTTM = ai.deal_economics?.revenue_ttm || null;
+    const ebitdaTTM = ai.deal_economics?.ebitda_ttm || null;
+    const sbaEligible = ai.deal_economics?.sba_eligible?.assessment === 'YES' ? true : 
+                       ai.deal_economics?.sba_eligible?.assessment === 'NO' ? false : null;
+    const dealSizeBand = ai.deal_economics?.deal_size_band || null;
+    const outreachPriority = ai.decision_framework?.outreach_priority || null;
+
     // ✅ WRITE RESULTS TO DB (removed updated_at — your companies table doesn't have it)
     try {
       await deals.updateAnalysis(companyId, {
@@ -463,12 +511,68 @@ export async function POST(req: NextRequest) {
         score,
         ai_confidence_json: confidenceJson,
       });
+
+      // Update analysis outputs (fields not in updateAnalysis method)
+      const updateData: any = {
+        verdict: verdict === 'proceed' || verdict === 'park' || verdict === 'pass' ? verdict : null,
+        verdict_reason: verdictReason,
+        verdict_confidence: verdictConfidence === 'high' || verdictConfidence === 'medium' || verdictConfidence === 'low' ? verdictConfidence : null,
+        next_action: nextAction,
+        asking_price_extracted: askingPrice,
+        revenue_ttm_extracted: revenueTTM,
+        ebitda_ttm_extracted: ebitdaTTM,
+        sba_eligible: sbaEligible,
+        deal_size_band: dealSizeBand,
+        stage: 'reviewing', // Auto-advance from 'new' to 'reviewing'
+        last_action_at: new Date().toISOString(),
+      };
+
+      // Add outreach_priority if present (may not be in schema, but user requested it)
+      if (outreachPriority) {
+        updateData.outreach_priority = outreachPriority;
+      }
+
+      const { error: updateError } = await supabaseUser
+        .from('companies')
+        .update(updateData)
+        .eq('id', companyId)
+        .eq('workspace_id', workspace.id);
+
+      if (updateError) {
+        console.error('Failed to update deal analysis outputs:', updateError);
+      }
     } catch (err) {
       console.error("off-market diligence DB update error:", err);
       return NextResponse.json(
         { success: false, error: "Analysis completed but failed to save results. Please refresh and try again." },
         { status: 500, headers: corsHeaders }
       );
+    }
+
+    // Log activity
+    try {
+      const { error: activityError } = await supabaseUser
+        .from('deal_activities')
+        .insert({
+          workspace_id: workspace.id,
+          deal_id: companyId,
+          user_id: user.id,
+          activity_type: 'off_market_analyzed',
+          description: `AI analysis complete: ${verdict ? verdict.toUpperCase() : 'Unknown'} recommendation`,
+          metadata: {
+            verdict,
+            verdict_confidence: verdictConfidence,
+            analysis_type: 'off_market',
+            outreach_priority: outreachPriority
+          }
+        });
+
+      if (activityError) {
+        console.error('Failed to log activity:', activityError);
+      }
+    } catch (activityErr) {
+      console.error('Failed to log activity:', activityErr);
+      // Don't fail the request, just log the error
     }
 
     return NextResponse.json(
