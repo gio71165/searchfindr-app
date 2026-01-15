@@ -7,10 +7,11 @@ import { NotFoundError } from '@/lib/data-access/base';
 import { CIM_ANALYSIS_INSTRUCTIONS, buildCimAnalysisUserText } from '@/lib/prompts/cim-analysis';
 import { checkRateLimit, getRateLimitConfig } from '@/lib/api/rate-limit';
 import { validateFileSize, validateFileType } from '@/lib/api/file-validation';
+import { validateStoragePath } from '@/lib/api/security';
 import { sanitizeShortText } from '@/lib/utils/sanitize';
 import { logger } from '@/lib/utils/logger';
 import { withRetry } from '@/lib/utils/retry';
-import type { CriteriaMatch } from '@/lib/types/deal';
+import type { CriteriaMatch, ConfidenceJson } from '@/lib/types/deal';
 
 export const runtime = 'nodejs';
 
@@ -133,11 +134,11 @@ function coerceRedFlagsToBulletedMarkdown(value: unknown): string | null {
  * ✅ NEW: Data confidence snapshot builder (for companies.ai_confidence_json)
  * This is CONFIDENCE IN INPUTS / DISCLOSURE QUALITY — not "AI confidence".
  */
-type DataConfidenceLevel = 'low' | 'medium' | 'high';
+type DataConfidenceLevel = 'A' | 'B' | 'C';
 
 function iconForLevel(level: DataConfidenceLevel): '⚠️' | '◑' | '●' {
-  if (level === 'high') return '●';
-  if (level === 'medium') return '◑';
+  if (level === 'A') return '●';
+  if (level === 'B') return '◑';
   return '⚠️';
 }
 
@@ -203,7 +204,7 @@ function buildCimDataConfidence(parsed: {
     deal_complexity?: unknown;
   };
   ai_red_flags?: unknown;
-}) {
+}): ConfidenceJson {
   const scoring = parsed?.scoring ?? {};
 
   const financialQuality = normalizeLMH(scoring?.financial_quality);
@@ -215,24 +216,24 @@ function buildCimDataConfidence(parsed: {
   const redFlagsCount = countRedFlags(parsed);
 
   // Conservative decision logic:
-  // - Low if financial quality is Low OR lots of unknowns
-  // - High only if financial quality is High AND very few unknowns AND modest red flags
-  let level: DataConfidenceLevel = 'medium';
-  if (financialQuality === 'Low' || unknownCount >= 3) level = 'low';
-  if (financialQuality === 'High' && unknownCount <= 1 && redFlagsCount <= 4) level = 'high';
+  // - C if financial quality is Low OR lots of unknowns
+  // - A only if financial quality is High AND very few unknowns AND modest red flags
+  let level: DataConfidenceLevel = 'B';
+  if (financialQuality === 'Low' || unknownCount >= 3) level = 'C';
+  if (financialQuality === 'High' && unknownCount <= 1 && redFlagsCount <= 4) level = 'A';
 
   // One-line reason (data confidence wording)
   let summaryReason = 'inputs require verification';
   if (financialQuality === 'Low') summaryReason = 'financial disclosures appear inconsistent or heavily adjusted';
   else if (unknownCount >= 3) summaryReason = 'material disclosures are missing or unclear';
-  else if (level === 'high') summaryReason = 'disclosures appear internally consistent with reasonable detail';
+  else if (level === 'A') summaryReason = 'disclosures appear internally consistent with reasonable detail';
 
   const summary =
-    level === 'high'
-      ? `High data confidence — ${summaryReason}.`
-      : level === 'medium'
-      ? `Medium data confidence — ${summaryReason}.`
-      : `Low data confidence — ${summaryReason}.`;
+    level === 'A'
+      ? `A tier data confidence — ${summaryReason}.`
+      : level === 'B'
+      ? `B tier data confidence — ${summaryReason}.`
+      : `C tier data confidence — ${summaryReason}.`;
 
   const signals: Array<{ label: string; value: string }> = [
     { label: 'Financial disclosure', value: financialQuality === 'unknown' ? 'Unknown' : financialQuality },
@@ -243,7 +244,7 @@ function buildCimDataConfidence(parsed: {
   ];
 
   return {
-    level, // 'low' | 'medium' | 'high'
+    level, // 'A' | 'B' | 'C'
     icon: iconForLevel(level),
     summary,
     signals,
@@ -260,7 +261,7 @@ export async function POST(req: NextRequest) {
     
     // Rate limiting
     const config = getRateLimitConfig('process-cim');
-    const rateLimit = checkRateLimit(user.id, 'process-cim', config.limit, config.windowSeconds);
+    const rateLimit = await checkRateLimit(user.id, 'process-cim', config.limit, config.windowSeconds, supabaseUser);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { success: false, error: `Rate limit exceeded. Maximum ${config.limit} requests per hour. Please try again later.` },
@@ -277,6 +278,12 @@ export async function POST(req: NextRequest) {
 
     if (!companyId || !cimStoragePath) {
       return NextResponse.json({ success: false, error: 'Missing companyId or cimStoragePath' }, { status: 400 });
+    }
+
+    // Validate storage path to prevent path traversal attacks
+    if (!validateStoragePath(cimStoragePath)) {
+      logger.warn('process-cim: Invalid storage path attempted', { cimStoragePath, userId: user.id });
+      return NextResponse.json({ success: false, error: 'Invalid storage path' }, { status: 400 });
     }
 
     // Verify company belongs to user's workspace
@@ -389,6 +396,21 @@ export async function POST(req: NextRequest) {
       qoe?: Record<string, unknown>;
       scoring?: Record<string, unknown>;
       criteria_match?: Record<string, unknown>;
+      decision_framework?: {
+        verdict?: string;
+        primary_reason?: string;
+        verdict_confidence?: string;
+        recommended_next_action?: string;
+      };
+      deal_economics?: {
+        asking_price?: string;
+        revenue_ttm?: string;
+        ebitda_ttm?: string;
+        sba_eligible?: {
+          assessment?: string;
+        };
+        deal_size_band?: string;
+      };
     };
 
     try {
@@ -412,6 +434,18 @@ export async function POST(req: NextRequest) {
     // ✅ NEW: data confidence snapshot for dashboard/deal (companies.ai_confidence_json)
     const cimDataConfidence = buildCimDataConfidence(parsed);
 
+    // ✅ Extract fields from analysis
+    const verdict = parsed.decision_framework?.verdict?.toLowerCase() || null;
+    const verdictReason = parsed.decision_framework?.primary_reason || null;
+    const verdictConfidence = parsed.decision_framework?.verdict_confidence?.toLowerCase() || null;
+    const nextAction = parsed.decision_framework?.recommended_next_action || null;
+    const askingPrice = parsed.deal_economics?.asking_price || null;
+    const revenueTTM = parsed.deal_economics?.revenue_ttm || null;
+    const ebitdaTTM = parsed.deal_economics?.ebitda_ttm || null;
+    const sbaEligible = parsed.deal_economics?.sba_eligible?.assessment === 'YES' ? true : 
+                       parsed.deal_economics?.sba_eligible?.assessment === 'NO' ? false : null;
+    const dealSizeBand = parsed.deal_economics?.deal_size_band || null;
+
     // ✅ WRITE RESULTS TO DB
     try {
       await deals.updateAnalysis(companyId, {
@@ -425,12 +459,60 @@ export async function POST(req: NextRequest) {
           : null,
         ai_confidence_json: cimDataConfidence,
       });
+
+      // Update analysis outputs (fields not in updateAnalysis method)
+      const { error: updateError } = await supabaseUser
+        .from('companies')
+        .update({
+          verdict: verdict === 'proceed' || verdict === 'park' || verdict === 'pass' ? verdict : null,
+          verdict_reason: verdictReason,
+          verdict_confidence: verdictConfidence === 'high' || verdictConfidence === 'medium' || verdictConfidence === 'low' ? verdictConfidence : null,
+          next_action: nextAction,
+          asking_price_extracted: askingPrice,
+          revenue_ttm_extracted: revenueTTM,
+          ebitda_ttm_extracted: ebitdaTTM,
+          sba_eligible: sbaEligible,
+          deal_size_band: dealSizeBand,
+          stage: 'reviewing', // Auto-advance from 'new' to 'reviewing'
+          last_action_at: new Date().toISOString(),
+        })
+        .eq('id', companyId)
+        .eq('workspace_id', workspace.id);
+
+      if (updateError) {
+        logger.error('Failed to update deal analysis outputs:', updateError);
+      }
     } catch (err) {
       logger.error('process-cim: DB update error:', err);
       return NextResponse.json(
         { success: false, error: 'CIM analysis completed but failed to save results. Please refresh and try again.' },
         { status: 500 }
       );
+    }
+
+    // Log activity
+    try {
+      const { error: activityError } = await supabaseUser
+        .from('deal_activities')
+        .insert({
+          workspace_id: workspace.id,
+          deal_id: companyId,
+          user_id: user.id,
+          activity_type: 'cim_analyzed',
+          description: `AI analysis complete: ${verdict ? verdict.toUpperCase() : 'Unknown'} recommendation`,
+          metadata: {
+            verdict,
+            verdict_confidence: verdictConfidence,
+            analysis_type: 'cim'
+          }
+        });
+
+      if (activityError) {
+        console.error('Failed to log activity:', activityError);
+      }
+    } catch (activityErr) {
+      console.error('Failed to log activity:', activityErr);
+      // Don't fail the request, just log the error
     }
 
     return NextResponse.json({
