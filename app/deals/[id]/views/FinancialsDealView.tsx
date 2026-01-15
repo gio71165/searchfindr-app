@@ -51,7 +51,7 @@ export function FinancialsDealView({
   const missingItems = normalizeStringArray(analysis?.missing_items);
   const diligenceNotes = normalizeStringArray(analysis?.diligence_notes);
   const qoeRedFlags = analysis?.qoe_red_flags || [];
-  const ownerQuestions = analysis?.owner_interview_questions || [];
+  const ownerQuestions = analysis?.extracted_metrics?.owner_interview_questions || [];
 
   const extracted = analysis?.extracted_metrics ?? null;
   const yoy = normalizeStringArray(extracted?.yoy_trends);

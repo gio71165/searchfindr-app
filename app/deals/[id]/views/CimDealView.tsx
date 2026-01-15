@@ -19,7 +19,7 @@ import { BackButton } from '../components/BackButton';
 import { getDealConfidence } from '../lib/confidence';
 import { normalizeRedFlags, normalizeConfidenceSignals } from '../lib/normalizers';
 import { safeDateLabel } from '../lib/formatters';
-import type { Deal } from '@/lib/types/deal';
+import type { Deal, FinancialMetrics } from '@/lib/types/deal';
 import { BarChart3, TrendingUp, FileCheck, CheckCircle2 } from 'lucide-react';
 
 export function CimDealView({
@@ -48,40 +48,28 @@ export function CimDealView({
   const scoring = deal.ai_scoring_json || {};
   const criteria = deal.criteria_match_json || {};
   const finRaw = deal.ai_financials_json || {};
+  const finRawAny = finRaw as Record<string, unknown>;
 
-  const fin = {
-    revenue:
-      finRaw.revenue ??
-      finRaw.ttm_revenue ??
-      finRaw.revenue_ttm ??
-      finRaw.ttmRevenue ??
-      finRaw.latest_revenue ??
-      null,
-    ebitda:
-      finRaw.ebitda ??
-      finRaw.ttm_ebitda ??
-      finRaw.ebitda_ttm ??
-      finRaw.ttmEbitda ??
-      finRaw.latest_ebitda ??
-      null,
-    margin: finRaw.ebitda_margin ?? finRaw.ebitda_margin_ttm ?? finRaw.margin ?? finRaw.ebitdaMargin ?? null,
-    customer_concentration:
-      finRaw.customer_concentration ?? finRaw.customer_conc ?? finRaw.customer_concentration_summary ?? null,
-    revenue_1y_ago: finRaw.revenue_1y_ago ?? finRaw.revenue_last_year ?? finRaw.revenue_fy1 ?? null,
-    revenue_2y_ago: finRaw.revenue_2y_ago ?? finRaw.revenue_two_years_ago ?? finRaw.revenue_fy2 ?? null,
-    revenue_cagr_3y:
-      finRaw.revenue_cagr_3y ?? finRaw.revenue_3yr_cagr ?? finRaw.revenue_cagr_3yr ?? finRaw.rev_cagr_3y ?? null,
-    capex_intensity: finRaw.capex_intensity ?? finRaw.capex_pct_revenue ?? null,
-    working_capital_needs: finRaw.working_capital_needs ?? finRaw.working_capital_profile ?? null,
-    qoe_red_flags: finRaw.qoe_red_flags || [],
-    industry_benchmark: finRaw.industry_benchmark || null,
-    owner_interview_questions: finRaw.owner_interview_questions || [],
+  // Build fin object compatible with FinancialMetrics type, extracting from various possible field names
+  const revenueValue = finRaw.revenue ?? finRawAny.ttm_revenue ?? finRawAny.revenue_ttm ?? finRawAny.ttmRevenue ?? finRawAny.latest_revenue;
+  const ebitdaValue = finRaw.ebitda ?? finRawAny.ttm_ebitda ?? finRawAny.ebitda_ttm ?? finRawAny.ttmEbitda ?? finRawAny.latest_ebitda;
+  
+  const fin: FinancialMetrics = {
+    ...finRaw,
+    revenue: Array.isArray(revenueValue) ? revenueValue : undefined,
+    ebitda: Array.isArray(ebitdaValue) ? ebitdaValue : undefined,
+    margin: finRaw.margin ?? (typeof finRawAny.ebitda_margin === 'string' ? finRawAny.ebitda_margin : undefined) ?? (typeof finRawAny.ebitda_margin_ttm === 'string' ? finRawAny.ebitda_margin_ttm : undefined) ?? (typeof finRawAny.ebitdaMargin === 'string' ? finRawAny.ebitdaMargin : undefined),
+    customer_concentration: finRaw.customer_concentration ?? (typeof finRawAny.customer_conc === 'string' ? finRawAny.customer_conc : undefined) ?? (typeof finRawAny.customer_concentration_summary === 'string' ? finRawAny.customer_concentration_summary : undefined),
+    qoe_red_flags: Array.isArray(finRaw.qoe_red_flags) ? finRaw.qoe_red_flags : undefined,
+    industry_benchmark: finRaw.industry_benchmark ?? undefined,
+    owner_interview_questions: Array.isArray(finRaw.owner_interview_questions) ? finRaw.owner_interview_questions : undefined,
   };
 
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
   const qoeRedFlags = fin.qoe_red_flags || [];
   const ownerQuestions = fin.owner_interview_questions || [];
-  const ddChecklist: string[] = Array.isArray(criteria.dd_checklist) ? criteria.dd_checklist.map(String) : [];
+  const criteriaAny = criteria as Record<string, unknown>;
+  const ddChecklist: string[] = Array.isArray(criteriaAny.dd_checklist) ? criteriaAny.dd_checklist.map(String) : [];
 
   const confidence = getDealConfidence(deal);
 

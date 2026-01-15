@@ -22,9 +22,13 @@ export function StrengthsPanel({ deal, financialAnalysis }: { deal: Deal; financ
     });
   }
   
-  // High revenue growth
-  if (fin.revenue && typeof fin.revenue === 'string' && fin.revenue.toLowerCase().includes('growth')) {
-    strengths.push('High revenue growth indicated');
+  // High revenue growth - check revenue array entries
+  const revenueRaw = fin.revenue;
+  if (Array.isArray(revenueRaw) && revenueRaw.length > 0) {
+    const revenueText = String(revenueRaw[0]?.value || '').toLowerCase();
+    if (revenueText.includes('growth')) {
+      strengths.push('High revenue growth indicated');
+    }
   }
   
   // Strong margins
@@ -42,12 +46,12 @@ export function StrengthsPanel({ deal, financialAnalysis }: { deal: Deal; financ
   }
   
   // Good industry fit
-  if (scoring.industry_fit === 'High' || criteria?.industry_fit === 'High') {
+  if (scoring.industry_fit === 'High') {
     strengths.push('Strong industry fit for search fund criteria');
   }
   
   // Good geography fit
-  if (scoring.geography_fit === 'High' || criteria?.geography_fit === 'High') {
+  if (scoring.geography_fit === 'High') {
     strengths.push('Strong geographic fit');
   }
   
@@ -64,9 +68,9 @@ export function StrengthsPanel({ deal, financialAnalysis }: { deal: Deal; financ
     }
   }
   
-  // Good financial quality
-  if (scoring.financial_quality === 'High') {
-    strengths.push('High financial quality - consistent and reliable');
+  // Good operational quality
+  if (scoring.operational_quality_signal === 'High') {
+    strengths.push('High operational quality - consistent and reliable');
   }
   
   // Remove duplicates

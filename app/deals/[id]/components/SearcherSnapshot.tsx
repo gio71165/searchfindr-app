@@ -24,26 +24,38 @@ export function SearcherSnapshot({ criteria }: { criteria: CriteriaMatch | null 
             <p className="text-slate-700 dark:text-slate-300">{criteria.owner_profile || '—'}</p>
           </div>
 
-          {criteria.platform_vs_addon && (
-            <div>
-              <p className="font-semibold text-slate-900 dark:text-slate-100">Platform vs Add-on</p>
-              <p className="text-slate-700 dark:text-slate-300">{criteria.platform_vs_addon || '—'}</p>
-            </div>
-          )}
+          {(() => {
+            const criteriaAny = criteria as Record<string, unknown>;
+            const platform = criteriaAny.platform_vs_addon;
+            return platform && typeof platform === 'string' ? (
+              <div>
+                <p className="font-semibold text-slate-900 dark:text-slate-100">Platform vs Add-on</p>
+                <p className="text-slate-700 dark:text-slate-300">{platform || '—'}</p>
+              </div>
+            ) : null;
+          })()}
 
-          {criteria.moat_summary && (
-            <div>
-              <p className="font-semibold text-slate-900 dark:text-slate-100">Moat / Differentiation</p>
-              <p className="text-slate-700 dark:text-slate-300">{criteria.moat_summary || '—'}</p>
-            </div>
-          )}
+          {(() => {
+            const criteriaAny = criteria as Record<string, unknown>;
+            const moat = criteriaAny.moat_summary;
+            return moat && typeof moat === 'string' ? (
+              <div>
+                <p className="font-semibold text-slate-900 dark:text-slate-100">Moat / Differentiation</p>
+                <p className="text-slate-700 dark:text-slate-300">{moat || '—'}</p>
+              </div>
+            ) : null;
+          })()}
 
-          {criteria.integration_risks && (
-            <div>
-              <p className="font-semibold text-slate-900 dark:text-slate-100">Integration Risks</p>
-              <p className="text-slate-700 dark:text-slate-300">{criteria.integration_risks || '—'}</p>
-            </div>
-          )}
+          {(() => {
+            const criteriaAny = criteria as Record<string, unknown>;
+            const risks = criteriaAny.integration_risks;
+            return risks && typeof risks === 'string' ? (
+              <div>
+                <p className="font-semibold text-slate-900 dark:text-slate-100">Integration Risks</p>
+                <p className="text-slate-700 dark:text-slate-300">{risks || '—'}</p>
+              </div>
+            ) : null;
+          })()}
 
           <div>
             <p className="font-semibold text-slate-900 dark:text-slate-100">Notes for Searcher</p>

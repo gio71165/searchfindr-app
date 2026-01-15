@@ -41,13 +41,28 @@ export function OffMarketDealView({
   const fin = deal.ai_financials_json || {};
   const scoring = deal.ai_scoring_json || {};
   const criteria = deal.criteria_match_json || {};
-  const ownerSignals = criteria?.owner_signals || null;
+  const criteriaAny = criteria as Record<string, unknown> | null;
+  const ownerSignals = criteriaAny?.owner_signals as {
+    likely_owner_operated?: boolean;
+    owner_named_on_site?: boolean;
+    owner_name?: string;
+    generation_hint?: string;
+    owner_dependency_risk?: string;
+    years_in_business?: string;
+    evidence?: string[];
+    missing_info?: string[];
+    confidence?: number;
+  } | null || null;
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
   const qoeRedFlags = fin.qoe_red_flags || [];
   const ownerQuestions = fin.owner_interview_questions || [];
 
+  const dealWithExtras = deal as Deal & {
+    rating?: number | null;
+    ratings_total?: number | null;
+  };
   const ratingLine =
-    deal.rating || deal.ratings_total ? `${deal.rating ?? '—'} (${deal.ratings_total ?? '—'} reviews)` : null;
+    dealWithExtras.rating || dealWithExtras.ratings_total ? `${dealWithExtras.rating ?? '—'} (${dealWithExtras.ratings_total ?? '—'} reviews)` : null;
 
   const confidencePct =
     ownerSignals && typeof ownerSignals.confidence === 'number' ? Math.round(ownerSignals.confidence * 100) : null;
