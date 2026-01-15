@@ -299,3 +299,18 @@ export interface DealChatMessage {
   };
   created_at?: string;
 }
+
+/**
+ * Deal Activity (deal_activities table)
+ */
+export interface DealActivity {
+  id?: string;
+  workspace_id: string;
+  deal_id: string;
+  user_id: string;
+  activity_type: string;
+  description: string;
+  metadata?: Record<string, unknown>;
+  created_at?: string;
+  company_name?: string; // Optional: populated when joining with companies table
+}

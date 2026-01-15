@@ -7,10 +7,10 @@ interface VerdictFiltersProps {
 
 export function VerdictFilters(props: VerdictFiltersProps) {
   return (
-    <div className="flex flex-wrap gap-4 items-center mb-6 text-sm bg-white p-4 rounded-lg border border-gray-200">
+    <div className="flex flex-wrap gap-4 items-center mb-6 text-sm bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
       {/* Verdict buttons */}
       <div className="flex gap-2 items-center">
-        <span className="text-gray-700 font-medium">Verdict:</span>
+        <span className="text-gray-700 dark:text-gray-300 font-medium">Verdict:</span>
         <VerdictButton
           active={props.selectedVerdict === 'all'}
           onClick={() => props.setSelectedVerdict('all')}
@@ -39,7 +39,14 @@ export function VerdictFilters(props: VerdictFiltersProps) {
   );
 }
 
-function VerdictButton({ active, onClick, label, color }: any) {
+interface VerdictButtonProps {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  color?: 'green' | 'yellow' | 'gray';
+}
+
+function VerdictButton({ active, onClick, label, color }: VerdictButtonProps) {
   const colors = {
     green: active ? 'bg-green-600 text-white' : 'bg-green-100 text-green-800',
     yellow: active ? 'bg-yellow-600 text-white' : 'bg-yellow-100 text-yellow-800',

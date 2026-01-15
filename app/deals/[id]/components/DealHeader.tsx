@@ -199,7 +199,15 @@ export function DealHeader({
         <div className="flex-1">
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1">
-              <h1 className="text-3xl font-semibold mb-1">{deal.company_name || 'Untitled Company'}</h1>
+              <div className="flex items-center gap-4 mb-1">
+                <h1 className="text-3xl font-semibold">{deal.company_name || 'Untitled Company'}</h1>
+                {askingPrice && (
+                  <div className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Asking:</span>
+                    <span className="text-lg font-bold text-blue-900 dark:text-blue-100 ml-2">{askingPrice}</span>
+                  </div>
+                )}
+              </div>
               <p className="text-sm text-muted-foreground">
                 {deal.location_city && `${deal.location_city}, `}
                 {deal.location_state || (deal.metadata?.address as string | undefined) || ''}

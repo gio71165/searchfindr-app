@@ -32,42 +32,34 @@ export function SetReminderButton({
     setSaving(true);
 
     try {
-      const { error } = await supabase
-        .from('companies')
-        .update({
-          next_action_date: date,
-          next_action: action || 'Follow up',
-          reminded_at: null, // Reset reminder flag
-          last_action_at: new Date().toISOString()
-        })
-        .eq('id', dealId)
-        .eq('workspace_id', workspaceId);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('Please log in to set reminders');
+        return;
+      }
 
-      if (error) throw error;
+      const response = await fetch(`/api/deals/${dealId}/reminder`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          date,
+          action: action || 'Follow up',
+        }),
+      });
 
-      // Log activity
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase
-          .from('deal_activities')
-          .insert({
-            workspace_id: workspaceId,
-            deal_id: dealId,
-            user_id: user.id,
-            activity_type: 'reminder_set',
-            description: `Reminder set for ${new Date(date).toLocaleDateString()}: ${action || 'Follow up'}`,
-            metadata: {
-              reminder_date: date,
-              action
-            }
-          });
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Failed to set reminder' }));
+        throw new Error(error.error || 'Failed to set reminder');
       }
 
       setShowModal(false);
       if (onUpdate) onUpdate();
     } catch (error) {
       console.error('Error setting reminder:', error);
-      alert('Failed to set reminder. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to set reminder. Please try again.');
     } finally {
       setSaving(false);
     }
@@ -75,20 +67,30 @@ export function SetReminderButton({
 
   async function handleClear() {
     try {
-      await supabase
-        .from('companies')
-        .update({
-          next_action_date: null,
-          next_action: null,
-          reminded_at: null
-        })
-        .eq('id', dealId)
-        .eq('workspace_id', workspaceId);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('Please log in to clear reminders');
+        return;
+      }
+
+      const response = await fetch(`/api/deals/${dealId}/reminder`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ clear: true }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Failed to clear reminder' }));
+        throw new Error(error.error || 'Failed to clear reminder');
+      }
 
       if (onUpdate) onUpdate();
     } catch (error) {
       console.error('Error clearing reminder:', error);
-      alert('Failed to clear reminder. Please try again.');
+      alert(error instanceof Error ? error.message : 'Failed to clear reminder. Please try again.');
     }
   }
 
@@ -103,11 +105,11 @@ export function SetReminderButton({
 
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h2 className="text-xl font-semibold mb-4">Set Reminder</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-semibold mb-4 dark:text-white">Set Reminder</h2>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Follow up on:
               </label>
               <input
@@ -115,12 +117,12 @@ export function SetReminderButton({
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 min={new Date().toISOString().split('T')[0]}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-3 py-2"
               />
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 What to do:
               </label>
               <input
@@ -128,7 +130,7 @@ export function SetReminderButton({
                 value={action}
                 onChange={(e) => setAction(e.target.value)}
                 placeholder="e.g., Follow up with broker"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2"
+                className="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg px-3 py-2"
               />
             </div>
 

@@ -2,12 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/app/supabaseClient';
+import type { Deal, DealActivity } from '@/lib/types/deal';
+
+interface DealWithDays extends Deal {
+  days_overdue?: number;
+  days_in_stage?: number;
+}
 
 export function useTodayData() {
-  const [followUpsNeeded, setFollowUpsNeeded] = useState<any[]>([]);
-  const [stuckDeals, setStuckDeals] = useState<any[]>([]);
-  const [proceedWithoutAction, setProceedWithoutAction] = useState<any[]>([]);
-  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [followUpsNeeded, setFollowUpsNeeded] = useState<DealWithDays[]>([]);
+  const [stuckDeals, setStuckDeals] = useState<DealWithDays[]>([]);
+  const [proceedWithoutAction, setProceedWithoutAction] = useState<Deal[]>([]);
+  const [recentActivity, setRecentActivity] = useState<DealActivity[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -162,7 +168,7 @@ export function useTodayData() {
         console.error('Error fetching proceed without action:', proceedError);
         setProceedWithoutAction([]);
       } else {
-        const proceedWithoutNext = (proceedData || []).filter((deal: any) => !deal.next_action);
+        const proceedWithoutNext = (proceedData || []).filter((deal: Deal) => !deal.next_action);
         setProceedWithoutAction(proceedWithoutNext);
       }
 

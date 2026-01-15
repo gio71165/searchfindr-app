@@ -7,6 +7,7 @@ import { ConfidenceBadge } from './ConfidenceBadge';
 import { SourceBadge } from './SourceBadge';
 import { Skeleton } from './Skeleton';
 import { MoreActionsMenu } from '@/components/deal/MoreActionsMenu';
+import { TierBadge } from '@/app/deals/[id]/components/TierBadge';
 import { supabase } from '@/app/supabaseClient';
 
 type Deal = {
@@ -249,10 +250,8 @@ export function DealCard({
 
           <div className="flex flex-wrap items-center gap-2 mb-3">
             <SourceBadge source={deal.source_type} />
-            {deal.final_tier && (
-              <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 text-amber-700 px-2.5 py-1 text-xs font-medium uppercase">
-                Tier {deal.final_tier}
-              </span>
+            {(deal.source_type === 'on_market' || deal.source_type === 'off_market') && deal.final_tier && (
+              <TierBadge tier={deal.final_tier} />
             )}
             <ConfidenceBadge level={confidenceLevel} analyzed={analyzed} />
           </div>
@@ -284,12 +283,17 @@ export function DealCard({
 
       {/* Deal Economics */}
       {(askingPrice || ebitda) && (
-        <div className="text-sm text-gray-600 mt-2 mb-2">
+        <div className="mt-2 mb-2">
           {askingPrice && (
-            <span>{askingPrice}</span>
+            <div className="inline-flex items-center px-2.5 py-1 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-sm">
+              <span className="text-blue-700 dark:text-blue-300 font-medium">Asking: </span>
+              <span className="text-blue-900 dark:text-blue-100 font-bold ml-1">{askingPrice}</span>
+            </div>
           )}
           {ebitda && (
-            <span>{askingPrice ? ' • ' : ''}{ebitda} EBITDA</span>
+            <div className={`mt-1.5 text-sm text-gray-600 dark:text-gray-400 ${askingPrice ? '' : ''}`}>
+              {ebitda} EBITDA
+            </div>
           )}
         </div>
       )}

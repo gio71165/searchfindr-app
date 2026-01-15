@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { MapPin, Building2, Calendar, Star, Trash2 } from 'lucide-react';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { SourceBadge } from './SourceBadge';
+import { TierBadge } from '@/app/deals/[id]/components/TierBadge';
 
 type Deal = {
   id: string;
@@ -150,10 +151,8 @@ export function DealListView({
                     <ConfidenceBadge level={confidenceLevel} analyzed={analyzed} size="small" />
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
-                    {deal.final_tier ? (
-                      <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 text-amber-700 px-2 py-0.5 text-xs font-medium uppercase">
-                        Tier {deal.final_tier}
-                      </span>
+                    {(deal.source_type === 'on_market' || deal.source_type === 'off_market') && deal.final_tier ? (
+                      <TierBadge tier={deal.final_tier} />
                     ) : (
                       <span className="text-xs text-slate-400">—</span>
                     )}
