@@ -45,9 +45,9 @@ export function Navigation() {
       <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#0b0f17]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link href="/" className="text-xl font-bold text-slate-100 hover:text-indigo-300 transition-colors">
+            <a href="https://www.searchfindr.net/" className="text-xl font-bold text-slate-100 hover:text-indigo-300 transition-colors">
               SearchFindr
-            </Link>
+            </a>
             <a
               href={STRIPE_PAYMENT_URL}
               target="_blank"
