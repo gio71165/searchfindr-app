@@ -9,6 +9,41 @@ type RateLimitResult = {
   resetAt: number;
 };
 
+// Lazy cleanup: periodically delete expired entries during rate limit checks
+// This avoids needing a separate cron job (useful on Vercel Hobby plan)
+// Runs ~1% of the time to keep cleanup overhead minimal
+let lastCleanupTime = 0;
+const CLEANUP_INTERVAL_MS = 5 * 60 * 1000; // Check every 5 minutes max
+const CLEANUP_CHANCE = 0.01; // 1% chance per check after interval
+
+async function lazyCleanupExpiredRateLimits(supabase: SupabaseClient): Promise<void> {
+  const now = Date.now();
+  
+  // Only consider cleanup if enough time has passed
+  if (now - lastCleanupTime < CLEANUP_INTERVAL_MS) {
+    return;
+  }
+  
+  // Random chance to avoid all instances cleaning simultaneously
+  if (Math.random() > CLEANUP_CHANCE) {
+    return;
+  }
+  
+  lastCleanupTime = now;
+  
+  // Non-blocking cleanup - don't wait for it or fail if it errors
+  supabase
+    .from('rate_limits')
+    .delete()
+    .lt('reset_at', new Date().toISOString())
+    .catch((error) => {
+      // Silently fail - cleanup is non-critical
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Rate limit lazy cleanup:', error);
+      }
+    });
+}
+
 /**
  * Check rate limit using Supabase table
  * Creates a rate_limits table if it doesn't exist (via migration)
@@ -25,6 +60,9 @@ type RateLimitResult = {
  * 
  * CREATE INDEX IF NOT EXISTS idx_rate_limits_key ON rate_limits(key);
  * CREATE INDEX IF NOT EXISTS idx_rate_limits_reset_at ON rate_limits(reset_at);
+ * 
+ * Note: Lazy cleanup runs automatically (~1% chance per check) to remove expired
+ * entries without needing a separate cron job.
  */
 export async function checkRateLimitSupabase(
   supabase: SupabaseClient,
@@ -36,6 +74,9 @@ export async function checkRateLimitSupabase(
   const key = `ratelimit:${userId}:${endpoint}`;
   const now = new Date();
   const resetAt = new Date(now.getTime() + windowSeconds * 1000);
+
+  // Trigger lazy cleanup occasionally (non-blocking)
+  lazyCleanupExpiredRateLimits(supabase);
 
   try {
     // Get or create rate limit entry
