@@ -12,14 +12,18 @@ import type { ChatRole } from "@/lib/types/deal";
 const MAX_MESSAGE_LENGTH = 5000;
 
 export async function POST(req: NextRequest) {
+  let body: any = null;
+  let user: any = null;
+  
   try {
     // 1) Auth
-    const { supabase, user, workspace } = await authenticateRequest(req);
+    const { supabase, user: authUser, workspace } = await authenticateRequest(req);
+    user = authUser;
     const deals = new DealsRepository(supabase, workspace.id);
     const chat = new ChatRepository(supabase, workspace.id);
 
     // 2) Body
-    const body = await req.json().catch(() => null);
+    body = await req.json().catch(() => null);
     const dealId = body?.dealId;
     const messageRaw = typeof body?.message === "string" ? body.message.trim() : "";
     const historyRaw = Array.isArray(body?.history) ? body.history : [];
@@ -151,7 +155,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: e.message }, { status: 404 });
     }
     const error = e instanceof Error ? e : new Error("Unknown error");
-    console.error("deal-chat POST error:", error);
+    const errorMessage = error.message || String(e);
+    const errorStack = error.stack;
+    console.error("deal-chat POST error:", {
+      message: errorMessage,
+      stack: errorStack,
+      dealId: body?.dealId || "unknown",
+      userId: user?.id || "unknown",
+    });
     return NextResponse.json(
       { error: "Unable to process chat message. Please try again." },
       { status: 500 }
