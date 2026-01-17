@@ -32,16 +32,17 @@ async function lazyCleanupExpiredRateLimits(supabase: SupabaseClient): Promise<v
   lastCleanupTime = now;
   
   // Non-blocking cleanup - don't wait for it or fail if it errors
-  supabase
-    .from('rate_limits')
-    .delete()
-    .lt('reset_at', new Date().toISOString())
-    .catch((error) => {
-      // Silently fail - cleanup is non-critical
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Rate limit lazy cleanup:', error);
-      }
-    });
+  try {
+    await supabase
+      .from('rate_limits')
+      .delete()
+      .lt('reset_at', new Date().toISOString());
+  } catch (error) {
+    // Silently fail - cleanup is non-critical
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Rate limit lazy cleanup:', error);
+    }
+  }
 }
 
 /**

@@ -89,24 +89,27 @@ export async function POST(
       );
     }
 
-    // Log activity
-    await supabase
-      .from('deal_activities')
-      .insert({
-        workspace_id: workspace.id,
-        deal_id: dealId,
-        user_id: user.id,
-        activity_type: 'reminder_set',
-        description: `Reminder set for ${new Date(date).toLocaleDateString()}: ${actionText}`,
-        metadata: {
-          reminder_date: date,
-          action: actionText,
-        },
-      })
-      .catch((err) => {
-        // Log but don't fail the request if activity logging fails
-        logger.warn('Failed to log reminder activity:', err);
-      });
+    // Log activity (best-effort; don't fail the request if it fails)
+    try {
+      const { error: activityError } = await supabase
+        .from('deal_activities')
+        .insert({
+          workspace_id: workspace.id,
+          deal_id: dealId,
+          user_id: user.id,
+          activity_type: 'reminder_set',
+          description: `Reminder set for ${new Date(date).toLocaleDateString()}: ${actionText}`,
+          metadata: {
+            reminder_date: date,
+            action: actionText,
+          },
+        });
+      if (activityError) {
+        logger.warn('Failed to log reminder activity:', activityError);
+      }
+    } catch (err) {
+      logger.warn('Failed to log reminder activity:', err);
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {
