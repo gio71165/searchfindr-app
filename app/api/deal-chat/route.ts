@@ -172,7 +172,7 @@ export async function POST(req: NextRequest) {
         userId: user?.id || "unknown",
       });
       return NextResponse.json(
-        { error: "Unable to access deal data. Please try again." },
+        { error: "Something went wrong. Please try again later." },
         { status: 500 }
       );
     }
@@ -186,7 +186,7 @@ export async function POST(req: NextRequest) {
       userId: user?.id || "unknown",
     });
     return NextResponse.json(
-      { error: "Unable to process chat message. Please try again." },
+      { error: "Something went wrong. Please try again later." },
       { status: 500 }
     );
   }

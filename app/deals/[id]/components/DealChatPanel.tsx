@@ -229,18 +229,30 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
         json = JSON.parse(raw);
       } catch {}
 
-      if (!res.ok) throw new Error(json?.error || `Chat failed (HTTP ${res.status})`);
+      if (!res.ok) {
+        // Log error for debugging but show friendly message to user
+        console.error("Chat API error:", { status: res.status, error: json?.error });
+        throw new Error("API_ERROR");
+      }
 
       const answer = String(json?.answer ?? json?.content ?? "").trim();
-      if (!answer) throw new Error("No answer returned from chat route.");
+      if (!answer) {
+        console.error("Chat API returned empty answer");
+        throw new Error("EMPTY_ANSWER");
+      }
 
       setMessages((prev) => [...prev, { role: "assistant", content: answer, ts: Date.now() }]);
     } catch (e: unknown) {
+      // Always show friendly message to users, log technical details for debugging
       const error = e instanceof Error ? e : new Error('Unknown error');
-      setErr(error.message || "Failed to send chat.");
+      console.error("Chat error details:", error);
+      
+      // Friendly user-facing message
+      const friendlyMessage = "Something went wrong. Please try again later, or contact support if the issue persists.";
+      setErr(friendlyMessage);
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "Sorry — chat failed. Try again.", ts: Date.now() },
+        { role: "assistant", content: friendlyMessage, ts: Date.now() },
       ]);
     } finally {
       setSending(false);
