@@ -71,6 +71,16 @@ export class DealsRepository extends BaseRepository {
     ).single();
 
     if (error) {
+      // Log the full Supabase error for debugging
+      console.error("DealsRepository.getById Supabase error:", {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        dealId,
+        workspaceId: this.workspaceId,
+      });
+      
       if (error.code === "PGRST116") {
         // No rows returned
         throw new NotFoundError(`Deal with id ${dealId} not found`);

@@ -48,7 +48,12 @@ export abstract class BaseRepository {
    */
   protected handleError(error: unknown, message: string): never {
     if (error instanceof Error) {
-      throw new DatabaseError(`${message}: ${error.message}`, 500);
+      // Try to extract Supabase error details if available
+      const errorWithCode = error as any;
+      const details = errorWithCode.details ? ` Details: ${errorWithCode.details}` : '';
+      const hint = errorWithCode.hint ? ` Hint: ${errorWithCode.hint}` : '';
+      const code = errorWithCode.code ? ` (${errorWithCode.code})` : '';
+      throw new DatabaseError(`${message}: ${error.message}${code}${details}${hint}`, 500);
     }
     throw new DatabaseError(message, 500);
   }
