@@ -48,6 +48,17 @@ export async function authenticateRequest(
   // 3) Get user from token
   const { data: authData, error: authErr } = await supabase.auth.getUser(token);
   if (authErr || !authData?.user) {
+    // Log detailed error for debugging
+    console.error("Auth token validation failed:", {
+      error: authErr ? {
+        message: authErr.message,
+        status: authErr.status,
+        name: authErr.name,
+      } : "No error object",
+      hasUser: !!authData?.user,
+      tokenLength: token.length,
+      tokenPrefix: token.substring(0, 20) + "...",
+    });
     throw new AuthError("Unauthorized (bad token)", 401);
   }
   const user = authData.user;
