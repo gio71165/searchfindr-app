@@ -1,14 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../app/supabaseClient';
 import { ChevronDown, LogOut, Settings, User, Zap } from 'lucide-react';
 
+const STRIPE_PAYMENT_URL = 'https://buy.stripe.com/dRm4gz1ReaTxct01lKawo00';
+
 export function Navigation() {
-  const pathname = usePathname();
   const router = useRouter();
+  const [authLoading, setAuthLoading] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -18,8 +20,16 @@ export function Navigation() {
         data: { user },
       } = await supabase.auth.getUser();
       setEmail(user?.email ?? null);
+      setAuthLoading(false);
     };
     getUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setEmail(session?.user?.email ?? null);
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleLogout = async () => {
@@ -27,28 +37,43 @@ export function Navigation() {
     router.push('/');
   };
 
-  const isActive = (path: string) => {
-    if (path === '/deals') return pathname?.startsWith('/deals');
-    if (path === '/settings') return pathname === '/settings';
-    return false;
-  };
+  const isAuthenticated = !authLoading && !!email;
 
+  // Minimal nav when logged out: logo + "Need access?" only. No Connect Extension, no user dropdown.
+  if (!isAuthenticated) {
+    return (
+      <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#0b0f17]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <Link href="/" className="text-xl font-bold text-slate-100 hover:text-indigo-300 transition-colors">
+              SearchFindr
+            </Link>
+            <a
+              href={STRIPE_PAYMENT_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-slate-300 hover:text-indigo-300 transition-colors"
+            >
+              Need access?
+            </a>
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
+  // Full nav when authenticated
   return (
     <nav className="sticky top-0 z-50 border-b border-slate-200 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Left: Logo */}
           <div className="flex items-center">
             <Link href="/dashboard" className="text-xl font-bold text-slate-900 hover:text-blue-600 transition-colors">
               SearchFindr
             </Link>
           </div>
 
-          {/* Center: Navigation Links - Removed (Now in Sidebar) */}
-
-          {/* Right: Connect Extension Button + User Menu */}
           <div className="flex items-center gap-3">
-            {/* Connect Extension Button */}
             <button
               onClick={() => window.open('/extension/callback', '_blank', 'noopener,noreferrer')}
               className="flex items-center gap-2 px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-700 transition-colors"
@@ -58,7 +83,6 @@ export function Navigation() {
               <span className="sm:hidden">Extension</span>
             </button>
 
-            {/* User Menu */}
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
