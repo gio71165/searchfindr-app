@@ -4,7 +4,7 @@ import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { chatForDeal } from "@/lib/ai/dealChat";
 import { DealsRepository } from "@/lib/data-access/deals";
 import { ChatRepository } from "@/lib/data-access/chat";
-import { NotFoundError } from "@/lib/data-access/base";
+import { NotFoundError, DatabaseError } from "@/lib/data-access/base";
 import { sanitizeForPrompt, sanitizeShortText } from "@/lib/utils/sanitize";
 import { validateInputLength } from "@/lib/api/security";
 import type { ChatRole } from "@/lib/types/deal";
@@ -40,8 +40,18 @@ export async function POST(req: NextRequest) {
 
     const message = sanitizeForPrompt(messageRaw);
 
-    // 3) Deal (workspace-scoped)
-    const deal = await deals.getById(dealId);
+    // 3) Deal (workspace-scoped) - try including archived deals if not found
+    let deal;
+    try {
+      deal = await deals.getById(dealId);
+    } catch (err) {
+      // If deal not found (might be archived), try including archived
+      if (err instanceof NotFoundError) {
+        deal = await deals.getByIdIncludingArchived(dealId);
+      } else {
+        throw err;
+      }
+    }
 
     // 5) Mode A enforcement (schema truth)
     const isCim = !!deal.cim_storage_path;
@@ -153,6 +163,18 @@ export async function POST(req: NextRequest) {
     }
     if (e instanceof NotFoundError) {
       return NextResponse.json({ error: e.message }, { status: 404 });
+    }
+    if (e instanceof DatabaseError) {
+      // Log database errors with more context
+      console.error("deal-chat POST database error:", {
+        message: e.message,
+        dealId: body?.dealId || "unknown",
+        userId: user?.id || "unknown",
+      });
+      return NextResponse.json(
+        { error: "Unable to access deal data. Please try again." },
+        { status: 500 }
+      );
     }
     const error = e instanceof Error ? e : new Error("Unknown error");
     const errorMessage = error.message || String(e);
