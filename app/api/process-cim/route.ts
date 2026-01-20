@@ -254,6 +254,10 @@ function buildCimDataConfidence(parsed: {
 }
 
 export async function POST(req: NextRequest) {
+  const startTime = Date.now();
+  let statusCode = 500;
+  let errorMessage: string | undefined;
+  
   try {
     logger.info('process-cim: received request');
 
@@ -515,7 +519,8 @@ export async function POST(req: NextRequest) {
       // Don't fail the request, just log the error
     }
 
-    return NextResponse.json({
+    statusCode = 200;
+    const response = NextResponse.json({
       success: true,
       companyId,
       deal_verdict: parsed.deal_verdict,
@@ -529,11 +534,60 @@ export async function POST(req: NextRequest) {
       // ✅ helpful for UI debugging / dashboard
       ai_confidence_json: cimDataConfidence,
     });
+
+    // Log usage
+    const { logUsage, getIpAddress, getUserAgent } = await import('@/lib/api/usage-logger');
+    await logUsage({
+      userId: user.id,
+      workspaceId: workspace.id,
+      endpoint: 'process-cim',
+      method: 'POST',
+      statusCode,
+      responseTimeMs: Date.now() - startTime,
+      ipAddress: getIpAddress(req),
+      userAgent: getUserAgent(req),
+    });
+
+    return response;
   } catch (err) {
+    statusCode = err instanceof AuthError ? err.statusCode : 500;
+    errorMessage = err instanceof Error ? err.message : 'Unknown error';
+    
     if (err instanceof AuthError) {
-      return NextResponse.json({ success: false, error: err.message }, { status: err.statusCode });
+      const response = NextResponse.json({ success: false, error: err.message }, { status: err.statusCode });
+      
+      // Log usage for auth errors
+      try {
+        const { logUsage, getIpAddress, getUserAgent } = await import('@/lib/api/usage-logger');
+        await logUsage({
+          endpoint: 'process-cim',
+          method: 'POST',
+          statusCode,
+          errorMessage: err.message,
+          responseTimeMs: Date.now() - startTime,
+          ipAddress: getIpAddress(req),
+          userAgent: getUserAgent(req),
+        });
+      } catch {}
+      
+      return response;
     }
     logger.error('process-cim error:', err);
+    
+    // Log usage for other errors
+    try {
+      const { logUsage, getIpAddress, getUserAgent } = await import('@/lib/api/usage-logger');
+      await logUsage({
+        endpoint: 'process-cim',
+        method: 'POST',
+        statusCode,
+        errorMessage,
+        responseTimeMs: Date.now() - startTime,
+        ipAddress: getIpAddress(req),
+        userAgent: getUserAgent(req),
+      });
+    } catch {}
+    
     return NextResponse.json({ success: false, error: 'Unable to process CIM document. Please try again later.' }, { status: 500 });
   }
 }

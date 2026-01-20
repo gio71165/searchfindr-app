@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../app/supabaseClient';
-import { ChevronDown, LogOut, Settings, User, Zap } from 'lucide-react';
+import { ChevronDown, LogOut, Settings, User, Zap, Shield } from 'lucide-react';
 
 const STRIPE_PAYMENT_URL = 'https://buy.stripe.com/dRm4gz1ReaTxct01lKawo00';
 
@@ -12,6 +12,7 @@ export function Navigation() {
   const router = useRouter();
   const [authLoading, setAuthLoading] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
@@ -20,14 +21,35 @@ export function Navigation() {
         data: { user },
       } = await supabase.auth.getUser();
       setEmail(user?.email ?? null);
+      
+      // Check if user is admin
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', user.id)
+          .single();
+        setIsAdmin(profile?.is_admin === true);
+      }
+      
       setAuthLoading(false);
     };
     getUser();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setEmail(session?.user?.email ?? null);
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', session.user.id)
+          .single();
+        setIsAdmin(profile?.is_admin === true);
+      } else {
+        setIsAdmin(false);
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -106,6 +128,16 @@ export function Navigation() {
                       <div className="px-4 py-2 border-b border-slate-200">
                         <p className="text-sm font-medium text-slate-900">{email}</p>
                       </div>
+                      {isAdmin && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setShowUserMenu(false)}
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                        >
+                          <Shield className="h-4 w-4" />
+                          Admin Dashboard
+                        </Link>
+                      )}
                       <Link
                         href="/settings"
                         onClick={() => setShowUserMenu(false)}
