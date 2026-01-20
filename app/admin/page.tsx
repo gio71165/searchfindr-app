@@ -352,7 +352,7 @@ export default function AdminDashboard() {
                     border: '1px solid #e5e7eb',
                     borderRadius: '6px',
                   }}
-                  formatter={(value: number) => [`${value}%`, 'Adoption']}
+                  formatter={(value: number | undefined) => [`${value ?? 0}%`, 'Adoption']}
                 />
                 <Bar dataKey="adoption" radius={[0, 4, 4, 0]}>
                   {featureAdoption.map((entry, index) => (
