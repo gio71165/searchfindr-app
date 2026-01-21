@@ -28,6 +28,23 @@ export default function CimsPage() {
   const [cimUploadStatus, setCimUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
   const [uploadProgress, setUploadProgress] = useState(0);
 
+  function isAllowedCimFile(file: File) {
+    const name = (file.name || '').toLowerCase();
+    const mime = file.type || '';
+    const isPdf = mime === 'application/pdf' || name.endsWith('.pdf');
+    const isDocx = 
+      mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      name.endsWith('.docx');
+    const isDoc = 
+      mime === 'application/msword' ||
+      name.endsWith('.doc');
+    return isPdf || isDocx || isDoc;
+  }
+
+  function stripExt(filename: string) {
+    return filename.replace(/\.(pdf|docx|doc)$/i, '');
+  }
+
   useEffect(() => {
     const init = async () => {
       try {
@@ -111,8 +128,8 @@ export default function CimsPage() {
   const handleCimFileSelect = async (file: File) => {
     if (!file) return;
 
-    if (file.type !== 'application/pdf') {
-      setErrorMsg('Please upload a PDF file for the CIM.');
+    if (!isAllowedCimFile(file)) {
+      setErrorMsg('Please upload a PDF, DOCX, or DOC file for the CIM.');
       setCimFile(null);
       setCimUploadStatus('error');
       return;
@@ -140,7 +157,7 @@ export default function CimsPage() {
         });
       }, 200);
 
-      const fileExt = file.name.split('.').pop() || 'pdf';
+      const fileExt = (file.name.split('.').pop() || '').toLowerCase() || 'pdf';
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
       const filePath = `${userId}/${fileName}`;
 
@@ -156,7 +173,7 @@ export default function CimsPage() {
         return;
       }
 
-      const cimNameWithoutExt = file.name.replace(/\.pdf$/i, '');
+      const cimNameWithoutExt = stripExt(file.name);
 
       const { data: insertData, error: insertError } = await supabase
         .from('companies')
@@ -237,7 +254,7 @@ export default function CimsPage() {
       <div className="mb-6">
         <DragDropZone
           onFileSelect={handleCimFileSelect}
-          accept="application/pdf"
+          accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
           maxSizeMB={50}
           uploadStatus={cimUploadStatus}
           uploadProgress={uploadProgress}
@@ -245,12 +262,12 @@ export default function CimsPage() {
           successMessage={cimUploadStatus === 'uploaded' ? 'CIM uploaded successfully!' : null}
           disabled={!userId || !workspaceId}
           label="Upload CIM"
-          description="Drag and drop a PDF file here, or click to browse"
+          description="Drag and drop a PDF, DOCX, or DOC file here, or click to browse"
           icon={<Upload className="h-12 w-12 text-blue-500" />}
-          allowedFileTypes={['.pdf', 'application/pdf']}
+          allowedFileTypes={['.pdf', '.docx', '.doc', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword']}
           validateFile={(file) => {
-            if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-              return { valid: false, error: 'Please upload a PDF file for the CIM.' };
+            if (!isAllowedCimFile(file)) {
+              return { valid: false, error: 'Please upload a PDF, DOCX, or DOC file for the CIM.' };
             }
             return { valid: true };
           }}

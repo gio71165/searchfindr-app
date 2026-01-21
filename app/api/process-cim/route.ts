@@ -34,12 +34,12 @@ const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-// Helper: upload PDF bytes to OpenAI Files API and return file_id
-async function uploadPdfToOpenAI(pdfArrayBuffer: ArrayBuffer, filename: string) {
-  const pdfBlob = new Blob([pdfArrayBuffer], { type: 'application/pdf' });
+// Helper: upload file bytes to OpenAI Files API and return file_id
+async function uploadFileToOpenAI(fileArrayBuffer: ArrayBuffer, filename: string, mimeType: string) {
+  const fileBlob = new Blob([fileArrayBuffer], { type: mimeType });
 
   const formData = new FormData();
-  formData.append('file', pdfBlob, filename || 'cim.pdf');
+  formData.append('file', fileBlob, filename);
   formData.append('purpose', 'assistants');
 
   const res = await withRetry(
@@ -57,11 +57,11 @@ async function uploadPdfToOpenAI(pdfArrayBuffer: ArrayBuffer, filename: string) 
   if (!res.ok) {
     const errorText = await res.text();
     logger.error('OpenAI file upload error:', errorText);
-    throw new Error('Failed to upload CIM PDF to OpenAI');
+    throw new Error(`Failed to upload CIM file to OpenAI: ${errorText}`);
   }
 
   const json = await res.json();
-  logger.info('process-cim: uploaded file id', json.id);
+  logger.info('process-cim: uploaded file id', json.id, 'for file', filename);
   return json.id as string;
 }
 
@@ -304,41 +304,96 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'OPENAI_API_KEY is not set on the server.' }, { status: 500 });
     }
 
-    // 1) Build public URL for the CIM PDF from Supabase Storage
+    // 1) Build public URL for the CIM file from Supabase Storage
     const { data: publicUrlData } = supabaseAdmin.storage.from('cims').getPublicUrl(cimStoragePath);
 
     const publicUrl = publicUrlData?.publicUrl;
     logger.info('process-cim: publicUrl', publicUrl);
 
     if (!publicUrl) {
-      return NextResponse.json({ success: false, error: 'Failed to build public URL for CIM PDF.' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Failed to build public URL for CIM file.' }, { status: 500 });
     }
 
-    // 2) Download the PDF from Supabase
-    const pdfRes = await fetch(publicUrl);
-    logger.info('process-cim: pdf fetch status', pdfRes.status, pdfRes.statusText);
+    // 2) Download the file from Supabase
+    const fileRes = await fetch(publicUrl);
+    logger.info('process-cim: file fetch status', fileRes.status, fileRes.statusText);
 
-    if (!pdfRes.ok) {
-      logger.error('Failed to fetch PDF from storage:', pdfRes.status, pdfRes.statusText);
-      return NextResponse.json({ success: false, error: 'Failed to download CIM PDF from storage.' }, { status: 500 });
+    if (!fileRes.ok) {
+      logger.error('Failed to fetch file from storage:', fileRes.status, fileRes.statusText);
+      return NextResponse.json({ success: false, error: 'Failed to download CIM file from storage.' }, { status: 500 });
     }
 
-    const pdfArrayBuffer = await pdfRes.arrayBuffer();
+    const fileArrayBuffer = await fileRes.arrayBuffer();
 
     // Validate file size
-    const sizeCheck = validateFileSize(pdfArrayBuffer.byteLength);
+    const sizeCheck = validateFileSize(fileArrayBuffer.byteLength);
     if (!sizeCheck.valid) {
       return NextResponse.json({ success: false, error: sizeCheck.error }, { status: 400 });
     }
 
-    // Validate file type by magic bytes
-    const typeCheck = validateFileType(pdfArrayBuffer, ['pdf']);
+    // Get file extension from storage path to help with type detection
+    const pathExtension = cimStoragePath.split('.').pop()?.toLowerCase() || '';
+    
+    // Validate file type by magic bytes - support PDF, DOCX, and DOC
+    const typeCheck = validateFileType(fileArrayBuffer, ['pdf', 'docx', 'doc', 'xlsx', 'xls']); // Include xlsx/xls for detection
+    
     if (!typeCheck.valid) {
-      return NextResponse.json({ success: false, error: typeCheck.error || 'Invalid file type' }, { status: 400 });
+      return NextResponse.json({ success: false, error: typeCheck.error || 'Invalid file type. Only PDF, DOCX, and DOC files are supported.' }, { status: 400 });
     }
 
-    // 3) Upload PDF directly to OpenAI so it can read the CIM itself
-    const fileId = await uploadPdfToOpenAI(pdfArrayBuffer, `${companyName}.pdf`);
+    // Determine actual file type - use extension as hint for ZIP/OLE2 files
+    let detectedType = typeCheck.detectedType || 'pdf';
+    
+    // If detected as ZIP (could be DOCX or XLSX), use extension to determine
+    if (detectedType === 'xlsx' || detectedType === 'docx') {
+      if (pathExtension === 'docx') {
+        detectedType = 'docx';
+      } else if (pathExtension === 'xlsx' || pathExtension === 'xls') {
+        return NextResponse.json({ success: false, error: 'Excel files are not supported for CIM processing. Please upload a PDF, DOCX, or DOC file.' }, { status: 400 });
+      } else {
+        // Default to DOCX if extension not clear (for CIM context)
+        detectedType = 'docx';
+      }
+    }
+    
+    // If detected as OLE2 (could be DOC or XLS), use extension to determine
+    if (detectedType === 'xls' || detectedType === 'doc') {
+      if (pathExtension === 'doc') {
+        detectedType = 'doc';
+      } else if (pathExtension === 'xlsx' || pathExtension === 'xls') {
+        return NextResponse.json({ success: false, error: 'Excel files are not supported for CIM processing. Please upload a PDF, DOCX, or DOC file.' }, { status: 400 });
+      } else {
+        // Default to DOC if extension not clear (for CIM context)
+        detectedType = 'doc';
+      }
+    }
+    
+    // Final validation - ensure it's one of the allowed CIM types
+    if (!['pdf', 'docx', 'doc'].includes(detectedType)) {
+      return NextResponse.json({ success: false, error: 'Invalid file type. Only PDF, DOCX, and DOC files are supported for CIM processing.' }, { status: 400 });
+    }
+    
+    // Determine MIME type and file extension based on detected type
+    let mimeType: string;
+    let fileExtension: string;
+    switch (detectedType) {
+      case 'docx':
+        mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        fileExtension = 'docx';
+        break;
+      case 'doc':
+        mimeType = 'application/msword';
+        fileExtension = 'doc';
+        break;
+      case 'pdf':
+      default:
+        mimeType = 'application/pdf';
+        fileExtension = 'pdf';
+        break;
+    }
+
+    // 3) Upload file directly to OpenAI so it can read the CIM itself
+    const fileId = await uploadFileToOpenAI(fileArrayBuffer, `${companyName}.${fileExtension}`, mimeType);
 
     // 4) System instructions: strict, buyer-protective, ETA/search & capital-advisor focused
     const instructions = CIM_ANALYSIS_INSTRUCTIONS.template;

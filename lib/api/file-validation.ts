@@ -16,6 +16,14 @@ const FILE_SIGNATURES: Record<string, number[][]> = {
   xls: [
     [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1], // OLE2 header
   ],
+  docx: [
+    [0x50, 0x4b, 0x03, 0x04], // ZIP header (DOCX is a ZIP file)
+    [0x50, 0x4b, 0x05, 0x06], // ZIP empty archive
+    [0x50, 0x4b, 0x07, 0x08], // ZIP spanned archive
+  ],
+  doc: [
+    [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1], // OLE2 header (same as XLS)
+  ],
   csv: [
     // CSV doesn't have a magic byte signature, so we'll validate by content
   ],
@@ -97,7 +105,7 @@ export function validateFileType(buffer: ArrayBuffer, expectedTypes: string[]): 
   if (!detectedType) {
     return {
       valid: false,
-      error: "File type could not be determined. Please upload a valid PDF, CSV, or Excel file.",
+      error: "File type could not be determined. Please upload a valid PDF, DOCX, DOC, CSV, or Excel file.",
     };
   }
 

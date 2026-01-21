@@ -85,6 +85,23 @@ function stripExt(filename: string) {
   return filename.replace(/\.(pdf|csv|xlsx|xls)$/i, '');
 }
 
+function isAllowedCimFile(file: File) {
+  const name = (file.name || '').toLowerCase();
+  const mime = file.type || '';
+  const isPdf = mime === 'application/pdf' || name.endsWith('.pdf');
+  const isDocx = 
+    mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    name.endsWith('.docx');
+  const isDoc = 
+    mime === 'application/msword' ||
+    name.endsWith('.doc');
+  return isPdf || isDocx || isDoc;
+}
+
+function stripCimExt(filename: string) {
+  return filename.replace(/\.(pdf|docx|doc)$/i, '');
+}
+
 function DashboardPageContent() {
   const router = useRouter();
 
@@ -268,8 +285,8 @@ function DashboardPageContent() {
     const file = e.target.files?.[0] || null;
     if (!file) return;
 
-    if (file.type !== 'application/pdf') {
-      setErrorMsg('Please upload a PDF file for the CIM.');
+    if (!isAllowedCimFile(file)) {
+      setErrorMsg('Please upload a PDF, DOCX, or DOC file for the CIM.');
       setCimFile(null);
       setCimUploadStatus('error');
       return;
@@ -285,7 +302,7 @@ function DashboardPageContent() {
     setCimUploadStatus('uploading');
 
     try {
-      const fileExt = file.name.split('.').pop() || 'pdf';
+      const fileExt = (file.name.split('.').pop() || '').toLowerCase() || 'pdf';
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
       const filePath = `${userId}/${fileName}`;
 
@@ -297,7 +314,7 @@ function DashboardPageContent() {
         return;
       }
 
-      const cimNameWithoutExt = file.name.replace(/\.pdf$/i, '');
+      const cimNameWithoutExt = stripCimExt(file.name);
 
       const { data: insertData, error: insertError } = await supabase
         .from('companies')
@@ -638,7 +655,7 @@ function DashboardPageContent() {
       </div>
 
       {/* Hidden file inputs */}
-      <input ref={cimInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleCimFileChange} />
+      <input ref={cimInputRef} type="file" accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword" className="hidden" onChange={handleCimFileChange} />
       <input
         ref={finInputRef}
         type="file"
