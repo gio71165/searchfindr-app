@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     description: 'AI-powered deal analysis for search fund operators',
     images: [
       {
-        url: '/og-image.svg',
+        url: '/og-image.png',
         width: 1200,
         height: 630,
         alt: 'SearchFindr',
