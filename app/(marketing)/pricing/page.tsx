@@ -102,7 +102,7 @@ export default function PricingPage() {
               '30-day money-back guarantee',
             ]}
             ctaText="Coming Soon"
-            ctaHref={CALENDLY_URL}
+            ctaHref="#"
           />
 
           {/* Unlimited */}
@@ -121,8 +121,8 @@ export default function PricingPage() {
               'Custom integrations',
               '30-day money-back guarantee',
             ]}
-            ctaText="Contact Sales"
-            ctaHref={CALENDLY_URL}
+            ctaText="Coming Soon"
+            ctaHref="#"
           />
         </div>
 

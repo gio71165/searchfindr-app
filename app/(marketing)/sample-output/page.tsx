@@ -1,296 +1,268 @@
-import { ArrowRight, Sparkles, TrendingUp, FileText, BarChart3, DollarSign, MapPin, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, FileText, BarChart3, DollarSign, MapPin, AlertTriangle, CheckCircle2, Target, Clock, Plus } from 'lucide-react';
 import Link from 'next/link';
-import { ConfidenceBadge } from '@/components/ui/ConfidenceBadge';
 
 export default function SampleOutputPage() {
   return (
     <div className="pt-32 pb-20 lg:pt-40 lg:pb-32 px-4 sm:px-6 lg:px-8 min-h-screen">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         {/* Hero */}
         <div className="text-center mb-16">
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight tracking-tight">
             See What You Get
           </h1>
-          <p className="text-xl text-white/60 max-w-2xl mx-auto">
-            Upload a CIM. Get actionable insights in under 2 minutes. Here's exactly what SearchFindr delivers.
+          <p className="text-xl text-white/60 max-w-2xl mx-auto mb-4">
+            Upload a CIM. Get actionable insights in under 2 minutes.
           </p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm">
+            <Clock className="h-4 w-4" />
+            <span>Average analysis time: 90 seconds</span>
+          </div>
         </div>
 
-        {/* Beautiful App Preview */}
-        <div className="relative mb-20 max-w-5xl mx-auto">
-          {/* Glow Effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/30 via-cyan-500/20 to-emerald-500/30 rounded-3xl blur-3xl opacity-50" />
-          
-          {/* App Interface */}
-          <div className="relative bg-white rounded-2xl border border-white/20 shadow-2xl overflow-hidden transform scale-90 origin-top">
-            {/* Browser Chrome */}
-            <div className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200 px-3 py-2 flex items-center gap-2">
-              <div className="flex gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-                <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-                <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
-              </div>
-              <div className="flex-1 h-7 rounded-lg bg-white border border-slate-300 px-3 flex items-center ml-3 shadow-sm">
-                <span className="text-xs text-slate-500">searchfindr.app/deals/acme-manufacturing</span>
+        {/* Sample Output - Simplified */}
+        <div className="mb-16">
+          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl border border-slate-700/50 shadow-2xl overflow-hidden">
+            {/* Document Header */}
+            <div className="border-b border-slate-700/50 bg-slate-800/50 px-6 py-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-1">TechFlow Solutions LLC</h2>
+                  <p className="text-slate-400 text-sm">CIM Analysis Report • Generated 2 hours ago</p>
+                </div>
+                <div className="px-4 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                  <span className="text-emerald-300 font-semibold text-sm">Confidence: B</span>
+                </div>
               </div>
             </div>
 
-            {/* App Content */}
-            <div className="p-6 lg:p-8 bg-gradient-to-br from-slate-50 to-white">
-              {/* Executive Summary - Beautiful Card */}
-              <div className="rounded-xl border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-yellow-100/50 p-6 mb-4 shadow-lg">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-full p-2 bg-yellow-100 border-2 border-yellow-300 shadow-sm">
-                      <AlertTriangle className="h-5 w-5 text-yellow-700" />
-                    </div>
-                    <div>
-                      <h2 className="text-xl font-bold text-yellow-900">Proceed with Caution</h2>
-                      <p className="text-xs text-yellow-700/80 mt-0.5">AI recommendation based on confidence & risk</p>
-                    </div>
+            {/* Document Body */}
+            <div className="p-6 lg:p-8 space-y-6">
+              {/* Executive Summary */}
+              <section>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                    <FileText className="h-5 w-5 text-blue-400" />
                   </div>
-                  <ConfidenceBadge level="B" analyzed={true} />
+                  <h3 className="text-lg font-bold text-white">Executive Summary</h3>
                 </div>
+                <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+                  <p className="text-slate-300 leading-relaxed mb-4">
+                    TechFlow Solutions is a [redacted] business serving [redacted] sectors. The company has demonstrated consistent revenue growth over the past three years, with strong EBITDA margins. The business operates with minimal owner dependency and has diversified its customer base.
+                  </p>
+                  <div className="flex items-center gap-4 pt-4 border-t border-slate-700/50">
+                    <div className="px-3 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
+                      <span className="text-yellow-300 font-semibold text-sm">Recommendation: Proceed with Caution</span>
+                    </div>
+                    <span className="text-slate-400 text-sm">Requires QoE review</span>
+                  </div>
+                </div>
+              </section>
 
-                {/* Metrics Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-                  <div className="bg-white/60 rounded-lg p-3 border border-yellow-200/50">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-600 mb-1">
-                      <DollarSign className="h-3 w-3" />
-                      <span>Asking Price</span>
-                    </div>
-                    <p className="text-lg font-bold text-slate-900">$12.5M</p>
+              {/* Key Metrics Grid */}
+              <section>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                    <BarChart3 className="h-5 w-5 text-emerald-400" />
                   </div>
-                  <div className="bg-white/60 rounded-lg p-3 border border-yellow-200/50">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-600 mb-1">
-                      <DollarSign className="h-3 w-3" />
-                      <span>Revenue</span>
-                    </div>
-                    <p className="text-lg font-bold text-slate-900">$8.2M</p>
+                  <h3 className="text-lg font-bold text-white">Key Metrics</h3>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+                    <div className="text-slate-400 text-xs uppercase tracking-wide mb-2">Asking Price</div>
+                    <div className="text-xl font-bold text-white mb-1">$[redacted]M</div>
+                    <div className="text-slate-500 text-xs">[redacted]x EBITDA</div>
                   </div>
-                  <div className="bg-white/60 rounded-lg p-3 border border-yellow-200/50">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-600 mb-1">
-                      <TrendingUp className="h-3 w-3" />
-                      <span>EBITDA</span>
-                    </div>
-                    <p className="text-lg font-bold text-slate-900">$1.4M</p>
-                    <p className="text-xs text-slate-600 mt-0.5">17.1% margin</p>
+                  <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+                    <div className="text-slate-400 text-xs uppercase tracking-wide mb-2">TTM Revenue</div>
+                    <div className="text-xl font-bold text-white mb-1">$[redacted]M</div>
+                    <div className="text-slate-500 text-xs">+[redacted]% YoY</div>
                   </div>
-                  <div className="bg-white/60 rounded-lg p-3 border border-yellow-200/50">
-                    <div className="flex items-center gap-1.5 text-xs text-slate-600 mb-1">
-                      <MapPin className="h-3 w-3" />
-                      <span>Location</span>
-                    </div>
-                    <p className="text-sm font-semibold text-slate-900">Austin, TX</p>
+                  <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+                    <div className="text-slate-400 text-xs uppercase tracking-wide mb-2">TTM EBITDA</div>
+                    <div className="text-xl font-bold text-white mb-1">$[redacted]M</div>
+                    <div className="text-emerald-400 text-xs">[redacted]% margin</div>
+                  </div>
+                  <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
+                    <div className="text-slate-400 text-xs uppercase tracking-wide mb-2">Location</div>
+                    <div className="text-lg font-semibold text-white mb-1">[City], [State]</div>
+                    <div className="text-slate-500 text-xs">SBA Eligible</div>
                   </div>
                 </div>
+              </section>
 
-                {/* Action Buttons */}
-                <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-yellow-200">
-                  <button className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-green-600 hover:bg-green-700 text-white transition-all shadow-md">
-                    Proceed
-                  </button>
-                  <button className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white transition-all shadow-md">
-                    Park
-                  </button>
-                  <button className="px-4 py-1.5 text-sm font-semibold rounded-lg border-2 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-all">
-                    Pass
-                  </button>
+              {/* Red Flags - Simplified */}
+              <section>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/30">
+                    <AlertTriangle className="h-5 w-5 text-red-400" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white">Quality of Earnings Concerns</h3>
                 </div>
-              </div>
+                <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-5">
+                  <ul className="space-y-2">
+                    <li className="flex items-start gap-3">
+                      <div className="h-5 w-5 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-red-400 text-xs">●</span>
+                      </div>
+                      <div>
+                        <div className="text-white font-medium mb-1">Customer Concentration Risk</div>
+                        <div className="text-slate-400 text-sm">Top customers represent significant portion of revenue.</div>
+                      </div>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="h-5 w-5 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-red-400 text-xs">●</span>
+                      </div>
+                      <div>
+                        <div className="text-white font-medium mb-1">Owner Dependency</div>
+                        <div className="text-slate-400 text-sm">Key relationships require succession planning.</div>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </section>
 
-              {/* Red Flags - Eye-catching */}
-              <div className="rounded-xl border-2 border-red-300 bg-gradient-to-br from-red-50 to-red-100/50 p-4 mb-4 shadow-lg">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-1.5 bg-red-200 rounded-lg">
-                    <AlertTriangle className="h-4 w-4 text-red-700" />
+              {/* Strengths - Simplified */}
+              <section>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                   </div>
-                  <h3 className="text-lg font-bold text-red-900">Red Flags</h3>
+                  <h3 className="text-lg font-bold text-white">Key Strengths</h3>
                 </div>
-                <ul className="space-y-2">
-                  <li className="flex items-start gap-2 text-xs text-red-900">
-                    <span className="text-red-500 mt-0.5">●</span>
-                    <span>Customer concentration: Top 3 customers represent 65% of revenue</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-xs text-red-900">
-                    <span className="text-red-500 mt-0.5">●</span>
-                    <span>Owner dependency: Founder handles all key customer relationships</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-xs text-red-900">
-                    <span className="text-red-500 mt-0.5">●</span>
-                    <span>Working capital: Significant seasonal fluctuations require cash management</span>
-                  </li>
-                </ul>
-              </div>
+                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-5">
+                  <ul className="space-y-2">
+                    <li className="flex items-start gap-3">
+                      <div className="h-5 w-5 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                      </div>
+                      <div>
+                        <div className="text-white font-medium mb-1">Recurring Revenue Model</div>
+                        <div className="text-slate-400 text-sm">Strong customer retention with multi-year contracts.</div>
+                      </div>
+                    </li>
+                    <li className="flex items-start gap-3">
+                      <div className="h-5 w-5 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                      </div>
+                      <div>
+                        <div className="text-white font-medium mb-1">Strong Profitability</div>
+                        <div className="text-slate-400 text-sm">EBITDA margins above industry average.</div>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+              </section>
 
-              {/* Strengths - Beautiful */}
-              <div className="rounded-xl border-2 border-green-300 bg-gradient-to-br from-green-50 to-green-100/50 p-4 mb-4 shadow-lg">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-1.5 bg-green-200 rounded-lg">
-                    <CheckCircle2 className="h-4 w-4 text-green-700" />
+              {/* Decision Framework - Simplified */}
+              <section>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/30">
+                    <Target className="h-5 w-5 text-purple-400" />
                   </div>
-                  <h3 className="text-lg font-bold text-green-900">Strengths</h3>
+                  <h3 className="text-lg font-bold text-white">Recommended Action</h3>
                 </div>
-                <ul className="space-y-2">
-                  <li className="flex items-start gap-2 text-xs text-green-900">
-                    <span className="text-green-500 mt-0.5">✓</span>
-                    <span>Recurring revenue model with 85% retention rate</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-xs text-green-900">
-                    <span className="text-green-500 mt-0.5">✓</span>
-                    <span>Strong EBITDA margins above industry average</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-xs text-green-900">
-                    <span className="text-green-500 mt-0.5">✓</span>
-                    <span>Scalable operations with minimal owner involvement required</span>
-                  </li>
-                </ul>
-              </div>
+                <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
+                  <div className="text-lg font-bold text-white mb-2">Proceed with Caution</div>
+                  <div className="text-slate-400 text-sm mb-4">Submit IOI but request detailed QoE review before LOI</div>
+                  <div className="text-slate-400 text-xs uppercase tracking-wide mb-2">Next Steps</div>
+                  <div className="text-slate-300 text-sm space-y-1">
+                    <div>• Schedule call with broker</div>
+                    <div>• Request detailed addback schedule</div>
+                    <div>• Verify working capital requirements</div>
+                  </div>
+                </div>
+              </section>
 
-              {/* Financial & Signals Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Financial Details */}
-                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-md">
-                  <div className="flex items-center gap-2 mb-3">
-                    <DollarSign className="h-4 w-4 text-emerald-600" />
-                    <h3 className="text-base font-bold text-slate-900">Financial Details</h3>
-                  </div>
-                  <div className="space-y-2 text-xs">
-                    <div className="flex justify-between items-center pb-1.5 border-b border-slate-100">
-                      <span className="text-xs uppercase text-slate-600">TTM Revenue</span>
-                      <span className="font-bold text-slate-900">$8.2M</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-1.5 border-b border-slate-100">
-                      <span className="text-xs uppercase text-slate-600">TTM EBITDA</span>
-                      <span className="font-bold text-slate-900">$1.4M</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-1.5 border-b border-slate-100">
-                      <span className="text-xs uppercase text-slate-600">EBITDA Margin</span>
-                      <span className="font-bold text-emerald-600">17.1%</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs uppercase text-slate-600">3Y Revenue CAGR</span>
-                      <span className="font-bold text-emerald-600">+12%</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Risk Signals */}
-                <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-md">
-                  <div className="flex items-center gap-2 mb-3">
-                    <BarChart3 className="h-4 w-4 text-emerald-600" />
-                    <h3 className="text-base font-bold text-slate-900">Risk & Quality Signals</h3>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
-                      <div className="text-xs text-slate-600 mb-0.5">Revenue Quality</div>
-                      <div className="text-base font-bold text-emerald-700">High</div>
-                    </div>
-                    <div className="p-2 rounded-lg bg-yellow-50 border border-yellow-200">
-                      <div className="text-xs text-slate-600 mb-0.5">Customer Risk</div>
-                      <div className="text-base font-bold text-yellow-700">Medium</div>
-                    </div>
-                    <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200">
-                      <div className="text-xs text-slate-600 mb-0.5">Management Quality</div>
-                      <div className="text-base font-bold text-emerald-700">High</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Data Confidence */}
-              <div className="mt-4 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4 shadow-md">
-                <div className="flex items-center gap-2 mb-3">
-                  <FileText className="h-4 w-4 text-slate-600" />
-                  <h3 className="text-base font-bold text-slate-900">Data Confidence</h3>
-                </div>
-                <div className="flex items-center gap-2 mb-2">
-                  <ConfidenceBadge level="B" analyzed={true} />
-                  <span className="text-xs text-slate-600">Updated 2 hours ago</span>
-                </div>
-                <p className="text-xs text-slate-700 leading-relaxed">
-                  CIM document quality: Good. Financial data extracted with moderate confidence. Some metrics require verification.
+              {/* Add to Pipeline CTA */}
+              <div className="pt-4 border-t border-slate-700/50">
+                <button className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-semibold hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40">
+                  <Plus className="h-5 w-5" />
+                  Add to Pipeline
+                </button>
+                <p className="text-center text-slate-400 text-xs mt-3">
+                  Once added, track this deal through your pipeline stages
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Component Explanations */}
+        {/* Features Grid - Simplified */}
         <div className="mb-16">
-          <h2 className="text-3xl font-bold text-white text-center mb-12">
+          <h2 className="text-3xl font-bold text-white text-center mb-10">
             Everything You Need to Make Faster Decisions
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="p-6 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-all hover:scale-[1.02]">
-              <div className="p-3 rounded-xl border bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 border-emerald-500/30 inline-block mb-4">
-                <Sparkles className="h-6 w-6 text-emerald-400" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="p-5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-all">
+              <div className="p-3 rounded-xl border bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 border-emerald-500/30 inline-block mb-3">
+                <FileText className="h-5 w-5 text-emerald-400" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                AI-Powered Summary
+              <h3 className="text-lg font-semibold text-white mb-2">
+                AI-Powered Analysis
               </h3>
               <p className="text-white/60 leading-relaxed text-sm">
-                Instant executive summary with verdict recommendation, key metrics, and confidence level—all in one place.
+                Instant executive summary with verdict recommendation and key metrics—all generated in under 2 minutes.
               </p>
             </div>
 
-            <div className="p-6 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-all hover:scale-[1.02]">
-              <div className="p-3 rounded-xl border bg-red-500/20 border-red-500/30 inline-block mb-4">
-                <AlertTriangle className="h-6 w-6 text-red-400" />
+            <div className="p-5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-all">
+              <div className="p-3 rounded-xl border bg-red-500/20 border-red-500/30 inline-block mb-3">
+                <AlertTriangle className="h-5 w-5 text-red-400" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                Red Flags & QoE Issues
+              <h3 className="text-lg font-semibold text-white mb-2">
+                Quality of Earnings Analysis
               </h3>
               <p className="text-white/60 leading-relaxed text-sm">
-                Quality-of-earnings issues flagged automatically: customer concentration, revenue recognition, working capital trends.
+                Automatic flagging of QoE issues: customer concentration, revenue recognition, and owner dependency risks.
               </p>
             </div>
 
-            <div className="p-6 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-all hover:scale-[1.02]">
-              <div className="p-3 rounded-xl border bg-green-500/20 border-green-500/30 inline-block mb-4">
-                <CheckCircle2 className="h-6 w-6 text-green-400" />
+            <div className="p-5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-all">
+              <div className="p-3 rounded-xl border bg-green-500/20 border-green-500/30 inline-block mb-3">
+                <CheckCircle2 className="h-5 w-5 text-green-400" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                Strengths Analysis
+              <h3 className="text-lg font-semibold text-white mb-2">
+                Strengths Identification
               </h3>
               <p className="text-white/60 leading-relaxed text-sm">
-                AI identifies key strengths and positive indicators to help you see the full picture, not just problems.
+                AI identifies key strengths and positive indicators to help you see the full picture.
               </p>
             </div>
 
-            <div className="p-6 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-all hover:scale-[1.02]">
-              <div className="p-3 rounded-xl border bg-cyan-500/20 border-cyan-500/30 inline-block mb-4">
-                <TrendingUp className="h-6 w-6 text-cyan-400" />
+            <div className="p-5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-all">
+              <div className="p-3 rounded-xl border bg-cyan-500/20 border-cyan-500/30 inline-block mb-3">
+                <BarChart3 className="h-5 w-5 text-cyan-400" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                Financial Metrics
+              <h3 className="text-lg font-semibold text-white mb-2">
+                Financial Metrics Extraction
               </h3>
               <p className="text-white/60 leading-relaxed text-sm">
-                Revenue trends, EBITDA margins, growth rates, and financial health indicators automatically calculated and displayed.
+                Revenue trends, EBITDA margins, and growth rates automatically calculated and displayed.
               </p>
             </div>
 
-            <div className="p-6 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-all hover:scale-[1.02]">
-              <div className="p-3 rounded-xl border bg-yellow-500/20 border-yellow-500/30 inline-block mb-4">
-                <BarChart3 className="h-6 w-6 text-yellow-400" />
+            <div className="p-5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-all">
+              <div className="p-3 rounded-xl border bg-purple-500/20 border-purple-500/30 inline-block mb-3">
+                <Target className="h-5 w-5 text-purple-400" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                Risk & Quality Signals
+              <h3 className="text-lg font-semibold text-white mb-2">
+                Decision Framework
               </h3>
               <p className="text-white/60 leading-relaxed text-sm">
-                CIM quality assessment and risk signals help you understand data reliability and deal characteristics at a glance.
+                Clear PROCEED/PARK/PASS recommendations with specific next steps.
               </p>
             </div>
 
-            <div className="p-6 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-all hover:scale-[1.02]">
-              <div className="p-3 rounded-xl border bg-emerald-500/20 border-emerald-500/30 inline-block mb-4">
-                <FileText className="h-6 w-6 text-emerald-400" />
+            <div className="p-5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-all">
+              <div className="p-3 rounded-xl border bg-blue-500/20 border-blue-500/30 inline-block mb-3">
+                <BarChart3 className="h-5 w-5 text-blue-400" />
               </div>
-              <h3 className="text-xl font-semibold text-white mb-2">
-                Data Confidence Score
+              <h3 className="text-lg font-semibold text-white mb-2">
+                Pipeline Management
               </h3>
               <p className="text-white/60 leading-relaxed text-sm">
-                Confidence tier (A/B/C) indicates how reliable the extracted data is, helping you prioritize verification efforts.
+                Track deals through your pipeline stages and manage your deal flow efficiently.
               </p>
             </div>
           </div>
@@ -300,16 +272,16 @@ export default function SampleOutputPage() {
         <div className="text-center">
           <div className="inline-block p-8 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 backdrop-blur-sm">
             <h3 className="text-2xl font-bold text-white mb-4">
-              See it analyze your deal
+              Ready to analyze your deals?
             </h3>
             <p className="text-white/60 mb-6">
-              Book a 15-minute demo and watch SearchFindr analyze a real CIM in real-time.
+              Get started with SearchFindr and see how fast you can evaluate opportunities.
             </p>
             <Link
-              href="/demo"
+              href="/pricing"
               className="inline-flex items-center gap-2 px-8 py-4 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-base font-semibold text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-105"
             >
-              Book Demo
+              Get Started
               <ArrowRight className="h-5 w-5" />
             </Link>
           </div>

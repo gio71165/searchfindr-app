@@ -82,7 +82,7 @@ export function PricingCard({
         ))}
       </ul>
 
-      {ctaHref ? (
+      {ctaHref && ctaHref !== '#' ? (
         <a
           href={ctaHref}
           target={ctaHref.startsWith('http') ? '_blank' : undefined}
@@ -98,8 +98,11 @@ export function PricingCard({
       ) : (
         <button
           onClick={ctaOnClick}
+          disabled={ctaHref === '#'}
           className={`block w-full text-center px-6 py-3 rounded-lg font-semibold transition-all ${
-            highlight
+            ctaHref === '#'
+              ? 'border-2 border-white/10 bg-white/5 text-white/50 cursor-not-allowed'
+              : highlight
               ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-400 hover:to-emerald-500 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-105'
               : 'border-2 border-white/20 bg-white/5 text-white hover:bg-white/10 hover:border-white/30'
           }`}
