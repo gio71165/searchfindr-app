@@ -116,7 +116,7 @@ export default function DemoPage() {
           <div className="inline-block p-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 backdrop-blur-sm">
             <p className="text-white/80">
               <span className="font-semibold text-emerald-300">Early bird pricing:</span>{' '}
-              $149/mo locked forever. Only 46 of 50 spots remaining.
+              $149/mo locked forever. Limited Early Bird Spots Remaining.
             </p>
           </div>
         </div>

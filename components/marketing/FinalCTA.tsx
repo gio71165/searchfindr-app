@@ -11,7 +11,7 @@ export function FinalCTA() {
           Start screening deals faster
         </h2>
         <p className="text-xl text-white/60 mb-8">
-          30-day money-back guarantee. No credit card required to start.
+          30-day money-back guarantee.
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
@@ -21,7 +21,7 @@ export function FinalCTA() {
             rel="noopener noreferrer"
             className="w-full sm:w-auto px-8 py-4 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-base font-semibold text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-105 flex items-center justify-center gap-2"
           >
-            Start Free Trial
+            Lock in $149/mo Forever
             <ArrowRight className="h-5 w-5" />
           </a>
           <Link

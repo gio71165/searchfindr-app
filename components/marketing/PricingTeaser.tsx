@@ -35,7 +35,7 @@ export function PricingTeaser() {
                   Locked forever
                 </p>
                 <p className="text-sm text-white/60 mt-2">
-                  Public launch: $249/mo
+                  After early bird: $249/mo
                 </p>
               </div>
 

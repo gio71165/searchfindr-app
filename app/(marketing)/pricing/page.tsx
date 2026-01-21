@@ -15,7 +15,7 @@ const faqs = [
   },
   {
     question: 'Is there a free trial?',
-    answer: 'We offer a 30-day money-back guarantee. If you\'re not satisfied, we\'ll refund your first payment.',
+    answer: 'We offer a 30-day money-back guarantee. If you\'re not satisfied, we\'ll refund your payment. No free trial period is currently available.',
   },
   {
     question: 'What if I need more than the limits?',
@@ -48,7 +48,7 @@ export default function PricingPage() {
           <div className="flex justify-center mb-6">
             <div className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300 backdrop-blur-sm">
               <Rocket className="h-4 w-4" />
-              <span>46 of 50 early bird spots remaining</span>
+              <span>Limited Early Bird Spots Remaining</span>
             </div>
           </div>
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight tracking-tight">
@@ -59,7 +59,7 @@ export default function PricingPage() {
             before it's gone
           </h1>
           <p className="text-xl text-white/60 max-w-2xl mx-auto">
-            Early bird pricing ends when 50 spots fill. Public launch pricing will be $249/month.
+            Lock in early bird pricing before public launch. After early bird ends, pricing will be $249/month.
           </p>
         </div>
 
@@ -71,7 +71,6 @@ export default function PricingPage() {
             price="$149"
             period="/month"
             description="Locked forever"
-            originalPrice="$399"
             badge="Limited Time"
             highlight={true}
             features={[

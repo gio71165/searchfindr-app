@@ -8,7 +8,7 @@ export default function PrivacyPage() {
         
         <div className="prose prose-invert max-w-none space-y-6 text-white/80 leading-relaxed">
           <p className="text-sm text-white/60">
-            Last updated: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+            Last updated: January 21, 2025
           </p>
 
           <section>

@@ -11,7 +11,7 @@ export function Hero() {
         <div className="flex justify-center mb-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm text-emerald-300 backdrop-blur-sm">
             <Rocket className="h-4 w-4" />
-            <span>$149/mo locked forever - 46 of 50 spots left</span>
+            <span>$149/mo locked forever - Limited Early Bird Spots Remaining</span>
           </div>
         </div>
 
@@ -35,7 +35,7 @@ export function Hero() {
               rel="noopener noreferrer"
               className="w-full sm:w-auto px-8 py-4 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-base font-semibold text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-105"
             >
-              Start Free Trial
+              Lock in $149/mo Forever
             </a>
             <Link
               href="/demo"

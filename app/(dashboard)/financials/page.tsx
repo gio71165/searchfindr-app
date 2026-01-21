@@ -125,6 +125,14 @@ export default function FinancialsPage() {
     };
   }, [deals]);
 
+  const handleFinancialsButtonClick = () => {
+    // Scroll to the upload zone
+    const uploadZone = document.querySelector('[data-upload-zone]');
+    if (uploadZone) {
+      uploadZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
   const handleFinancialsFileSelect = async (file: File) => {
     if (!file) return;
 
@@ -248,7 +256,7 @@ export default function FinancialsPage() {
       />
 
       {/* Drag and Drop Upload Zone */}
-      <div className="mb-6">
+      <div className="mb-6" data-upload-zone>
         <DragDropZone
           onFileSelect={handleFinancialsFileSelect}
           accept=".pdf,.csv,.xlsx,.xls,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
