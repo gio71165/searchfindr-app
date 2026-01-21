@@ -2,16 +2,31 @@ export function TierBadge({ tier }: { tier: string | null }) {
   if (!tier) return null;
   
   const tierColors = {
-    A: 'bg-green-500/10 border-green-500/40 text-green-700 dark:bg-green-500/20 dark:border-green-500/50 dark:text-green-400',
-    B: 'bg-yellow-500/10 border-yellow-500/40 text-yellow-700 dark:bg-yellow-500/20 dark:border-yellow-500/50 dark:text-yellow-400',
-    C: 'bg-gray-500/10 border-gray-500/40 text-gray-700 dark:bg-gray-500/20 dark:border-gray-500/50 dark:text-gray-400',
+    A: {
+      bg: 'bg-emerald-50',
+      border: 'border-emerald-300',
+      text: 'text-emerald-700',
+      shadow: 'shadow-sm shadow-emerald-100'
+    },
+    B: {
+      bg: 'bg-amber-50',
+      border: 'border-amber-300',
+      text: 'text-amber-700',
+      shadow: 'shadow-sm shadow-amber-100'
+    },
+    C: {
+      bg: 'bg-slate-100',
+      border: 'border-slate-300',
+      text: 'text-slate-700',
+      shadow: 'shadow-sm shadow-slate-100'
+    },
   };
   
   const normalizedTier = tier.toUpperCase() as 'A' | 'B' | 'C';
   const colors = tierColors[normalizedTier] || tierColors.C;
   
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide ${colors}`}>
+    <span className={`inline-flex items-center rounded-full border-2 px-2.5 py-1 text-xs font-bold uppercase tracking-wider ${colors.bg} ${colors.border} ${colors.text} ${colors.shadow}`}>
       Tier {tier}
     </span>
   );

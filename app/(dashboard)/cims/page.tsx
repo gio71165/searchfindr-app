@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../supabaseClient';
 import { DealCard } from '@/components/ui/DealCard';
@@ -8,6 +8,7 @@ import { ContentHeader } from '@/components/dashboard/ContentHeader';
 import { PipelineSummary } from '@/components/dashboard/PipelineSummary';
 import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
 import { Upload } from 'lucide-react';
+import { DragDropZone } from '@/components/ui/DragDropZone';
 
 export default function CimsPage() {
   const router = useRouter();
@@ -24,8 +25,8 @@ export default function CimsPage() {
 
   // Upload state
   const [cimFile, setCimFile] = useState<File | null>(null);
-  const cimInputRef = useRef<HTMLInputElement | null>(null);
   const [cimUploadStatus, setCimUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
     const init = async () => {
@@ -107,10 +108,7 @@ export default function CimsPage() {
     };
   }, [deals]);
 
-  const handleCimButtonClick = () => cimInputRef.current?.click();
-
-  const handleCimFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
+  const handleCimFileSelect = async (file: File) => {
     if (!file) return;
 
     if (file.type !== 'application/pdf') {
@@ -128,13 +126,29 @@ export default function CimsPage() {
     setErrorMsg(null);
     setCimFile(file);
     setCimUploadStatus('uploading');
+    setUploadProgress(0);
 
     try {
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
       const fileExt = file.name.split('.').pop() || 'pdf';
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
       const filePath = `${userId}/${fileName}`;
 
       const { data: storageData, error: storageError } = await supabase.storage.from('cims').upload(filePath, file);
+      
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
       if (storageError) {
         console.error('CIM upload error:', storageError);
         setErrorMsg('Failed to upload CIM. Please try again.');
@@ -166,18 +180,31 @@ export default function CimsPage() {
       await loadDeals(workspaceId);
       setCimUploadStatus('uploaded');
       setCimFile(null);
-      setTimeout(() => setCimUploadStatus('idle'), 3000);
+      setTimeout(() => {
+        setCimUploadStatus('idle');
+        setUploadProgress(0);
+      }, 3000);
     } catch (err) {
       console.error('Unexpected CIM upload error:', err);
       setErrorMsg('Unexpected error uploading CIM.');
       setCimUploadStatus('error');
+      setUploadProgress(0);
     }
   };
 
-  if (loading) return <div className="p-8">Loading...</div>;
+  if (loading) return (
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-sm text-slate-600">Loading...</p>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto overflow-x-hidden">
       <ContentHeader
         title="CIMs"
         description="Confidential Information Memorandums uploaded for analysis"
@@ -189,7 +216,7 @@ export default function CimsPage() {
         placeholder="Search CIMs..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full px-4 py-3 border rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full px-4 py-3 text-base border rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
 
       {/* Pipeline Summary - Compact variant (CIM-specific counts) */}
@@ -206,39 +233,29 @@ export default function CimsPage() {
         setSelectedVerdict={setSelectedVerdict}
       />
 
-      {/* Action Button */}
+      {/* Drag and Drop Upload Zone */}
       <div className="mb-6">
-        <button
-          onClick={handleCimButtonClick}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
-        >
-          <Upload className="h-4 w-4" />
-          Upload CIM
-        </button>
+        <DragDropZone
+          onFileSelect={handleCimFileSelect}
+          accept="application/pdf"
+          maxSizeMB={50}
+          uploadStatus={cimUploadStatus}
+          uploadProgress={uploadProgress}
+          errorMessage={cimUploadStatus === 'error' ? errorMsg : null}
+          successMessage={cimUploadStatus === 'uploaded' ? 'CIM uploaded successfully!' : null}
+          disabled={!userId || !workspaceId}
+          label="Upload CIM"
+          description="Drag and drop a PDF file here, or click to browse"
+          icon={<Upload className="h-12 w-12 text-blue-500" />}
+          allowedFileTypes={['.pdf', 'application/pdf']}
+          validateFile={(file) => {
+            if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+              return { valid: false, error: 'Please upload a PDF file for the CIM.' };
+            }
+            return { valid: true };
+          }}
+        />
       </div>
-
-      {/* Hidden file input */}
-      <input ref={cimInputRef} type="file" accept="application/pdf" className="hidden" onChange={handleCimFileChange} />
-
-      {/* Upload Status Messages */}
-      {cimUploadStatus !== 'idle' && (
-        <div
-          className={`rounded-xl border p-4 mb-4 ${
-            cimUploadStatus === 'uploaded'
-              ? 'bg-green-50 border-green-200 text-green-700'
-              : cimUploadStatus === 'error'
-                ? 'bg-red-50 border-red-200 text-red-700'
-                : 'bg-blue-50 border-blue-200 text-blue-700'
-          }`}
-        >
-          <div className="font-semibold">
-            {cimUploadStatus === 'uploading' && 'Uploading CIM…'}
-            {cimUploadStatus === 'uploaded' && 'CIM uploaded successfully!'}
-            {cimUploadStatus === 'error' && 'CIM upload failed'}
-          </div>
-          {cimFile && <div className="text-sm mt-1">File: {cimFile.name}</div>}
-        </div>
-      )}
 
       {/* Results */}
       <div className="mb-4 text-sm text-gray-600">
@@ -251,15 +268,31 @@ export default function CimsPage() {
           <div className="text-6xl mb-4">📄</div>
           <h3 className="text-xl font-semibold mb-2">No CIMs uploaded yet</h3>
           <p className="text-gray-600 mb-6">Upload a CIM to get AI-powered analysis with QoE red flags</p>
-          <button
-            onClick={handleCimButtonClick}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-          >
-            Upload Your First CIM
-          </button>
+          <div className="max-w-md mx-auto">
+            <DragDropZone
+              onFileSelect={handleCimFileSelect}
+              accept="application/pdf"
+              maxSizeMB={50}
+              uploadStatus={cimUploadStatus}
+              uploadProgress={uploadProgress}
+              errorMessage={cimUploadStatus === 'error' ? errorMsg : null}
+              successMessage={cimUploadStatus === 'uploaded' ? 'CIM uploaded successfully!' : null}
+              disabled={!userId || !workspaceId}
+              label="Upload Your First CIM"
+              description="Drag and drop a PDF file here, or click to browse"
+              icon={<Upload className="h-12 w-12 text-blue-500" />}
+              allowedFileTypes={['.pdf', 'application/pdf']}
+              validateFile={(file) => {
+                if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                  return { valid: false, error: 'Please upload a PDF file for the CIM.' };
+                }
+                return { valid: true };
+              }}
+            />
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {filteredDeals.map(deal => (
             <DealCard key={deal.id} deal={deal} />
           ))}

@@ -44,6 +44,27 @@ export interface MarginEntry {
 }
 
 /**
+ * Financial table row structure
+ */
+export interface FinancialTableRow {
+  account_name: string;
+  account_category: string | null;
+  values_by_year: Record<string, number | null>;
+  unit: string;
+  notes: string | null;
+}
+
+/**
+ * Financial table structure
+ */
+export interface FinancialTable {
+  table_name: string;
+  table_type: 'income_statement' | 'balance_sheet' | 'cash_flow' | 'other';
+  years: string[];
+  rows: FinancialTableRow[];
+}
+
+/**
  * Financial metrics structure
  */
 export interface FinancialMetrics {
@@ -60,6 +81,7 @@ export interface FinancialMetrics {
   evidence?: string[];
   customer_concentration?: string;
   margin?: string;
+  financial_tables?: FinancialTable[];
   qoe_red_flags?: QoeRedFlag[];
   industry_benchmark?: Record<string, unknown>;
   owner_interview_questions?: OwnerInterviewQuestion[];

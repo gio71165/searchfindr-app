@@ -1,0 +1,100 @@
+import { ArrowRight } from 'lucide-react';
+
+const STRIPE_PAYMENT_URL = 'https://buy.stripe.com/dRm4gz1ReaTxct01lKawo00';
+
+export function PricingTeaser() {
+  return (
+    <section className="py-20 lg:py-32 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4 tracking-tight">
+            Early bird pricing
+          </h2>
+          <p className="text-xl text-white/60">
+            Lock in your rate before public launch
+          </p>
+        </div>
+
+        <div className="relative">
+          {/* Glow Effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/30 via-cyan-500/20 to-emerald-500/30 rounded-3xl blur-2xl opacity-50" />
+          
+          {/* Pricing Card */}
+          <div className="relative p-8 lg:p-12 rounded-2xl border-2 border-emerald-500/50 bg-gradient-to-br from-emerald-500/10 to-cyan-500/5 backdrop-blur-sm">
+            <div className="text-center">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-sm text-emerald-300 mb-6">
+                <span>Limited Time</span>
+              </div>
+              
+              <div className="mb-6">
+                <div className="flex items-baseline justify-center gap-2">
+                  <span className="text-5xl lg:text-6xl font-bold text-white">$149</span>
+                  <span className="text-xl text-white/60">/month</span>
+                </div>
+                <p className="text-lg text-emerald-300 font-medium mt-2">
+                  Locked forever
+                </p>
+                <p className="text-sm text-white/60 mt-2">
+                  Public launch: $249/mo
+                </p>
+              </div>
+
+              <div className="space-y-4 mb-8 text-left max-w-md mx-auto">
+                <div className="flex items-start gap-3">
+                  <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-white/80">Unlimited CIM analyses</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-white/80">Unlimited financial screenings</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-white/80">All features included</span>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-white/80">30-day money-back guarantee</span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a
+                  href={STRIPE_PAYMENT_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full sm:w-auto px-8 py-4 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-base font-semibold text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-105 flex items-center justify-center gap-2"
+                >
+                  Lock in $149/mo Forever
+                  <ArrowRight className="h-5 w-5" />
+                </a>
+                <a
+                  href="/pricing"
+                  className="w-full sm:w-auto px-8 py-4 rounded-lg border-2 border-white/20 bg-white/5 text-base font-semibold text-white hover:bg-white/10 hover:border-white/30 transition-all"
+                >
+                  See Full Pricing
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}

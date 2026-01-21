@@ -8,7 +8,9 @@ import { DealCard } from '@/components/ui/DealCard';
 import { ContentHeader } from '@/components/dashboard/ContentHeader';
 import { PipelineSummary } from '@/components/dashboard/PipelineSummary';
 import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
-import { Upload, DollarSign, Search as SearchIcon } from 'lucide-react';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Upload, DollarSign, Search as SearchIcon, FileText, TrendingUp } from 'lucide-react';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 type SourceType = 'on_market' | 'off_market' | 'cim_pdf' | 'financials' | null;
 type Stage = 'all' | 'new' | 'reviewing' | 'follow_up' | 'ioi_sent' | 'loi' | 'dd' | 'passed';
@@ -482,20 +484,24 @@ function DashboardPageContent() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <ContentHeader
-        title={`Welcome${email ? `, ${email.split('@')[0]}` : ''}`}
-        description="Quickly evaluate deals and find the good ones"
-      />
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto overflow-x-hidden">
+      <div className="mb-6 sm:mb-8">
+        <ContentHeader
+          title={`Welcome${email ? `, ${email.split('@')[0]}` : ''}`}
+          description="Quickly evaluate deals and find the good ones"
+        />
+      </div>
 
       {/* Search */}
-      <input
-        type="text"
-        placeholder="Search deals by company name..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full px-4 py-3 border rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500"
-      />
+      <div className="mb-6 sm:mb-8">
+        <input
+          type="text"
+          placeholder="Search deals by company name..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full px-4 py-3 text-base border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:shadow-md"
+        />
+      </div>
 
       {/* Pipeline Summary - Full variant */}
       <PipelineSummary
@@ -506,24 +512,28 @@ function DashboardPageContent() {
       />
 
       {/* Verdict & Quick Filters */}
-      <VerdictFilters
-        selectedVerdict={selectedVerdict}
-        setSelectedVerdict={(verdict: string) => setSelectedVerdict(verdict as Verdict)}
-      />
+      <div className="mb-8">
+        <VerdictFilters
+          selectedVerdict={selectedVerdict}
+          setSelectedVerdict={(verdict: string) => setSelectedVerdict(verdict as Verdict)}
+        />
+      </div>
 
-      {/* Quick Actions - Subtle row */}
-      <div className="flex gap-2 mb-6 text-sm">
+      {/* Quick Actions - Enhanced styling */}
+      <div className="flex flex-wrap gap-3 mb-6 sm:mb-8">
         <button
           onClick={handleCimButtonClick}
-          className="px-3 py-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors border border-gray-300"
+          className="inline-flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-lg transition-all border-2 border-slate-300 hover:border-slate-400 hover:shadow-md touch-manipulation"
         >
-          Upload CIM
+          <FileText className="h-4 w-4 flex-shrink-0" />
+          <span>Upload CIM</span>
         </button>
         <button
           onClick={handleFinancialsButtonClick}
-          className="px-3 py-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors border border-gray-300"
+          className="inline-flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-lg transition-all border-2 border-slate-300 hover:border-slate-400 hover:shadow-md touch-manipulation"
         >
-          Upload Financials
+          <TrendingUp className="h-4 w-4 flex-shrink-0" />
+          <span>Upload Financials</span>
         </button>
       </div>
 
@@ -540,84 +550,96 @@ function DashboardPageContent() {
       {/* Upload Status Messages */}
       {cimUploadStatus !== 'idle' && (
         <div
-          className={`rounded-xl border p-4 mb-4 ${
+          className={`rounded-xl border-2 p-4 mb-4 ${
             cimUploadStatus === 'uploaded'
-              ? 'bg-green-50 border-green-200 text-green-700'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
               : cimUploadStatus === 'error'
                 ? 'bg-red-50 border-red-200 text-red-700'
                 : 'bg-blue-50 border-blue-200 text-blue-700'
           }`}
+          style={{ animation: 'fadeInUp 0.3s ease-out' }}
         >
           <div className="font-semibold">
             {cimUploadStatus === 'uploading' && 'Uploading CIM…'}
             {cimUploadStatus === 'uploaded' && 'CIM uploaded successfully!'}
             {cimUploadStatus === 'error' && 'CIM upload failed'}
           </div>
-          {cimFile && <div className="text-sm mt-1">File: {cimFile.name}</div>}
+          {cimFile && <div className="text-sm mt-1 opacity-90">File: {cimFile.name}</div>}
         </div>
       )}
 
       {finUploadStatus !== 'idle' && (
         <div
-          className={`rounded-xl border p-4 mb-4 ${
+          className={`rounded-xl border-2 p-4 mb-4 ${
             finUploadStatus === 'uploaded'
-              ? 'bg-green-50 border-green-200 text-green-700'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
               : finUploadStatus === 'error'
                 ? 'bg-red-50 border-red-200 text-red-700'
                 : 'bg-blue-50 border-blue-200 text-blue-700'
           }`}
+          style={{ animation: 'fadeInUp 0.3s ease-out' }}
         >
           <div className="font-semibold">
             {finUploadStatus === 'uploading' && 'Uploading Financials…'}
             {finUploadStatus === 'uploaded' && 'Financials uploaded successfully!'}
             {finUploadStatus === 'error' && 'Financials upload failed'}
           </div>
-          {finUploadMsg && <div className="text-sm mt-1">{finUploadMsg}</div>}
+          {finUploadMsg && <div className="text-sm mt-1 opacity-90">{finUploadMsg}</div>}
         </div>
       )}
 
       {/* DEAL CARDS */}
-      <div className="mb-4 text-sm text-gray-600">
-        Showing {filteredDeals.length} of {deals.length} deals
-      </div>
-
-      {filteredDeals.length === 0 ? (
-        <div className="text-center py-16 bg-gray-50 rounded-xl">
-          <div className="text-6xl mb-4">🔍</div>
-          <h3 className="text-xl font-semibold mb-2 text-gray-900">No deals match your filters</h3>
-          <p className="text-gray-600 mb-6">Try adjusting your filters or add your first deal</p>
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={() => {
-                setSelectedSource(null);
-                setSelectedStage('all');
-                setSelectedVerdict('all');
-                setSearchQuery('');
-              }}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
-            >
-              Clear Filters
-            </button>
-            <button
-              onClick={handleCimButtonClick}
-              className="px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
-            >
-              Upload CIM
-            </button>
-          </div>
-        </div>
+      {deals.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="No deals yet!"
+          description="Upload your first CIM to get started. SearchFindr will analyze it and help you identify the best opportunities."
+          actionLabel="Upload CIM"
+          onAction={handleCimButtonClick}
+          secondaryActionLabel="Upload Financials"
+          onSecondaryAction={handleFinancialsButtonClick}
+        />
+      ) : filteredDeals.length === 0 ? (
+        <EmptyState
+          icon={SearchIcon}
+          title="No deals match your filters"
+          description="Try adjusting your filters or add a new deal to your pipeline."
+          actionLabel="Clear Filters"
+          onAction={() => {
+            setSelectedSource(null);
+            setSelectedStage('all');
+            setSelectedVerdict('all');
+            setSearchQuery('');
+          }}
+          secondaryActionLabel="Upload CIM"
+          onSecondaryAction={handleCimButtonClick}
+        />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredDeals.map(deal => (
-            <DealCard key={deal.id} deal={deal} />
-          ))}
-        </div>
+        <>
+          <div className="mb-6 text-sm font-medium text-slate-600">
+            Showing <span className="font-semibold text-slate-900">{filteredDeals.length}</span> of{' '}
+            <span className="font-semibold text-slate-900">{deals.length}</span> deals
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {filteredDeals.map((deal, index) => (
+              <div
+                key={deal.id}
+                style={{
+                  animation: `fadeInUp 0.5s ease-out ${Math.min(index * 50, 300)}ms both`,
+                }}
+              >
+                <DealCard deal={deal} />
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {/* Error Message */}
       {errorMsg && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 mt-4">
-          {errorMsg}
+        <div className="rounded-xl border-2 border-red-200 bg-red-50 p-4 text-red-700 mt-6" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
+          <div className="font-semibold mb-1">Error</div>
+          <div className="text-sm">{errorMsg}</div>
         </div>
       )}
     </div>
@@ -627,7 +649,14 @@ function DashboardPageContent() {
 export default function DashboardPage() {
   return (
     <Suspense fallback={
-      <div className="p-8 text-center">Loading dashboard...</div>
+      <div className="p-8 max-w-7xl mx-auto">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+            <p className="text-sm text-slate-600">Loading dashboard...</p>
+          </div>
+        </div>
+      </div>
     }>
       <DashboardPageContent />
     </Suspense>

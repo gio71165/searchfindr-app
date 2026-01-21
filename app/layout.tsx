@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { Navigation } from '@/components/Navigation';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export const metadata: Metadata = {
@@ -48,7 +47,6 @@ export default function RootLayout({
     <html lang="en">
       <body className="min-h-screen bg-[#F9FAFB]">
         <ErrorBoundary>
-          <Navigation />
           {children}
         </ErrorBoundary>
       </body>

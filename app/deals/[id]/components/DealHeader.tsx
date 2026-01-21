@@ -11,6 +11,7 @@ import { supabase } from '@/app/supabaseClient';
 import { useRouter } from 'next/navigation';
 import { SetReminderButton } from '@/components/deal/SetReminderButton';
 import { MoreActionsMenu } from '@/components/deal/MoreActionsMenu';
+import { CompareDealModal } from '@/components/modals/CompareDealModal';
 
 function VerdictBadge({ verdict }: { verdict: string | null }) {
   if (!verdict) return null;
@@ -51,6 +52,7 @@ export function DealHeader({
   const [updatingStage, setUpdatingStage] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showCompareModal, setShowCompareModal] = useState(false);
   
   const isArchived = Boolean(deal.archived_at);
   
@@ -202,9 +204,9 @@ export function DealHeader({
               <div className="flex items-center gap-4 mb-1">
                 <h1 className="text-3xl font-semibold">{deal.company_name || 'Untitled Company'}</h1>
                 {askingPrice && (
-                  <div className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-                    <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Asking:</span>
-                    <span className="text-lg font-bold text-blue-900 dark:text-blue-100 ml-2">{askingPrice}</span>
+                  <div className="px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
+                    <span className="text-xs text-blue-600 font-medium">Asking:</span>
+                    <span className="text-lg font-bold text-blue-900 ml-2">{askingPrice}</span>
                   </div>
                 )}
               </div>
@@ -343,6 +345,15 @@ export function DealHeader({
           ) : null}
         </div>
       </div>
+
+      {/* Compare Modal */}
+      {showCompareModal && (
+        <CompareDealModal
+          dealId={deal.id}
+          companyName={deal.company_name || 'Untitled Company'}
+          onClose={() => setShowCompareModal(false)}
+        />
+      )}
     </section>
   );
 }

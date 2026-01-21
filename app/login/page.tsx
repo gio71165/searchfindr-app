@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from './supabaseClient';
+import { supabase } from '../supabaseClient';
+import { Navigation } from '@/components/Navigation';
 
-export default function Home() {
+export default function LoginPage() {
   const router = useRouter();
 
   const [email, setEmail] = useState('');
@@ -55,7 +56,9 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-[#0b0f17] text-slate-100">
+    <>
+      <Navigation />
+      <main className="min-h-screen bg-[#0b0f17] text-slate-100">
       {/* Subtle background */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -top-32 left-1/2 h-72 w-[44rem] -translate-x-1/2 rounded-full bg-indigo-500/20 blur-3xl" />
@@ -73,13 +76,13 @@ export default function Home() {
             </div>
 
             <h1 className="mt-4 text-4xl font-semibold leading-tight">
-              Deal screening that’s <span className="text-indigo-300">fast</span>,{' '}
+              Deal screening that's <span className="text-indigo-300">fast</span>,{' '}
               <span className="text-indigo-300">structured</span>, and{' '}
               <span className="text-indigo-300">deal-locked</span>.
             </h1>
 
             <p className="mt-4 max-w-md text-sm leading-relaxed text-slate-300">
-              Upload CIMs, review on-market listings, and chat with an assistant that only uses your deal’s analysis — not generic fluff.
+              Upload CIMs, review on-market listings, and chat with an assistant that only uses your deal's analysis — not generic fluff.
             </p>
 
             <div className="mt-6 space-y-3 text-sm text-slate-200">
@@ -172,5 +175,6 @@ export default function Home() {
         </div>
       </div>
     </main>
+    </>
   );
 }

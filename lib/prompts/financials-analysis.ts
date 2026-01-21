@@ -110,6 +110,44 @@ estimated_time_to_decision: Given financial quality, how long until LOI? (e.g., 
 Be OPINIONATED. Searchers pay for judgment, not just information.
 
 ============================================================
+FINANCIAL TABLES EXTRACTION (REQUIRED)
+============================================================
+You MUST extract structured financial tables from the documents. Create tables for:
+
+1. Income Statement (P&L) - Extract ALL line items by year:
+   - Revenue/Sales
+   - Cost of Goods Sold (COGS)
+   - Gross Profit
+   - Operating Expenses (break down if available: SG&A, R&D, etc.)
+   - EBITDA
+   - Depreciation & Amortization
+   - Interest Expense
+   - Taxes
+   - Net Income
+
+2. Balance Sheet (if available) - Extract ALL line items by year:
+   - Current Assets (Cash, AR, Inventory, etc.)
+   - Non-Current Assets (PP&E, Intangibles, etc.)
+   - Current Liabilities (AP, Short-term debt, etc.)
+   - Non-Current Liabilities (Long-term debt, etc.)
+   - Equity
+
+3. Cash Flow Statement (if available)
+
+For each table:
+- table_name: Descriptive name (e.g., "Income Statement", "Balance Sheet")
+- table_type: "income_statement" | "balance_sheet" | "cash_flow" | "other"
+- years: Array of all years found (e.g., ["2023", "2022", "2021"])
+- rows: Array of account line items with values for each year
+
+IMPORTANT:
+- Extract ALL available years from the document
+- Preserve exact account names as they appear
+- If a value is missing for a year, use null
+- Include unit (e.g., "$", "thousands", "millions")
+- Group related accounts under account_category when possible
+
+============================================================
 DEAL ECONOMICS (REQUIRED)
 ============================================================
 Extract DEAL ECONOMICS even if incomplete - mark as UNKNOWN if not stated.
@@ -148,6 +186,24 @@ export const FINANCIALS_SCHEMA: PromptTemplate = {
     "margins": [{"type": string, "year": string, "value_pct": number|null, "note": string}],
     "yoy_trends": [string]
   },
+  "financial_tables": [
+    {
+      "table_name": string,
+      "table_type": "income_statement" | "balance_sheet" | "cash_flow" | "other",
+      "years": [string],
+      "rows": [
+        {
+          "account_name": string,
+          "account_category": string | null,
+          "values_by_year": {
+            [year: string]: number | null
+          },
+          "unit": string,
+          "notes": string | null
+        }
+      ]
+    }
+  ],
   "working_capital_trend": {
     "current_ratio": number | null,
     "trend": "improving" | "stable" | "declining" | "unknown",

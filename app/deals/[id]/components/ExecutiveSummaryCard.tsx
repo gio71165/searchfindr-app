@@ -151,21 +151,21 @@ export function ExecutiveSummaryCard({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
         {askingPrice && (
           <div>
-            <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1">
+            <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
               <DollarSign className="h-4 w-4" />
               <span>Asking Price</span>
             </div>
-            <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+            <p className="text-3xl font-bold text-slate-900">
               {askingPrice}
             </p>
           </div>
         )}
         <div>
-          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mb-1">
+          <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
             <DollarSign className="h-4 w-4" />
             <span>Revenue</span>
           </div>
-          <p className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+          <p className="text-3xl font-bold text-slate-900">
             {typeof revenue === 'string' ? revenue : formatMoney(revenue)}
           </p>
         </div>

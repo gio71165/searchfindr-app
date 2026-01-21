@@ -37,11 +37,11 @@ export function Sidebar() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-md"
+        className="lg:hidden fixed top-4 left-4 z-50 p-3 min-h-[44px] min-w-[44px] bg-white border border-gray-200 rounded-lg shadow-md touch-manipulation flex items-center justify-center"
         aria-label="Toggle menu"
       >
         <svg
-          className="w-6 h-6 text-gray-600 dark:text-gray-300"
+          className="w-6 h-6 text-gray-600"
           fill="none"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -68,7 +68,7 @@ export function Sidebar() {
       {/* Sidebar */}
       <aside
         className={`
-          w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 h-screen flex flex-col z-30
+          w-64 bg-white border-r border-gray-200 h-screen flex flex-col z-30
           fixed lg:sticky top-0 left-0
           transition-transform duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -80,7 +80,7 @@ export function Sidebar() {
           <div key={idx} className="mb-6">
             {/* Section Header */}
             <div className="px-6 mb-2">
-              <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 {group.section}
               </h3>
             </div>
@@ -97,14 +97,14 @@ export function Sidebar() {
                     href={item.href}
                     onClick={() => setIsOpen(false)}
                     className={`
-                      flex items-center gap-3 px-6 py-2.5 text-sm font-medium transition-colors
+                      flex items-center gap-3 px-6 py-3 min-h-[44px] text-sm font-medium transition-colors touch-manipulation
                       ${isActive 
-                        ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-r-4 border-blue-700 dark:border-blue-500' 
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
+                        ? 'bg-blue-50 text-blue-700 border-r-4 border-blue-700' 
+                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
                       }
                     `}
                   >
-                    <span className="text-lg">{item.icon}</span>
+                    <span className="text-lg flex-shrink-0">{item.icon}</span>
                     <span>{item.label}</span>
                   </Link>
                 );
@@ -115,13 +115,13 @@ export function Sidebar() {
       </div>
 
       {/* Settings at bottom */}
-      <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+      <div className="border-t border-gray-200 p-4">
         <Link
           href="/settings"
           onClick={() => setIsOpen(false)}
-          className="flex items-center gap-3 px-2 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg transition-colors"
+          className="flex items-center gap-3 px-2 py-3 min-h-[44px] text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition-colors touch-manipulation"
         >
-          <span className="text-lg">⚙️</span>
+          <span className="text-lg flex-shrink-0">⚙️</span>
           <span>Settings</span>
         </Link>
       </div>

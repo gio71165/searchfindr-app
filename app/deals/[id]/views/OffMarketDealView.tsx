@@ -137,12 +137,12 @@ export function OffMarketDealView({
   };
 
   return (
-    <main className="min-h-screen bg-[#F9FAFB]">
-      <div className="max-w-7xl mx-auto py-8 px-4">
+    <main className="min-h-screen bg-[#F9FAFB] overflow-x-hidden">
+      <div className="max-w-7xl mx-auto py-4 sm:py-6 lg:py-8 px-4 sm:px-6">
         <BackButton dealSourceType={deal.source_type} />
-        <div className="flex gap-6">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
           {/* Main Content */}
-          <div className="flex-1 pr-6 space-y-8">
+          <div className="flex-1 lg:pr-6 space-y-6 sm:space-y-8 min-w-0">
             {/* Executive Summary Card */}
             <ExecutiveSummaryCard
               deal={deal}
@@ -154,12 +154,12 @@ export function OffMarketDealView({
             />
 
             {/* Workflow Controls Section */}
-            <div className="border rounded-lg p-6 mb-6 bg-gray-50">
+            <div className="border rounded-lg p-4 sm:p-6 mb-6 bg-gray-50">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Deal Workflow</h3>
+                <h3 className="text-base sm:text-lg font-semibold">Deal Workflow</h3>
                 <button 
                   onClick={() => setEditingWorkflow(!editingWorkflow)}
-                  className="text-sm text-blue-600 hover:text-blue-800"
+                  className="text-sm text-blue-600 hover:text-blue-800 min-h-[44px] px-3 touch-manipulation"
                 >
                   {editingWorkflow ? 'Done' : 'Edit'}
                 </button>

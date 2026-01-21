@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, type ChangeEvent } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../supabaseClient';
 import { DealCard } from '@/components/ui/DealCard';
 import { ContentHeader } from '@/components/dashboard/ContentHeader';
 import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
 import { DollarSign } from 'lucide-react';
+import { DragDropZone } from '@/components/ui/DragDropZone';
 
 function isAllowedFinancialFile(file: File) {
   const name = (file.name || '').toLowerCase();
@@ -40,9 +41,9 @@ export default function FinancialsPage() {
 
   // Upload state
   const [finFile, setFinFile] = useState<File | null>(null);
-  const finInputRef = useRef<HTMLInputElement | null>(null);
   const [finUploadStatus, setFinUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
   const [finUploadMsg, setFinUploadMsg] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
     const init = async () => {
@@ -124,10 +125,7 @@ export default function FinancialsPage() {
     };
   }, [deals]);
 
-  const handleFinancialsButtonClick = () => finInputRef.current?.click();
-
-  const handleFinancialsFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
+  const handleFinancialsFileSelect = async (file: File) => {
     if (!file) return;
 
     if (!isAllowedFinancialFile(file)) {
@@ -149,8 +147,20 @@ export default function FinancialsPage() {
     setFinUploadMsg(null);
     setFinFile(file);
     setFinUploadStatus('uploading');
+    setUploadProgress(0);
 
     try {
+      // Simulate progress for better UX
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 200);
+
       const fileExt = (file.name.split('.').pop() || '').toLowerCase() || 'pdf';
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
       const filePath = `${userId}/${fileName}`;
@@ -158,6 +168,10 @@ export default function FinancialsPage() {
       const { data: storageData, error: storageError } = await supabase.storage
         .from('financials')
         .upload(filePath, file);
+      
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
       if (storageError) {
         console.error('Financials upload error:', storageError);
         setErrorMsg('Failed to upload Financials. Please try again.');
@@ -199,11 +213,13 @@ export default function FinancialsPage() {
       setTimeout(() => {
         setFinUploadStatus('idle');
         setFinUploadMsg(null);
+        setUploadProgress(0);
       }, 5000);
     } catch (err: any) {
       console.error('Unexpected financials upload error:', err);
       setFinUploadStatus('error');
       setFinUploadMsg(err?.message || 'Unexpected error uploading financials.');
+      setUploadProgress(0);
     }
   };
 
@@ -231,45 +247,29 @@ export default function FinancialsPage() {
         setSelectedVerdict={setSelectedVerdict}
       />
 
-      {/* Action Button */}
+      {/* Drag and Drop Upload Zone */}
       <div className="mb-6">
-        <button
-          onClick={handleFinancialsButtonClick}
-          className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2"
-        >
-          <DollarSign className="h-4 w-4" />
-          Upload Financials
-        </button>
+        <DragDropZone
+          onFileSelect={handleFinancialsFileSelect}
+          accept=".pdf,.csv,.xlsx,.xls,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+          maxSizeMB={50}
+          uploadStatus={finUploadStatus}
+          uploadProgress={uploadProgress}
+          errorMessage={finUploadStatus === 'error' ? (finUploadMsg || errorMsg) : null}
+          successMessage={finUploadStatus === 'uploaded' ? finUploadMsg || 'Financials uploaded successfully!' : null}
+          disabled={!userId || !workspaceId}
+          label="Upload Financials"
+          description="Drag and drop a PDF, CSV, or Excel file here, or click to browse"
+          icon={<DollarSign className="h-12 w-12 text-green-500" />}
+          allowedFileTypes={['.pdf', '.csv', '.xlsx', '.xls', 'application/pdf', 'text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel']}
+          validateFile={(file) => {
+            if (!isAllowedFinancialFile(file)) {
+              return { valid: false, error: 'Please upload a PDF, CSV, or Excel file for Financials.' };
+            }
+            return { valid: true };
+          }}
+        />
       </div>
-
-      {/* Hidden file input */}
-      <input
-        ref={finInputRef}
-        type="file"
-        accept=".pdf,.csv,.xlsx,.xls,application/pdf,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-        className="hidden"
-        onChange={handleFinancialsFileChange}
-      />
-
-      {/* Upload Status Messages */}
-      {finUploadStatus !== 'idle' && (
-        <div
-          className={`rounded-xl border p-4 mb-4 ${
-            finUploadStatus === 'uploaded'
-              ? 'bg-green-50 border-green-200 text-green-700'
-              : finUploadStatus === 'error'
-                ? 'bg-red-50 border-red-200 text-red-700'
-                : 'bg-blue-50 border-blue-200 text-blue-700'
-          }`}
-        >
-          <div className="font-semibold">
-            {finUploadStatus === 'uploading' && 'Uploading Financials…'}
-            {finUploadStatus === 'uploaded' && 'Financials uploaded successfully!'}
-            {finUploadStatus === 'error' && 'Financials upload failed'}
-          </div>
-          {finUploadMsg && <div className="text-sm mt-1">{finUploadMsg}</div>}
-        </div>
-      )}
 
       {/* Results */}
       <div className="mb-4 text-sm text-gray-600">

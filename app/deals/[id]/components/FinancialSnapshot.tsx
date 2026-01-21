@@ -1,5 +1,6 @@
 import { DollarSign } from 'lucide-react';
 import type { FinancialMetrics, Deal } from '@/lib/types/deal';
+import { FinancialTable, type FinancialTableData } from './FinancialTable';
 
 export function FinancialSnapshot({ 
   fin, 
@@ -175,6 +176,23 @@ export function FinancialSnapshot({
           </div>
         )}
       </div>
+
+      {/* Financial Tables */}
+      {(() => {
+        const financialTables = (fin as any)?.financial_tables || (deal?.ai_financials_json as any)?.financial_tables;
+        
+        if (!financialTables || !Array.isArray(financialTables) || financialTables.length === 0) {
+          return null;
+        }
+
+        return (
+          <div className="space-y-6">
+            {financialTables.map((table: FinancialTableData, idx: number) => (
+              <FinancialTable key={idx} table={table} />
+            ))}
+          </div>
+        );
+      })()}
     </div>
   );
 }

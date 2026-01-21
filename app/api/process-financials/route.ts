@@ -267,6 +267,7 @@ async function callOpenAIJson(args: {
   return {
     overall_confidence: clampConfidenceLabel(parsed.overall_confidence),
     extracted_metrics: parsed.extracted_metrics ?? {},
+    financial_tables: Array.isArray(parsed.financial_tables) ? parsed.financial_tables : [],
     red_flags: clampStringArray(parsed.red_flags),
     green_flags: clampStringArray(parsed.green_flags),
     missing_items: clampStringArray(parsed.missing_items),
@@ -502,6 +503,7 @@ export async function POST(req: NextRequest) {
     // Build enhanced financials JSON with new fields
     const enhancedFinancialsJson = {
       ...analysis.extracted_metrics,
+      financial_tables: (analysis as any).financial_tables ?? [],
       qoe_red_flags: analysis.qoe_red_flags ?? [],
       industry_benchmark: benchmarkComparison,
       owner_interview_questions: finalQuestions,

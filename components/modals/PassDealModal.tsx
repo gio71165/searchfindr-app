@@ -80,9 +80,9 @@ export function PassDealModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-        <h2 className="text-xl font-semibold mb-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full my-auto">
+        <h2 className="text-lg sm:text-xl font-semibold mb-4">
           Pass {companyName}?
         </h2>
         
@@ -98,7 +98,7 @@ export function PassDealModal({
           <select
             value={passReason}
             onChange={(e) => setPassReason(e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-300 rounded-lg px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation"
             required
           >
             <option value="">Select a reason...</option>
@@ -120,23 +120,23 @@ export function PassDealModal({
             onChange={(e) => setPassNotes(e.target.value)}
             placeholder="Any other details to remember..."
             rows={3}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
           />
         </div>
 
         {/* Actions */}
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
           <button
             onClick={onClose}
             disabled={passing}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+            className="flex-1 px-4 py-3 min-h-[44px] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 touch-manipulation font-medium"
           >
             Cancel
           </button>
           <button
             onClick={handlePass}
             disabled={passing || !passReason}
-            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+            className="flex-1 px-4 py-3 min-h-[44px] bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 touch-manipulation font-medium"
           >
             {passing ? 'Passing...' : 'Confirm Pass'}
           </button>
