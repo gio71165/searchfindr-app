@@ -267,29 +267,7 @@ export default function CimsPage() {
         <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-300">
           <div className="text-6xl mb-4">📄</div>
           <h3 className="text-xl font-semibold mb-2">No CIMs uploaded yet</h3>
-          <p className="text-gray-600 mb-6">Upload a CIM to get AI-powered analysis with QoE red flags</p>
-          <div className="max-w-md mx-auto">
-            <DragDropZone
-              onFileSelect={handleCimFileSelect}
-              accept="application/pdf"
-              maxSizeMB={50}
-              uploadStatus={cimUploadStatus}
-              uploadProgress={uploadProgress}
-              errorMessage={cimUploadStatus === 'error' ? errorMsg : null}
-              successMessage={cimUploadStatus === 'uploaded' ? 'CIM uploaded successfully!' : null}
-              disabled={!userId || !workspaceId}
-              label="Upload Your First CIM"
-              description="Drag and drop a PDF file here, or click to browse"
-              icon={<Upload className="h-12 w-12 text-blue-500" />}
-              allowedFileTypes={['.pdf', 'application/pdf']}
-              validateFile={(file) => {
-                if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
-                  return { valid: false, error: 'Please upload a PDF file for the CIM.' };
-                }
-                return { valid: true };
-              }}
-            />
-          </div>
+          <p className="text-gray-600">Use the upload zone above to upload your first CIM</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">

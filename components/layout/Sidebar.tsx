@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { useReminderCount } from '@/lib/hooks/useReminderCount';
 
 export function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const { count: reminderCount } = useReminderCount();
 
   const navItems = [
     {
@@ -105,7 +107,12 @@ export function Sidebar() {
                     `}
                   >
                     <span className="text-lg flex-shrink-0">{item.icon}</span>
-                    <span>{item.label}</span>
+                    <span className="flex-1">{item.label}</span>
+                    {item.href === '/today' && reminderCount > 0 && (
+                      <span className="flex-shrink-0 px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] text-center">
+                        {reminderCount > 99 ? '99+' : reminderCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}

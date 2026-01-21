@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { MapPin, Building2, Calendar, DollarSign, TrendingUp } from 'lucide-react';
+import { MapPin, Building2, Calendar, DollarSign, TrendingUp, StickyNote, Plus, Tag } from 'lucide-react';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { SourceBadge } from './SourceBadge';
 import { Skeleton } from './Skeleton';
@@ -32,6 +32,7 @@ type Deal = {
   stage?: string | null;
   next_action_date?: string | null;
   archived_at?: string | null;
+  user_notes?: string | null;
   criteria_match_json?: {
     verdict?: string;
     asking_price?: string;
@@ -68,6 +69,9 @@ export function DealCard({
   fromView,
   isLoading,
   onArchive,
+  isSelected,
+  onToggleSelect,
+  canSelect,
 }: {
   deal?: Deal;
   onSaveToggle?: (id: string) => void;
@@ -75,9 +79,16 @@ export function DealCard({
   fromView?: string | null;
   isLoading?: boolean;
   onArchive?: (id: string) => void;
+  isSelected?: boolean;
+  onToggleSelect?: (id: string) => void;
+  canSelect?: boolean;
+  onNoteUpdate?: () => void;
 }) {
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [noteInput, setNoteInput] = useState('');
+  const [isSavingNote, setIsSavingNote] = useState(false);
   if (isLoading || !deal) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-6">
@@ -227,7 +238,35 @@ export function DealCard({
   const nextAction = deal.next_action || deal.criteria_match_json?.recommended_next_action || null;
 
   return (
-    <div className="group rounded-xl border border-slate-200 bg-white p-6 transition-all duration-200 hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-0.5 hover:border-slate-300">
+    <div className={`group rounded-xl border bg-white p-6 transition-all duration-200 hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-0.5 ${
+      isSelected 
+        ? 'border-blue-500 border-2 bg-blue-50/30' 
+        : 'border-slate-200 hover:border-slate-300'
+    }`}>
+      {/* Comparison Checkbox */}
+      {onToggleSelect && (
+        <div className="flex items-center justify-end mb-3">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isSelected || false}
+              onChange={(e) => {
+                e.stopPropagation();
+                if (canSelect !== false) {
+                  onToggleSelect(deal.id);
+                }
+              }}
+              disabled={canSelect === false && !isSelected}
+              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <span className="text-xs text-slate-600 font-medium">
+              {isSelected ? 'Selected' : 'Select for comparison'}
+            </span>
+          </label>
+        </div>
+      )}
+
       {/* Verdict and SBA Badges */}
       <div className="flex items-center justify-between mb-4">
         <VerdictBadge verdict={verdict} />
@@ -351,8 +390,117 @@ export function DealCard({
         </div>
       )}
 
+
       {/* Summary Preview */}
-      <p className="text-sm text-slate-600 mb-5 line-clamp-2 leading-relaxed">{preview}</p>
+      <p className="text-sm text-slate-600 mb-4 line-clamp-2 leading-relaxed">{preview}</p>
+
+      {/* User Notes Preview */}
+      {(deal.user_notes || showNoteInput) && (
+        <div className="mb-4 pb-4 border-b border-slate-200">
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex items-center gap-1.5">
+              <StickyNote className="h-3.5 w-3.5 text-slate-500" />
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Your Notes</span>
+            </div>
+            {!showNoteInput && (
+              <button
+                onClick={() => {
+                  setNoteInput(deal.user_notes || '');
+                  setShowNoteInput(true);
+                }}
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Edit
+              </button>
+            )}
+          </div>
+          
+          {showNoteInput ? (
+            <div className="space-y-2">
+              <textarea
+                value={noteInput}
+                onChange={(e) => setNoteInput(e.target.value)}
+                placeholder="Add a note about this deal..."
+                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                rows={3}
+                maxLength={1000}
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    setIsSavingNote(true);
+                    try {
+                      const { data: sessionData } = await supabase.auth.getSession();
+                      if (!sessionData?.session) {
+                        alert('Please log in to save notes');
+                        return;
+                      }
+
+                      const response = await fetch(`/api/deals/${deal.id}/notes`, {
+                        method: 'POST',
+                        headers: {
+                          'Authorization': `Bearer ${sessionData.session.access_token}`,
+                          'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ notes: noteInput.trim() || null }),
+                      });
+
+                      if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Failed to save note');
+                      }
+
+                      setShowNoteInput(false);
+                      if (typeof window !== 'undefined') {
+                        window.location.reload();
+                      }
+                    } catch (error) {
+                      console.error('Error saving note:', error);
+                      alert(error instanceof Error ? error.message : 'Failed to save note');
+                    } finally {
+                      setIsSavingNote(false);
+                    }
+                  }}
+                  disabled={isSavingNote}
+                  className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {isSavingNote ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  onClick={() => {
+                    setNoteInput(deal.user_notes || '');
+                    setShowNoteInput(false);
+                  }}
+                  disabled={isSavingNote}
+                  className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-700 line-clamp-2 leading-relaxed">
+              {deal.user_notes || 'No notes yet'}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Quick Add Note Button */}
+      {!deal.user_notes && !showNoteInput && (
+        <div className="mb-4">
+          <button
+            onClick={() => {
+              setNoteInput('');
+              setShowNoteInput(true);
+            }}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Add Note
+          </button>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="flex items-center gap-3 pt-4 border-t border-slate-200">

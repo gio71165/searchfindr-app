@@ -5,6 +5,8 @@ import {
   GitCompare,
   Chrome,
   Search,
+  Download,
+  MessageSquare,
 } from 'lucide-react';
 
 const features = [
@@ -21,12 +23,12 @@ const features = [
   {
     icon: LayoutDashboard,
     title: 'Pipeline Management',
-    description: 'Organize deals by stage, set reminders, and use the Today view to focus on what needs attention right now.',
+    description: 'Track deals through stages, set reminders, manage verdicts (proceed/park/pass), and use the Today view to focus on what needs attention right now.',
   },
   {
     icon: GitCompare,
     title: 'Deal Comparison',
-    description: 'Benchmark new opportunities against past deals. See how this one stacks up against your historical deal flow.',
+    description: 'Side-by-side comparison of 2-3 deals with export to CSV. Benchmark new opportunities against your pipeline.',
   },
   {
     icon: Chrome,
@@ -38,6 +40,16 @@ const features = [
     title: 'Off-Market Search',
     description: 'Find companies by industry, location, revenue range, and more. Discover opportunities others haven\'t seen.',
   },
+  {
+    icon: Download,
+    title: 'PDF Export',
+    description: 'Export professional deal analysis reports to share with advisors, partners, or investors. Includes executive summary, financials, red flags, and verdict.',
+  },
+  {
+    icon: MessageSquare,
+    title: 'AI Deal Chat',
+    description: 'Ask questions about any deal and get instant answers. AI understands your deal context and helps you dig deeper into opportunities.',
+  },
 ];
 
 export function FeaturesGrid() {
@@ -48,11 +60,11 @@ export function FeaturesGrid() {
           <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4 tracking-tight">
             Everything you need to{' '}
             <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-              screen deals faster
+              run your search
             </span>
           </h2>
           <p className="text-xl text-white/60 max-w-2xl mx-auto">
-            Built specifically for search fund operators who need speed, accuracy, and consistency.
+            Deal sourcing, screening, pipeline management, and analysis—all the tools searchers need in one platform.
           </p>
         </div>
 

@@ -80,6 +80,7 @@ export function getRateLimitConfig(endpoint: string): { limit: number; windowSec
     "analyze-text": { limit: 20, windowSeconds: 3600 }, // 20/hour
     "capture-deal": { limit: 30, windowSeconds: 3600 }, // 30/hour
     "deal-chat": { limit: 60, windowSeconds: 3600 }, // 60/hour (already has per-deal limits)
+    "compare-deals": { limit: 100, windowSeconds: 3600 }, // 100/hour
   };
 
   return configs[endpoint] || { limit: 10, windowSeconds: 3600 };

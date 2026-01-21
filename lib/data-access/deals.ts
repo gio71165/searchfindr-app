@@ -477,6 +477,36 @@ export class DealsRepository extends BaseRepository {
   }
 
   /**
+   * Generic update method for updating any deal fields.
+   * @param dealId - The deal ID
+   * @param updates - Partial deal data to update
+   * @returns The updated deal
+   * @throws NotFoundError if deal not found
+   * @throws DatabaseError if database error occurs
+   */
+  async update(dealId: string, updates: Partial<Record<string, any>>): Promise<Deal> {
+    // Verify deal exists first
+    await this.getById(dealId);
+
+    const { data, error } = await this.ensureWorkspaceScope(
+      this.supabase.from("companies").update(updates).eq("id", dealId)
+    ).select().single();
+
+    if (error) {
+      if (error.code === "PGRST116") {
+        throw new NotFoundError(`Deal with id ${dealId} not found`);
+      }
+      this.handleError(error, "Failed to update deal");
+    }
+
+    if (!data) {
+      throw new NotFoundError(`Deal with id ${dealId} not found`);
+    }
+
+    return data as Deal;
+  }
+
+  /**
    * Permanently deletes a deal and its related data.
    * Only allows deletion if the deal is already archived OR if force is true.
    * Related data (deal_activities, deal_chat_messages) will be deleted via CASCADE.

@@ -18,8 +18,8 @@ const problems = [
   },
   {
     icon: FileQuestion,
-    title: 'Inconsistent diligence output',
-    description: 'Every deal analyzed differently, making it impossible to compare opportunities objectively.',
+    title: 'No workflow system',
+    description: 'Deals scattered across spreadsheets and emails. No way to track stages, set reminders, or manage your pipeline systematically.',
   },
 ];
 

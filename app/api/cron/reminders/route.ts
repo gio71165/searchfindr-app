@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { constantTimeCompare } from '@/lib/api/security';
 import { logger } from '@/lib/utils/logger';
+import { sendEmail, formatReminderEmail } from '@/lib/utils/email';
 
 export const runtime = 'nodejs';
 
@@ -43,9 +44,10 @@ export async function GET(request: NextRequest) {
     const today = new Date().toISOString().split('T')[0];
 
     // Find deals with reminders due today that haven't been reminded yet
+    // Also get user email for each deal's workspace
     const { data: deals, error } = await supabaseAdmin
       .from('companies')
-      .select('id, workspace_id, company_name, next_action, next_action_date')
+      .select('id, workspace_id, company_name, next_action, next_action_date, user_id')
       .lte('next_action_date', today)
       .is('reminded_at', null)
       .not('next_action_date', 'is', null)
@@ -58,9 +60,24 @@ export async function GET(request: NextRequest) {
 
     console.log(`Found ${deals?.length || 0} reminders due`);
 
+    // Get workspace members to find user emails
+    const workspaceIds = [...new Set((deals || []).map(d => d.workspace_id))];
+    const workspaceUsers: Record<string, string[]> = {}; // workspace_id -> user_ids
+    
+    for (const wsId of workspaceIds) {
+      const { data: members } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .eq('workspace_id', wsId);
+      
+      if (members) {
+        workspaceUsers[wsId] = members.map(m => m.id);
+      }
+    }
+
     const reminded: string[] = [];
 
-    // Mark as reminded (in production, you'd also send email/notification here)
+    // Mark as reminded and send emails
     for (const deal of deals || []) {
       try {
         // Mark as reminded
@@ -90,8 +107,43 @@ export async function GET(request: NextRequest) {
 
         reminded.push(deal.id);
 
-        // TODO: Send email notification or in-app notification here
-        // For now, they'll see it in the "Today" view
+        // Send email notification to all workspace members
+        try {
+          const userIds = workspaceUsers[deal.workspace_id] || [];
+          const emailsSent: string[] = [];
+          
+          for (const userId of userIds) {
+            try {
+              const { data: userData } = await supabaseAdmin.auth.admin.getUserById(userId);
+              const userEmail = userData?.user?.email;
+              
+              if (userEmail && !emailsSent.includes(userEmail)) {
+                const emailHtml = formatReminderEmail(
+                  deal.company_name || 'Untitled Deal',
+                  deal.next_action,
+                  deal.next_action_date
+                );
+                
+                const sent = await sendEmail({
+                  to: userEmail,
+                  subject: `Reminder: ${deal.company_name || 'Deal'} - ${deal.next_action || 'Follow up'}`,
+                  html: emailHtml,
+                });
+                
+                if (sent) {
+                  emailsSent.push(userEmail);
+                  logger.info(`Sent reminder email for deal ${deal.id} to ${userEmail}`);
+                }
+              }
+            } catch (userError) {
+              // Skip individual user errors, continue with others
+              logger.warn(`Failed to get user ${userId} for deal ${deal.id}:`, userError);
+            }
+          }
+        } catch (emailError) {
+          // Log but don't fail the reminder - email is optional
+          logger.warn(`Failed to send emails for deal ${deal.id}:`, emailError);
+        }
       } catch (err) {
         console.error(`Error processing reminder for deal ${deal.id}:`, err);
       }

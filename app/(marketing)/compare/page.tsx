@@ -89,8 +89,8 @@ export default function ComparePage() {
               The Bottom Line
             </h2>
             <p className="text-lg text-white/80 text-center leading-relaxed max-w-3xl mx-auto">
-              <span className="font-semibold text-emerald-300">SearchFindr is for searchers finding their business.</span>{' '}
-              We built it specifically for independent operators who need speed, affordability, and active deal sourcing.
+              <span className="font-semibold text-emerald-300">SearchFindr is your complete search workflow platform.</span>{' '}
+              We built it specifically for independent operators who need deal sourcing, screening, pipeline management, and analysis—all in one place.
               DealSage is for PE firms analyzing deal flow—powerful, but built for a different use case.
             </p>
           </div>

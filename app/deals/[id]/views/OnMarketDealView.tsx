@@ -13,11 +13,17 @@ import { StrengthsPanel } from '../components/StrengthsPanel';
 import { OwnerInterviewQuestions } from '../components/OwnerInterviewQuestions';
 import { SearcherSnapshot } from '../components/SearcherSnapshot';
 import { DealStructureCalculator } from '../components/DealStructureCalculator';
+import { DealActivityTimeline } from '@/components/deal/DealActivityTimeline';
+import { BrokerSelector } from '@/components/deal/BrokerSelector';
+import { DealDocuments } from '@/components/deal/DealDocuments';
 import { BackButton } from '../components/BackButton';
 import { normalizeRedFlags } from '../lib/normalizers';
 import type { Deal } from '@/lib/types/deal';
 import { TrendingUp, BarChart3, CheckCircle2 } from 'lucide-react';
 import { PassDealModal } from '@/components/modals/PassDealModal';
+import { useKeyboardShortcuts, createShortcut } from '@/lib/hooks/useKeyboardShortcuts';
+import { KeyboardShortcutsModal } from '@/components/KeyboardShortcutsModal';
+import { showToast } from '@/components/ui/Toast';
 
 export function OnMarketDealView({
   deal,
@@ -42,6 +48,7 @@ export function OnMarketDealView({
   const ownerQuestions = fin.owner_interview_questions || [];
 
   const [showPassModal, setShowPassModal] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [settingVerdict, setSettingVerdict] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState(false);
   const [nextAction, setNextAction] = useState(deal.next_action || '');
@@ -76,10 +83,11 @@ export function OnMarketDealView({
         .eq('workspace_id', profile.workspace_id);
 
       if (error) throw error;
+      showToast('Marked as Proceed', 'success', 2000);
       window.location.reload();
     } catch (error) {
       console.error('Error setting proceed:', error);
-      alert('Failed to set verdict. Please try again.');
+      showToast('Failed to set verdict. Please try again.', 'error');
     } finally {
       setSettingVerdict(false);
     }
@@ -103,14 +111,45 @@ export function OnMarketDealView({
         .eq('workspace_id', profile.workspace_id);
 
       if (error) throw error;
+      showToast('Marked as Park', 'info', 2000);
       window.location.reload();
     } catch (error) {
       console.error('Error setting park:', error);
-      alert('Failed to set verdict. Please try again.');
+      showToast('Failed to set verdict. Please try again.', 'error');
     } finally {
       setSettingVerdict(false);
     }
   };
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts(
+    [
+      createShortcut('P', () => {
+        if (!settingVerdict) {
+          handleProceed();
+        }
+      }, 'Mark as Proceed', ['deal-detail']),
+      createShortcut('K', () => {
+        if (!settingVerdict) {
+          handlePark();
+        }
+      }, 'Mark as Park', ['deal-detail']),
+      createShortcut('X', () => {
+        if (!settingVerdict) {
+          setShowPassModal(true);
+          showToast('Opening pass modal', 'info', 1500);
+        }
+      }, 'Open Pass modal', ['deal-detail']),
+      createShortcut('E', () => {
+        setEditingWorkflow(!editingWorkflow);
+        showToast(editingWorkflow ? 'Exited edit mode' : 'Entered edit mode', 'info', 1500);
+      }, 'Edit deal details', ['deal-detail']),
+      createShortcut('?', () => {
+        setShowShortcutsModal(true);
+      }, 'Show keyboard shortcuts', ['global', 'deal-detail']),
+    ],
+    true
+  );
 
   return (
     <main className="min-h-screen bg-[#F9FAFB] overflow-x-hidden">
@@ -303,6 +342,19 @@ export function OnMarketDealView({
 
             {/* Deal Structure Calculator - Only on On-Market pages */}
             <DealStructureCalculator deal={deal} />
+
+            {/* Broker */}
+            <div className="border rounded-lg p-4 sm:p-6 mb-6 bg-white">
+              <BrokerSelector dealId={dealId} currentBrokerId={deal.broker_id} />
+            </div>
+
+            {/* Documents */}
+            <DealDocuments dealId={dealId} />
+
+            {/* Activity Timeline */}
+            <div className="border rounded-lg p-4 sm:p-6 mb-6 bg-white">
+              <DealActivityTimeline dealId={dealId} />
+            </div>
           </div>
 
           {/* Chat Sidebar */}
@@ -319,6 +371,23 @@ export function OnMarketDealView({
           onSuccess={handlePassSuccess}
         />
       )}
+
+      <KeyboardShortcutsModal
+        isOpen={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
+        currentContext="deal-detail"
+      />
+
+      {/* Keyboard shortcuts hint */}
+      <div className="fixed bottom-4 right-4 z-40">
+        <button
+          onClick={() => setShowShortcutsModal(true)}
+          className="text-xs text-slate-500 hover:text-slate-700 bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm transition-colors"
+          aria-label="Show keyboard shortcuts"
+        >
+          Press <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded text-xs">?</kbd> for shortcuts
+        </button>
+      </div>
     </main>
   );
 }

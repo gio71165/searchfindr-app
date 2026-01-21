@@ -206,6 +206,18 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error("Not signed in.");
 
+      // Build history: exclude welcome message and only include actual Q&A pairs
+      const welcomeMessage = "Ask me anything about this deal. Click a prompt below or type your own question.";
+      const history = nextMsgs
+        .filter((m) => {
+          // Include user messages and assistant messages that aren't the welcome message
+          if (m.role === "user") return true;
+          if (m.role === "assistant" && m.content !== welcomeMessage) return true;
+          return false;
+        })
+        .slice(-10) // Last 10 turns (5 Q&A pairs)
+        .map((m) => ({ role: m.role, content: m.content }));
+
       const res = await fetch("/api/deal-chat", {
         method: "POST",
         headers: {
@@ -215,11 +227,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
         body: JSON.stringify({
           dealId,
           message: text,
-          context: buildContext(),
-          history: nextMsgs
-            .filter((m) => m.role === "user" || m.role === "assistant")
-            .slice(-10)
-            .map((m) => ({ role: m.role, content: m.content })),
+          history,
         }),
       });
 

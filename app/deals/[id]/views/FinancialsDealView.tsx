@@ -11,6 +11,9 @@ import { QoeRedFlagsPanel } from '../components/QoeRedFlagsPanel';
 import { StrengthsPanel } from '../components/StrengthsPanel';
 import { OwnerInterviewQuestions } from '../components/OwnerInterviewQuestions';
 import { DiligenceChecklist } from '../components/DiligenceChecklist';
+import { DealActivityTimeline } from '@/components/deal/DealActivityTimeline';
+import { BrokerSelector } from '@/components/deal/BrokerSelector';
+import { DealDocuments } from '@/components/deal/DealDocuments';
 import { BackButton } from '../components/BackButton';
 import { getDealConfidence } from '../lib/confidence';
 import { normalizeStringArray, normalizeMetricRows, normalizeMarginRows, normalizeConfidenceSignals } from '../lib/normalizers';
@@ -19,6 +22,9 @@ import type { MarginRow } from '../lib/types';
 import type { Deal, FinancialAnalysis } from '@/lib/types/deal';
 import { CheckCircle2, AlertTriangle, FileCheck, BarChart3, TrendingUp } from 'lucide-react';
 import { PassDealModal } from '@/components/modals/PassDealModal';
+import { useKeyboardShortcuts, createShortcut } from '@/lib/hooks/useKeyboardShortcuts';
+import { KeyboardShortcutsModal } from '@/components/KeyboardShortcutsModal';
+import { showToast } from '@/components/ui/Toast';
 
 export function FinancialsDealView({
   deal,
@@ -100,6 +106,7 @@ export function FinancialsDealView({
   }, [deal?.ai_confidence_json?.signals, analysis?.confidence_json?.signals, analysis?.confidence_json?.bullets]);
 
   const [showPassModal, setShowPassModal] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [settingVerdict, setSettingVerdict] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState(false);
   const [nextAction, setNextAction] = useState(deal.next_action || '');
@@ -134,10 +141,11 @@ export function FinancialsDealView({
         .eq('workspace_id', profile.workspace_id);
 
       if (error) throw error;
+      showToast('Marked as Proceed', 'success', 2000);
       window.location.reload();
     } catch (error) {
       console.error('Error setting proceed:', error);
-      alert('Failed to set verdict. Please try again.');
+      showToast('Failed to set verdict. Please try again.', 'error');
     } finally {
       setSettingVerdict(false);
     }
@@ -161,14 +169,45 @@ export function FinancialsDealView({
         .eq('workspace_id', profile.workspace_id);
 
       if (error) throw error;
+      showToast('Marked as Park', 'info', 2000);
       window.location.reload();
     } catch (error) {
       console.error('Error setting park:', error);
-      alert('Failed to set verdict. Please try again.');
+      showToast('Failed to set verdict. Please try again.', 'error');
     } finally {
       setSettingVerdict(false);
     }
   };
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts(
+    [
+      createShortcut('P', () => {
+        if (!settingVerdict) {
+          handleProceed();
+        }
+      }, 'Mark as Proceed', ['deal-detail']),
+      createShortcut('K', () => {
+        if (!settingVerdict) {
+          handlePark();
+        }
+      }, 'Mark as Park', ['deal-detail']),
+      createShortcut('X', () => {
+        if (!settingVerdict) {
+          setShowPassModal(true);
+          showToast('Opening pass modal', 'info', 1500);
+        }
+      }, 'Open Pass modal', ['deal-detail']),
+      createShortcut('E', () => {
+        setEditingWorkflow(!editingWorkflow);
+        showToast(editingWorkflow ? 'Exited edit mode' : 'Entered edit mode', 'info', 1500);
+      }, 'Edit deal details', ['deal-detail']),
+      createShortcut('?', () => {
+        setShowShortcutsModal(true);
+      }, 'Show keyboard shortcuts', ['global', 'deal-detail']),
+    ],
+    true
+  );
 
   return (
     <main className="min-h-screen bg-[#F9FAFB] overflow-x-hidden">
@@ -513,6 +552,22 @@ export function FinancialsDealView({
           <DealChatPanel dealId={dealId} deal={deal} />
         </div>
       </div>
+
+      {/* Additional Sections */}
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Broker */}
+        <div className="border rounded-lg p-4 sm:p-6 bg-white">
+          <BrokerSelector dealId={dealId} currentBrokerId={deal.broker_id} />
+        </div>
+
+        {/* Documents */}
+        <DealDocuments dealId={dealId} />
+
+        {/* Activity Timeline */}
+        <div className="border rounded-lg p-4 sm:p-6 bg-white">
+          <DealActivityTimeline dealId={dealId} />
+        </div>
+      </div>
       
       {showPassModal && (
         <PassDealModal
@@ -523,6 +578,23 @@ export function FinancialsDealView({
           onSuccess={handlePassSuccess}
         />
       )}
+
+      <KeyboardShortcutsModal
+        isOpen={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
+        currentContext="deal-detail"
+      />
+
+      {/* Keyboard shortcuts hint */}
+      <div className="fixed bottom-4 right-4 z-40">
+        <button
+          onClick={() => setShowShortcutsModal(true)}
+          className="text-xs text-slate-500 hover:text-slate-700 bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm transition-colors"
+          aria-label="Show keyboard shortcuts"
+        >
+          Press <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded text-xs">?</kbd> for shortcuts
+        </button>
+      </div>
     </main>
   );
 }

@@ -16,8 +16,8 @@ const steps = [
   {
     number: '03',
     icon: CheckCircle,
-    title: 'Score, save, prioritize',
-    description: 'Standardized deal profiles make it easy to compare opportunities and focus on what matters.',
+    title: 'Manage your pipeline',
+    description: 'Track deals through stages, set reminders, compare opportunities, and export analysis. Your entire search workflow in one place.',
   },
 ];
 
@@ -27,11 +27,14 @@ export function SolutionSection() {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4 tracking-tight">
-            Turn raw deal inputs into{' '}
+            Your complete{' '}
             <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-              standardized screening output
+              deal workflow platform
             </span>
           </h2>
+          <p className="text-xl text-white/60 max-w-2xl mx-auto mt-4">
+            From sourcing to screening to pipeline management—everything in one place.
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">

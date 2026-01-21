@@ -8,9 +8,14 @@ import { DealCard } from '@/components/ui/DealCard';
 import { ContentHeader } from '@/components/dashboard/ContentHeader';
 import { PipelineSummary } from '@/components/dashboard/PipelineSummary';
 import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
+import { BulkActionsBar } from '@/components/dashboard/BulkActionsBar';
+import { SavedFilters } from '@/components/dashboard/SavedFilters';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Upload, DollarSign, Search as SearchIcon, FileText, TrendingUp } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { useKeyboardShortcuts, createShortcut } from '@/lib/hooks/useKeyboardShortcuts';
+import { KeyboardShortcutsModal } from '@/components/KeyboardShortcutsModal';
+import { showToast } from '@/components/ui/Toast';
 
 type SourceType = 'on_market' | 'off_market' | 'cim_pdf' | 'financials' | null;
 type Stage = 'all' | 'new' | 'reviewing' | 'follow_up' | 'ioi_sent' | 'loi' | 'dd' | 'passed';
@@ -107,6 +112,14 @@ function DashboardPageContent() {
   const finInputRef = useRef<HTMLInputElement | null>(null);
   const [finUploadStatus, setFinUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
   const [finUploadMsg, setFinUploadMsg] = useState<string | null>(null);
+
+  // Keyboard shortcuts state
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedDealIndex, setSelectedDealIndex] = useState<number | null>(null);
+
+  // Comparison selection state
+  const [selectedDealIds, setSelectedDealIds] = useState<Set<string>>(new Set());
 
   // Off-market search state
   const [offIndustries, setOffIndustries] = useState<string[]>([]);
@@ -401,6 +414,75 @@ function DashboardPageContent() {
     window.open('/extension/callback', '_blank', 'noopener,noreferrer');
   };
 
+  // Comparison selection handlers
+  const handleToggleDealSelection = (dealId: string) => {
+    setSelectedDealIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(dealId)) {
+        newSet.delete(dealId);
+      } else {
+        // Max 3 deals can be selected
+        if (newSet.size < 3) {
+          newSet.add(dealId);
+        }
+      }
+      return newSet;
+    });
+  };
+
+  const handleClearSelection = () => {
+    setSelectedDealIds(new Set());
+  };
+
+  const handleCompareSelected = () => {
+    if (selectedDealIds.size >= 2 && selectedDealIds.size <= 3) {
+      const idsArray = Array.from(selectedDealIds);
+      router.push(`/deals/compare?ids=${idsArray.join(',')}`);
+    }
+  };
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts(
+    [
+      createShortcut('/', () => {
+        searchInputRef.current?.focus();
+      }, 'Focus search bar', ['global', 'dashboard']),
+      createShortcut('?', () => {
+        setShowShortcutsModal(true);
+      }, 'Show keyboard shortcuts', ['global', 'dashboard']),
+      createShortcut('J', () => {
+        if (filteredDeals.length > 0) {
+          const currentIndex = selectedDealIndex ?? -1;
+          const nextIndex = currentIndex < filteredDeals.length - 1 ? currentIndex + 1 : 0;
+          setSelectedDealIndex(nextIndex);
+          // Scroll into view
+          const element = document.getElementById(`deal-${filteredDeals[nextIndex].id}`);
+          element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 'Next deal in list', ['dashboard']),
+      createShortcut('K', () => {
+        if (filteredDeals.length > 0) {
+          const currentIndex = selectedDealIndex ?? filteredDeals.length;
+          const prevIndex = currentIndex > 0 ? currentIndex - 1 : filteredDeals.length - 1;
+          setSelectedDealIndex(prevIndex);
+          // Scroll into view
+          const element = document.getElementById(`deal-${filteredDeals[prevIndex].id}`);
+          element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 'Previous deal in list', ['dashboard']),
+      createShortcut('Enter', () => {
+        if (selectedDealIndex !== null && filteredDeals[selectedDealIndex]) {
+          router.push(`/deals/${filteredDeals[selectedDealIndex].id}`);
+        }
+      }, 'Open selected deal', ['dashboard']),
+      createShortcut('N', () => {
+        handleCimButtonClick();
+        showToast('Opening CIM upload', 'info', 1500);
+      }, 'Upload new CIM', ['dashboard'], { shift: true }),
+    ],
+    true
+  );
+
   // Off-market search
   const addIndustry = () => {
     setOffIndustries((prev) => (prev.includes(offIndustryToAdd) ? prev : [...prev, offIndustryToAdd]));
@@ -495,11 +577,13 @@ function DashboardPageContent() {
       {/* Search */}
       <div className="mb-6 sm:mb-8">
         <input
+          ref={searchInputRef}
           type="text"
           placeholder="Search deals by company name..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full px-4 py-3 text-base border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:shadow-md"
+          aria-label="Search deals"
         />
       </div>
 
@@ -509,6 +593,22 @@ function DashboardPageContent() {
         setSelectedStage={(stage: string) => setSelectedStage(stage as Stage)}
         stageCounts={stageCounts}
         variant="full"
+      />
+
+      {/* Saved Filters */}
+      <SavedFilters
+        onLoadFilter={(filters) => {
+          if (filters.source !== undefined) setSelectedSource(filters.source as SourceType);
+          if (filters.stage !== undefined) setSelectedStage(filters.stage as Stage);
+          if (filters.verdict !== undefined) setSelectedVerdict(filters.verdict as Verdict);
+          if (filters.search !== undefined) setSearchQuery(filters.search);
+        }}
+        currentFilters={{
+          source: selectedSource,
+          stage: selectedStage,
+          verdict: selectedVerdict,
+          search: searchQuery,
+        }}
       />
 
       {/* Verdict & Quick Filters */}
@@ -588,6 +688,32 @@ function DashboardPageContent() {
         </div>
       )}
 
+      {/* Bulk Actions Bar */}
+      {selectedDealIds.size > 0 && (
+        <>
+          <BulkActionsBar
+            selectedDealIds={selectedDealIds}
+            onClearSelection={handleClearSelection}
+            onRefresh={() => workspaceId && loadDeals(workspaceId)}
+          />
+          
+          {/* Comparison Actions (if 2-3 deals selected) */}
+          {selectedDealIds.size >= 2 && selectedDealIds.size <= 3 && (
+            <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between gap-4">
+              <span className="text-sm text-slate-600">
+                Compare {selectedDealIds.size} deals side-by-side
+              </span>
+              <button
+                onClick={handleCompareSelected}
+                className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              >
+                Compare Selected
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
       {/* DEAL CARDS */}
       {deals.length === 0 ? (
         <EmptyState
@@ -624,11 +750,18 @@ function DashboardPageContent() {
             {filteredDeals.map((deal, index) => (
               <div
                 key={deal.id}
+                id={`deal-${deal.id}`}
                 style={{
                   animation: `fadeInUp 0.5s ease-out ${Math.min(index * 50, 300)}ms both`,
                 }}
+                className={selectedDealIndex === index ? 'ring-2 ring-blue-500 rounded-xl' : ''}
               >
-                <DealCard deal={deal} />
+                <DealCard
+                  deal={deal}
+                  isSelected={selectedDealIds.has(deal.id)}
+                  onToggleSelect={handleToggleDealSelection}
+                  canSelect={selectedDealIds.size < 3 || selectedDealIds.has(deal.id)}
+                />
               </div>
             ))}
           </div>
@@ -642,6 +775,23 @@ function DashboardPageContent() {
           <div className="text-sm">{errorMsg}</div>
         </div>
       )}
+
+      <KeyboardShortcutsModal
+        isOpen={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
+        currentContext="dashboard"
+      />
+
+      {/* Keyboard shortcuts hint */}
+      <div className="fixed bottom-4 right-4 z-40">
+        <button
+          onClick={() => setShowShortcutsModal(true)}
+          className="text-xs text-slate-500 hover:text-slate-700 bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm transition-colors"
+          aria-label="Show keyboard shortcuts"
+        >
+          Press <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded text-xs">?</kbd> for shortcuts
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Download } from 'lucide-react';
 import { SourceBadge } from './SourceBadge';
 import { TierBadge } from './TierBadge';
 import { ConfidencePill } from './ConfidencePill';
@@ -12,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { SetReminderButton } from '@/components/deal/SetReminderButton';
 import { MoreActionsMenu } from '@/components/deal/MoreActionsMenu';
 import { CompareDealModal } from '@/components/modals/CompareDealModal';
+import { exportDealToPDF } from '@/lib/pdf/exportDealPDF';
 
 function VerdictBadge({ verdict }: { verdict: string | null }) {
   if (!verdict) return null;
@@ -53,6 +55,7 @@ export function DealHeader({
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
+  const [isExportingPDF, setIsExportingPDF] = useState(false);
   
   const isArchived = Boolean(deal.archived_at);
   
@@ -192,6 +195,20 @@ export function DealHeader({
     }
   };
 
+  const handleExportPDF = async () => {
+    if (isExportingPDF) return;
+    
+    setIsExportingPDF(true);
+    try {
+      await exportDealToPDF(deal, financialAnalysis);
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert(error instanceof Error ? error.message : 'Failed to export PDF. Please try again.');
+    } finally {
+      setIsExportingPDF(false);
+    }
+  };
+
   return (
     <section>
       <button onClick={onBack} className="text-xs underline mb-4">
@@ -215,12 +232,23 @@ export function DealHeader({
                 {deal.location_state || (deal.metadata?.address as string | undefined) || ''}
               </p>
             </div>
-            <MoreActionsMenu
-              dealId={deal.id}
-              isArchived={isArchived}
-              onArchive={handleArchive}
-              onDelete={handleDelete}
-            />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportPDF}
+                disabled={isExportingPDF}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Export to PDF"
+              >
+                <Download className="h-4 w-4" />
+                {isExportingPDF ? 'Generating...' : 'Export PDF'}
+              </button>
+              <MoreActionsMenu
+                dealId={deal.id}
+                isArchived={isArchived}
+                onArchive={handleArchive}
+                onDelete={handleDelete}
+              />
+            </div>
           </div>
         </div>
         {/* Verdict Badge - Prominently displayed */}

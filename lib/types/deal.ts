@@ -269,6 +269,16 @@ export interface Deal {
   reminded_at?: string | null;
   // Archive field
   archived_at?: string | null;
+  // Pipeline date tracking
+  ioi_date?: string | null;
+  loi_date?: string | null;
+  expected_close_date?: string | null;
+  deal_value?: number | null;
+  // User notes and tags
+  user_notes?: string | null;
+  tags?: string[] | null;
+  // Broker relationship
+  broker_id?: string | null;
 }
 
 /**

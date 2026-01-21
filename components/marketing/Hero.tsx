@@ -16,13 +16,13 @@ export function Hero() {
         {/* Main Headline */}
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight tracking-tight">
-            Find better deals{' '}
+            Your complete{' '}
             <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-              faster
+              search workflow
             </span>
           </h1>
           <p className="text-xl sm:text-2xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed">
-            AI-powered deal screening for search fund operators. Turn raw deal inputs into standardized screening output in minutes, not weeks.
+            The all-in-one platform for search fund operators. From deal sourcing and screening to pipeline management and analysis—everything you need to find and evaluate opportunities faster.
           </p>
 
           {/* CTAs */}
