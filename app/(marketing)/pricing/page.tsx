@@ -19,11 +19,11 @@ const faqs = [
   },
   {
     question: 'What if I need more than the limits?',
-    answer: 'Contact us and we can discuss custom plans for high-volume users. Most searchers find the Pro plan sufficient.',
+    answer: 'The Unlimited plan is designed for high-volume users. Most searchers find the Pro plan sufficient.',
   },
   {
     question: 'Do you offer discounts for students?',
-    answer: 'Yes! Students enrolled in MBA programs can get 20% off. Contact us with your student email for a discount code.',
+    answer: 'Yes! Students enrolled in MBA programs can get 20% off. Email us with your student email for a discount code.',
   },
   {
     question: 'Can I upgrade or downgrade later?',

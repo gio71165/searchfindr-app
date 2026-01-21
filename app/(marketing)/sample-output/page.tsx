@@ -47,7 +47,7 @@ export default function SampleOutputPage() {
                 </div>
                 <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
                   <p className="text-slate-300 leading-relaxed mb-4">
-                    TechFlow Solutions is a [redacted] business serving [redacted] sectors. The company has demonstrated consistent revenue growth over the past three years, with strong EBITDA margins. The business operates with minimal owner dependency and has diversified its customer base.
+                    TechFlow Solutions is a well-established business serving multiple sectors. The company has demonstrated consistent revenue growth over the past three years, with strong EBITDA margins. The business operates with minimal owner dependency and has diversified its customer base.
                   </p>
                   <div className="flex items-center gap-4 pt-4 border-t border-slate-700/50">
                     <div className="px-3 py-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
@@ -69,28 +69,28 @@ export default function SampleOutputPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
                     <div className="text-slate-400 text-xs uppercase tracking-wide mb-2">Asking Price</div>
-                    <div className="text-xl font-bold text-white mb-1">$[redacted]M</div>
-                    <div className="text-slate-500 text-xs">[redacted]x EBITDA</div>
+                    <div className="text-xl font-bold text-white mb-1">$12.5M</div>
+                    <div className="text-slate-500 text-xs">4.5x EBITDA</div>
                   </div>
                   <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
                     <div className="text-slate-400 text-xs uppercase tracking-wide mb-2">TTM Revenue</div>
-                    <div className="text-xl font-bold text-white mb-1">$[redacted]M</div>
-                    <div className="text-slate-500 text-xs">+[redacted]% YoY</div>
+                    <div className="text-xl font-bold text-white mb-1">$8.2M</div>
+                    <div className="text-slate-500 text-xs">+12% YoY</div>
                   </div>
                   <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
                     <div className="text-slate-400 text-xs uppercase tracking-wide mb-2">TTM EBITDA</div>
-                    <div className="text-xl font-bold text-white mb-1">$[redacted]M</div>
-                    <div className="text-emerald-400 text-xs">[redacted]% margin</div>
+                    <div className="text-xl font-bold text-white mb-1">$1.4M</div>
+                    <div className="text-emerald-400 text-xs">17.1% margin</div>
                   </div>
                   <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700/50">
                     <div className="text-slate-400 text-xs uppercase tracking-wide mb-2">Location</div>
-                    <div className="text-lg font-semibold text-white mb-1">[City], [State]</div>
+                    <div className="text-lg font-semibold text-white mb-1">Austin, TX</div>
                     <div className="text-slate-500 text-xs">SBA Eligible</div>
                   </div>
                 </div>
               </section>
 
-              {/* Red Flags - Simplified */}
+              {/* Red Flags - Blurred */}
               <section>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 rounded-lg bg-red-500/10 border border-red-500/30">
@@ -98,27 +98,38 @@ export default function SampleOutputPage() {
                   </div>
                   <h3 className="text-lg font-bold text-white">Quality of Earnings Concerns</h3>
                 </div>
-                <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-5">
-                  <ul className="space-y-2">
-                    <li className="flex items-start gap-3">
-                      <div className="h-5 w-5 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-red-400 text-xs">●</span>
-                      </div>
-                      <div>
-                        <div className="text-white font-medium mb-1">Customer Concentration Risk</div>
-                        <div className="text-slate-400 text-sm">Top customers represent significant portion of revenue.</div>
-                      </div>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <div className="h-5 w-5 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-red-400 text-xs">●</span>
-                      </div>
-                      <div>
-                        <div className="text-white font-medium mb-1">Owner Dependency</div>
-                        <div className="text-slate-400 text-sm">Key relationships require succession planning.</div>
-                      </div>
-                    </li>
-                  </ul>
+                <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-5 relative overflow-hidden">
+                  <div className="blur-sm select-none pointer-events-none">
+                    <ul className="space-y-2">
+                      <li className="flex items-start gap-3">
+                        <div className="h-5 w-5 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-red-400 text-xs">●</span>
+                        </div>
+                        <div>
+                          <div className="text-white font-medium mb-1">Customer Concentration Risk</div>
+                          <div className="text-slate-400 text-sm">Top customers represent significant portion of revenue. Significant revenue risk if any key customer is lost.</div>
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <div className="h-5 w-5 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-red-400 text-xs">●</span>
+                        </div>
+                        <div>
+                          <div className="text-white font-medium mb-1">Owner Dependency</div>
+                          <div className="text-slate-400 text-sm">Founder handles all key customer relationships. Succession planning unclear.</div>
+                        </div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                        <div className="h-5 w-5 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-red-400 text-xs">●</span>
+                        </div>
+                        <div>
+                          <div className="text-white font-medium mb-1">Working Capital Volatility</div>
+                          <div className="text-slate-400 text-sm">Significant seasonal fluctuations require careful cash management. AR days increasing.</div>
+                        </div>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               </section>
 
@@ -154,7 +165,7 @@ export default function SampleOutputPage() {
                 </div>
               </section>
 
-              {/* Decision Framework - Simplified */}
+              {/* Decision Framework - Blurred */}
               <section>
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/30">
@@ -162,14 +173,16 @@ export default function SampleOutputPage() {
                   </div>
                   <h3 className="text-lg font-bold text-white">Recommended Action</h3>
                 </div>
-                <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
-                  <div className="text-lg font-bold text-white mb-2">Proceed with Caution</div>
-                  <div className="text-slate-400 text-sm mb-4">Submit IOI but request detailed QoE review before LOI</div>
-                  <div className="text-slate-400 text-xs uppercase tracking-wide mb-2">Next Steps</div>
-                  <div className="text-slate-300 text-sm space-y-1">
-                    <div>• Schedule call with broker</div>
-                    <div>• Request detailed addback schedule</div>
-                    <div>• Verify working capital requirements</div>
+                <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50 relative overflow-hidden">
+                  <div className="blur-sm select-none pointer-events-none">
+                    <div className="text-lg font-bold text-white mb-2">Proceed with Caution</div>
+                    <div className="text-slate-400 text-sm mb-4">Submit IOI but request detailed QoE review before LOI</div>
+                    <div className="text-slate-400 text-xs uppercase tracking-wide mb-2">Next Steps</div>
+                    <div className="text-slate-300 text-sm space-y-1">
+                      <div>• Schedule call with broker to clarify customer concentration</div>
+                      <div>• Request detailed addback schedule</div>
+                      <div>• Verify working capital requirements</div>
+                    </div>
                   </div>
                 </div>
               </section>
