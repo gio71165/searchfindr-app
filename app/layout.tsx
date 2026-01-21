@@ -3,6 +3,7 @@ import './globals.css';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://searchfindr-app.vercel.app'),
   title: {
     default: 'SearchFindr - AI Deal Analysis for Search Funds',
     template: '%s | SearchFindr'
