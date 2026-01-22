@@ -478,7 +478,8 @@ export function DealDocuments({ dealId }: DealDocumentsProps) {
       const token = sessionData?.session?.access_token;
       if (!token) return;
 
-      const { data: { user } } = await supabase.auth.getUser();
+      // Use user from session instead of calling getUser() again for better performance
+      const user = sessionData?.session?.user;
       if (!user) return;
 
       const { data: profile } = await supabase

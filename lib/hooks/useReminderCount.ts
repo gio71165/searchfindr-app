@@ -10,7 +10,9 @@ export function useReminderCount() {
   useEffect(() => {
     const fetchCount = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        // Use getSession() for better performance - faster than getUser()
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
         if (!user) {
           setCount(0);
           setLoading(false);
