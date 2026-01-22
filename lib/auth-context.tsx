@@ -56,18 +56,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId: NodeJS.Timeout | undefined;
 
     async function init() {
       try {
-        const { data: { session: s } } = await supabase.auth.getSession();
+        // Set a timeout to prevent hanging forever
+        const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) => {
+          timeoutId = setTimeout(() => {
+            resolve({ data: { session: null } });
+          }, 5000); // 5 second max wait
+        });
+
+        // Use Promise.race to add a timeout for the session check
+        const sessionPromise = supabase.auth.getSession();
+        
+        const { data: { session: s } } = await Promise.race([
+          sessionPromise,
+          timeoutPromise,
+        ]);
+
+        // Clear timeout if session promise won
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = undefined;
+        }
+
         if (!mounted) return;
         setSession(s);
         setUser(s?.user ?? null);
-        if (s?.user) await fetchProfile(s.user.id);
+        if (s?.user) {
+          // Don't block on profile fetch - do it in background
+          fetchProfile(s.user.id).catch((e) => {
+            if (mounted) {
+              console.error('Profile fetch error:', e);
+            }
+          });
+        }
       } catch (e) {
         if (mounted) setError(e instanceof Error ? e.message : 'Auth error');
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          if (timeoutId) clearTimeout(timeoutId);
+          setLoading(false);
+        }
       }
     }
 
@@ -89,6 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false;
+      if (timeoutId) clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, [fetchProfile]);

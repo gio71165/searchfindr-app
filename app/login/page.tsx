@@ -18,17 +18,49 @@ export default function LoginPage() {
 
   // If already authenticated, redirect to dashboard
   useEffect(() => {
+    let mounted = true;
+    let timeoutId: NodeJS.Timeout;
+
     const checkAuth = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        router.replace('/dashboard');
-        return;
+      try {
+        // Use getSession() instead of getUser() - faster, uses cached session
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+        
+        if (session?.user) {
+          router.replace('/dashboard');
+          return;
+        }
+      } catch (err) {
+        // Silently fail - user just needs to log in
+        console.error('Auth check error:', err);
+      } finally {
+        if (mounted) {
+          setAuthChecking(false);
+        }
       }
-      setAuthChecking(false);
     };
-    checkAuth();
+
+    // Set a timeout to prevent hanging forever
+    timeoutId = setTimeout(() => {
+      if (mounted) {
+        setAuthChecking(false);
+      }
+    }, 3000); // 3 second max wait
+
+    checkAuth().finally(() => {
+      if (mounted) {
+        clearTimeout(timeoutId);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
