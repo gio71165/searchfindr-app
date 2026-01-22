@@ -84,18 +84,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!mounted) return;
         setSession(s);
         setUser(s?.user ?? null);
-        if (s?.user) {
-          // Don't block on profile fetch - do it in background
-          fetchProfile(s.user.id).catch((e) => {
-            if (mounted) {
-              console.error('Profile fetch error:', e);
-            }
-          });
+        
+        // Set loading to false immediately if no user (don't wait for profile)
+        if (!s?.user) {
+          if (mounted) {
+            if (timeoutId) clearTimeout(timeoutId);
+            setLoading(false);
+          }
+          return;
         }
-      } catch (e) {
-        if (mounted) setError(e instanceof Error ? e.message : 'Auth error');
-      } finally {
+        
+        // Fetch profile but don't block - set loading false immediately
+        // Profile will update when it loads
         if (mounted) {
+          if (timeoutId) clearTimeout(timeoutId);
+          setLoading(false); // Don't wait for profile fetch
+        }
+        
+        // Fetch profile in background
+        fetchProfile(s.user.id).catch((e) => {
+          if (mounted) {
+            console.error('Profile fetch error:', e);
+          }
+        });
+      } catch (e) {
+        if (mounted) {
+          setError(e instanceof Error ? e.message : 'Auth error');
           if (timeoutId) clearTimeout(timeoutId);
           setLoading(false);
         }

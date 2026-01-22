@@ -64,13 +64,16 @@ export default function FinancialsPage() {
   }, [authLoading, user, workspaceId, router]);
 
   async function loadDeals(wsId: string) {
+    // Optimize: Only select needed columns (SELECT * is slow)
+    const columns = 'id,company_name,location_city,location_state,industry,source_type,score,final_tier,created_at,listing_url,is_saved,passed_at,ai_summary,ai_confidence_json,stage,verdict,next_action,next_action_date,sba_eligible,deal_size_band,archived_at,user_notes,asking_price_extracted,ebitda_ttm_extracted,criteria_match_json';
     const { data, error } = await supabase
       .from('companies')
-      .select('*')
+      .select(columns)
       .eq('workspace_id', wsId)
       .eq('source_type', 'financials')
       .is('passed_at', null)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     if (error) {
       console.error('loadDeals error:', error);
