@@ -149,8 +149,8 @@ function DashboardPageContent() {
   }
 
   async function loadDeals(wsId: string) {
-    const columns = 'id,company_name,location_city,location_state,industry,source_type,score,final_tier,created_at,listing_url,is_saved,passed_at,pass_reason,pass_notes,owner_name,ai_summary,ai_confidence_json,stage,verdict,verdict_confidence,verdict_reason,next_action,next_action_date,sba_eligible,deal_size_band,updated_at,archived_at,user_notes,asking_price_extracted,ebitda_ttm_extracted,criteria_match_json';
-    const columnsNoArchived = 'id,company_name,location_city,location_state,industry,source_type,score,final_tier,created_at,listing_url,is_saved,passed_at,pass_reason,pass_notes,owner_name,ai_summary,ai_confidence_json,stage,verdict,verdict_confidence,verdict_reason,next_action,next_action_date,sba_eligible,deal_size_band,updated_at,user_notes,asking_price_extracted,ebitda_ttm_extracted,criteria_match_json';
+    const columns = 'id,company_name,location_city,location_state,industry,source_type,score,final_tier,created_at,listing_url,is_saved,passed_at,pass_reason,pass_notes,owner_name,ai_summary,ai_confidence_json,stage,verdict,verdict_confidence,verdict_reason,next_action,next_action_date,sba_eligible,deal_size_band,archived_at,user_notes,asking_price_extracted,ebitda_ttm_extracted,criteria_match_json';
+    const columnsNoArchived = 'id,company_name,location_city,location_state,industry,source_type,score,final_tier,created_at,listing_url,is_saved,passed_at,pass_reason,pass_notes,owner_name,ai_summary,ai_confidence_json,stage,verdict,verdict_confidence,verdict_reason,next_action,next_action_date,sba_eligible,deal_size_band,user_notes,asking_price_extracted,ebitda_ttm_extracted,criteria_match_json';
 
     const { data, error } = await supabase
       .from('companies')
