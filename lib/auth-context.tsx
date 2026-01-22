@@ -82,17 +82,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (!mounted) return;
-        setSession(s);
-        setUser(s?.user ?? null);
         
-        // Set loading to false immediately if no user (don't wait for profile)
-        if (!s?.user) {
+        // Clear state if no valid session
+        if (!s || !s.user) {
+          setSession(null);
+          setUser(null);
+          setWorkspaceId(null);
+          setIsAdmin(false);
           if (mounted) {
             if (timeoutId) clearTimeout(timeoutId);
             setLoading(false);
           }
           return;
         }
+        
+        // Only set user/session if we have a valid session
+        setSession(s);
+        setUser(s.user);
         
         // Fetch profile but don't block - set loading false immediately
         // Profile will update when it loads

@@ -12,7 +12,7 @@ const STRIPE_PAYMENT_URL = 'https://buy.stripe.com/dRm4gz1ReaTxct01lKawo00';
 export function Navigation() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, isAdmin, loading: authLoading } = useAuth();
+  const { user, session, isAdmin, loading: authLoading } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const email = user?.email ?? null;
 
@@ -24,7 +24,12 @@ export function Navigation() {
     router.push('/');
   };
 
-  const isAuthenticated = !authLoading && !!email;
+  // Only consider authenticated if:
+  // 1. Auth is done loading
+  // 2. We have a valid session (not just cached user data)
+  // 3. We have a user with email
+  // This prevents showing authenticated nav when there's stale/expired session data
+  const isAuthenticated = !authLoading && !!session && !!user && !!email;
 
   // Minimal nav when logged out: logo + "Need access?" only. No Connect Extension, no user dropdown.
   if (!isAuthenticated) {
