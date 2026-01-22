@@ -125,7 +125,8 @@ export default function CimsPage() {
     }
 
     if (!userId || !workspaceId) {
-      setErrorMsg('User/workspace not loaded yet. Please try again.');
+      setErrorMsg('User/workspace not loaded yet. Please refresh the page and try again.');
+      console.error('Missing userId or workspaceId:', { userId, workspaceId });
       return;
     }
 
@@ -160,6 +161,13 @@ export default function CimsPage() {
 
       setUploadProgress(90); // Upload starting
       console.log('Starting CIM upload:', { filePath, fileSize: fileToUpload.size, fileName });
+      
+      // Ensure we have a valid session before uploading
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated. Please log in again.');
+      }
+      console.log('Session check passed, user ID:', session.user.id);
       
       // Add timeout to prevent hanging
       const uploadPromise = supabase.storage
@@ -207,6 +215,14 @@ export default function CimsPage() {
       setUploadProgress(95); // Upload complete, inserting into database
 
       const cimNameWithoutExt = stripExt(file.name);
+
+      // Debug: Log what we're trying to insert
+      console.log('Attempting to insert CIM:', {
+        userId,
+        workspaceId,
+        company_name: cimNameWithoutExt || 'CIM Deal',
+        cim_storage_path: storageData?.path || filePath,
+      });
 
       const { data: insertData, error: insertError } = await supabase
         .from('companies')
