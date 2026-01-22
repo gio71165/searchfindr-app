@@ -304,26 +304,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'OPENAI_API_KEY is not set on the server.' }, { status: 500 });
     }
 
-    // 1) Build public URL for the CIM file from Supabase Storage
-    const { data: publicUrlData } = supabaseAdmin.storage.from('cims').getPublicUrl(cimStoragePath);
+    // 1) Download the file directly from Supabase Storage using service role (works for private buckets)
+    const { data: fileData, error: downloadError } = await supabaseAdmin.storage
+      .from('cims')
+      .download(cimStoragePath);
 
-    const publicUrl = publicUrlData?.publicUrl;
-    logger.info('process-cim: publicUrl', publicUrl);
-
-    if (!publicUrl) {
-      return NextResponse.json({ success: false, error: 'Failed to build public URL for CIM file.' }, { status: 500 });
-    }
-
-    // 2) Download the file from Supabase
-    const fileRes = await fetch(publicUrl);
-    logger.info('process-cim: file fetch status', fileRes.status, fileRes.statusText);
-
-    if (!fileRes.ok) {
-      logger.error('Failed to fetch file from storage:', fileRes.status, fileRes.statusText);
+    if (downloadError || !fileData) {
+      logger.error('Failed to download CIM file from storage:', downloadError);
       return NextResponse.json({ success: false, error: 'Failed to download CIM file from storage.' }, { status: 500 });
     }
 
-    const fileArrayBuffer = await fileRes.arrayBuffer();
+    logger.info('process-cim: file downloaded successfully');
+
+    const fileArrayBuffer = await fileData.arrayBuffer();
 
     // Validate file size
     const sizeCheck = validateFileSize(fileArrayBuffer.byteLength);

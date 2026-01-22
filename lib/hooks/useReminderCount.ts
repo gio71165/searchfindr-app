@@ -71,8 +71,7 @@ export function useReminderCount() {
 
     fetchCount();
 
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchCount, 30000);
+    const interval = setInterval(fetchCount, 60000);
 
     return () => clearInterval(interval);
   }, []);

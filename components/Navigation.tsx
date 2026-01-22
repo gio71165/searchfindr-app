@@ -1,58 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../app/supabaseClient';
-import { ChevronDown, LogOut, Settings, User, Zap, Shield } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+import { ChevronDown, LogOut, Settings, User, Zap, Shield, LayoutDashboard } from 'lucide-react';
 
 const STRIPE_PAYMENT_URL = 'https://buy.stripe.com/dRm4gz1ReaTxct01lKawo00';
 
 export function Navigation() {
   const router = useRouter();
-  const [authLoading, setAuthLoading] = useState(true);
-  const [email, setEmail] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const pathname = usePathname();
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const email = user?.email ?? null;
 
-  useEffect(() => {
-    const getUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setEmail(user?.email ?? null);
-      
-      // Check if user is admin
-      if (user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', user.id)
-          .single();
-        setIsAdmin(profile?.is_admin === true);
-      }
-      
-      setAuthLoading(false);
-    };
-    getUser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setEmail(session?.user?.email ?? null);
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('is_admin')
-          .eq('id', session.user.id)
-          .single();
-        setIsAdmin(profile?.is_admin === true);
-      } else {
-        setIsAdmin(false);
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
+  const isAdminPage = pathname?.startsWith('/admin');
+  const isDashboardPage = pathname?.startsWith('/dashboard') || pathname?.startsWith('/cims') || pathname?.startsWith('/financials') || pathname?.startsWith('/on-market') || pathname?.startsWith('/off-market') || pathname?.startsWith('/today') || pathname?.startsWith('/deals');
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -124,39 +89,49 @@ export function Navigation() {
                     onClick={() => setShowUserMenu(false)}
                   />
                   <div className="absolute right-0 mt-2 w-56 rounded-lg border border-slate-200 bg-white shadow-lg z-50">
-                    <div className="py-1">
-                      <div className="px-4 py-2 border-b border-slate-200">
-                        <p className="text-sm font-medium text-slate-900">{email}</p>
-                      </div>
-                      {isAdmin && (
-                        <Link
-                          href="/admin"
-                          onClick={() => setShowUserMenu(false)}
-                          className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-                        >
-                          <Shield className="h-4 w-4" />
-                          Admin Dashboard
-                        </Link>
-                      )}
+                  <div className="py-1">
+                    <div className="px-4 py-2 border-b border-slate-200">
+                      <p className="text-sm font-medium text-slate-900">{email}</p>
+                    </div>
+                    {isAdmin && isDashboardPage && (
                       <Link
-                        href="/settings"
+                        href="/admin"
                         onClick={() => setShowUserMenu(false)}
                         className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                       >
-                        <Settings className="h-4 w-4" />
-                        Settings
+                        <Shield className="h-4 w-4" />
+                        Admin Dashboard
                       </Link>
-                      <button
-                        onClick={() => {
-                          setShowUserMenu(false);
-                          handleLogout();
-                        }}
-                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    )}
+                    {isAdminPage && (
+                      <Link
+                        href="/dashboard"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                       >
-                        <LogOut className="h-4 w-4" />
-                        Log out
-                      </button>
-                    </div>
+                        <LayoutDashboard className="h-4 w-4" />
+                        User Dashboard
+                      </Link>
+                    )}
+                    <Link
+                      href="/settings"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
+                      <Settings className="h-4 w-4" />
+                      Settings
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setShowUserMenu(false);
+                        handleLogout();
+                      }}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Log out
+                    </button>
+                  </div>
                   </div>
                 </>
               )}

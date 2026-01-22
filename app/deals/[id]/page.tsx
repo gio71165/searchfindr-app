@@ -40,6 +40,7 @@ export default function DealPage() {
     runOffMarketInitialDiligence,
     runCimAnalysis,
     runFinancialAnalysis,
+    refreshDeal,
   } = useDealData(id);
 
   // Page states
@@ -73,6 +74,7 @@ export default function DealPage() {
         cimError={cimError}
         cimSuccess={cimSuccess}
         onRunCim={runCimAnalysis}
+        onRefresh={() => refreshDeal(id)}
       />
     );
   }
@@ -86,6 +88,7 @@ export default function DealPage() {
         running={runningOffMarketDD}
         error={offMarketError}
         onRunInitialDiligence={runOffMarketInitialDiligence}
+        onRefresh={() => refreshDeal(id)}
       />
     );
   }
@@ -98,6 +101,7 @@ export default function DealPage() {
         analyzing={analyzing}
         aiError={aiError}
         onRunInitialDiligence={runOnMarketInitialDiligence}
+        onRefresh={() => refreshDeal(id)}
       />
   );
 }

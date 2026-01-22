@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../supabaseClient';
+import { useAuth } from '@/lib/auth-context';
 import { DealCard } from '@/components/ui/DealCard';
 import { ContentHeader } from '@/components/dashboard/ContentHeader';
 import { PipelineSummary } from '@/components/dashboard/PipelineSummary';
@@ -81,10 +82,10 @@ const ALLOWED_RADIUS = [5, 10, 15, 25, 50, 75, 100];
 
 export default function OffMarketPage() {
   const router = useRouter();
+  const { user, workspaceId, loading: authLoading } = useAuth();
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [searchStatus, setSearchStatus] = useState<string | null>(null);
 
@@ -101,38 +102,23 @@ export default function OffMarketPage() {
   const [selectedVerdict, setSelectedVerdict] = useState('all');
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user) {
-          router.replace('/');
-          return;
-        }
-
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('workspace_id')
-          .eq('id', user.id)
-          .single();
-
-        if (profileError || !profile?.workspace_id) {
-          console.error('profileError:', profileError);
-          setErrorMsg('Missing workspace. Please contact support.');
-          return;
-        }
-
-        setWorkspaceId(profile.workspace_id);
-        await loadOffMarketDeals(profile.workspace_id);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    init();
-  }, [router]);
+    if (authLoading) return;
+    if (!user) {
+      router.replace('/');
+      return;
+    }
+    if (!workspaceId) {
+      setErrorMsg('Missing workspace. Please contact support.');
+      setLoading(false);
+      return;
+    }
+    setErrorMsg(null);
+    let ok = true;
+    loadOffMarketDeals(workspaceId).finally(() => {
+      if (ok) setLoading(false);
+    });
+    return () => { ok = false; };
+  }, [authLoading, user, workspaceId, router]);
 
   async function loadOffMarketDeals(wsId: string) {
     const { data, error } = await supabase
@@ -271,7 +257,7 @@ export default function OffMarketPage() {
     passed: deals.filter(d => d.passed_at !== null || d.stage === 'passed').length
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="p-8 max-w-7xl mx-auto">
         <div className="text-center py-12">Loading...</div>

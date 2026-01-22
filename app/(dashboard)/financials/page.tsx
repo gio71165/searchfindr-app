@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../supabaseClient';
+import { useAuth } from '@/lib/auth-context';
 import { DealCard } from '@/components/ui/DealCard';
 import { ContentHeader } from '@/components/dashboard/ContentHeader';
 import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
@@ -28,11 +29,11 @@ function stripExt(filename: string) {
 
 export default function FinancialsPage() {
   const router = useRouter();
+  const { user, workspaceId, loading: authLoading } = useAuth();
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const userId = user?.id ?? null;
 
   // Filter states
   const [selectedStage, setSelectedStage] = useState('all');
@@ -46,36 +47,21 @@ export default function FinancialsPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          router.replace('/');
-          return;
-        }
-
-        setUserId(user.id);
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('workspace_id')
-          .eq('id', user.id)
-          .single();
-
-        if (!profile?.workspace_id) {
-          setLoading(false);
-          return;
-        }
-
-        setWorkspaceId(profile.workspace_id);
-        await loadDeals(profile.workspace_id);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    init();
-  }, [router]);
+    if (authLoading) return;
+    if (!user) {
+      router.replace('/');
+      return;
+    }
+    if (!workspaceId) {
+      setLoading(false);
+      return;
+    }
+    let ok = true;
+    loadDeals(workspaceId).finally(() => {
+      if (ok) setLoading(false);
+    });
+    return () => { ok = false; };
+  }, [authLoading, user, workspaceId, router]);
 
   async function loadDeals(wsId: string) {
     const { data, error } = await supabase
@@ -231,7 +217,7 @@ export default function FinancialsPage() {
     }
   };
 
-  if (loading) return <div className="p-8">Loading...</div>;
+  if (authLoading || loading) return <div className="p-8">Loading...</div>;
 
   return (
     <div className="p-8 max-w-7xl mx-auto">

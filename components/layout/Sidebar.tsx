@@ -10,6 +10,7 @@ export function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const { count: reminderCount } = useReminderCount();
 
+
   const navItems = [
     {
       section: 'OVERVIEW',
@@ -119,18 +120,6 @@ export function Sidebar() {
             </nav>
           </div>
         ))}
-      </div>
-
-      {/* Settings at bottom */}
-      <div className="border-t border-gray-200 p-4">
-        <Link
-          href="/settings"
-          onClick={() => setIsOpen(false)}
-          className="flex items-center gap-3 px-2 py-3 min-h-[44px] text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-lg transition-colors touch-manipulation"
-        >
-          <span className="text-lg flex-shrink-0">⚙️</span>
-          <span>Settings</span>
-        </Link>
       </div>
     </aside>
     </>

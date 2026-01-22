@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../supabaseClient';
+import { useAuth } from '@/lib/auth-context';
 import { DealCard } from '@/components/ui/DealCard';
 import { ContentHeader } from '@/components/dashboard/ContentHeader';
 import { PipelineSummary } from '@/components/dashboard/PipelineSummary';
@@ -10,6 +11,7 @@ import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
 
 export default function OnMarketPage() {
   const router = useRouter();
+  const { user, workspaceId, loading: authLoading } = useAuth();
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,42 +21,33 @@ export default function OnMarketPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          router.replace('/');
-          return;
-        }
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('workspace_id')
-          .eq('id', user.id)
-          .single();
-
-        if (!profile?.workspace_id) {
-          setLoading(false);
-          return;
-        }
-
-        await loadDeals(profile.workspace_id);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    init();
-  }, [router]);
+    if (authLoading) return;
+    if (!user) {
+      router.replace('/');
+      return;
+    }
+    if (!workspaceId) {
+      setLoading(false);
+      return;
+    }
+    let ok = true;
+    loadDeals(workspaceId).finally(() => {
+      if (ok) setLoading(false);
+    });
+    return () => { ok = false; };
+  }, [authLoading, user, workspaceId, router]);
 
   async function loadDeals(workspaceId: string) {
+    // Optimize: Only select needed columns
+    const columns = 'id,company_name,location_city,location_state,industry,source_type,score,final_tier,created_at,listing_url,is_saved,passed_at,ai_summary,ai_confidence_json,stage,verdict,next_action,next_action_date,sba_eligible,deal_size_band,archived_at,user_notes,asking_price_extracted,ebitda_ttm_extracted,criteria_match_json';
     const { data, error } = await supabase
       .from('companies')
-      .select('*')
+      .select(columns)
       .eq('workspace_id', workspaceId)
       .eq('source_type', 'on_market')
       .is('passed_at', null)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     if (error) {
       console.error('loadDeals error:', error);
@@ -94,7 +87,7 @@ export default function OnMarketPage() {
     };
   }, [deals]);
 
-  if (loading) return <div className="p-8">Loading...</div>;
+  if (authLoading || loading) return <div className="p-8">Loading...</div>;
 
   return (
     <div className="p-8 max-w-7xl mx-auto">

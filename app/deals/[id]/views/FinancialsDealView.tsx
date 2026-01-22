@@ -35,6 +35,7 @@ export function FinancialsDealView({
   analysis,
   error,
   onRun,
+  onRefresh,
 }: {
   deal: Deal;
   dealId: string;
@@ -44,6 +45,7 @@ export function FinancialsDealView({
   analysis: FinancialAnalysis | null;
   error: string | null;
   onRun: () => void;
+  onRefresh?: () => void;
 }) {
   const confidence = getDealConfidence(deal, { financialAnalysis: analysis });
 
@@ -142,7 +144,7 @@ export function FinancialsDealView({
 
       if (error) throw error;
       showToast('Marked as Proceed', 'success', 2000);
-      window.location.reload();
+      onRefresh?.();
     } catch (error) {
       console.error('Error setting proceed:', error);
       showToast('Failed to set verdict. Please try again.', 'error');
@@ -170,7 +172,7 @@ export function FinancialsDealView({
 
       if (error) throw error;
       showToast('Marked as Park', 'info', 2000);
-      window.location.reload();
+      onRefresh?.();
     } catch (error) {
       console.error('Error setting park:', error);
       showToast('Failed to set verdict. Please try again.', 'error');
@@ -257,8 +259,8 @@ export function FinancialsDealView({
                             last_action_at: new Date().toISOString()
                           })
                           .eq('id', deal.id);
-                        // Refresh deal
-                        window.location.reload();
+                        // Refresh deal data instead of full page reload
+                        onRefresh?.();
                       }}
                       className="w-full border rounded-lg px-3 py-2"
                     >

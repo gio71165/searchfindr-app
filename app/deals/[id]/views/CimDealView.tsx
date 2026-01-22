@@ -36,6 +36,7 @@ export function CimDealView({
   cimError,
   cimSuccess,
   onRunCim,
+  onRefresh,
 }: {
   deal: Deal;
   dealId: string;
@@ -44,6 +45,7 @@ export function CimDealView({
   cimError: string | null;
   cimSuccess: boolean;
   onRunCim: () => void;
+  onRefresh?: () => void;
 }) {
   const scoring = deal.ai_scoring_json || {};
   const criteria = deal.criteria_match_json || {};
@@ -138,7 +140,7 @@ export function CimDealView({
 
       if (error) throw error;
       showToast('Marked as Park', 'info', 2000);
-      window.location.reload();
+      onRefresh?.();
     } catch (error) {
       console.error('Error setting park:', error);
       showToast('Failed to set verdict. Please try again.', 'error');
@@ -233,8 +235,8 @@ export function CimDealView({
                             last_action_at: new Date().toISOString()
                           })
                           .eq('id', deal.id);
-                        // Refresh deal
-                        window.location.reload();
+                        // Refresh deal data instead of full page reload
+                        onRefresh?.();
                       }}
                       className="w-full border rounded-lg px-3 py-2"
                     >

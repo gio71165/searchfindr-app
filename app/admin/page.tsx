@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../supabaseClient';
+import { Navigation } from '@/components/Navigation';
 import {
   LineChart,
   Line,
@@ -241,7 +242,9 @@ export default function AdminDashboard() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
+    <>
+      <Navigation />
+      <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -423,8 +426,8 @@ export default function AdminDashboard() {
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {sortedUsers.map((user) => (
-                  <>
-                    <tr key={user.id} className="hover:bg-gray-50">
+                  <React.Fragment key={user.id}>
+                    <tr className="hover:bg-gray-50">
                       <td className="p-4 text-sm text-gray-900">{user.email}</td>
                       <td className="p-4 text-sm text-gray-600">
                         {new Date(user.signedUp).toLocaleDateString('en-US', {
@@ -483,7 +486,7 @@ export default function AdminDashboard() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
@@ -507,6 +510,7 @@ export default function AdminDashboard() {
         </div>
       </div>
     </main>
+    </>
   );
 }
 

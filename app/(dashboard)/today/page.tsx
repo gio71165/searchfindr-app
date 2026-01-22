@@ -1,21 +1,31 @@
 'use client';
 
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTodayData } from './hooks/useTodayData';
+import { useAuth } from '@/lib/auth-context';
 import { AttentionCard } from '@/components/today/AttentionCard';
 import { DealCard } from '@/components/ui/DealCard';
 import { Skeleton } from '@/components/ui/Skeleton';
 import Link from 'next/link';
 
 export default function TodayPage() {
-  const { 
-    followUpsNeeded, 
-    stuckDeals, 
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+  const {
+    followUpsNeeded,
+    stuckDeals,
     proceedWithoutAction,
     recentActivity,
-    loading 
+    loading
   } = useTodayData();
 
-  if (loading) {
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) router.replace('/');
+  }, [authLoading, user, router]);
+
+  if (authLoading || loading || (!user && !authLoading)) {
     return (
       <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto overflow-x-hidden">
         <Skeleton className="h-8 w-64" />

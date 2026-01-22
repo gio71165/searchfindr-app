@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, memo, useCallback } from 'react';
 import Link from 'next/link';
 import { MapPin, Building2, Calendar, DollarSign, TrendingUp, StickyNote, Plus, Tag } from 'lucide-react';
 import { ConfidenceBadge } from './ConfidenceBadge';
@@ -62,7 +62,7 @@ function VerdictBadge({ verdict }: { verdict: string | null }) {
   );
 }
 
-export function DealCard({
+function DealCardComponent({
   deal,
   onSaveToggle,
   onDelete,
@@ -72,6 +72,7 @@ export function DealCard({
   isSelected,
   onToggleSelect,
   canSelect,
+  onNoteUpdate,
 }: {
   deal?: Deal;
   onSaveToggle?: (id: string) => void;
@@ -155,10 +156,6 @@ export function DealCard({
       }
 
       onArchive?.(deal.id);
-      // Optionally refresh the page or update the UI
-      if (typeof window !== 'undefined') {
-        window.location.reload();
-      }
     } catch (error) {
       console.error('Error archiving deal:', error);
       alert(error instanceof Error ? error.message : 'Failed to archive deal');
@@ -451,9 +448,7 @@ export function DealCard({
                       }
 
                       setShowNoteInput(false);
-                      if (typeof window !== 'undefined') {
-                        window.location.reload();
-                      }
+                      onNoteUpdate?.();
                     } catch (error) {
                       console.error('Error saving note:', error);
                       alert(error instanceof Error ? error.message : 'Failed to save note');
@@ -525,3 +520,26 @@ export function DealCard({
     </div>
   );
 }
+
+// Memoize to prevent unnecessary re-renders
+export const DealCard = memo(DealCardComponent, (prevProps, nextProps) => {
+  // Custom comparison function for better performance
+  if (prevProps.isLoading !== nextProps.isLoading) return false;
+  if (prevProps.isSelected !== nextProps.isSelected) return false;
+  if (prevProps.canSelect !== nextProps.canSelect) return false;
+  if (prevProps.fromView !== nextProps.fromView) return false;
+  
+  // Deep compare deal object (only key fields that affect rendering)
+  if (prevProps.deal?.id !== nextProps.deal?.id) return false;
+  if (prevProps.deal?.is_saved !== nextProps.deal?.is_saved) return false;
+  if (prevProps.deal?.user_notes !== nextProps.deal?.user_notes) return false;
+  if (prevProps.deal?.archived_at !== nextProps.deal?.archived_at) return false;
+  
+  // If callbacks changed, we need to re-render (but they should be memoized in parent)
+  if (prevProps.onSaveToggle !== nextProps.onSaveToggle) return false;
+  if (prevProps.onDelete !== nextProps.onDelete) return false;
+  if (prevProps.onArchive !== nextProps.onArchive) return false;
+  if (prevProps.onToggleSelect !== nextProps.onToggleSelect) return false;
+  
+  return true; // Props are equal, skip re-render
+});

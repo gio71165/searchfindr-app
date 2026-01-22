@@ -32,6 +32,7 @@ export function OffMarketDealView({
   running,
   error,
   onRunInitialDiligence,
+  onRefresh,
 }: {
   deal: Deal;
   dealId: string;
@@ -39,6 +40,7 @@ export function OffMarketDealView({
   running: boolean;
   error: string | null;
   onRunInitialDiligence: () => void;
+  onRefresh?: () => void;
 }) {
   const fin = deal.ai_financials_json || {};
   const scoring = deal.ai_scoring_json || {};
@@ -108,7 +110,7 @@ export function OffMarketDealView({
 
       if (error) throw error;
       showToast('Marked as Proceed', 'success', 2000);
-      window.location.reload();
+      onRefresh?.();
     } catch (error) {
       console.error('Error setting proceed:', error);
       showToast('Failed to set verdict. Please try again.', 'error');
@@ -222,8 +224,8 @@ export function OffMarketDealView({
                             last_action_at: new Date().toISOString()
                           })
                           .eq('id', deal.id);
-                        // Refresh deal
-                        window.location.reload();
+                        // Refresh deal data instead of full page reload
+                        onRefresh?.();
                       }}
                       className="w-full border rounded-lg px-3 py-2"
                     >

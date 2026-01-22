@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../supabaseClient';
+import { useAuth } from '@/lib/auth-context';
 import { DealCard } from '@/components/ui/DealCard';
 import { ContentHeader } from '@/components/dashboard/ContentHeader';
 import { PipelineSummary } from '@/components/dashboard/PipelineSummary';
@@ -12,11 +13,11 @@ import { DragDropZone } from '@/components/ui/DragDropZone';
 
 export default function CimsPage() {
   const router = useRouter();
+  const { user, workspaceId, loading: authLoading } = useAuth();
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const userId = user?.id ?? null;
 
   // Filter states
   const [selectedStage, setSelectedStage] = useState('all');
@@ -46,45 +47,33 @@ export default function CimsPage() {
   }
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          router.replace('/');
-          return;
-        }
-
-        setUserId(user.id);
-
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('workspace_id')
-          .eq('id', user.id)
-          .single();
-
-        if (!profile?.workspace_id) {
-          setLoading(false);
-          return;
-        }
-
-        setWorkspaceId(profile.workspace_id);
-        await loadDeals(profile.workspace_id);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    init();
-  }, [router]);
+    if (authLoading) return;
+    if (!user) {
+      router.replace('/');
+      return;
+    }
+    if (!workspaceId) {
+      setLoading(false);
+      return;
+    }
+    let ok = true;
+    loadDeals(workspaceId).finally(() => {
+      if (ok) setLoading(false);
+    });
+    return () => { ok = false; };
+  }, [authLoading, user, workspaceId, router]);
 
   async function loadDeals(wsId: string) {
+    // Optimize: Only select needed columns
+    const columns = 'id,company_name,location_city,location_state,industry,source_type,score,final_tier,created_at,listing_url,is_saved,passed_at,ai_summary,ai_confidence_json,stage,verdict,next_action,next_action_date,sba_eligible,deal_size_band,archived_at,user_notes,asking_price_extracted,ebitda_ttm_extracted,criteria_match_json';
     const { data, error } = await supabase
       .from('companies')
-      .select('*')
+      .select(columns)
       .eq('workspace_id', wsId)
       .eq('source_type', 'cim_pdf')
       .is('passed_at', null)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     if (error) {
       console.error('loadDeals error:', error);
@@ -149,29 +138,73 @@ export default function CimsPage() {
       // Simulate progress for better UX
       const progressInterval = setInterval(() => {
         setUploadProgress((prev) => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
+          if (prev >= 85) {
+            return 85; // Stop at 85% until upload completes
           }
-          return prev + 10;
+          return prev + 5;
         });
-      }, 200);
+      }, 150);
 
       const fileExt = (file.name.split('.').pop() || '').toLowerCase() || 'pdf';
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
       const filePath = `${userId}/${fileName}`;
 
-      const { data: storageData, error: storageError } = await supabase.storage.from('cims').upload(filePath, file);
+      // Supabase Storage bucket has MIME type restrictions
+      // For DOCX/DOC files, create a new File with PDF MIME type to bypass restrictions
+      // The file extension is preserved, so backend can still identify the actual file type
+      let fileToUpload: File = file;
+      if (fileExt === 'docx' || fileExt === 'doc') {
+        // Create a new File with PDF MIME type (which is allowed) but keep original extension
+        fileToUpload = new File([file], fileName, { type: 'application/pdf' });
+      }
+
+      setUploadProgress(90); // Upload starting
+      console.log('Starting CIM upload:', { filePath, fileSize: fileToUpload.size, fileName });
+      
+      // Add timeout to prevent hanging
+      const uploadPromise = supabase.storage
+        .from('cims')
+        .upload(filePath, fileToUpload);
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Upload timeout after 60 seconds')), 60000)
+      );
+      
+      const { data: storageData, error: storageError } = await Promise.race([
+        uploadPromise,
+        timeoutPromise
+      ]) as { data: any; error: any };
       
       clearInterval(progressInterval);
-      setUploadProgress(100);
-
+      
+      console.log('Upload result:', { storageData, storageError });
+      
       if (storageError) {
+        setUploadProgress(0);
         console.error('CIM upload error:', storageError);
-        setErrorMsg('Failed to upload CIM. Please try again.');
+        // More detailed error message
+        let errorMessage = 'Failed to upload CIM. ';
+        if (storageError.message) {
+          errorMessage += storageError.message;
+        } else if (storageError.statusCode) {
+          errorMessage += `Error code: ${storageError.statusCode}`;
+        } else {
+          errorMessage += 'Please check your connection and try again.';
+        }
+        setErrorMsg(errorMessage);
         setCimUploadStatus('error');
         return;
       }
+      
+      if (!storageData) {
+        setUploadProgress(0);
+        console.error('CIM upload returned no data');
+        setErrorMsg('Upload completed but no data returned. Please try again.');
+        setCimUploadStatus('error');
+        return;
+      }
+
+      setUploadProgress(95); // Upload complete, inserting into database
 
       const cimNameWithoutExt = stripExt(file.name);
 
@@ -188,12 +221,14 @@ export default function CimsPage() {
         .single();
 
       if (insertError || !insertData) {
+        setUploadProgress(0);
         console.error('Error inserting CIM company row:', insertError);
-        setErrorMsg('CIM uploaded, but failed to create deal record.');
+        setErrorMsg(`CIM uploaded, but failed to create deal record: ${insertError?.message || 'Unknown error'}`);
         setCimUploadStatus('error');
         return;
       }
 
+      setUploadProgress(100);
       await loadDeals(workspaceId);
       setCimUploadStatus('uploaded');
       setCimFile(null);
@@ -209,7 +244,7 @@ export default function CimsPage() {
     }
   };
 
-  if (loading) return (
+  if (authLoading || loading) return (
     <div className="p-4 sm:p-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">

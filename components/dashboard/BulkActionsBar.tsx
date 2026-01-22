@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Download, X, CheckCircle, ArrowRight, FileDown } from 'lucide-react';
+import { supabase } from '@/app/supabaseClient';
 import { showToast } from '@/components/ui/Toast';
 
 type Stage = 'new' | 'reviewing' | 'follow_up' | 'ioi_sent' | 'loi' | 'dd' | 'passed';
@@ -36,7 +37,7 @@ export function BulkActionsBar({ selectedDealIds, onClearSelection, onRefresh }:
 
     setIsProcessing(true);
     try {
-      const { data: sessionData } = await (await import('../../app/supabaseClient')).supabase.auth.getSession();
+      const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error('Not signed in');
 
@@ -74,7 +75,7 @@ export function BulkActionsBar({ selectedDealIds, onClearSelection, onRefresh }:
     setShowStageMenu(false);
     
     try {
-      const { data: sessionData } = await (await import('../../app/supabaseClient')).supabase.auth.getSession();
+      const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error('Not signed in');
 
@@ -112,7 +113,7 @@ export function BulkActionsBar({ selectedDealIds, onClearSelection, onRefresh }:
     
     setIsProcessing(true);
     try {
-      const { data: sessionData } = await (await import('../../app/supabaseClient')).supabase.auth.getSession();
+      const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error('Not signed in');
 

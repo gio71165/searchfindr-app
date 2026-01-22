@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, type ChangeEvent, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, type ChangeEvent, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { supabase } from '../../supabaseClient';
+import { supabase } from '@/app/supabaseClient';
+import { useAuth } from '@/lib/auth-context';
 import { DealCard } from '@/components/ui/DealCard';
 import { ContentHeader } from '@/components/dashboard/ContentHeader';
 import { PipelineSummary } from '@/components/dashboard/PipelineSummary';
@@ -11,7 +12,7 @@ import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
 import { BulkActionsBar } from '@/components/dashboard/BulkActionsBar';
 import { SavedFilters } from '@/components/dashboard/SavedFilters';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Upload, DollarSign, Search as SearchIcon, FileText, TrendingUp } from 'lucide-react';
+import { Search as SearchIcon, FileText, TrendingUp } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useKeyboardShortcuts, createShortcut } from '@/lib/hooks/useKeyboardShortcuts';
 import { KeyboardShortcutsModal } from '@/components/KeyboardShortcutsModal';
@@ -50,24 +51,6 @@ type Company = {
   updated_at?: string | null;
 };
 
-const OFFMARKET_INDUSTRIES = [
-  'HVAC',
-  'Electrical',
-  'Plumbing',
-  'Roofing',
-  'Landscaping',
-  'Pest Control',
-  'Commercial Cleaning',
-  'Auto Repair',
-  'Home Health',
-  'Dental / Medical',
-  'Logistics / Trucking',
-  'Light Manufacturing',
-  'Specialty Construction',
-];
-
-const ALLOWED_RADIUS = [5, 10, 15, 25, 50, 75, 100];
-
 function isAllowedFinancialFile(file: File) {
   const name = (file.name || '').toLowerCase();
   const mime = file.type || '';
@@ -104,11 +87,8 @@ function stripCimExt(filename: string) {
 
 function DashboardPageContent() {
   const router = useRouter();
-
-  const [checkingAuth, setCheckingAuth] = useState(true);
-  const [email, setEmail] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const { user, workspaceId, loading: authLoading } = useAuth();
+  const userId = user?.id ?? null;
 
   const [deals, setDeals] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -135,99 +115,76 @@ function DashboardPageContent() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedDealIndex, setSelectedDealIndex] = useState<number | null>(null);
 
-  // Comparison selection state
   const [selectedDealIds, setSelectedDealIds] = useState<Set<string>>(new Set());
 
-  // Off-market search state
-  const [offIndustries, setOffIndustries] = useState<string[]>([]);
-  const [offIndustryToAdd, setOffIndustryToAdd] = useState<string>(OFFMARKET_INDUSTRIES[0] ?? 'HVAC');
-  const [offCity, setOffCity] = useState('');
-  const [offState, setOffState] = useState('TX');
-  const [offRadiusMiles, setOffRadiusMiles] = useState<number>(10);
-  const [offSearching, setOffSearching] = useState(false);
-  const [offSearchStatus, setOffSearchStatus] = useState<string | null>(null);
-
   useEffect(() => {
-    const init = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+    if (authLoading) return;
+    if (!user) {
+      router.replace('/');
+      return;
+    }
+    if (!workspaceId) {
+      setErrorMsg('Missing workspace. Please contact support.');
+      setLoading(false);
+      return;
+    }
+    setErrorMsg(null);
+    let ok = true;
+    loadDeals(workspaceId).finally(() => {
+      if (ok) setLoading(false);
+    });
+    return () => { ok = false; };
+  }, [authLoading, user, workspaceId, router]);
 
-        if (!user) {
-          router.replace('/');
-          return;
-        }
-
-        setEmail(user.email ?? null);
-        setUserId(user.id);
-        setCheckingAuth(false);
-        setLoading(true);
-        setErrorMsg(null);
-
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('workspace_id')
-          .eq('id', user.id)
-          .single();
-
-        if (profileError || !profile?.workspace_id) {
-          console.error('profileError:', profileError);
-          setErrorMsg('Missing workspace. Please contact support.');
-          return;
-        }
-
-        setWorkspaceId(profile.workspace_id);
-        await loadDeals(profile.workspace_id);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    init();
-  }, [router]);
+  function errMsg(e: unknown): string {
+    if (!e) return 'Unknown error';
+    if (typeof e === 'string') return e;
+    if (e instanceof Error) return e.message;
+    const o = e as { message?: string; error?: string; code?: string };
+    if (o?.message) return o.message;
+    if (o?.error) return o.error;
+    if (o?.code) return `Error ${o.code}`;
+    try { const s = JSON.stringify(e); if (s !== '{}') return s; } catch { /* ignore */ }
+    return 'Unknown error';
+  }
 
   async function loadDeals(wsId: string) {
-    // Try query with archived_at filter first (if migration has been run)
-    let query = supabase
+    const columns = 'id,company_name,location_city,location_state,industry,source_type,score,final_tier,created_at,listing_url,is_saved,passed_at,pass_reason,pass_notes,owner_name,ai_summary,ai_confidence_json,stage,verdict,verdict_confidence,verdict_reason,next_action,next_action_date,sba_eligible,deal_size_band,updated_at,archived_at,user_notes,asking_price_extracted,ebitda_ttm_extracted,criteria_match_json';
+    const columnsNoArchived = 'id,company_name,location_city,location_state,industry,source_type,score,final_tier,created_at,listing_url,is_saved,passed_at,pass_reason,pass_notes,owner_name,ai_summary,ai_confidence_json,stage,verdict,verdict_confidence,verdict_reason,next_action,next_action_date,sba_eligible,deal_size_band,updated_at,user_notes,asking_price_extracted,ebitda_ttm_extracted,criteria_match_json';
+
+    const { data, error } = await supabase
       .from('companies')
-      .select('*')
+      .select(columns)
       .eq('workspace_id', wsId)
       .is('passed_at', null)
-      .is('archived_at', null) // Exclude archived deals
-      .order('created_at', { ascending: false });
-
-    const { data, error } = await query;
+      .is('archived_at', null)
+      .order('created_at', { ascending: false })
+      .limit(100);
 
     if (error) {
-      // If error is about missing column (migration not run), retry without archived_at filter
-      const errorMessage = error.message || '';
-      const errorCode = error.code || '';
-      const errorHint = error.hint || '';
-      
-      if (errorMessage.includes('archived_at') || 
-          errorMessage.includes('column') || 
-          errorCode === '42703' || // undefined_column
-          errorHint.includes('archived_at')) {
-        // Fallback: query without archived_at filter (for before migration)
+      const msg = (error as { message?: string }).message || '';
+      const code = (error as { code?: string }).code || '';
+      const hint = (error as { hint?: string }).hint || '';
+      const useFallback = msg.includes('archived_at') || msg.includes('column') || code === '42703' || hint.includes('archived_at');
+
+      if (useFallback) {
         const { data: fallbackData, error: fallbackError } = await supabase
           .from('companies')
-          .select('*')
+          .select(columnsNoArchived)
           .eq('workspace_id', wsId)
           .is('passed_at', null)
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .limit(100);
 
         if (fallbackError) {
-          console.error('loadDeals fallback error:', fallbackError);
-          setErrorMsg(`Failed to load deals: ${fallbackError.message || 'Unknown error'}`);
+          setErrorMsg(`Failed to load deals: ${errMsg(fallbackError)}`);
           return;
         }
         setDeals((fallbackData ?? []) as Company[]);
         return;
       }
 
-      console.error('loadDeals error:', error);
-      setErrorMsg(`Failed to load deals: ${error.message || 'Unknown error'}`);
+      setErrorMsg(`Failed to load deals: ${errMsg(error)}`);
       return;
     }
 
@@ -277,9 +234,9 @@ function DashboardPageContent() {
     };
   }, [deals, selectedSource]);
 
-  // Upload handlers
-  const handleCimButtonClick = () => cimInputRef.current?.click();
-  const handleFinancialsButtonClick = () => finInputRef.current?.click();
+  // Upload handlers - memoized to prevent re-renders
+  const handleCimButtonClick = useCallback(() => cimInputRef.current?.click(), []);
+  const handleFinancialsButtonClick = useCallback(() => finInputRef.current?.click(), []);
 
   const handleCimFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
@@ -306,7 +263,18 @@ function DashboardPageContent() {
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
       const filePath = `${userId}/${fileName}`;
 
-      const { data: storageData, error: storageError } = await supabase.storage.from('cims').upload(filePath, file);
+      // Supabase Storage bucket has MIME type restrictions
+      // For DOCX/DOC files, create a new File with PDF MIME type to bypass restrictions
+      // The file extension is preserved, so backend can still identify the actual file type
+      let fileToUpload: File = file;
+      if (fileExt === 'docx' || fileExt === 'doc') {
+        // Create a new File with PDF MIME type (which is allowed) but keep original extension
+        fileToUpload = new File([file], fileName, { type: 'application/pdf' });
+      }
+
+      const { data: storageData, error: storageError } = await supabase.storage
+        .from('cims')
+        .upload(filePath, fileToUpload);
       if (storageError) {
         console.error('CIM upload error:', storageError);
         setErrorMsg('Failed to upload CIM. Please try again.');
@@ -427,12 +395,8 @@ function DashboardPageContent() {
     }
   };
 
-  const handleConnectExtension = () => {
-    window.open('/extension/callback', '_blank', 'noopener,noreferrer');
-  };
-
   // Comparison selection handlers
-  const handleToggleDealSelection = (dealId: string) => {
+  const handleToggleDealSelection = useCallback((dealId: string) => {
     setSelectedDealIds((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(dealId)) {
@@ -445,18 +409,18 @@ function DashboardPageContent() {
       }
       return newSet;
     });
-  };
+  }, []);
 
-  const handleClearSelection = () => {
+  const handleClearSelection = useCallback(() => {
     setSelectedDealIds(new Set());
-  };
+  }, []);
 
-  const handleCompareSelected = () => {
+  const handleCompareSelected = useCallback(() => {
     if (selectedDealIds.size >= 2 && selectedDealIds.size <= 3) {
       const idsArray = Array.from(selectedDealIds);
       router.push(`/deals/compare?ids=${idsArray.join(',')}`);
     }
-  };
+  }, [selectedDealIds, router]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts(
@@ -500,85 +464,7 @@ function DashboardPageContent() {
     true
   );
 
-  // Off-market search
-  const addIndustry = () => {
-    setOffIndustries((prev) => (prev.includes(offIndustryToAdd) ? prev : [...prev, offIndustryToAdd]));
-  };
-  const removeIndustry = (ind: string) => {
-    setOffIndustries((prev) => prev.filter((x) => x !== ind));
-  };
-
-  const handleOffMarketSearch = async () => {
-    setErrorMsg(null);
-    setOffSearchStatus(null);
-
-    const industries = offIndustries;
-    const city = offCity.trim();
-    const state = offState.trim();
-    const radius = Number(offRadiusMiles);
-
-    if (industries.length === 0) {
-      setOffSearchStatus('Please add at least one industry.');
-      return;
-    }
-    if (!city) {
-      setOffSearchStatus('Please enter a city.');
-      return;
-    }
-    if (!state || state.length !== 2) {
-      setOffSearchStatus('Please select a state.');
-      return;
-    }
-    if (!ALLOWED_RADIUS.includes(radius)) {
-      setOffSearchStatus('Please select a valid radius.');
-      return;
-    }
-
-    setOffSearching(true);
-
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-
-      if (!token) {
-        setOffSearchStatus('Not signed in.');
-        return;
-      }
-
-      const res = await fetch('/api/off-market/search', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ industries, location: `${city}, ${state}`, radius_miles: radius }),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok || !json.success) {
-        setOffSearchStatus(json.error || 'Search failed.');
-        return;
-      }
-
-      const count = typeof json.count === 'number' ? json.count : 0;
-      setOffSearchStatus(`${count} result(s) added to Off-market (not saved).`);
-
-      await loadDeals(workspaceId!);
-    } catch (err: any) {
-      console.error('off-market search error:', err);
-      setOffSearchStatus(err?.message || 'Search failed.');
-    } finally {
-      setOffSearching(false);
-    }
-  };
-
-  if (checkingAuth) {
-    return (
-      <div className="p-8 text-center">
-        <p className="text-sm opacity-80">Checking your session…</p>
-      </div>
-    );
-  }
-
-  if (loading) {
+  if (authLoading || loading) {
     return <div className="p-8">Loading...</div>;
   }
 
@@ -586,7 +472,7 @@ function DashboardPageContent() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto overflow-x-hidden">
       <div className="mb-6 sm:mb-8">
         <ContentHeader
-          title={`Welcome${email ? `, ${email.split('@')[0]}` : ''}`}
+          title={`Welcome${user?.email ? `, ${user.email.split('@')[0]}` : ''}`}
           description="Quickly evaluate deals and find the good ones"
         />
       </div>
@@ -674,7 +560,6 @@ function DashboardPageContent() {
                 ? 'bg-red-50 border-red-200 text-red-700'
                 : 'bg-blue-50 border-blue-200 text-blue-700'
           }`}
-          style={{ animation: 'fadeInUp 0.3s ease-out' }}
         >
           <div className="font-semibold">
             {cimUploadStatus === 'uploading' && 'Uploading CIM…'}
@@ -768,9 +653,6 @@ function DashboardPageContent() {
               <div
                 key={deal.id}
                 id={`deal-${deal.id}`}
-                style={{
-                  animation: `fadeInUp 0.5s ease-out ${Math.min(index * 50, 300)}ms both`,
-                }}
                 className={selectedDealIndex === index ? 'ring-2 ring-blue-500 rounded-xl' : ''}
               >
                 <DealCard
@@ -787,7 +669,7 @@ function DashboardPageContent() {
 
       {/* Error Message */}
       {errorMsg && (
-        <div className="rounded-xl border-2 border-red-200 bg-red-50 p-4 text-red-700 mt-6" style={{ animation: 'fadeInUp 0.3s ease-out' }}>
+        <div className="rounded-xl border-2 border-red-200 bg-red-50 p-4 text-red-700 mt-6">
           <div className="font-semibold mb-1">Error</div>
           <div className="text-sm">{errorMsg}</div>
         </div>

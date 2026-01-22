@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ToastProvider } from '@/components/ui/ToastProvider';
+import { AuthProvider } from '@/lib/auth-context';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://searchfindr-app.vercel.app'),
@@ -60,7 +61,9 @@ export default function RootLayout({
       <body className="min-h-screen bg-[#F9FAFB]">
         <ErrorBoundary>
           <ToastProvider>
-            {children}
+            <AuthProvider>
+              {children}
+            </AuthProvider>
           </ToastProvider>
         </ErrorBoundary>
       </body>

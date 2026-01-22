@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '../../../supabaseClient';
+import { supabase } from '@/app/supabaseClient';
 import { ExecutiveSummaryCard } from '../components/ExecutiveSummaryCard';
 import { DealChatPanel } from '../components/DealChatPanel';
 import { AIInvestmentMemo } from '../components/AIInvestmentMemo';
@@ -32,6 +32,7 @@ export function OnMarketDealView({
   analyzing,
   aiError,
   onRunInitialDiligence,
+  onRefresh,
 }: {
   deal: Deal;
   dealId: string;
@@ -39,6 +40,7 @@ export function OnMarketDealView({
   analyzing: boolean;
   aiError: string | null;
   onRunInitialDiligence: () => void;
+  onRefresh?: () => void;
 }) {
   const scoring = deal.ai_scoring_json || {};
   const fin = deal.ai_financials_json || {};
@@ -84,7 +86,8 @@ export function OnMarketDealView({
 
       if (error) throw error;
       showToast('Marked as Proceed', 'success', 2000);
-      window.location.reload();
+      // Refresh deal data instead of full page reload
+      onRefresh?.();
     } catch (error) {
       console.error('Error setting proceed:', error);
       showToast('Failed to set verdict. Please try again.', 'error');
@@ -198,8 +201,8 @@ export function OnMarketDealView({
                             last_action_at: new Date().toISOString()
                           })
                           .eq('id', deal.id);
-                        // Refresh deal
-                        window.location.reload();
+                        // Refresh deal data instead of full page reload
+                        onRefresh?.();
                       }}
                       className="w-full border rounded-lg px-3 py-2"
                     >

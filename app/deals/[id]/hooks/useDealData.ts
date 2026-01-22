@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { supabase } from '../../../supabaseClient';
+import { supabase } from '@/app/supabaseClient';
 import type { Deal, FinancialAnalysis } from '@/lib/types/deal';
 
 export function useDealData(dealId: string | undefined) {
@@ -514,5 +514,6 @@ export function useDealData(dealId: string | undefined) {
     runOffMarketInitialDiligence,
     runCimAnalysis,
     runFinancialAnalysis,
+    refreshDeal: (id: string) => refreshDeal(id),
   };
 }
