@@ -11,9 +11,6 @@ import { QoeRedFlagsPanel } from '../components/QoeRedFlagsPanel';
 import { StrengthsPanel } from '../components/StrengthsPanel';
 import { OwnerInterviewQuestions } from '../components/OwnerInterviewQuestions';
 import { DiligenceChecklist } from '../components/DiligenceChecklist';
-import { DealActivityTimeline } from '@/components/deal/DealActivityTimeline';
-import { BrokerSelector } from '@/components/deal/BrokerSelector';
-import { DealDocuments } from '@/components/deal/DealDocuments';
 import { BackButton } from '../components/BackButton';
 import { getDealConfidence } from '../lib/confidence';
 import { normalizeStringArray, normalizeMetricRows, normalizeMarginRows, normalizeConfidenceSignals } from '../lib/normalizers';
@@ -110,11 +107,6 @@ export function FinancialsDealView({
   const [showPassModal, setShowPassModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [settingVerdict, setSettingVerdict] = useState(false);
-  const [editingWorkflow, setEditingWorkflow] = useState(false);
-  const [nextAction, setNextAction] = useState(deal.next_action || '');
-  const [reminderDate, setReminderDate] = useState(
-    deal.next_action_date ? new Date(deal.next_action_date).toISOString().split('T')[0] : ''
-  );
 
   const handlePassSuccess = () => {
     setShowPassModal(false);
@@ -204,10 +196,6 @@ export function FinancialsDealView({
           showToast('Opening pass modal', 'info', 1500);
         }
       }, 'Open Pass modal', ['deal-detail']),
-      createShortcut('E', () => {
-        setEditingWorkflow(!editingWorkflow);
-        showToast(editingWorkflow ? 'Exited edit mode' : 'Entered edit mode', 'info', 1500);
-      }, 'Edit deal details', ['deal-detail']),
       createShortcut('?', () => {
         setShowShortcutsModal(true);
       }, 'Show keyboard shortcuts', ['global', 'deal-detail']),
@@ -232,111 +220,6 @@ export function FinancialsDealView({
               settingVerdict={settingVerdict}
               financialAnalysis={analysis}
             />
-
-            {/* Workflow Controls Section */}
-            <div className="border rounded-lg p-4 sm:p-6 mb-6 bg-gray-50">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base sm:text-lg font-semibold">Deal Workflow</h3>
-                <button 
-                  onClick={() => setEditingWorkflow(!editingWorkflow)}
-                  className="text-sm text-blue-600 hover:text-blue-800 min-h-[44px] px-3 touch-manipulation"
-                >
-                  {editingWorkflow ? 'Done' : 'Edit'}
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Stage Selector */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Stage
-                  </label>
-                  {editingWorkflow ? (
-                    <select
-                      value={deal.stage || 'new'}
-                      onChange={async (e) => {
-                        const newStage = e.target.value;
-                        await supabase
-                          .from('companies')
-                          .update({ 
-                            stage: newStage,
-                            last_action_at: new Date().toISOString()
-                          })
-                          .eq('id', deal.id);
-                        // Refresh deal data instead of full page reload
-                        onRefresh?.();
-                      }}
-                      className="w-full border rounded-lg px-3 py-2"
-                    >
-                      <option value="new">New</option>
-                      <option value="reviewing">Reviewing</option>
-                      <option value="follow_up">Follow-up</option>
-                      <option value="ioi_sent">IOI Sent</option>
-                      <option value="loi">LOI</option>
-                      <option value="dd">Due Diligence</option>
-                    </select>
-                  ) : (
-                    <div className="text-base font-medium capitalize">
-                      {deal.stage?.replace(/_/g, ' ') || 'New'}
-                    </div>
-                  )}
-                </div>
-
-                {/* Next Action */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Next Action
-                  </label>
-                  {editingWorkflow ? (
-                    <input
-                      type="text"
-                      value={nextAction}
-                      onChange={(e) => setNextAction(e.target.value)}
-                      onBlur={async () => {
-                        await supabase
-                          .from('companies')
-                          .update({ next_action: nextAction })
-                          .eq('id', deal.id);
-                      }}
-                      placeholder="e.g., Call broker to clarify revenue"
-                      className="w-full border rounded-lg px-3 py-2"
-                    />
-                  ) : (
-                    <div className="text-base">
-                      {deal.next_action || <span className="text-gray-400">Not set</span>}
-                    </div>
-                  )}
-                </div>
-
-                {/* Reminder Date */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Follow-up Date
-                  </label>
-                  {editingWorkflow ? (
-                    <input
-                      type="date"
-                      value={reminderDate}
-                      onChange={(e) => setReminderDate(e.target.value)}
-                      onBlur={async () => {
-                        await supabase
-                          .from('companies')
-                          .update({ next_action_date: reminderDate })
-                          .eq('id', deal.id);
-                      }}
-                      className="w-full border rounded-lg px-3 py-2"
-                    />
-                  ) : (
-                    <div className="text-base">
-                      {deal.next_action_date 
-                        ? new Date(deal.next_action_date).toLocaleDateString()
-                        : <span className="text-gray-400">Not set</span>
-                      }
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
 
             {/* Financial Analysis Run Strip */}
             <section className="rounded-lg border border-slate-200 bg-white p-4">
@@ -556,22 +439,6 @@ export function FinancialsDealView({
 
           {/* Chat Sidebar */}
           <DealChatPanel dealId={dealId} deal={deal} />
-        </div>
-      </div>
-
-      {/* Additional Sections */}
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Broker */}
-        <div className="border rounded-lg p-4 sm:p-6 bg-white">
-          <BrokerSelector dealId={dealId} currentBrokerId={deal.broker_id} />
-        </div>
-
-        {/* Documents */}
-        <DealDocuments dealId={dealId} />
-
-        {/* Activity Timeline */}
-        <div className="border rounded-lg p-4 sm:p-6 bg-white">
-          <DealActivityTimeline dealId={dealId} />
         </div>
       </div>
       
