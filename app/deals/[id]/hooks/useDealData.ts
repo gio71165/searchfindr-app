@@ -177,8 +177,13 @@ export function useDealData(dealId: string | undefined) {
     setAiError(null);
 
     try {
-      const token = session?.access_token;
-      if (!token) throw new Error('Not signed in.');
+      // Get fresh session token for API call
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const token = currentSession?.access_token;
+      
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
 
       const res = await fetch('/api/analyze-deal', {
         method: 'POST',
@@ -273,8 +278,13 @@ export function useDealData(dealId: string | undefined) {
     setOffMarketError(null);
 
     try {
-      const token = session?.access_token;
-      if (!token) throw new Error('Not signed in.');
+      // Get fresh session token for API call
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const token = currentSession?.access_token;
+      
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
 
       const website = deal.website ?? null;
       if (!website) throw new Error('Missing website for this off-market company. Add a website before running diligence.');
@@ -367,8 +377,13 @@ export function useDealData(dealId: string | undefined) {
     setCimSuccess(false);
 
     try {
-      const token = session?.access_token;
-      if (!token) throw new Error('Not signed in.');
+      // Get fresh session token for API call
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const token = currentSession?.access_token;
+      
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
 
       const res = await fetch('/api/process-cim', {
         method: 'POST',
@@ -427,8 +442,13 @@ export function useDealData(dealId: string | undefined) {
     setFinError(null);
 
     try {
-      const token = session?.access_token;
-      if (!token) throw new Error('Not signed in.');
+      // Get fresh session token for API call (similar to process-cim)
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const token = currentSession?.access_token;
+      
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
 
       const res = await fetch('/api/process-financials', {
         method: 'POST',
