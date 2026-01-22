@@ -1,0 +1,181 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { X, Loader2 } from 'lucide-react';
+
+type ProcessingStage = 'uploading' | 'extracting' | 'analyzing' | 'finalizing' | 'complete' | 'error';
+
+interface CimProcessingModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  stage: ProcessingStage;
+  error?: string | null;
+  estimatedTimeRemaining?: number; // seconds
+  onCancel?: () => void;
+}
+
+const STAGE_MESSAGES: Record<ProcessingStage, string> = {
+  uploading: 'Uploading PDF...',
+  extracting: 'Extracting text from PDF...',
+  analyzing: 'AI analyzing deal...',
+  finalizing: 'Finalizing analysis...',
+  complete: 'Analysis complete!',
+  error: 'Processing failed',
+};
+
+const STAGE_DESCRIPTIONS: Record<ProcessingStage, string> = {
+  uploading: 'Uploading your CIM file to secure storage',
+  extracting: 'Reading and extracting text from the PDF document',
+  analyzing: 'AI is analyzing the deal structure, financials, and risks',
+  finalizing: 'Saving analysis results to your dashboard',
+  complete: 'Your CIM has been analyzed and is ready to review',
+  error: 'An error occurred during processing',
+};
+
+export function CimProcessingModal({
+  isOpen,
+  onClose,
+  stage,
+  error,
+  estimatedTimeRemaining,
+  onCancel,
+}: CimProcessingModalProps) {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setProgress(0);
+      return;
+    }
+
+    // Simulate progress based on stage
+    const progressMap: Record<ProcessingStage, number> = {
+      uploading: 10,
+      extracting: 30,
+      analyzing: 80,
+      finalizing: 95,
+      complete: 100,
+      error: 0,
+    };
+
+    const targetProgress = progressMap[stage] || 0;
+    
+    // Animate progress smoothly
+    const interval = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= targetProgress) {
+          clearInterval(interval);
+          return targetProgress;
+        }
+        return Math.min(prev + 2, targetProgress);
+      });
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [isOpen, stage]);
+
+  if (!isOpen) return null;
+
+  const isProcessing = stage !== 'complete' && stage !== 'error';
+  const showCancel = isProcessing && onCancel;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 relative">
+        {/* Close button (only show if not processing or on error) */}
+        {(!isProcessing || (stage as string) === 'error') && (
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
+            aria-label="Close"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
+
+        {/* Header */}
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">
+            {STAGE_MESSAGES[stage]}
+          </h2>
+          <p className="text-sm text-slate-600">
+            {STAGE_DESCRIPTIONS[stage]}
+          </p>
+        </div>
+
+        {/* Progress bar */}
+        {isProcessing && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-slate-500">Progress</span>
+              <span className="text-xs text-slate-500">{Math.round(progress)}%</span>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-blue-600 h-full rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            {estimatedTimeRemaining && estimatedTimeRemaining > 0 && (
+              <p className="text-xs text-slate-500 mt-2">
+                Estimated time remaining: {estimatedTimeRemaining}s
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Loading spinner */}
+        {isProcessing && (
+          <div className="flex items-center justify-center mb-6">
+            <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+          </div>
+        )}
+
+        {/* Error message */}
+        {stage === 'error' && error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+        )}
+
+        {/* Success message */}
+        {stage === 'complete' && (
+          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+            <p className="text-sm text-emerald-700">
+              Your CIM has been successfully analyzed. You can now review the deal details.
+            </p>
+          </div>
+        )}
+
+        {/* Info message */}
+        {isProcessing && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-xs text-blue-700">
+              This usually takes 30-45 seconds. Please don't close this window.
+            </p>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="flex gap-3">
+          {showCancel && (
+            <button
+              onClick={onCancel}
+              className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          )}
+          {(!isProcessing || (stage as string) === 'error') && (
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+            >
+              {stage === 'error' ? 'Close' : 'Done'}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

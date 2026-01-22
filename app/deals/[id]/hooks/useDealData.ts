@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/app/supabaseClient';
+import { useAuth } from '@/lib/auth-context';
 import type { Deal, FinancialAnalysis } from '@/lib/types/deal';
 
 export function useDealData(dealId: string | undefined) {
+  const { workspaceId, user, session } = useAuth();
   const [deal, setDeal] = useState<Deal | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,16 +39,8 @@ export function useDealData(dealId: string | undefined) {
   const canToggleSave = useMemo(() => deal && typeof deal?.is_saved === 'boolean', [deal]);
 
   const refreshDeal = async (id: string) => {
-    // Get workspace_id from user profile for security - use getSession() for better performance
-    const { data: { session } } = await supabase.auth.getSession();
-    const user = session?.user;
-    if (!user) {
-      console.error('refreshDeal: No user');
-      return null;
-    }
-    const { data: profile } = await supabase.from('profiles').select('workspace_id').eq('id', user.id).single();
-    if (!profile?.workspace_id) {
-      console.error('refreshDeal: No workspace_id');
+    if (!workspaceId || !user) {
+      console.error('refreshDeal: No workspaceId or user');
       return null;
     }
     
@@ -54,7 +48,7 @@ export function useDealData(dealId: string | undefined) {
       .from('companies')
       .select('*')
       .eq('id', id)
-      .eq('workspace_id', profile.workspace_id)
+      .eq('workspace_id', workspaceId)
       .single();
     if (error) {
       console.error('refreshDeal error:', error);
@@ -101,18 +95,8 @@ export function useDealData(dealId: string | undefined) {
       setFinError(null);
       setFinAnalysis(null);
 
-      // Get workspace_id from user profile for security - use getSession() for better performance
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (!user) {
-        console.error('loadDeal: No user');
-        setDeal(null);
-        setLoading(false);
-        return;
-      }
-      const { data: profile } = await supabase.from('profiles').select('workspace_id').eq('id', user.id).single();
-      if (!profile?.workspace_id) {
-        console.error('loadDeal: No workspace_id');
+      if (!workspaceId || !user) {
+        console.error('loadDeal: No workspaceId or user');
         setDeal(null);
         setLoading(false);
         return;
@@ -123,7 +107,7 @@ export function useDealData(dealId: string | undefined) {
         .from('companies')
         .select('*')
         .eq('id', dealId)
-        .eq('workspace_id', profile.workspace_id)
+        .eq('workspace_id', workspaceId)
         .single();
 
       if (error) {
@@ -142,7 +126,7 @@ export function useDealData(dealId: string | undefined) {
     };
 
     loadDeal();
-  }, [dealId]);
+  }, [dealId, workspaceId, user]);
 
   // Save / Unsave
   const toggleSaved = async () => {
@@ -151,19 +135,14 @@ export function useDealData(dealId: string | undefined) {
 
     setSavingToggle(true);
     try {
-      // Get workspace_id from user profile for security - use getSession() for better performance
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (!user) throw new Error('No user');
-      const { data: profile } = await supabase.from('profiles').select('workspace_id').eq('id', user.id).single();
-      if (!profile?.workspace_id) throw new Error('No workspace_id');
+      if (!workspaceId || !user) throw new Error('No workspaceId or user');
       
       const next = !deal.is_saved;
       const { error } = await supabase
         .from('companies')
         .update({ is_saved: next })
         .eq('id', dealId)
-        .eq('workspace_id', profile.workspace_id);
+        .eq('workspace_id', workspaceId);
       if (error) throw error;
       setDeal((prev: Deal | null) => (prev ? { ...prev, is_saved: next } : prev));
     } catch (e: unknown) {
@@ -198,8 +177,7 @@ export function useDealData(dealId: string | undefined) {
     setAiError(null);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
+      const token = session?.access_token;
       if (!token) throw new Error('Not signed in.');
 
       const res = await fetch('/api/analyze-deal', {
@@ -240,12 +218,7 @@ export function useDealData(dealId: string | undefined) {
 
       const { ai_summary, ai_red_flags, financials, scoring, criteria_match, ai_confidence_json } = json;
 
-      // Get workspace_id from user profile for security - use getSession() for better performance
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (!user) throw new Error('No user');
-      const { data: profile } = await supabase.from('profiles').select('workspace_id').eq('id', user.id).single();
-      if (!profile?.workspace_id) throw new Error('No workspace_id');
+      if (!workspaceId || !user) throw new Error('No workspaceId or user');
 
       const { error: updateError } = await supabase
         .from('companies')
@@ -258,7 +231,7 @@ export function useDealData(dealId: string | undefined) {
           ...(ai_confidence_json ? { ai_confidence_json } : {}),
         })
         .eq('id', dealId)
-        .eq('workspace_id', profile.workspace_id);
+        .eq('workspace_id', workspaceId);
 
       if (updateError) throw new Error('Failed to save AI result: ' + updateError.message);
 
@@ -300,8 +273,7 @@ export function useDealData(dealId: string | undefined) {
     setOffMarketError(null);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
+      const token = session?.access_token;
       if (!token) throw new Error('Not signed in.');
 
       const website = deal.website ?? null;
@@ -341,12 +313,7 @@ export function useDealData(dealId: string | undefined) {
       const criteria_match = json.criteria_match ?? {};
       const ai_confidence_json = json.ai_confidence_json ?? null;
 
-      // Get workspace_id from user profile for security - use getSession() for better performance
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (!user) throw new Error('No user');
-      const { data: profile } = await supabase.from('profiles').select('workspace_id').eq('id', user.id).single();
-      if (!profile?.workspace_id) throw new Error('No workspace_id');
+      if (!workspaceId || !user) throw new Error('No workspaceId or user');
 
       const { error: updateError } = await supabase
         .from('companies')
@@ -359,7 +326,7 @@ export function useDealData(dealId: string | undefined) {
           ...(ai_confidence_json ? { ai_confidence_json } : {}),
         })
         .eq('id', dealId)
-        .eq('workspace_id', profile.workspace_id);
+        .eq('workspace_id', workspaceId);
 
       if (updateError) throw new Error('Failed to save diligence: ' + updateError.message);
 
@@ -400,8 +367,7 @@ export function useDealData(dealId: string | undefined) {
     setCimSuccess(false);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
+      const token = session?.access_token;
       if (!token) throw new Error('Not signed in.');
 
       const res = await fetch('/api/process-cim', {
@@ -461,8 +427,7 @@ export function useDealData(dealId: string | undefined) {
     setFinError(null);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
+      const token = session?.access_token;
       if (!token) throw new Error('Not signed in.');
 
       const res = await fetch('/api/process-financials', {

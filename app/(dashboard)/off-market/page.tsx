@@ -121,9 +121,11 @@ export default function OffMarketPage() {
   }, [authLoading, user, workspaceId, router]);
 
   async function loadOffMarketDeals(wsId: string) {
+    // Optimized: Only fetch columns needed for DealCard display
+    const columns = 'id,company_name,location_city,location_state,industry,source_type,final_tier,created_at,stage,verdict,next_action_date,sba_eligible,deal_size_band,is_saved,asking_price_extracted,ebitda_ttm_extracted,next_action';
     const { data, error } = await supabase
       .from('companies')
-      .select('*')
+      .select(columns)
       .eq('workspace_id', wsId)
       .eq('source_type', 'off_market')
       .is('passed_at', null)

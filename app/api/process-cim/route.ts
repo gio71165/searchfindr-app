@@ -5,7 +5,7 @@ import { authenticateRequest, AuthError } from '@/lib/api/auth';
 import { DealsRepository } from '@/lib/data-access/deals';
 import { NotFoundError } from '@/lib/data-access/base';
 import { CIM_ANALYSIS_INSTRUCTIONS, buildCimAnalysisUserText } from '@/lib/prompts/cim-analysis';
-import { checkRateLimit, getRateLimitConfig } from '@/lib/api/rate-limit';
+import { checkRateLimitOptimized, getRateLimitConfig } from '@/lib/api/rate-limiter';
 import { validateFileSize, validateFileType } from '@/lib/api/file-validation';
 import { validateStoragePath } from '@/lib/api/security';
 import { sanitizeShortText } from '@/lib/utils/sanitize';
@@ -14,6 +14,10 @@ import { withRetry } from '@/lib/utils/retry';
 import type { CriteriaMatch, ConfidenceJson } from '@/lib/types/deal';
 
 export const runtime = 'nodejs';
+
+// Maximum characters to send to OpenAI (approximately 25K tokens)
+// Prevents context window overflow for large PDFs
+const MAX_CHARS = 100000;
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? 'https://api.openai.com';
@@ -33,6 +37,29 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
+
+// Helper: Extract text from PDF buffer
+async function extractPDFText(buffer: Buffer): Promise<string> {
+  try {
+    // Use require for CommonJS module (pdf-parse)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const pdfParse = require('pdf-parse');
+    const data = await pdfParse(buffer);
+    return data.text;
+  } catch (error) {
+    logger.error('PDF extraction failed:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    
+    // Check for specific error types
+    if (errorMessage.includes('encrypted') || errorMessage.includes('password')) {
+      throw new Error('PDF_PARSING_ENCRYPTED');
+    }
+    if (errorMessage.includes('corrupt') || errorMessage.includes('invalid')) {
+      throw new Error('PDF_PARSING_CORRUPT');
+    }
+    throw new Error('PDF_PARSING_FAILED');
+  }
+}
 
 // Helper: upload file bytes to OpenAI Files API and return file_id
 async function uploadFileToOpenAI(fileArrayBuffer: ArrayBuffer, filename: string, mimeType: string) {
@@ -65,26 +92,12 @@ async function uploadFileToOpenAI(fileArrayBuffer: ArrayBuffer, filename: string
   return json.id as string;
 }
 
-function extractOutputText(responsesJson: any): string {
-  const t1 = responsesJson?.output_text;
-  if (typeof t1 === 'string' && t1.trim()) return t1.trim();
-
-  const out = responsesJson?.output;
-  if (Array.isArray(out)) {
-    for (const item of out) {
-      const content = item?.content;
-      if (!Array.isArray(content)) continue;
-      for (const c of content) {
-        const t = c?.text;
-        if (typeof t === 'string' && t.trim()) return t.trim();
-      }
-    }
+// Helper: Extract content from Chat Completions response
+function extractChatCompletionContent(chatResponse: any): string {
+  const content = chatResponse?.choices?.[0]?.message?.content;
+  if (typeof content === 'string' && content.trim()) {
+    return content.trim();
   }
-
-  // fallback to your original path (kept)
-  const t2 = responsesJson?.output?.[0]?.content?.[0]?.text;
-  if (typeof t2 === 'string' && t2.trim()) return t2.trim();
-
   return '';
 }
 
@@ -263,9 +276,9 @@ export async function POST(req: NextRequest) {
 
     const { supabase: supabaseUser, user, workspace } = await authenticateRequest(req);
     
-    // Rate limiting
+    // Rate limiting (optimized: in-memory first, database only for audit logs)
     const config = getRateLimitConfig('process-cim');
-    const rateLimit = await checkRateLimit(user.id, 'process-cim', config.limit, config.windowSeconds, supabaseUser);
+    const rateLimit = await checkRateLimitOptimized(user.id, 'process-cim', config.limit, config.windowSeconds, supabaseUser);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { success: false, error: `Rate limit exceeded. Maximum ${config.limit} requests per hour. Please try again later.` },
@@ -385,56 +398,128 @@ export async function POST(req: NextRequest) {
         break;
     }
 
-    // 3) Upload file directly to OpenAI so it can read the CIM itself
-    const fileId = await uploadFileToOpenAI(fileArrayBuffer, `${companyName}.${fileExtension}`, mimeType);
+    // 3) Extract text from PDF (for DOCX/DOC, we would need different extraction methods)
+    if (detectedType !== 'pdf') {
+      return NextResponse.json(
+        { success: false, error: 'Currently only PDF files are supported for CIM processing. DOCX and DOC support coming soon.' },
+        { status: 400 }
+      );
+    }
+
+    logger.info('process-cim: extracting text from PDF');
+    const fileBuffer = Buffer.from(fileArrayBuffer);
+    let extractedText: string;
+    try {
+      extractedText = await extractPDFText(fileBuffer);
+      if (!extractedText || extractedText.trim().length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'Failed to extract text from PDF. The file may be corrupted or image-based.' },
+          { status: 400 }
+        );
+      }
+      logger.info('process-cim: PDF text extracted successfully, length:', extractedText.length);
+      
+      // Truncate text if it exceeds MAX_CHARS to prevent context window overflow
+      if (extractedText.length > MAX_CHARS) {
+        logger.warn(`process-cim: PDF text exceeds MAX_CHARS (${extractedText.length} > ${MAX_CHARS}), truncating...`);
+        extractedText = extractedText.slice(0, MAX_CHARS) + '\n\n[Content truncated for analysis...]';
+        logger.info('process-cim: Text truncated to', extractedText.length, 'characters');
+      }
+    } catch (error) {
+      logger.error('process-cim: PDF extraction error:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Return user-friendly error messages based on error type
+      if (errorMessage === 'PDF_PARSING_ENCRYPTED') {
+        return NextResponse.json(
+          { success: false, error: 'PDF parsing failed. The file may be encrypted or password-protected. Please upload an unencrypted PDF.' },
+          { status: 400 }
+        );
+      }
+      if (errorMessage === 'PDF_PARSING_CORRUPT') {
+        return NextResponse.json(
+          { success: false, error: 'PDF parsing failed. The file may be corrupted. Please try uploading the file again or use a different PDF.' },
+          { status: 400 }
+        );
+      }
+      return NextResponse.json(
+        { success: false, error: 'Failed to extract text from PDF. Please ensure the file is a valid PDF.' },
+        { status: 500 }
+      );
+    }
 
     // 4) System instructions: strict, buyer-protective, ETA/search & capital-advisor focused
     const instructions = CIM_ANALYSIS_INSTRUCTIONS.template;
 
     const userText = buildCimAnalysisUserText(companyName);
+    const fullUserContent = `${userText}\n\nCIM Content:\n${extractedText}`;
 
-    // 5) Call OpenAI Responses API with the file_id and strict instructions (with retry)
-    const responsesRes = await withRetry(
+    // 5) Call OpenAI Chat Completions API with extracted text (with retry and exponential backoff)
+    const chatRes = await withRetry(
       () =>
-        fetch(`${OPENAI_BASE_URL}/v1/responses`, {
+        fetch(`${OPENAI_BASE_URL}/v1/chat/completions`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${OPENAI_API_KEY}`,
           },
           body: JSON.stringify({
-            model: 'gpt-4.1',
-            instructions,
-            text: { format: { type: 'json_object' } },
-            input: [
+            model: 'gpt-4-turbo',
+            messages: [
+              {
+                role: 'system',
+                content: instructions,
+              },
               {
                 role: 'user',
-                content: [
-                  { type: 'input_file', file_id: fileId },
-                  { type: 'input_text', text: userText },
-                ],
+                content: fullUserContent,
               },
             ],
+            response_format: { type: 'json_object' },
+            temperature: 0.1,
           }),
         }),
-      { maxRetries: 2, delayMs: 1000 }
+      { maxRetries: 3, delayMs: 1000, backoff: true }
     );
 
-    if (!responsesRes.ok) {
-      const errText = await responsesRes.text();
-      logger.error('OpenAI Responses API error:', errText);
-      return NextResponse.json({ success: false, error: 'Unable to process CIM document. Please try again later.' }, { status: 500 });
+    if (!chatRes.ok) {
+      const errText = await chatRes.text();
+      logger.error('OpenAI Chat Completions API error:', { status: chatRes.status, error: errText });
+      
+      let errorMessage = 'Unable to process CIM document. Please try again later.';
+      
+      // Handle specific OpenAI API errors
+      if (chatRes.status === 429) {
+        errorMessage = 'AI analysis rate limit exceeded. Please wait a moment and try again.';
+      } else if (chatRes.status === 400) {
+        try {
+          const errorJson = JSON.parse(errText);
+          if (errorJson.error?.message?.includes('context_length') || errorJson.error?.message?.includes('token')) {
+            errorMessage = 'This CIM is too large to process. Please upload a smaller file or contact support.';
+          } else {
+            errorMessage = 'AI analysis failed due to invalid request. Please try again or contact support.';
+          }
+        } catch {
+          errorMessage = 'AI analysis failed. Please try again or contact support.';
+        }
+      } else if (chatRes.status === 504 || chatRes.status === 408) {
+        errorMessage = 'AI analysis timed out. Please try again or contact support.';
+      } else if (chatRes.status >= 500) {
+        errorMessage = 'AI service is temporarily unavailable. Please try again in a few moments.';
+      }
+      
+      return NextResponse.json({ success: false, error: errorMessage }, { status: chatRes.status >= 500 ? 500 : 400 });
     }
 
-    const responsesJson = await responsesRes.json();
-    const contentText: string = extractOutputText(responsesJson);
+    const chatJson = await chatRes.json();
+    const contentText: string = extractChatCompletionContent(chatJson);
 
     if (!contentText) {
-      logger.error('No text content returned from OpenAI Responses API:', responsesJson);
+      logger.error('No text content returned from OpenAI Chat Completions API:', chatJson);
       return NextResponse.json(
         {
           success: false,
-          error: 'OpenAI Responses API did not return any text content. Check logs for details.',
+          error: 'OpenAI Chat Completions API did not return any text content. Check logs for details.',
         },
         { status: 500 }
       );

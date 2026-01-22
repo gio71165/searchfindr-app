@@ -17,6 +17,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { useKeyboardShortcuts, createShortcut } from '@/lib/hooks/useKeyboardShortcuts';
 import { KeyboardShortcutsModal } from '@/components/KeyboardShortcutsModal';
 import { showToast } from '@/components/ui/Toast';
+import { CimProcessingModal } from '@/components/modals/CimProcessingModal';
 
 type SourceType = 'on_market' | 'off_market' | 'cim_pdf' | 'financials' | null;
 type Stage = 'all' | 'new' | 'reviewing' | 'follow_up' | 'ioi_sent' | 'loi' | 'dd' | 'passed';
@@ -85,6 +86,14 @@ function stripCimExt(filename: string) {
   return filename.replace(/\.(pdf|docx|doc)$/i, '');
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+}
+
 function DashboardPageContent() {
   const router = useRouter();
   const { user, workspaceId, loading: authLoading } = useAuth();
@@ -104,6 +113,11 @@ function DashboardPageContent() {
   const [cimFile, setCimFile] = useState<File | null>(null);
   const cimInputRef = useRef<HTMLInputElement | null>(null);
   const [cimUploadStatus, setCimUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
+  const [cimUploadProgress, setCimUploadProgress] = useState(0);
+  const [cimProcessingStage, setCimProcessingStage] = useState<'uploading' | 'extracting' | 'analyzing' | 'finalizing' | 'complete' | 'error'>('uploading');
+  const [showCimProcessingModal, setShowCimProcessingModal] = useState(false);
+  const [cimProcessingError, setCimProcessingError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const [finFile, setFinFile] = useState<File | null>(null);
   const finInputRef = useRef<HTMLInputElement | null>(null);
@@ -149,8 +163,9 @@ function DashboardPageContent() {
   }
 
   async function loadDeals(wsId: string) {
-    const columns = 'id,company_name,location_city,location_state,industry,source_type,score,final_tier,created_at,listing_url,is_saved,passed_at,pass_reason,pass_notes,owner_name,ai_summary,ai_confidence_json,stage,verdict,verdict_confidence,verdict_reason,next_action,next_action_date,sba_eligible,deal_size_band,archived_at,user_notes,asking_price_extracted,ebitda_ttm_extracted,criteria_match_json';
-    const columnsNoArchived = 'id,company_name,location_city,location_state,industry,source_type,score,final_tier,created_at,listing_url,is_saved,passed_at,pass_reason,pass_notes,owner_name,ai_summary,ai_confidence_json,stage,verdict,verdict_confidence,verdict_reason,next_action,next_action_date,sba_eligible,deal_size_band,user_notes,asking_price_extracted,ebitda_ttm_extracted,criteria_match_json';
+    // Optimized: Only fetch columns needed for DealCard display
+    const columns = 'id,company_name,location_city,location_state,industry,source_type,final_tier,created_at,stage,verdict,next_action_date,sba_eligible,deal_size_band,is_saved,asking_price_extracted,ebitda_ttm_extracted,next_action,archived_at';
+    const columnsNoArchived = 'id,company_name,location_city,location_state,industry,source_type,final_tier,created_at,stage,verdict,next_action_date,sba_eligible,deal_size_band,is_saved,asking_price_extracted,ebitda_ttm_extracted,next_action';
 
     const { data, error } = await supabase
       .from('companies')
@@ -180,7 +195,12 @@ function DashboardPageContent() {
           setErrorMsg(`Failed to load deals: ${errMsg(fallbackError)}`);
           return;
         }
-        setDeals((fallbackData ?? []) as Company[]);
+        setDeals((fallbackData ?? []).map((d: any) => ({
+          ...d,
+          score: d.score ?? null,
+          listing_url: d.listing_url ?? null,
+          passed_at: d.passed_at ?? null,
+        })) as Company[]);
         return;
       }
 
@@ -188,7 +208,12 @@ function DashboardPageContent() {
       return;
     }
 
-    setDeals((data ?? []) as Company[]);
+    setDeals((data ?? []).map((d: any) => ({
+      ...d,
+      score: d.score ?? null,
+      listing_url: d.listing_url ?? null,
+      passed_at: d.passed_at ?? null,
+    })) as Company[]);
   }
 
   // Apply all filters
@@ -254,27 +279,46 @@ function DashboardPageContent() {
       return;
     }
 
-    setErrorMsg(null);
-    setCimFile(file);
-    setCimUploadStatus('uploading');
+      setErrorMsg(null);
+      setCimFile(file);
+      setCimUploadStatus('uploading');
+      setCimUploadProgress(0);
+      setCimProcessingStage('uploading');
+      setShowCimProcessingModal(true);
 
-    try {
-      const fileExt = (file.name.split('.').pop() || '').toLowerCase() || 'pdf';
-      const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
-      const filePath = `${userId}/${fileName}`;
+      try {
+        const fileExt = (file.name.split('.').pop() || '').toLowerCase() || 'pdf';
+        const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
+        const filePath = `${userId}/${fileName}`;
 
-      // Supabase Storage bucket has MIME type restrictions
-      // For DOCX/DOC files, create a new File with PDF MIME type to bypass restrictions
-      // The file extension is preserved, so backend can still identify the actual file type
-      let fileToUpload: File = file;
-      if (fileExt === 'docx' || fileExt === 'doc') {
-        // Create a new File with PDF MIME type (which is allowed) but keep original extension
-        fileToUpload = new File([file], fileName, { type: 'application/pdf' });
-      }
+        // Supabase Storage bucket has MIME type restrictions
+        // For DOCX/DOC files, create a new File with PDF MIME type to bypass restrictions
+        // The file extension is preserved, so backend can still identify the actual file type
+        let fileToUpload: File = file;
+        if (fileExt === 'docx' || fileExt === 'doc') {
+          // Create a new File with PDF MIME type (which is allowed) but keep original extension
+          fileToUpload = new File([file], fileName, { type: 'application/pdf' });
+        }
 
-      const { data: storageData, error: storageError } = await supabase.storage
-        .from('cims')
-        .upload(filePath, fileToUpload);
+        // Upload with progress tracking
+        // Note: Supabase JS client doesn't support progress callbacks, so we simulate progress
+        const fileSize = fileToUpload.size;
+        const startTime = Date.now();
+        const estimatedUploadTime = Math.max(2000, Math.min(10000, (fileSize / 1024 / 1024) * 2000)); // 2-10 seconds based on file size
+        
+        // Simulate realistic upload progress
+        const progressInterval = setInterval(() => {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min(90, Math.round((elapsed / estimatedUploadTime) * 90));
+          setCimUploadProgress(progress);
+        }, 100);
+
+        const { data: storageData, error: storageError } = await supabase.storage
+          .from('cims')
+          .upload(filePath, fileToUpload);
+        
+        clearInterval(progressInterval);
+        setCimUploadProgress(100);
       if (storageError) {
         console.error('CIM upload error:', storageError);
         setErrorMsg('Failed to upload CIM. Please try again.');
@@ -300,13 +344,91 @@ function DashboardPageContent() {
         console.error('Error inserting CIM company row:', insertError);
         setErrorMsg('CIM uploaded, but failed to create deal record.');
         setCimUploadStatus('error');
+        setCimProcessingStage('error');
+        setCimProcessingError('Failed to create deal record.');
         return;
       }
 
-      await loadDeals(workspaceId);
-      setCimUploadStatus('uploaded');
-      setCimFile(null);
-      setTimeout(() => setCimUploadStatus('idle'), 3000);
+      const companyId = insertData.id;
+      
+      // Start processing modal
+      setShowCimProcessingModal(true);
+      setCimProcessingStage('extracting');
+      setCimProcessingError(null);
+      
+      // Create abort controller for cancellation
+      abortControllerRef.current = new AbortController();
+      
+      try {
+        // Get session token for API call
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+        
+        if (!token) {
+          throw new Error('Not authenticated');
+        }
+        
+        // Update stage to analyzing
+        setCimProcessingStage('analyzing');
+        
+        // Call process-cim API
+        const processRes = await fetch('/api/process-cim', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            companyId,
+            cimStoragePath: storageData?.path || filePath,
+            companyName: cimNameWithoutExt || 'CIM Deal',
+          }),
+          signal: abortControllerRef.current.signal,
+        });
+        
+        const processText = await processRes.text();
+        let processJson: { success?: boolean; error?: string } | null = null;
+        try {
+          processJson = JSON.parse(processText);
+        } catch {}
+        
+        if (!processRes.ok || !processJson?.success) {
+          throw new Error(processJson?.error || `Processing failed (HTTP ${processRes.status})`);
+        }
+        
+        // Update stage to finalizing
+        setCimProcessingStage('finalizing');
+        
+        // Refresh deals list
+        await loadDeals(workspaceId);
+        
+        // Complete
+        setCimProcessingStage('complete');
+        setCimUploadStatus('uploaded');
+        setCimFile(null);
+        
+        // Auto-close modal after 3 seconds
+        setTimeout(() => {
+          setShowCimProcessingModal(false);
+          setCimProcessingStage('uploading');
+          setCimUploadStatus('idle');
+        }, 3000);
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') {
+          // User cancelled
+          setCimProcessingStage('error');
+          setCimProcessingError('Processing was cancelled.');
+          setCimUploadStatus('error');
+          return;
+        }
+        
+        const error = err instanceof Error ? err : new Error('Unknown error');
+        console.error('CIM processing error:', error);
+        setCimProcessingStage('error');
+        setCimProcessingError(error.message || 'Failed to process CIM.');
+        setCimUploadStatus('error');
+        setErrorMsg(error.message || 'Failed to process CIM.');
+      }
     } catch (err) {
       console.error('Unexpected CIM upload error:', err);
       setErrorMsg('Unexpected error uploading CIM.');
@@ -550,8 +672,8 @@ function DashboardPageContent() {
         onChange={handleFinancialsFileChange}
       />
 
-      {/* Upload Status Messages */}
-      {cimUploadStatus !== 'idle' && (
+      {/* Upload Status Messages (only show when not in processing modal) */}
+      {cimUploadStatus !== 'idle' && !showCimProcessingModal && (
         <div
           className={`rounded-xl border-2 p-4 mb-4 ${
             cimUploadStatus === 'uploaded'
@@ -562,11 +684,28 @@ function DashboardPageContent() {
           }`}
         >
           <div className="font-semibold">
-            {cimUploadStatus === 'uploading' && 'Uploading CIM…'}
+            {cimUploadStatus === 'uploading' && `Uploading CIM… ${Math.round(cimUploadProgress)}%`}
             {cimUploadStatus === 'uploaded' && 'CIM uploaded successfully!'}
             {cimUploadStatus === 'error' && 'CIM upload failed'}
           </div>
-          {cimFile && <div className="text-sm mt-1 opacity-90">File: {cimFile.name}</div>}
+          {cimFile && (
+            <div className="text-sm mt-1 opacity-90">
+              File: {cimFile.name}
+              {cimUploadStatus === 'uploading' && (
+                <span className="ml-2">
+                  ({formatFileSize((cimFile.size * cimUploadProgress) / 100)} / {formatFileSize(cimFile.size)})
+                </span>
+              )}
+            </div>
+          )}
+          {cimUploadStatus === 'uploading' && (
+            <div className="mt-2 w-full bg-slate-200 rounded-full h-2">
+              <div
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${cimUploadProgress}%` }}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -679,6 +818,33 @@ function DashboardPageContent() {
         isOpen={showShortcutsModal}
         onClose={() => setShowShortcutsModal(false)}
         currentContext="dashboard"
+      />
+
+      {/* CIM Processing Modal */}
+      <CimProcessingModal
+        isOpen={showCimProcessingModal}
+        onClose={() => {
+          setShowCimProcessingModal(false);
+          setCimProcessingStage('uploading');
+          if (cimProcessingStage === 'complete') {
+            setCimUploadStatus('idle');
+          }
+        }}
+        stage={cimProcessingStage}
+        error={cimProcessingError}
+        estimatedTimeRemaining={
+          cimProcessingStage === 'analyzing' ? 30 :
+          cimProcessingStage === 'extracting' ? 45 :
+          cimProcessingStage === 'finalizing' ? 5 : undefined
+        }
+        onCancel={() => {
+          if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+          }
+          setShowCimProcessingModal(false);
+          setCimProcessingStage('uploading');
+          setCimUploadStatus('idle');
+        }}
       />
 
       {/* Keyboard shortcuts hint */}

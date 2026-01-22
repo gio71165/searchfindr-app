@@ -46,26 +46,9 @@ export default function FinancialsPage() {
   const [finUploadMsg, setFinUploadMsg] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      router.replace('/');
-      return;
-    }
-    if (!workspaceId) {
-      setLoading(false);
-      return;
-    }
-    let ok = true;
-    loadDeals(workspaceId).finally(() => {
-      if (ok) setLoading(false);
-    });
-    return () => { ok = false; };
-  }, [authLoading, user, workspaceId, router]);
-
   async function loadDeals(wsId: string) {
-    // Optimize: Only select needed columns (SELECT * is slow)
-    const columns = 'id,company_name,location_city,location_state,industry,source_type,score,final_tier,created_at,listing_url,is_saved,passed_at,ai_summary,ai_confidence_json,stage,verdict,next_action,next_action_date,sba_eligible,deal_size_band,archived_at,user_notes,asking_price_extracted,ebitda_ttm_extracted,criteria_match_json';
+    // Optimized: Only fetch columns needed for DealCard display
+    const columns = 'id,company_name,location_city,location_state,industry,source_type,final_tier,created_at,stage,verdict,next_action_date,sba_eligible,deal_size_band,is_saved,asking_price_extracted,ebitda_ttm_extracted,next_action';
     const { data, error } = await supabase
       .from('companies')
       .select(columns)
@@ -83,6 +66,23 @@ export default function FinancialsPage() {
 
     setDeals(data || []);
   }
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      router.replace('/');
+      return;
+    }
+    if (!workspaceId) {
+      setLoading(false);
+      return;
+    }
+    let ok = true;
+    loadDeals(workspaceId).finally(() => {
+      if (ok) setLoading(false);
+    });
+    return () => { ok = false; };
+  }, [authLoading, user, workspaceId, router]);
 
   // Apply filters
   const filteredDeals = useMemo(() => {
