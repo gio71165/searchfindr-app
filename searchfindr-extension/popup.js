@@ -6,45 +6,92 @@
 
 console.log("SearchFindr popup v15 loaded");
 
+// 🌐 Base URL configuration
+// Set to "production" for production, "staging" for staging/dev
+const ENV = "production"; // Change to "staging" for dev/staging
+const BASE_URL = ENV === "production" 
+  ? "https://searchfindr.net"
+  : "https://searchfindr-app.vercel.app";
+
 // 🔥 Your LIVE API endpoint
-const API_URL = "https://searchfindr-app.vercel.app/api/capture-deal";
+const API_URL = `${BASE_URL}/api/capture-deal`;
 
-// 🔐 Login / connect entry point
-const LOGIN_URL = "https://searchfindr-app.vercel.app/?next=/extension/callback";
+// Optional URLs
+const APP_HOME_URL = `${BASE_URL}/dashboard`;
+const SETTINGS_URL = `${BASE_URL}/settings`;
 
-// Optional
-const LEARN_MORE_URL = "https://searchfindr-app.vercel.app/extension/help";
-const APP_HOME_URL = "https://searchfindr-app.vercel.app/dashboard";
+// Storage key for API key
+const API_KEY_STORAGE_KEY = "searchfindr_api_key";
+// Support both MV2 (local) and MV3 (session) - automatically fallback
+const STORAGE = chrome.storage.session || chrome.storage.local;
+const STORAGE_TYPE = chrome.storage.session ? "session" : "local";
+console.log("📦 Popup using storage:", STORAGE_TYPE);
 
-// Storage key
-const TOKEN_KEY = "searchfindr_auth_token";
-const SESSION_STORAGE = chrome.storage.session;
-
-function encodeToken(token) {
-  return btoa(token + "::" + Date.now());
+// Verify API key format
+function validateApiKeyFormat(apiKey) {
+  if (!apiKey || typeof apiKey !== "string") {
+    return false;
+  }
+  // Must start with sf_live_ or sf_test_ and have at least 32 more chars
+  return /^sf_(live|test)_[a-f0-9]{32,}$/i.test(apiKey);
 }
 
-function decodeToken(encoded) {
+async function saveApiKey(apiKey) {
+  // Store API key directly (it's already a secret, no need to encode)
+  await STORAGE.set({ [API_KEY_STORAGE_KEY]: apiKey });
+}
+
+async function getApiKey() {
+  const result = await STORAGE.get(API_KEY_STORAGE_KEY);
+  return result[API_KEY_STORAGE_KEY] || null;
+}
+
+async function clearApiKey() {
+  await STORAGE.remove(API_KEY_STORAGE_KEY);
+}
+
+// Verify API key with server
+async function verifyApiKey(apiKey) {
   try {
-    const decoded = atob(encoded);
-    const [token] = decoded.split("::");
-    return token;
-  } catch {
-    return null;
+    const response = await fetch(`${BASE_URL}/api/extension/verify-key`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ apiKey }),
+    });
+
+    if (!response.ok) {
+      const { error } = await response.json();
+      return { valid: false, error: error || "Invalid API key" };
+    }
+
+    const data = await response.json();
+    return { valid: true, user_id: data.user_id, workspace_id: data.workspace_id };
+  } catch (error) {
+    console.error("[SearchFindr] API key verification error:", error);
+    return { valid: false, error: "Network error. Please check your connection." };
   }
 }
 
-async function saveToken(token) {
-  await SESSION_STORAGE.set({ [TOKEN_KEY]: encodeToken(token) });
-}
-
-async function getToken() {
-  const result = await SESSION_STORAGE.get(TOKEN_KEY);
-  return result[TOKEN_KEY] ? decodeToken(result[TOKEN_KEY]) : null;
-}
-
-async function clearToken() {
-  await SESSION_STORAGE.remove(TOKEN_KEY);
+/**
+ * Log debug information about current auth state
+ */
+async function logDebugInfo() {
+  console.group("🔍 SearchFindr Extension - Debug Info");
+  const apiKey = await getApiKey();
+  const hasKey = !!apiKey;
+  const isValidFormat = apiKey ? validateApiKeyFormat(apiKey) : false;
+  
+  console.log("API key present:", hasKey ? "✅ Yes" : "❌ No");
+  console.log("API key format valid:", isValidFormat ? "✅ Yes" : "❌ No");
+  if (apiKey) {
+    console.log("API key prefix:", apiKey.substring(0, 12) + "...");
+  }
+  console.log("Current UI state:", uiState);
+  console.log("Last capture:", lastDealUrl ? "✅ " + new Date().toLocaleString() : "❌ Never");
+  console.log("Last debug ID:", lastDebugId || "None");
+  console.groupEnd();
 }
 
 // ---- DOM ----
@@ -53,6 +100,8 @@ const titleEl = document.getElementById("title"); // optional
 const primaryBtn =
   document.getElementById("primaryButton") || document.getElementById("sendButton");
 const secondaryBtn = document.getElementById("secondaryButton"); // optional
+const apiKeyInput = document.getElementById("apiKeyInput");
+const apiKeySection = document.getElementById("apiKeySection");
 
 const debugRow = document.getElementById("debugRow"); // optional container
 const debugIdText = document.getElementById("debugIdText"); // optional span
@@ -117,23 +166,28 @@ function setButtons({ primaryText, primaryDisabled, secondaryText, secondaryHidd
 function render() {
   if (uiState !== "error") setDebug(null);
 
+  // Show/hide API key input section
+  if (apiKeySection) {
+    apiKeySection.classList.toggle("hidden", uiState !== "logged_out" && uiState !== "expired");
+  }
+
   switch (uiState) {
     case "logged_out":
       setTitle("Not connected");
-      setStatus("Please log in to SearchFindr to use this extension.");
+      setStatus("Enter your API key to connect the extension.");
       setButtons({
-        primaryText: "Log in",
+        primaryText: "Save API Key",
         primaryDisabled: false,
-        secondaryText: "Learn more",
+        secondaryText: "Get API Key",
         secondaryHidden: !secondaryBtn,
       });
       break;
 
     case "expired":
-      setTitle("Session expired");
-      setStatus("Your SearchFindr session expired. Please log in again.", true);
+      setTitle("API key invalid");
+      setStatus("Your API key is invalid or has been revoked. Please enter a new key.", true);
       setButtons({
-        primaryText: "Log in again",
+        primaryText: "Save API Key",
         primaryDisabled: false,
         secondaryHidden: true,
       });
@@ -190,7 +244,7 @@ function render() {
 }
 
 // ---- Storage helpers ----
-// (getToken and clearToken are now defined at top of file)
+// (getApiKey and clearApiKey are now defined at top of file)
 
 // ---- Navigation ----
 // No chrome.tabs.create() -> avoids "tabs" permission concerns.
@@ -248,23 +302,29 @@ async function readActiveTabPayload() {
 }
 
 // ---- API wrapper ----
-async function apiCaptureDeal(payload, token) {
+async function apiCaptureDeal(payload, apiKey) {
   const debugId = makeDebugId();
+  console.group("🌐 SearchFindr Extension - API Request");
+  console.log("Debug ID:", debugId);
+  console.log("Endpoint:", API_URL);
+  console.log("Method: POST");
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
 
   try {
+    const startTime = Date.now();
     const res = await fetch(API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
 
+    const duration = Date.now() - startTime;
     const bodyText = await res.text();
     let json = null;
     try {
@@ -273,23 +333,46 @@ async function apiCaptureDeal(payload, token) {
       // non-json response is allowed; we handle it below
     }
 
-    // Dev logs
-    console.error("[SearchFindr EXT] capture-deal response", {
-      debugId,
-      status: res.status,
-      ok: res.ok,
-      bodyText,
-    });
+    console.log("Response status:", res.status, res.statusText);
+    console.log("Response time:", duration, "ms");
+    console.log("Response OK:", res.ok);
+    if (json) {
+      console.log("Response body:", json);
+    } else {
+      console.log("Response body (text):", bodyText?.substring(0, 200));
+    }
 
-    if (res.status === 401 || res.status === 403) return { kind: "expired", debugId };
-    if (res.status === 400 || res.status === 422) return { kind: "bad_request", debugId };
-    if (!res.ok) return { kind: "retryable", debugId };
+    if (res.status === 401 || res.status === 403) {
+      console.warn("⚠️ Authentication error (401/403)");
+      console.groupEnd();
+      return { kind: "expired", debugId };
+    }
+    if (res.status === 400 || res.status === 422) {
+      console.error("❌ Bad request (400/422)");
+      console.groupEnd();
+      return { kind: "bad_request", debugId };
+    }
+    if (!res.ok) {
+      console.error("❌ Request failed:", res.status);
+      console.groupEnd();
+      return { kind: "retryable", debugId };
+    }
 
-    if (!json || json.success !== true) return { kind: "retryable", debugId };
+    if (!json || json.success !== true) {
+      console.error("❌ Invalid response format or success !== true");
+      console.groupEnd();
+      return { kind: "retryable", debugId };
+    }
 
+    console.log("✅ Request successful");
+    console.groupEnd();
     return { kind: "ok", debugId, json };
   } catch (err) {
-    console.error("[SearchFindr EXT] capture-deal fetch failed", { debugId, err });
+    console.error("❌ Network error:", err.name, err.message);
+    if (err.name === "AbortError") {
+      console.error("Request timeout after 15 seconds");
+    }
+    console.groupEnd();
     return { kind: "retryable", debugId };
   } finally {
     clearTimeout(timeout);
@@ -297,20 +380,96 @@ async function apiCaptureDeal(payload, token) {
 }
 
 // ---- Actions ----
-async function ensureStateFromToken() {
-  const token = await getToken();
-  uiState = token ? "ready" : "logged_out";
-  render();
+async function ensureStateFromApiKey() {
+  console.group("🔐 SearchFindr Extension - Auth Check");
+  try {
+    const apiKey = await getApiKey();
+    console.log("API key found:", !!apiKey);
+    
+    // If no API key, user is logged out
+    if (!apiKey) {
+      if (uiState !== "logged_out") {
+        console.log(`State changed: ${uiState} -> logged_out`);
+        uiState = "logged_out";
+        render();
+      } else {
+        console.log("Already logged out");
+      }
+      console.groupEnd();
+      return;
+    }
+    
+    // Validate format
+    if (!validateApiKeyFormat(apiKey)) {
+      console.warn("⚠️ Invalid API key format, clearing");
+      await clearApiKey();
+      if (uiState !== "expired") {
+        console.log(`State changed: ${uiState} -> expired`);
+        uiState = "expired";
+        render();
+      }
+      console.groupEnd();
+      return;
+    }
+    
+    // Verify API key with server
+    console.log("Verifying API key with server...");
+    const verification = await verifyApiKey(apiKey);
+    
+    if (!verification.valid) {
+      console.warn("⚠️ API key verification failed:", verification.error);
+      await clearApiKey();
+      if (uiState !== "expired") {
+        console.log(`State changed: ${uiState} -> expired`);
+        uiState = "expired";
+        render();
+      }
+      console.groupEnd();
+      return;
+    }
+    
+    // API key is valid
+    if (uiState !== "ready") {
+      console.log(`✅ State changed: ${uiState} -> ready`);
+      console.log("User ID:", verification.user_id);
+      uiState = "ready";
+      render();
+    } else {
+      console.log("✅ Already in ready state");
+    }
+  } catch (error) {
+    console.error("❌ Error checking API key state:", error);
+    // Fallback to logged_out if there's an error
+    if (uiState !== "logged_out") {
+      uiState = "logged_out";
+      render();
+    }
+  }
+  console.groupEnd();
 }
 
 async function doCapture() {
+  console.group("📥 SearchFindr Extension - Capture Deal");
+  console.log("Capture button clicked at:", new Date().toLocaleString());
+  
   setDebug(null);
   uiState = "loading";
   render();
 
-  const token = await getToken();
-  if (!token) {
+  const apiKey = await getApiKey();
+  if (!apiKey) {
+    console.warn("⚠️ No API key found, switching to logged_out state");
     uiState = "logged_out";
+    render();
+    console.groupEnd();
+    return;
+  }
+  
+  // Check if API key format is valid before making API call
+  if (!validateApiKeyFormat(apiKey)) {
+    console.warn("⚠️ Invalid API key format, clearing and showing expired state");
+    await clearApiKey();
+    uiState = "expired";
     render();
     return;
   }
@@ -326,21 +485,28 @@ async function doCapture() {
     return;
   }
 
-  const result = await apiCaptureDeal(payload, token);
+  const result = await apiCaptureDeal(payload, apiKey);
 
   if (result.kind === "ok") {
-    const dealUrl = result.json?.dealUrl || result.json?.url || null;
-    lastDealUrl = typeof dealUrl === "string" ? dealUrl : null;
+    console.log("✅ API Response: Success");
+    console.log("Response data:", result.json);
+    // API returns dealUrl in the response
+    const dealUrl = result.json?.dealUrl || null;
+    lastDealUrl = typeof dealUrl === "string" && dealUrl.trim() ? dealUrl.trim() : null;
+    console.log("Deal URL:", lastDealUrl || "Not provided");
 
     uiState = "success";
     render();
+    console.groupEnd();
     return;
   }
 
   if (result.kind === "expired") {
-    await clearToken();
+    console.warn("⚠️ API Response: API key invalid or expired (401/403)");
+    await clearApiKey();
     uiState = "expired";
     render();
+    console.groupEnd();
     return;
   }
 
@@ -362,10 +528,58 @@ async function doCapture() {
 }
 
 async function doDisconnect() {
-  await clearToken();
+  await clearApiKey();
   lastDealUrl = null;
   lastDebugId = null;
   uiState = "logged_out";
+  render();
+}
+
+async function doSaveApiKey() {
+  const apiKey = apiKeyInput?.value?.trim() || "";
+  
+  if (!apiKey) {
+    setStatus("Please enter an API key", true);
+    return;
+  }
+
+  if (!validateApiKeyFormat(apiKey)) {
+    setStatus("Invalid API key format. Must start with sf_live_ or sf_test_", true);
+    return;
+  }
+
+  uiState = "loading";
+  setStatus("Verifying API key...");
+  render();
+
+  console.group("🔐 SearchFindr Extension - Verifying API Key");
+  console.log("Verifying API key format and with server...");
+
+  const verification = await verifyApiKey(apiKey);
+  
+  if (!verification.valid) {
+    console.error("❌ API key verification failed:", verification.error);
+    uiState = "expired";
+    setStatus(verification.error || "Invalid API key. Please check and try again.", true);
+    render();
+    console.groupEnd();
+    return;
+  }
+
+  console.log("✅ API key verified successfully");
+  console.log("User ID:", verification.user_id);
+  console.groupEnd();
+
+  // Save API key
+  await saveApiKey(apiKey);
+  
+  // Clear input
+  if (apiKeyInput) {
+    apiKeyInput.value = "";
+  }
+
+  uiState = "ready";
+  setStatus("API key saved! Ready to capture listings.");
   render();
 }
 
@@ -374,7 +588,7 @@ function bindButtons() {
   if (primaryBtn) {
     primaryBtn.addEventListener("click", async () => {
       if (uiState === "logged_out" || uiState === "expired") {
-        openUrl(LOGIN_URL);
+        await doSaveApiKey();
         return;
       }
       if (uiState === "ready") {
@@ -394,8 +608,8 @@ function bindButtons() {
 
   if (secondaryBtn) {
     secondaryBtn.addEventListener("click", async () => {
-      if (uiState === "logged_out") {
-        openUrl(LEARN_MORE_URL);
+      if (uiState === "logged_out" || uiState === "expired") {
+        openUrl(SETTINGS_URL);
         return;
       }
       if (uiState === "ready") {
@@ -414,6 +628,16 @@ function bindButtons() {
     });
   }
 
+  // Allow Enter key to save API key
+  if (apiKeyInput) {
+    apiKeyInput.addEventListener("keydown", async (e) => {
+      if (e.key === "Enter" && (uiState === "logged_out" || uiState === "expired")) {
+        e.preventDefault();
+        await doSaveApiKey();
+      }
+    });
+  }
+
   if (copyDebugBtn) {
     copyDebugBtn.addEventListener("click", () => {
       if (lastDebugId) copyToClipboard(lastDebugId);
@@ -422,13 +646,71 @@ function bindButtons() {
 }
 
 // ---- Init ----
-bindButtons();
-ensureStateFromToken();
+console.group("🚀 SearchFindr Extension - Popup Initialized");
+console.log("Popup opened at:", new Date().toLocaleString());
+console.log("Environment:", ENV);
+console.log("Base URL:", BASE_URL);
+console.log("API URL:", API_URL);
 
-// Listen for storage changes (when token is saved from callback page)
+// Render initial state immediately (before async check)
+uiState = "logged_out";
+render();
+bindButtons();
+
+// Log initial debug info
+logDebugInfo().catch(err => {
+  console.error("Failed to log debug info:", err);
+});
+
+// Then check for API key asynchronously
+ensureStateFromApiKey().catch(err => {
+  console.error("❌ Initial API key check failed:", err);
+});
+
+console.groupEnd();
+
+// Listen for storage changes (when API key is saved)
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName === "session" && changes[TOKEN_KEY]) {
-    console.log("[SearchFindr] Token storage changed, refreshing state");
-    ensureStateFromToken();
+  if (changes[API_KEY_STORAGE_KEY]) {
+    console.group("💾 SearchFindr Extension - Storage Changed");
+    console.log("API key storage changed in:", areaName);
+    console.log("Change:", changes[API_KEY_STORAGE_KEY] ? "API key added/updated" : "API key removed");
+    console.log("Refreshing state...");
+    console.groupEnd();
+    ensureStateFromApiKey().catch(err => {
+      console.error("❌ API key state refresh failed:", err);
+    });
   }
 });
+
+// Periodic check when popup is open (in case storage listener misses it)
+let checkInterval = null;
+function startPeriodicCheck() {
+  if (checkInterval) return;
+  
+  checkInterval = setInterval(async () => {
+    try {
+      const apiKey = await getApiKey();
+      // Check for API key changes
+      if (apiKey) {
+        // If we have an API key but state is logged_out, refresh state
+        if (uiState === "logged_out") {
+          await ensureStateFromApiKey();
+        }
+        // If API key format is invalid, update state
+        else if (!validateApiKeyFormat(apiKey)) {
+          await ensureStateFromApiKey();
+        }
+      }
+      // If no API key but state is not logged_out, refresh state
+      else if (uiState !== "logged_out" && uiState !== "expired") {
+        await ensureStateFromApiKey();
+      }
+    } catch (err) {
+      console.error("[SearchFindr] Periodic check error:", err);
+    }
+  }, 1500); // Check every 1.5 seconds
+}
+
+// Start checking after initial render
+setTimeout(startPeriodicCheck, 200);

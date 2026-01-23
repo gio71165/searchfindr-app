@@ -122,10 +122,10 @@ export default function OnMarketPage() {
       {/* Action Button */}
       <div className="mb-6">
         <button
-          onClick={() => window.open('/extension/callback', '_blank', 'noopener,noreferrer')}
+          onClick={() => window.open('/settings', '_blank', 'noopener,noreferrer')}
           className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
         >
-          Browse More On-Market Deals
+          Get Extension API Key
         </button>
       </div>
 
@@ -143,10 +143,10 @@ export default function OnMarketPage() {
             Use the extension to capture deals from BizBuySell and other listing sites
           </p>
           <button
-            onClick={() => window.open('/extension/callback', '_blank', 'noopener,noreferrer')}
+            onClick={() => window.open('/settings', '_blank', 'noopener,noreferrer')}
             className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
           >
-            Browse Listings
+            Get Extension API Key
           </button>
         </div>
       ) : (

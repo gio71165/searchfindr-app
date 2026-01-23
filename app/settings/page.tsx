@@ -11,6 +11,7 @@ import { showToast } from '@/components/ui/Toast';
 import { ComplianceSettings } from '@/components/settings/ComplianceSettings';
 import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { SearchCriteriaSettings } from '@/components/settings/SearchCriteriaSettings';
+import { ApiKeysSettings } from '@/components/settings/ApiKeysSettings';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -113,6 +114,9 @@ export default function SettingsPage() {
                 Show Onboarding Checklist
               </button>
             </div>
+
+            {/* API Keys for Chrome Extension */}
+            <ApiKeysSettings />
 
             {/* Chrome Extension Section */}
             <div className="p-6 bg-slate-50 rounded-lg border border-slate-200">

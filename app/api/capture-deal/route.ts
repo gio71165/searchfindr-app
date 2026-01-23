@@ -403,10 +403,15 @@ export async function POST(req: NextRequest) {
       ai_confidence_json: onMarketDataConfidence,
     });
 
+    // Build deal URL for extension to navigate to
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://searchfindr-app.vercel.app';
+    const dealUrl = inserted?.id ? `${baseUrl}/deals/${inserted.id}` : null;
+
     return json(
       {
         success: true,
         companyId: inserted?.id ?? null,
+        dealUrl,
         final_tier: normalizedTier,
         ai_confidence_json: onMarketDataConfidence,
       },

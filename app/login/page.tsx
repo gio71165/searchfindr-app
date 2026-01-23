@@ -1,12 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../supabaseClient';
 import { Navigation } from '@/components/Navigation';
 
-export default function LoginPage() {
+function safeInternalPath(p: string | null, fallback: string): string {
+  if (!p) return fallback;
+  // Only allow internal paths to prevent open redirects
+  if (!p.startsWith('/')) return fallback;
+  return p;
+}
+
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,10 +26,12 @@ export default function LoginPage() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        router.replace('/dashboard');
+        const nextParam = searchParams.get('next');
+        const safeNext = safeInternalPath(nextParam, '/dashboard');
+        router.replace(safeNext);
       }
     });
-  }, [router]);
+  }, [router, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,7 +41,11 @@ export default function LoginPage() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      router.push('/dashboard');
+      
+      // Redirect to next parameter or dashboard
+      const nextParam = searchParams.get('next');
+      const safeNext = safeInternalPath(nextParam, '/dashboard');
+      router.push(safeNext);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
@@ -160,5 +174,17 @@ export default function LoginPage() {
       </div>
     </main>
     </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0b0f17] text-slate-100 flex items-center justify-center">
+        <div className="text-slate-400">Loading...</div>
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 }

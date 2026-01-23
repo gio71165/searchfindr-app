@@ -6,168 +6,211 @@ import { useAuth } from '@/lib/auth-context';
 import { showToast } from '@/components/ui/Toast';
 
 export function ComplianceSettings() {
-  const { user, workspaceId } = useAuth();
-  const [allInvestorsUS, setAllInvestorsUS] = useState<boolean>(true);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const { user } = useAuth();
+  const [isSbaCompliant, setIsSbaCompliant] = useState<boolean>(false);
+  const [isCitizenOrResident, setIsCitizenOrResident] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  async function createProfileIfMissing(userId: string) {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userId,
+          sba_compliant: false,
+          is_citizen_or_resident: false,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'id',
+          ignoreDuplicates: false
+        });
+      
+      if (error) {
+        console.error('Failed to create profile:', error);
+      } else {
+        console.log('Profile created successfully');
+      }
+    } catch (e) {
+      console.error('Error creating profile:', e);
+    }
+  }
 
   useEffect(() => {
-    if (!workspaceId) {
-      setLoading(false);
+    if (!user) {
+      setIsLoading(false);
       return;
     }
 
     async function loadComplianceSettings() {
+      if (!user) return;
+      
+      setIsLoading(true);
+      setLoadError(null);
+      
       try {
         const { data, error } = await supabase
-          .from('workspaces')
-          .select('all_investors_us_citizens')
-          .eq('id', workspaceId)
+          .from('profiles')
+          .select('sba_compliant, is_citizen_or_resident')
+          .eq('id', user.id)
           .single();
 
         if (error) {
-          // Check if it's a "no rows" error (PGRST error code PGRST116)
-          // This is fine - the workspace might not exist yet or column might not be set
-          const errorCode = (error as any)?.code;
-          const errorMessage = (error as any)?.message;
+          console.error('Error loading compliance settings:', {
+            error,
+            errorMessage: error?.message,
+            errorDetails: error?.details,
+            errorHint: error?.hint,
+            errorCode: error?.code,
+            userId: user?.id
+          });
           
-          if (errorCode === 'PGRST116' || (errorMessage && errorMessage.includes('No rows'))) {
-            // Default to true if no setting exists - this is expected, no need to log
-            setAllInvestorsUS(true);
-            setLoading(false);
-            return;
-          }
-          
-          // Check for permission/RLS errors - handle silently
-          const isPermissionError = 
-            errorCode === '42501' || 
-            (errorMessage && (
-              errorMessage.includes('permission denied') || 
-              errorMessage.includes('row-level security') ||
-              errorMessage.includes('RLS policy')
-            ));
-          
-          if (isPermissionError) {
-            // Permission denied - silently default to true (user may not have access to workspace settings)
-            setAllInvestorsUS(true);
-            setLoading(false);
-            return;
-          }
-          
-          // Only log if error has meaningful, non-empty content
-          const errorDetails = (error as any)?.details;
-          const errorHint = (error as any)?.hint;
-          
-          // Check if we have any meaningful error information
-          const hasMeaningfulError = 
-            (errorCode && typeof errorCode === 'string' && errorCode.trim() !== '') ||
-            (errorMessage && typeof errorMessage === 'string' && errorMessage.trim() !== '') ||
-            (errorDetails && (typeof errorDetails === 'string' ? errorDetails.trim() !== '' : (errorDetails && typeof errorDetails === 'object' && Object.keys(errorDetails).length > 0))) ||
-            (errorHint && typeof errorHint === 'string' && errorHint.trim() !== '');
-          
-          if (hasMeaningfulError) {
-            // Log meaningful errors only
-            const logData: Record<string, unknown> = {};
-            if (errorMessage && errorMessage.trim()) logData.message = errorMessage;
-            if (errorCode && errorCode.trim()) logData.code = errorCode;
-            if (errorDetails) logData.details = errorDetails;
-            if (errorHint && errorHint.trim()) logData.hint = errorHint;
+          // Check if this is an RLS policy issue or missing profile
+          if (error?.code === 'PGRST116' || error?.message?.includes('policy') || error?.message?.includes('No rows')) {
+            console.warn('RLS policy blocking profile read or profile missing - creating profile');
+            // Try to create profile if it doesn't exist
+            await createProfileIfMissing(user.id);
+            // Try to reload after creating
+            const { data: retryData } = await supabase
+              .from('profiles')
+              .select('sba_compliant, is_citizen_or_resident')
+              .eq('id', user.id)
+              .single();
             
-            // Only log if we actually have data to log
-            if (Object.keys(logData).length > 0) {
-              console.error('Error loading compliance settings:', logData);
+            if (retryData) {
+              setIsSbaCompliant(retryData.sba_compliant ?? false);
+              setIsCitizenOrResident(retryData.is_citizen_or_resident ?? false);
+              setIsLoading(false);
+              return;
             }
           }
-          // Default to true on any error (including empty errors - silently handle)
-          setAllInvestorsUS(true);
-          setLoading(false);
-          return;
+          
+          // Default to FALSE on error (let users opt in, not force it)
+          setIsSbaCompliant(false);
+          setIsCitizenOrResident(false);
+          setLoadError('Could not load your compliance settings. Please refresh the page.');
+        } else {
+          // Successfully loaded
+          setIsSbaCompliant(data?.sba_compliant ?? false);
+          setIsCitizenOrResident(data?.is_citizen_or_resident ?? false);
         }
-
-        setAllInvestorsUS(data?.all_investors_us_citizens ?? true);
       } catch (error) {
         // Handle unexpected errors
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        console.error('Unexpected error loading compliance settings:', errorMessage);
-        // Default to true on error
-        setAllInvestorsUS(true);
+        console.error('Unexpected error loading compliance settings:', {
+          error,
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          userId: user?.id
+        });
+        // Default to FALSE on error (let users opt in, not force it)
+        setIsSbaCompliant(false);
+        setIsCitizenOrResident(false);
+        setLoadError('Could not load your compliance settings. Please refresh the page.');
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     }
 
     loadComplianceSettings();
-  }, [workspaceId]);
+  }, [user]);
 
-  const handleComplianceChange = async (checked: boolean) => {
-    if (!workspaceId || !user) return;
+  const handleSbaComplianceChange = async (checked: boolean) => {
+    if (!user) return;
 
     setSaving(true);
     try {
       const { data, error } = await supabase
-        .from('workspaces')
-        .update({ all_investors_us_citizens: checked })
-        .eq('id', workspaceId)
-        .select()
+        .from('profiles')
+        .update({ sba_compliant: checked })
+        .eq('id', user.id)
+        .select('sba_compliant')
         .single();
 
       if (error) {
-        // Extract meaningful error information
-        const errorCode = (error as any)?.code;
-        const errorMessage = (error as any)?.message;
-        const errorDetails = (error as any)?.details;
-        const errorHint = (error as any)?.hint;
+        console.error('Error updating SBA compliance:', {
+          error,
+          errorMessage: error?.message,
+          errorDetails: error?.details,
+          errorHint: error?.hint,
+          errorCode: error?.code,
+          userId: user?.id
+        });
         
         // Check for common RLS/permission errors
-        if (errorCode === '42501' || errorMessage?.includes('permission denied') || errorMessage?.includes('row-level security')) {
-          console.error('Permission denied updating compliance settings. Check RLS policies on workspaces table.', {
-            code: errorCode,
-            message: errorMessage,
-            hint: errorHint,
-          });
+        if (error?.code === '42501' || error?.message?.includes('permission denied') || error?.message?.includes('row-level security')) {
           showToast('Permission denied. Please check database permissions.', 'error', 4000);
           return;
         }
         
-        // Log other errors with details
-        if (errorMessage || errorCode || errorDetails || errorHint) {
-          console.error('Error updating compliance settings:', {
-            code: errorCode,
-            message: errorMessage,
-            details: errorDetails,
-            hint: errorHint,
-          });
-        }
-        showToast('Failed to update compliance settings', 'error', 3000);
+        showToast('Failed to update SBA compliance setting', 'error', 3000);
         return;
       }
 
       // Verify the update worked
-      if (data && data.all_investors_us_citizens === checked) {
-        setAllInvestorsUS(checked);
-        showToast(
-          checked 
-            ? 'Compliance setting updated' 
-            : 'Warning: SBA compliance disabled',
-          checked ? 'success' : 'error',
-          3000
-        );
+      if (data && data.sba_compliant === checked) {
+        setIsSbaCompliant(checked);
+        showToast('SBA compliance setting updated', 'success', 2000);
       } else {
-        // Update didn't apply - might be RLS or column doesn't exist
         console.warn('Update returned but value not changed. Check if column exists and RLS policies allow updates.');
         showToast('Update may not have applied. Please refresh and try again.', 'error', 4000);
       }
     } catch (error) {
-      // Handle unexpected errors
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error('Unexpected error updating compliance settings:', errorMessage);
-      showToast('Failed to update compliance settings', 'error', 3000);
+      console.error('Unexpected error updating SBA compliance:', error);
+      showToast('Failed to update SBA compliance setting', 'error', 3000);
     } finally {
       setSaving(false);
     }
   };
 
-  if (loading) {
+  const handleCitizenResidentChange = async (checked: boolean) => {
+    if (!user) return;
+
+    setSaving(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ is_citizen_or_resident: checked })
+        .eq('id', user.id)
+        .select('is_citizen_or_resident')
+        .single();
+
+      if (error) {
+        console.error('Error updating citizen/resident status:', {
+          error,
+          errorMessage: error?.message,
+          errorDetails: error?.details,
+          errorHint: error?.hint,
+          errorCode: error?.code,
+          userId: user?.id
+        });
+        
+        // Check for common RLS/permission errors
+        if (error?.code === '42501' || error?.message?.includes('permission denied') || error?.message?.includes('row-level security')) {
+          showToast('Permission denied. Please check database permissions.', 'error', 4000);
+          return;
+        }
+        
+        showToast('Failed to update citizen/resident status', 'error', 3000);
+        return;
+      }
+
+      // Verify the update worked
+      if (data && data.is_citizen_or_resident === checked) {
+        setIsCitizenOrResident(checked);
+        showToast('Citizen/resident status updated', 'success', 2000);
+      } else {
+        console.warn('Update returned but value not changed. Check if column exists and RLS policies allow updates.');
+        showToast('Update may not have applied. Please refresh and try again.', 'error', 4000);
+      }
+    } catch (error) {
+      console.error('Unexpected error updating citizen/resident status:', error);
+      showToast('Failed to update citizen/resident status', 'error', 3000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (isLoading) {
     return (
       <div className="p-6 bg-slate-50 rounded-lg border border-slate-200">
         <h3 className="font-semibold text-slate-900 mb-2">SBA Compliance</h3>
@@ -183,25 +226,54 @@ export function ComplianceSettings() {
         SBA 7(a) loans require 100% U.S. ownership. All investors must be U.S. citizens or permanent residents.
       </p>
       
+      {loadError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+          {loadError}
+          <button 
+            onClick={() => window.location.reload()} 
+            className="ml-2 underline hover:no-underline"
+          >
+            Refresh
+          </button>
+        </div>
+      )}
+      
       <div className="space-y-4">
         <div className="flex items-start gap-3">
           <input
             type="checkbox"
-            id="all-investors-us"
-            checked={allInvestorsUS}
-            onChange={(e) => handleComplianceChange(e.target.checked)}
-            disabled={saving}
+            id="is-citizen-resident"
+            checked={isCitizenOrResident}
+            onChange={(e) => handleCitizenResidentChange(e.target.checked)}
+            disabled={isLoading || isSaving}
             className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
           />
           <label 
-            htmlFor="all-investors-us" 
+            htmlFor="is-citizen-resident" 
             className="text-sm text-slate-700 cursor-pointer"
           >
-            All investors are U.S. citizens or permanent residents
+            I am a U.S. citizen or permanent resident
           </label>
         </div>
 
-        {!allInvestorsUS && (
+        <div className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            id="sba-compliant"
+            checked={isSbaCompliant}
+            onChange={(e) => handleSbaComplianceChange(e.target.checked)}
+            disabled={isLoading || isSaving}
+            className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
+          />
+          <label 
+            htmlFor="sba-compliant" 
+            className="text-sm text-slate-700 cursor-pointer"
+          >
+            All investors are U.S. citizens or permanent residents (SBA compliant)
+          </label>
+        </div>
+
+        {!isSbaCompliant && (
           <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
             <p className="text-sm text-yellow-800">
               ⚠️ <strong>Warning:</strong> SBA 7(a) loans require 100% U.S. ownership. Your current investor structure may not qualify. Consider conventional financing.

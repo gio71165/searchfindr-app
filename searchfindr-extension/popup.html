@@ -100,6 +100,45 @@
       #copyDebugButton:hover {
         background: rgba(148, 163, 184, 0.08);
       }
+
+      #apiKeyInput {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        background: #0b1220;
+        color: #e5e7eb;
+        font-size: 12px;
+        font-family: monospace;
+        margin-bottom: 8px;
+      }
+
+      #apiKeyInput:focus {
+        outline: none;
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+      }
+
+      #apiKeyInput::placeholder {
+        color: #64748b;
+      }
+
+      #getApiKeyLink {
+        display: block;
+        margin-top: 8px;
+        font-size: 11px;
+        color: #6366f1;
+        text-decoration: none;
+        text-align: center;
+      }
+
+      #getApiKeyLink:hover {
+        text-decoration: underline;
+      }
+
+      .hidden {
+        display: none !important;
+      }
     </style>
   </head>
 
@@ -110,6 +149,24 @@
     </div>
 
     <div id="status"></div>
+
+    <!-- API Key Input (shown when not connected) -->
+    <div id="apiKeySection" class="hidden">
+      <input
+        type="password"
+        id="apiKeyInput"
+        placeholder="sf_live_..."
+        autocomplete="off"
+      />
+      <a
+        id="getApiKeyLink"
+        href="https://searchfindr.net/settings"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Get your API key from Settings →
+      </a>
+    </div>
 
     <button id="primaryButton" class="btn btn-primary">Loading…</button>
     <button id="secondaryButton" class="btn btn-secondary" style="display:none;">Secondary</button>

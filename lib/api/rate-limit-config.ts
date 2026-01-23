@@ -11,6 +11,7 @@ export function getRateLimitConfig(endpoint: string): { limit: number; windowSec
     "capture-deal": { limit: 30, windowSeconds: 3600 }, // 30/hour
     "deal-chat": { limit: 60, windowSeconds: 3600 }, // 60/hour
     "compare-deals": { limit: 100, windowSeconds: 3600 }, // 100/hour
+    "api-key-verify": { limit: 100, windowSeconds: 3600 }, // 100/hour per key
   };
 
   return configs[endpoint] || { limit: 10, windowSeconds: 3600 };

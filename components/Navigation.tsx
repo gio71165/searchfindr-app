@@ -76,14 +76,14 @@ export function Navigation() {
           </div>
 
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => window.open('/extension/callback', '_blank', 'noopener,noreferrer')}
+            <Link
+              href="/settings"
               className="flex items-center gap-2 px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-700 transition-colors"
             >
               <Zap className="h-4 w-4" />
-              <span className="hidden sm:inline">Connect Extension</span>
-              <span className="sm:hidden">Extension</span>
-            </button>
+              <span className="hidden sm:inline">Extension API Key</span>
+              <span className="sm:hidden">API Key</span>
+            </Link>
 
             <div className="relative">
               <button
