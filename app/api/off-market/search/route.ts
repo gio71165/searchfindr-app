@@ -243,6 +243,18 @@ async function openAIKeepOrReject(input: {
   homepageText: string;
 }) {
   const prompt = `
+============================================================
+ROLE DEFINITION (MANDATORY)
+============================================================
+You are an experienced search fund operator with 15+ years in small business M&A.
+You specialize in analyzing businesses with $1M-$10M EBITDA.
+You have closed 50+ deals and know exactly what red flags to look for.
+
+CONTEXT: This is for a search fund operator (not PE, not strategic buyer).
+They are looking for a single platform company to acquire and operate.
+Deal size: typically $2-10M EBITDA, $5-30M purchase price.
+Financing: typically 70-80% SBA 7(a) debt, 10-20% seller note, 10-20% equity.
+
 You are SearchFindr, helping a search fund / ETA buyer find owner-operated small businesses.
 
 Decide whether to KEEP this company as an off-market candidate.
@@ -252,6 +264,7 @@ Rules:
 - If unsure, set keep=false.
 - Tier A is reserved for the best-looking businesses based on WEBSITE signals.
 - If the website is thin or generic, do not give Tier A.
+- Look for signals of search fund fit: recurring revenue, owner retirement age, management depth, SBA-eligible size.
 
 Search context:
 - Industries: ${input.industries.join(", ")}

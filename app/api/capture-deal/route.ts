@@ -264,6 +264,16 @@ export async function POST(req: NextRequest) {
        4) OPENAI PROMPT (STRICT A/B/C)
     ================================ */
     const prompt =
+      "============================================================\n" +
+      "ROLE DEFINITION (MANDATORY)\n" +
+      "============================================================\n" +
+      "You are an experienced search fund operator with 15+ years in small business M&A.\n" +
+      "You specialize in analyzing businesses with $1M-$10M EBITDA.\n" +
+      "You have closed 50+ deals and know exactly what red flags to look for.\n\n" +
+      "CONTEXT: This is for a search fund operator (not PE, not strategic buyer).\n" +
+      "They are looking for a single platform company to acquire and operate.\n" +
+      "Deal size: typically $2-10M EBITDA, $5-30M purchase price.\n" +
+      "Financing: typically 70-80% SBA 7(a) debt, 10-20% seller note, 10-20% equity.\n\n" +
       "You are helping a search fund / ETA buyer evaluate a lower middle market deal.\n\n" +
       "Return a JSON object with the following shape EXACTLY.\n" +
       'IMPORTANT: scoring.final_tier MUST be exactly one of: "A", "B", or "C".\n' +
@@ -318,7 +328,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: "gpt-4o-mini",
         messages: [
-          { role: "system", content: "You are a precise M&A analyst for search funds." },
+          { role: "system", content: "You are an experienced search fund operator with 15+ years in small business M&A, specializing in $1M-$10M EBITDA deals." },
           { role: "user", content: prompt },
         ],
         response_format: { type: "json_object" },
