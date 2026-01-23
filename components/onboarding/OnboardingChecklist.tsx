@@ -104,6 +104,7 @@ export function OnboardingChecklist() {
     if (!user) return;
 
     async function checkCompletion() {
+      if (!user) return; // Additional check for TypeScript
       try {
         const onboardingRepo = new OnboardingRepository(supabase);
         const completed = await onboardingRepo.hasCompletedOnboarding(user.id);

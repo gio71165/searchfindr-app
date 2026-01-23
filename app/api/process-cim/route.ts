@@ -533,8 +533,7 @@ export async function POST(req: NextRequest) {
       logger.error('Failed to download CIM file from storage:', {
         error: downloadError,
         cimStoragePath,
-        errorMessage: downloadError?.message,
-        errorStatus: downloadError?.statusCode
+        errorMessage: downloadError?.message
       });
       return NextResponse.json({ success: false, error: 'Failed to download CIM file from storage.' }, { status: 500 });
     }

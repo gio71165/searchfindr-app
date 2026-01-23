@@ -43,6 +43,7 @@ export function OnMarketDealView({
   const [showPassModal, setShowPassModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [settingVerdict, setSettingVerdict] = useState(false);
+  const [editingWorkflow, setEditingWorkflow] = useState(false);
 
   const handlePassSuccess = () => {
     setShowPassModal(false);
