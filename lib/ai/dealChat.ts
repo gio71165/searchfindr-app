@@ -116,6 +116,7 @@ export async function chatForDeal(args: DealChatArgs): Promise<DealChatResult> {
       "companies.raw_listing_text",
       "companies.listing_url",
       "companies.cim_storage_path",
+      "companies.financials_storage_path",
     ];
 
     return { answer, sources_used, model, tokens, latency_ms };

@@ -1,0 +1,34 @@
+'use client';
+
+import { useState } from 'react';
+import { FileDown } from 'lucide-react';
+
+export default function GenerateMonthlyUpdateButton() {
+  const [loading, setLoading] = useState(false);
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    try {
+      const month = new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const url = `/api/investor/monthly-update?month=${encodeURIComponent(month)}`;
+      
+      // Open in new window for printing/downloading
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Error generating monthly update:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleGenerate}
+      disabled={loading}
+      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+    >
+      <FileDown className="h-4 w-4" />
+      {loading ? 'Generating...' : 'Generate Monthly Update'}
+    </button>
+  );
+}

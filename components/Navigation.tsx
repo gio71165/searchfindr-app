@@ -5,18 +5,19 @@ import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '../app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
-import { ChevronDown, LogOut, Settings, User, Zap, Shield, LayoutDashboard } from 'lucide-react';
+import { ChevronDown, LogOut, Settings, User, Zap, Shield, LayoutDashboard, TrendingUp, HelpCircle, Mail } from 'lucide-react';
 
 const STRIPE_PAYMENT_URL = 'https://buy.stripe.com/dRm4gz1ReaTxct01lKawo00';
 
 export function Navigation() {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, session, isAdmin, loading: authLoading } = useAuth();
+  const { user, session, isAdmin, loading: authLoading, workspaceId, role: userRole } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const email = user?.email ?? null;
 
   const isAdminPage = pathname?.startsWith('/admin');
+  const isInvestorPage = pathname?.startsWith('/investor');
   const isDashboardPage = pathname?.startsWith('/dashboard') || pathname?.startsWith('/cims') || pathname?.startsWith('/financials') || pathname?.startsWith('/on-market') || pathname?.startsWith('/off-market') || pathname?.startsWith('/today') || pathname?.startsWith('/deals');
 
   const handleLogout = async () => {
@@ -28,8 +29,9 @@ export function Navigation() {
   // 1. Auth is done loading
   // 2. We have a valid session (not just cached user data)
   // 3. We have a user with email
+  // 4. We have a workspaceId (profile loaded)
   // This prevents showing authenticated nav when there's stale/expired session data
-  const isAuthenticated = !authLoading && !!session && !!user && !!email;
+  const isAuthenticated = !authLoading && !!session && !!user && !!email && !!workspaceId;
 
   // Minimal nav when logged out: logo + "Need access?" only. No Connect Extension, no user dropdown.
   if (!isAuthenticated) {
@@ -40,14 +42,22 @@ export function Navigation() {
             <a href="https://www.searchfindr.net/" className="text-xl font-bold text-slate-100 hover:text-indigo-300 transition-colors">
               SearchFindr
             </a>
-            <a
-              href={STRIPE_PAYMENT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-slate-300 hover:text-indigo-300 transition-colors"
-            >
-              Need access?
-            </a>
+            <div className="flex items-center gap-4">
+              <Link
+                href="/help"
+                className="text-sm text-slate-300 hover:text-indigo-300 transition-colors"
+              >
+                Help
+              </Link>
+              <a
+                href={STRIPE_PAYMENT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-slate-300 hover:text-indigo-300 transition-colors"
+              >
+                Need access?
+              </a>
+            </div>
           </div>
         </div>
       </nav>
@@ -108,6 +118,16 @@ export function Navigation() {
                         Admin Dashboard
                       </Link>
                     )}
+                    {userRole === 'investor' && (
+                      <Link
+                        href="/investor"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <TrendingUp className="h-4 w-4" />
+                        Investor Dashboard
+                      </Link>
+                    )}
                     {isAdminPage && (
                       <Link
                         href="/dashboard"
@@ -118,13 +138,32 @@ export function Navigation() {
                         User Dashboard
                       </Link>
                     )}
+                    {isInvestorPage && (
+                      <Link
+                        href="/dashboard"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      >
+                        <LayoutDashboard className="h-4 w-4" />
+                        Searcher Dashboard
+                      </Link>
+                    )}
                     <Link
                       href="/settings"
                       onClick={() => setShowUserMenu(false)}
+                      data-onboarding="settings-link"
                       className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                     >
                       <Settings className="h-4 w-4" />
                       Settings
+                    </Link>
+                    <Link
+                      href="/help"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                    >
+                      <HelpCircle className="h-4 w-4" />
+                      Help & Support
                     </Link>
                     <button
                       onClick={() => {

@@ -6,7 +6,7 @@ const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 // Magic bytes (file signatures) for common file types
 const FILE_SIGNATURES: Record<string, number[][]> = {
   pdf: [
-    [0x25, 0x50, 0x44, 0x46], // %PDF
+    [0x25, 0x50, 0x44, 0x46], // %PDF (standard position)
   ],
   xlsx: [
     [0x50, 0x4b, 0x03, 0x04], // ZIP header (XLSX is a ZIP file)
@@ -70,27 +70,73 @@ function matchesSignature(buffer: Uint8Array, signatures: number[][]): boolean {
 }
 
 /**
- * Detect file type from magic bytes
+ * Check if buffer contains PDF signature (PDFs can have up to 1024 bytes of header before %PDF)
  */
-export function detectFileType(buffer: ArrayBuffer): string | null {
-  const bytes = new Uint8Array(buffer);
-  if (bytes.length < 8) return null;
+function isPdfFile(buffer: Uint8Array): boolean {
+  // PDF spec allows up to 1024 bytes before %PDF signature
+  const searchRange = Math.min(1024, buffer.length - 4);
+  const pdfSignature = [0x25, 0x50, 0x44, 0x46]; // %PDF
+  
+  for (let i = 0; i <= searchRange; i++) {
+    let matches = true;
+    for (let j = 0; j < pdfSignature.length; j++) {
+      if (buffer[i + j] !== pdfSignature[j]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return true;
+  }
+  return false;
+}
 
+/**
+ * Detect file type from magic bytes
+ * @param buffer - File buffer to analyze
+ * @param expectedTypes - Optional list of expected types. CSV detection only runs if 'csv' is in this list.
+ */
+export function detectFileType(buffer: ArrayBuffer, expectedTypes?: string[]): string | null {
+  const bytes = new Uint8Array(buffer);
+  if (bytes.length < 4) return null;
+
+  // Special handling for PDF - check within first 1024 bytes (PDF spec allows header bytes)
+  if (!expectedTypes || expectedTypes.includes('pdf')) {
+    if (isPdfFile(bytes)) {
+      return 'pdf';
+    }
+  }
+
+  // Check for other known binary file signatures (DOCX, DOC, XLSX, XLS)
   for (const [type, signatures] of Object.entries(FILE_SIGNATURES)) {
+    // Skip CSV and PDF in this loop (PDF handled above, CSV has no magic bytes)
+    if (type === 'csv' || type === 'pdf') continue;
+    
     if (signatures.length > 0 && matchesSignature(bytes, signatures)) {
       return type;
     }
   }
 
-  // Check for CSV (text file with comma-separated values)
-  // This is a heuristic - CSV files are typically text files
-  try {
-    const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes.slice(0, 1024));
-    if (text.includes(",") && text.split("\n").length > 1) {
-      return "csv";
+  // Only check for CSV if it's in the expected types (to avoid false positives)
+  // CSV detection is a heuristic and should only run when we're actually looking for CSV files
+  if (expectedTypes && expectedTypes.includes('csv')) {
+    try {
+      const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes.slice(0, 1024));
+      // Very strict CSV detection: must have multiple lines, commas, and look like actual CSV data
+      // Exclude HTML/XML, JSON, and other structured text formats
+      if (text.includes(",") && 
+          text.split("\n").length > 2 && 
+          !text.trim().startsWith('<') && // Not HTML/XML
+          !text.trim().startsWith('{') && // Not JSON
+          !text.trim().startsWith('[') && // Not JSON array
+          !text.includes('<!DOCTYPE') && // Not HTML
+          !text.includes('<?xml') && // Not XML
+          !text.includes('%PDF') && // Not PDF (text representation)
+          text.match(/^[^,\n]+,[^,\n]+/m)) { // Has CSV-like structure (at least 2 columns)
+        return "csv";
+      }
+    } catch {
+      // Not text or decoding failed
     }
-  } catch {
-    // Not text
   }
 
   return null;
@@ -100,12 +146,13 @@ export function detectFileType(buffer: ArrayBuffer): string | null {
  * Validate file by magic bytes
  */
 export function validateFileType(buffer: ArrayBuffer, expectedTypes: string[]): FileValidationResult {
-  const detectedType = detectFileType(buffer);
+  // Pass expectedTypes to detectFileType so CSV detection only runs when appropriate
+  const detectedType = detectFileType(buffer, expectedTypes);
   
   if (!detectedType) {
     return {
       valid: false,
-      error: "File type could not be determined. Please upload a valid PDF, DOCX, DOC, CSV, or Excel file.",
+      error: `File type could not be determined. Please upload a valid ${expectedTypes.join(", ")} file.`,
     };
   }
 

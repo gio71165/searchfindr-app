@@ -2,11 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/app/supabaseClient';
+import { generateBrokerFeedbackSync } from '@/lib/ai/generate-broker-feedback';
+import { showToast } from '@/components/ui/Toast';
+import type { Deal } from '@/lib/types/deal';
 
 interface PassDealModalProps {
   dealId: string;
   companyName: string;
   workspaceId: string;
+  deal?: Deal | null; // Optional deal object for feedback generation
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -15,12 +19,17 @@ export function PassDealModal({
   dealId, 
   companyName, 
   workspaceId,
+  deal,
   onClose, 
   onSuccess 
 }: PassDealModalProps) {
   const [passReason, setPassReason] = useState('');
   const [passNotes, setPassNotes] = useState('');
   const [passing, setPassing] = useState(false);
+  const [generateFeedback, setGenerateFeedback] = useState(true);
+  const [brokerFeedback, setBrokerFeedback] = useState<string>('');
+  const [brokerName, setBrokerName] = useState<string | null>(null);
+  const [loadingBroker, setLoadingBroker] = useState(false);
 
   const passReasons = [
     'Too expensive / Wrong valuation',
@@ -40,6 +49,49 @@ export function PassDealModal({
     'Other'
   ];
 
+  // Load broker name if deal has broker_id
+  useEffect(() => {
+    async function loadBrokerName() {
+      if (!deal?.broker_id || !workspaceId) {
+        setBrokerName(null);
+        return;
+      }
+
+      setLoadingBroker(true);
+      try {
+        const { data, error } = await supabase
+          .from('brokers')
+          .select('name')
+          .eq('id', deal.broker_id)
+          .eq('workspace_id', workspaceId)
+          .single();
+
+        if (!error && data) {
+          setBrokerName(data.name);
+        } else {
+          setBrokerName(null);
+        }
+      } catch (error) {
+        console.error('Error loading broker name:', error);
+        setBrokerName(null);
+      } finally {
+        setLoadingBroker(false);
+      }
+    }
+
+    loadBrokerName();
+  }, [deal?.broker_id, workspaceId]);
+
+  // Generate feedback when reason or deal changes
+  useEffect(() => {
+    if (generateFeedback && deal && passReason) {
+      const feedback = generateBrokerFeedbackSync(deal, passReason, brokerName);
+      setBrokerFeedback(feedback);
+    } else {
+      setBrokerFeedback('');
+    }
+  }, [generateFeedback, deal, passReason, brokerName]);
+
   // Handle ESC key to close modal
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -54,6 +106,18 @@ export function PassDealModal({
     };
   }, [onClose, passing]);
 
+  async function handleCopyFeedback() {
+    if (!brokerFeedback) return;
+
+    try {
+      await navigator.clipboard.writeText(brokerFeedback);
+      showToast('Broker feedback copied!', 'success');
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      showToast('Failed to copy to clipboard', 'error');
+    }
+  }
+
   async function handlePass() {
     if (!passReason) {
       alert('Please select a reason for passing');
@@ -66,6 +130,21 @@ export function PassDealModal({
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error('Not signed in.');
 
+      // Prepare request body
+      const requestBody: {
+        pass_reason: string;
+        pass_notes?: string | null;
+        broker_feedback?: string | null;
+      } = {
+        pass_reason: passReason,
+        pass_notes: passNotes || null,
+      };
+
+      // Include broker feedback if generated
+      if (generateFeedback && brokerFeedback) {
+        requestBody.broker_feedback = brokerFeedback;
+      }
+
       // Call API endpoint with pass reason and notes
       const res = await fetch(`/api/deals/${dealId}/pass`, {
         method: 'POST',
@@ -73,10 +152,7 @@ export function PassDealModal({
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          pass_reason: passReason,
-          pass_notes: passNotes || null,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!res.ok) {
@@ -123,6 +199,46 @@ export function PassDealModal({
             ))}
           </select>
         </div>
+
+        {/* Generate Broker Feedback Checkbox */}
+        {deal && deal.broker_id && (
+          <div className="mb-4">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={generateFeedback}
+                onChange={(e) => setGenerateFeedback(e.target.checked)}
+                className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Generate broker feedback note
+              </span>
+            </label>
+          </div>
+        )}
+
+        {/* Broker Feedback Preview */}
+        {generateFeedback && brokerFeedback && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Feedback Note Preview
+              </label>
+              <button
+                onClick={handleCopyFeedback}
+                className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                Copy Note
+              </button>
+            </div>
+            <textarea
+              value={brokerFeedback}
+              readOnly
+              rows={6}
+              className="w-full border border-blue-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-800 resize-none focus:outline-none"
+            />
+          </div>
+        )}
 
         {/* Additional Notes */}
         <div className="mb-6">

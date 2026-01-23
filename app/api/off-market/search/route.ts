@@ -425,38 +425,53 @@ export async function POST(req: NextRequest) {
       return true;
     });
 
-    // 6) Fetch details (bigger cap)
-    const detailed = await Promise.all(
-      deduped.slice(0, DETAIL_CAP).map(async (r) => {
-        const placeId = r.place_id as string | undefined;
-        const details = placeId ? await googlePlaceDetails(placeId) : null;
+    // 6) Fetch details with throttling to prevent rate limits and reduce N+1 impact
+    // Process in batches to avoid overwhelming the API
+    const BATCH_SIZE = 10; // Process 10 at a time
+    const BATCH_DELAY = 100; // 100ms delay between batches
+    const toProcess = deduped.slice(0, DETAIL_CAP);
+    const detailed: any[] = [];
 
-        const name = details?.name ?? r.name ?? null;
-        const address = details?.formatted_address ?? r.vicinity ?? null;
-        const phone = details?.formatted_phone_number ?? null;
-        const website = details?.website ?? null;
+    for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
+      const batch = toProcess.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(
+        batch.map(async (r) => {
+          const placeId = r.place_id as string | undefined;
+          const details = placeId ? await googlePlaceDetails(placeId) : null;
 
-        const loc = details?.geometry?.location ?? r.geometry?.location ?? null;
+          const name = details?.name ?? r.name ?? null;
+          const address = details?.formatted_address ?? r.vicinity ?? null;
+          const phone = details?.formatted_phone_number ?? null;
+          const website = details?.website ?? null;
 
-        const rating = details?.rating ?? r.rating ?? null;
-        const ratingsTotal = details?.user_ratings_total ?? r.user_ratings_total ?? null;
+          const loc = details?.geometry?.location ?? r.geometry?.location ?? null;
 
-        const externalId = placeId ?? `${name ?? "unknown"}|${address ?? "unknown"}`;
+          const rating = details?.rating ?? r.rating ?? null;
+          const ratingsTotal = details?.user_ratings_total ?? r.user_ratings_total ?? null;
 
-        return {
-          placeId: placeId ?? null,
-          externalId,
-          name,
-          address,
-          phone,
-          website,
-          lat: loc?.lat ?? null,
-          lng: loc?.lng ?? null,
-          rating,
-          ratingsTotal,
-        };
-      })
-    );
+          const externalId = placeId ?? `${name ?? "unknown"}|${address ?? "unknown"}`;
+
+          return {
+            placeId: placeId ?? null,
+            externalId,
+            name,
+            address,
+            phone,
+            website,
+            lat: loc?.lat ?? null,
+            lng: loc?.lng ?? null,
+            rating,
+            ratingsTotal,
+          };
+        })
+      );
+      detailed.push(...batchResults);
+      
+      // Add delay between batches (except for the last batch)
+      if (i + BATCH_SIZE < toProcess.length) {
+        await new Promise(resolve => setTimeout(resolve, BATCH_DELAY));
+      }
+    }
 
     // 7) Hard filter: website required + obvious excludes
     const survivors = detailed

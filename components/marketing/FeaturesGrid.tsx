@@ -12,18 +12,18 @@ import {
 const features = [
   {
     icon: FileText,
-    title: 'CIM Analysis',
-    description: 'AI-powered, skeptical & forensic analysis of Confidential Information Memorandums. Extract key metrics, flag inconsistencies, and surface red flags.',
-  },
-  {
-    icon: TrendingUp,
-    title: 'Financial Screening',
-    description: 'Automated trend analysis, quality-of-earnings red flags, and financial health scoring. Spot issues before they become problems.',
+    title: 'Know in 2 minutes if a deal is worth your time',
+    description: 'AI reads the entire CIM, extracts financials, identifies red flags, and gives you a clear Proceed/Park/Pass recommendation.',
   },
   {
     icon: LayoutDashboard,
-    title: 'Pipeline Management',
-    description: 'Track deals through stages, set reminders, manage verdicts (proceed/park/pass), and use the Today view to focus on what needs attention right now.',
+    title: 'Never miss a follow-up. Never lose a deal.',
+    description: 'Automatic reminders, stage-based playbooks, and broker feedback generation keep you organized and professional.',
+  },
+  {
+    icon: TrendingUp,
+    title: 'Model every scenario before you make an offer',
+    description: 'Full SBA 7(a) calculator, seller financing, earnouts, and stress tests. See exactly what happens if revenue drops 20%.',
   },
   {
     icon: GitCompare,

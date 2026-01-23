@@ -33,7 +33,7 @@ export default function OnMarketPage() {
       .limit(100);
 
     if (error) {
-      console.error('loadDeals error:', error);
+      // Error handling - could set error state here if needed
       return;
     }
 

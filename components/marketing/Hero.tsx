@@ -16,17 +16,17 @@ export function Hero() {
         {/* Main Headline */}
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight tracking-tight">
-            Your complete{' '}
-            <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-              search workflow
-            </span>
+            Review deals 10x faster.{' '}
+            <br className="hidden sm:block" />
+            Catch red flags others miss.
           </h1>
-          <p className="text-xl sm:text-2xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed">
-            The all-in-one platform for search fund operators. From deal sourcing and screening to pipeline management and analysis—everything you need to find and evaluate opportunities faster.
+          <p className="text-xl sm:text-2xl text-white/70 mb-10 max-w-2xl mx-auto leading-relaxed mt-6">
+            Upload a CIM. Get AI analysis in 60 seconds. Know exactly 
+            which deals deserve your time—and which ones to pass.
           </p>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
             <Link
               href="/pricing"
               className="w-full sm:w-auto px-8 py-4 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-base font-semibold text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-105"
@@ -34,10 +34,10 @@ export function Hero() {
               Lock in $149/mo Forever
             </Link>
             <Link
-              href="/demo"
+              href="/sample-analysis"
               className="w-full sm:w-auto px-8 py-4 rounded-lg border-2 border-white/20 bg-white/5 text-base font-semibold text-white hover:bg-white/10 hover:border-white/30 transition-all backdrop-blur-sm"
             >
-              Book Demo
+              See Sample Analysis
             </Link>
           </div>
         </div>

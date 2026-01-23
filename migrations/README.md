@@ -9,7 +9,6 @@ This directory contains SQL migration files for the SearchFindr database schema.
 3. **Create New Query**: Click "New Query"
 4. **Copy & Paste**: Copy the entire contents of the migration file you want to run
 5. **Execute**: Click "Run" to execute the SQL
-6. **Verify**: Run the verification queries included at the bottom of each migration file
 
 ## Current Migrations
 
@@ -21,7 +20,3 @@ Adds deal state tracking functionality:
 - Configures RLS policies for activity table
 
 **Important**: This migration assumes the `workspace_members` table exists. If it doesn't, you may need to adjust the RLS policies.
-
-## Verification
-
-After running each migration, use the verification queries provided at the bottom of the migration file to ensure everything was applied correctly.

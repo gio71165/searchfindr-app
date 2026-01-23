@@ -54,11 +54,11 @@ export async function GET(request: NextRequest) {
       .not('stage', 'eq', 'passed');
 
     if (error) {
-      console.error('Error fetching reminders:', error);
+      logger.error('Error fetching reminders:', error);
       throw error;
     }
 
-    console.log(`Found ${deals?.length || 0} reminders due`);
+    logger.info(`Found ${deals?.length || 0} reminders due`);
 
     // Get workspace members to find user emails
     const workspaceIds = [...new Set((deals || []).map(d => d.workspace_id))];
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
           .eq('id', deal.id);
 
         if (updateError) {
-          console.error(`Error updating reminder for deal ${deal.id}:`, updateError);
+          logger.error(`Error updating reminder for deal ${deal.id}:`, updateError);
           continue;
         }
 
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
           logger.warn(`Failed to send emails for deal ${deal.id}:`, emailError);
         }
       } catch (err) {
-        console.error(`Error processing reminder for deal ${deal.id}:`, err);
+        logger.error(`Error processing reminder for deal ${deal.id}:`, err);
       }
     }
 

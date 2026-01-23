@@ -1,0 +1,87 @@
+'use client';
+
+import type { Deal } from '@/lib/types/deal';
+
+interface StickyDealHeaderProps {
+  deal: Deal;
+  onProceed: () => void;
+  onPark: () => void;
+  onPass: () => void;
+  settingVerdict: boolean;
+}
+
+export function StickyDealHeader({
+  deal,
+  onProceed,
+  onPark,
+  onPass,
+  settingVerdict,
+}: StickyDealHeaderProps) {
+  const companyName = deal.company_name || 'Untitled Company';
+  const location = [
+    deal.location_city,
+    deal.location_state
+  ].filter(Boolean).join(', ') || 'Location not specified';
+  const industry = deal.industry || 'Industry not specified';
+
+  // Extract user-set verdict
+  const userVerdict = (deal as any).verdict || deal.criteria_match_json?.verdict || null;
+  
+  const verdictConfig = {
+    proceed: { bg: 'bg-green-100', text: 'text-green-800', label: 'Proceed' },
+    park: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Parked' },
+    pass: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Passed' }
+  };
+  
+  const userVerdictNormalized = userVerdict ? userVerdict.toLowerCase() : null;
+  const userVerdictStyle = userVerdictNormalized ? verdictConfig[userVerdictNormalized as keyof typeof verdictConfig] : null;
+
+  return (
+    <div className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 truncate">
+              {companyName}
+            </h1>
+            <p className="text-sm text-slate-500 truncate">
+              {industry} · {location}
+            </p>
+          </div>
+          
+          {userVerdictStyle && (
+            <div className="hidden sm:flex items-center gap-2">
+              <span className={`px-3 py-1.5 rounded-md text-sm font-semibold ${userVerdictStyle.bg} ${userVerdictStyle.text}`}>
+                {userVerdictStyle.label}
+              </span>
+            </div>
+          )}
+          
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={onProceed}
+              disabled={settingVerdict}
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {settingVerdict ? 'Setting…' : 'Proceed'}
+            </button>
+            <button
+              onClick={onPark}
+              disabled={settingVerdict}
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {settingVerdict ? 'Setting…' : 'Park'}
+            </button>
+            <button
+              onClick={onPass}
+              disabled={settingVerdict}
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              Pass
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertTriangle } from 'lucide-react';
+import { JargonTooltip } from '@/components/ui/JargonTooltip';
 
 type QoeRedFlag = {
   type: string;
@@ -48,7 +49,7 @@ export function QoeRedFlagsPanel({ qoeRedFlags }: { qoeRedFlags: QoeRedFlag[] })
       <div className="flex items-center gap-2 mb-4">
         <AlertTriangle className="h-5 w-5 text-orange-600" />
         <h3 className="text-xl font-semibold text-slate-900">
-          Quality of Earnings Analysis
+          Quality of <JargonTooltip term="QoE">Earnings</JargonTooltip> Analysis
         </h3>
         <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
           {qoeRedFlags.length}

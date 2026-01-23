@@ -7,7 +7,7 @@ import type { Deal } from '@/lib/types/deal';
 import { User, Bot, Send, Copy, Loader2, X, MessageCircle } from 'lucide-react';
 
 export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) {
-  // Chat is now available on ALL deal types
+  // Chat is available for ALL deal types: on-market, off-market, CIM, and financials
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -23,7 +23,9 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
   const [sending, setSending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+
 
   // Check if mobile
   useEffect(() => {
@@ -146,11 +148,37 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
     };
   }, [fetchMessages]);
 
+  // Scroll to bottom of messages container only (not the whole page)
+  // Only auto-scroll if user is already near the bottom (within 150px) or actively sending
   useEffect(() => {
-    if (endRef.current) {
-      endRef.current.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current && endRef.current) {
+      const container = messagesContainerRef.current;
+      const scrollDistance = container.scrollHeight - container.scrollTop - container.clientHeight;
+      const isNearBottom = scrollDistance < 150;
+      
+      // Only auto-scroll if:
+      // 1. User is already near bottom (within 150px), OR
+      // 2. User is actively sending a message (sending = true)
+      // This prevents jumping when loading history or when user is reading old messages
+      if (isNearBottom || sending) {
+        // Use setTimeout with minimal delay to ensure DOM is updated, but keep it subtle
+        const timeoutId = setTimeout(() => {
+          if (container && messagesContainerRef.current === container) {
+            // Only scroll if still near bottom or sending
+            const currentScrollDistance = container.scrollHeight - container.scrollTop - container.clientHeight;
+            if (currentScrollDistance < 200 || sending) {
+              container.scrollTo({
+                top: container.scrollHeight,
+                behavior: "smooth"
+              });
+            }
+          }
+        }, 50);
+        
+        return () => clearTimeout(timeoutId);
+      }
     }
-  }, [messages]);
+  }, [messages, sending]);
 
   const handleClearChat = async () => {
     if (!dealId) return;
@@ -218,45 +246,82 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
         .slice(-10) // Last 10 turns (5 Q&A pairs)
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const res = await fetch("/api/deal-chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          dealId,
-          message: text,
-          history,
-        }),
-      });
+      let res: Response;
+      try {
+        res = await fetch("/api/deal-chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            dealId,
+            message: text,
+            history,
+          }),
+        });
+      } catch (fetchError) {
+        // Network error or fetch failed
+        console.error("Chat fetch error:", fetchError);
+        throw new Error("Network error. Please check your connection and try again.");
+      }
 
       const raw = await res.text();
-      let json: { answer?: string; content?: string; error?: string } | null = null;
+      let json: { answer?: string; content?: string; error?: string; warning?: string } | null = null;
       try {
         json = JSON.parse(raw);
-      } catch {}
+      } catch (parseError) {
+        // If response isn't valid JSON, log the raw response for debugging
+        console.error("Chat API response parse error:", parseError, "Raw response:", raw.substring(0, 500));
+        throw new Error(`Invalid response from server (${res.status})`);
+      }
 
       if (!res.ok) {
         // Log error for debugging but show friendly message to user
-        console.error("Chat API error:", { status: res.status, error: json?.error });
-        throw new Error("API_ERROR");
+        const errorMessage = json?.error || `Server error (${res.status})`;
+        console.error("Chat API error:", { 
+          status: res.status, 
+          statusText: res.statusText,
+          error: json?.error || 'No error message in response',
+          json: json,
+          raw: raw.substring(0, 500) // Log first 500 chars for debugging
+        });
+        
+        throw new Error(errorMessage || `Server error (${res.status})`);
       }
 
       const answer = String(json?.answer ?? json?.content ?? "").trim();
       if (!answer) {
-        console.error("Chat API returned empty answer");
-        throw new Error("EMPTY_ANSWER");
+        console.error("Chat API returned empty answer", { json, raw: raw.substring(0, 200) });
+        throw new Error("The AI didn't return a response. Please try again.");
       }
 
       setMessages((prev) => [...prev, { role: "assistant", content: answer, ts: Date.now() }]);
+      // Track chat usage
+      window.dispatchEvent(new CustomEvent('onboarding:chat-used'));
     } catch (e: unknown) {
       // Always show friendly message to users, log technical details for debugging
       const error = e instanceof Error ? e : new Error('Unknown error');
-      console.error("Chat error details:", error);
+      console.error("Chat error details:", {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       
-      // Friendly user-facing message
-      const friendlyMessage = "Something went wrong. Please try again later, or contact support if the issue persists.";
+      // Use error message if it's user-friendly, otherwise show generic message
+      let friendlyMessage: string;
+      if (error.message && 
+          !error.message.includes('API_ERROR') && 
+          !error.message.includes('EMPTY_ANSWER') &&
+          !error.message.includes('Invalid response') &&
+          !error.message.includes('Network error')) {
+        friendlyMessage = error.message;
+      } else if (error.message?.includes('Network error')) {
+        friendlyMessage = "Network error. Please check your connection and try again.";
+      } else {
+        friendlyMessage = "Something went wrong. Please try again later, or contact support if the issue persists.";
+      }
+      
       setErr(friendlyMessage);
       setMessages((prev) => [
         ...prev,
@@ -314,7 +379,11 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div 
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-3" 
+        style={{ scrollBehavior: 'smooth' }}
+      >
         {messages.map((m, idx) => {
           const isUser = m.role === "user";
           const msgId = `${m.role}-${idx}`;

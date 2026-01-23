@@ -72,6 +72,33 @@ export function PricingTeaser() {
                   </div>
                   <span className="text-white/80">30-day money-back guarantee</span>
                 </div>
+                <div className="pt-3 border-t border-emerald-500/20 mt-3">
+                  <p className="text-xs text-emerald-300/80 mb-2 font-semibold uppercase tracking-wider">Early Bird Exclusives</p>
+                  <div className="flex items-start gap-3">
+                    <div className="h-5 w-5 rounded-full bg-emerald-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <span className="text-white/90 font-medium">Influence in the software</span>
+                  </div>
+                  <div className="flex items-start gap-3 mt-2">
+                    <div className="h-5 w-5 rounded-full bg-emerald-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <span className="text-white/90 font-medium">Founder direct access</span>
+                  </div>
+                  <div className="flex items-start gap-3 mt-2">
+                    <div className="h-5 w-5 rounded-full bg-emerald-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <span className="text-white/90 font-medium">Beta feature access</span>
+                  </div>
+                </div>
               </div>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

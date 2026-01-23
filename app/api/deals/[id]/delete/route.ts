@@ -1,5 +1,6 @@
 // app/api/deals/[id]/delete/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from 'next/cache';
 import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { DealsRepository } from "@/lib/data-access/deals";
 import { NotFoundError, DatabaseError } from "@/lib/data-access/base";
@@ -46,6 +47,9 @@ export async function POST(
     }
 
     await deals.delete(dealId, force);
+
+    // Revalidate dashboard (deal page no longer exists)
+    revalidatePath('/dashboard');
 
     return NextResponse.json({ success: true, message: "Deal deleted permanently" }, { status: 200, headers: corsHeaders });
   } catch (e: unknown) {

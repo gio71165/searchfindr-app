@@ -55,33 +55,3 @@ WHERE workspace_id IS NULL;
 ALTER TABLE profiles
   ALTER COLUMN workspace_id SET NOT NULL;
 
--- ============================================
--- VERIFICATION QUERIES
--- ============================================
-
--- 1. Verify no NULL workspace_ids exist
-SELECT 
-    COUNT(*) as total_profiles,
-    COUNT(workspace_id) as profiles_with_workspace,
-    COUNT(*) - COUNT(workspace_id) as profiles_without_workspace
-FROM profiles;
-
--- 2. Verify trigger exists
-SELECT 
-    trigger_name,
-    event_manipulation,
-    event_object_table,
-    action_statement
-FROM information_schema.triggers
-WHERE event_object_table = 'profiles'
-  AND trigger_name = 'trigger_assign_workspace_id';
-
--- 3. Show sample profiles with their workspace_ids
-SELECT 
-    id,
-    workspace_id,
-    is_admin,
-    created_at
-FROM profiles
-ORDER BY created_at DESC NULLS LAST
-LIMIT 10;

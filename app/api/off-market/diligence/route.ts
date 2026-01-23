@@ -1,5 +1,6 @@
 // app/api/off-market/diligence/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from 'next/cache';
 import { createClient } from "@supabase/supabase-js";
 import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { DealsRepository } from "@/lib/data-access/deals";
@@ -573,6 +574,12 @@ export async function POST(req: NextRequest) {
     } catch (activityErr) {
       console.error('Failed to log activity:', activityErr);
       // Don't fail the request, just log the error
+    }
+
+    // Revalidate deal page and dashboard
+    if (companyId) {
+      revalidatePath(`/deals/${companyId}`);
+      revalidatePath('/dashboard');
     }
 
     return NextResponse.json(

@@ -3,6 +3,7 @@ import './globals.css';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ToastProvider } from '@/components/ui/ToastProvider';
 import { AuthProvider } from '@/lib/auth-context';
+import { OnboardingChecklist } from '@/components/onboarding/OnboardingChecklist';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://searchfindr-app.vercel.app'),
@@ -63,6 +64,7 @@ export default function RootLayout({
           <ToastProvider>
             <AuthProvider>
               {children}
+              <OnboardingChecklist />
             </AuthProvider>
           </ToastProvider>
         </ErrorBoundary>

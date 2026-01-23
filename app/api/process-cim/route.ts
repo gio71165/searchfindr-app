@@ -1,5 +1,6 @@
 // app/api/process-cim/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { createClient } from '@supabase/supabase-js';
 import { authenticateRequest, AuthError } from '@/lib/api/auth';
 import { DealsRepository } from '@/lib/data-access/deals';
@@ -12,12 +13,13 @@ import { sanitizeShortText } from '@/lib/utils/sanitize';
 import { logger } from '@/lib/utils/logger';
 import { withRetry } from '@/lib/utils/retry';
 import type { CriteriaMatch, ConfidenceJson } from '@/lib/types/deal';
+import { extractText, getDocumentProxy } from 'unpdf';
 
 export const runtime = 'nodejs';
 
 // Maximum characters to send to OpenAI (approximately 25K tokens)
 // Prevents context window overflow for large PDFs
-const MAX_CHARS = 100000;
+const MAX_CIM_TEXT_CHARS = 100000; // ~25K tokens for GPT-4 Turbo
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_BASE_URL = process.env.OPENAI_BASE_URL ?? 'https://api.openai.com';
@@ -38,26 +40,230 @@ const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-// Helper: Extract text from PDF buffer
-async function extractPDFText(buffer: Buffer): Promise<string> {
+// Helper: Extract text from PDF buffer (uses unpdf – serverless-friendly, no workers)
+async function extractPDFText(buffer: Buffer): Promise<{ text: string; wasTruncated: boolean }> {
   try {
-    // Use require for CommonJS module (pdf-parse)
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse');
-    const data = await pdfParse(buffer);
-    return data.text;
+    const pdf = await getDocumentProxy(new Uint8Array(buffer));
+    const { totalPages, text } = await extractText(pdf, { mergePages: true });
+    const fullText = (text ?? '').trim();
+
+    if (!fullText) {
+      logger.error('PDF extraction returned empty text (may be image-based):', {
+        totalPages,
+      });
+      throw new Error('PDF_PARSING_EMPTY_TEXT');
+    }
+
+    if (fullText.length > MAX_CIM_TEXT_CHARS) {
+      const truncatedText =
+        fullText.slice(0, MAX_CIM_TEXT_CHARS) +
+        '\n\n[CIM content truncated due to length. Analysis based on first 100,000 characters.]';
+      return { text: truncatedText, wasTruncated: true };
+    }
+
+    return { text: fullText, wasTruncated: false };
   } catch (error) {
     logger.error('PDF extraction failed:', error);
     const errorMessage = error instanceof Error ? error.message : String(error);
-    
-    // Check for specific error types
+
     if (errorMessage.includes('encrypted') || errorMessage.includes('password')) {
       throw new Error('PDF_PARSING_ENCRYPTED');
     }
     if (errorMessage.includes('corrupt') || errorMessage.includes('invalid')) {
       throw new Error('PDF_PARSING_CORRUPT');
     }
+    if (errorMessage.includes('EMPTY_TEXT') || errorMessage.includes('no extractable text')) {
+      throw new Error('PDF_PARSING_EMPTY_TEXT');
+    }
     throw new Error('PDF_PARSING_FAILED');
+  }
+}
+
+// Helper: Extract text from DOCX buffer
+async function extractDOCXText(buffer: Buffer): Promise<{ text: string; wasTruncated: boolean }> {
+  try {
+    // Verify it's actually a DOCX file (ZIP signature)
+    if (buffer.length < 4) {
+      logger.error('DOCX extraction: Buffer too small', { bufferLength: buffer.length });
+      throw new Error('DOCX_PARSING_FAILED: File too small to be a valid DOCX');
+    }
+    
+    // Check for ZIP signature (DOCX is a ZIP file)
+    const firstBytes = buffer.slice(0, 4);
+    const isZip = firstBytes[0] === 0x50 && firstBytes[1] === 0x4B && 
+                  (firstBytes[2] === 0x03 || firstBytes[2] === 0x05 || firstBytes[2] === 0x07) &&
+                  (firstBytes[3] === 0x04 || firstBytes[3] === 0x06 || firstBytes[3] === 0x08);
+    
+    if (!isZip) {
+      logger.error('DOCX extraction: File does not have ZIP signature', {
+        firstBytes: Array.from(firstBytes).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' '),
+        bufferLength: buffer.length
+      });
+      throw new Error('DOCX_PARSING_FAILED: File does not appear to be a valid DOCX (missing ZIP signature)');
+    }
+    
+    logger.info('DOCX extraction: Verified ZIP signature, buffer length', buffer.length);
+    
+    // Use require for CommonJS module (mammoth)
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    let mammoth;
+    try {
+      mammoth = require('mammoth');
+      logger.info('DOCX extraction: mammoth module loaded successfully');
+    } catch (moduleError) {
+      logger.error('Failed to load mammoth module:', moduleError);
+      throw new Error('DOCX_PARSING_FAILED: mammoth module not available');
+    }
+    
+    // Mammoth accepts Buffer directly - no need to convert to ArrayBuffer
+    // The Buffer object works perfectly with mammoth
+    logger.info('DOCX extraction: Using Buffer directly with mammoth', {
+      bufferLength: buffer.length,
+      bufferType: buffer.constructor.name
+    });
+    
+    // Try to extract text - mammoth accepts { buffer: Buffer } or { path: string }
+    logger.info('DOCX extraction: Calling mammoth.extractRawText with buffer...');
+    const result = await mammoth.extractRawText({ buffer });
+    logger.info('DOCX extraction: mammoth.extractRawText completed', {
+      hasValue: !!result.value,
+      valueType: typeof result.value,
+      valueLength: result.value?.length || 0,
+      messagesCount: result.messages?.length || 0
+    });
+    
+    const fullText = result.value || '';
+    
+    // Check for mammoth warnings/messages that indicate issues
+    if (result.messages && result.messages.length > 0) {
+      logger.warn('DOCX extraction warnings:', result.messages);
+      // Log each message for debugging
+      result.messages.forEach((msg: any, idx: number) => {
+        logger.warn(`DOCX extraction warning ${idx + 1}:`, msg);
+      });
+    }
+    
+    if (!fullText || typeof fullText !== 'string' || fullText.trim().length === 0) {
+      logger.error('DOCX extraction returned empty or invalid text:', { 
+        result: {
+          hasValue: !!result.value,
+          valueType: typeof result.value,
+          valueLength: result.value?.length,
+          valuePreview: typeof result.value === 'string' ? result.value.substring(0, 100) : 'N/A'
+        },
+        messages: result.messages,
+        bufferLength: buffer.length
+      });
+      throw new Error('DOCX_PARSING_FAILED: No text extracted from DOCX file');
+    }
+    
+    logger.info('DOCX extraction: Successfully extracted text', { textLength: fullText.length });
+    
+    if (fullText.length > MAX_CIM_TEXT_CHARS) {
+      const truncatedText = fullText.slice(0, MAX_CIM_TEXT_CHARS) + 
+        '\n\n[CIM content truncated due to length. Analysis based on first 100,000 characters.]';
+      return { text: truncatedText, wasTruncated: true };
+    }
+    
+    return { text: fullText, wasTruncated: false };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    
+    logger.error('DOCX extraction failed:', {
+      errorMessage,
+      errorStack,
+      errorName: error instanceof Error ? error.name : 'Unknown',
+      bufferLength: buffer?.length || 0,
+      firstBytes: buffer && buffer.length >= 4 
+        ? Array.from(buffer.slice(0, 4)).map(b => `0x${b.toString(16).padStart(2, '0')}`).join(' ')
+        : 'N/A'
+    });
+    
+    // Check for specific error types from mammoth
+    if (errorMessage.includes('corrupt') || errorMessage.includes('invalid') || 
+        errorMessage.includes('not a valid') || errorMessage.includes('unexpected') ||
+        errorMessage.includes('Bad zip file') || errorMessage.includes('Unexpected end of data')) {
+      throw new Error('DOCX_PARSING_CORRUPT');
+    }
+    if (errorMessage.includes('not supported') || errorMessage.includes('format') ||
+        errorMessage.includes('Cannot read') || errorMessage.includes('ENOENT')) {
+      throw new Error('DOCX_PARSING_FAILED');
+    }
+    // Re-throw our custom errors as-is
+    if (errorMessage.startsWith('DOCX_PARSING_')) {
+      throw error;
+    }
+    throw new Error('DOCX_PARSING_FAILED');
+  }
+}
+
+// Helper: Extract text from DOC buffer (older Word format)
+// Note: mammoth.js primarily supports DOCX. For DOC files (OLE2 format), 
+// mammoth may not work. This is a best-effort attempt.
+async function extractDOCText(buffer: Buffer): Promise<{ text: string; wasTruncated: boolean }> {
+  try {
+    // Use require for CommonJS module (mammoth)
+    // Note: mammoth primarily supports DOCX, but we'll try it for DOC files
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    let mammoth;
+    try {
+      mammoth = require('mammoth');
+    } catch (moduleError) {
+      logger.error('Failed to load mammoth module:', moduleError);
+      throw new Error('DOC_PARSING_FAILED: mammoth module not available');
+    }
+    // Mammoth accepts Buffer directly - no need to convert to ArrayBuffer
+    logger.info('DOC extraction: Using Buffer directly with mammoth', {
+      bufferLength: buffer.length,
+      bufferType: buffer.constructor.name
+    });
+    
+    const result = await mammoth.extractRawText({ buffer });
+    const fullText = result.value || '';
+    
+    // Check for mammoth warnings/messages that indicate issues
+    if (result.messages && result.messages.length > 0) {
+      logger.warn('DOC extraction warnings:', result.messages);
+    }
+    
+    if (!fullText || typeof fullText !== 'string' || fullText.trim().length === 0) {
+      logger.error('DOC extraction returned empty or invalid text:', { 
+        result, 
+        hasValue: !!result.value,
+        valueType: typeof result.value,
+        textLength: fullText?.length,
+        messages: result.messages 
+      });
+      throw new Error('DOC_PARSING_FAILED');
+    }
+    
+    if (fullText.length > MAX_CIM_TEXT_CHARS) {
+      const truncatedText = fullText.slice(0, MAX_CIM_TEXT_CHARS) + 
+        '\n\n[CIM content truncated due to length. Analysis based on first 100,000 characters.]';
+      return { text: truncatedText, wasTruncated: true };
+    }
+    
+    return { text: fullText, wasTruncated: false };
+  } catch (error) {
+    logger.error('DOC extraction failed:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    logger.error('DOC extraction error details:', { errorMessage, errorStack });
+    
+    // Check for specific error types
+    if (errorMessage.includes('corrupt') || errorMessage.includes('invalid') || 
+        errorMessage.includes('not supported') || errorMessage.includes('Bad zip file') ||
+        errorMessage.includes('Unexpected end of data')) {
+      throw new Error('DOC_PARSING_CORRUPT');
+    }
+    // DOC files (OLE2 format) are not well-supported by mammoth
+    if (errorMessage.includes('unexpected') || errorMessage.includes('format') || 
+        errorMessage.includes('not a valid') || errorMessage.includes('Cannot read') ||
+        errorMessage.includes('ENOENT')) {
+      throw new Error('DOC_PARSING_FAILED');
+    }
+    throw new Error('DOC_PARSING_FAILED');
   }
 }
 
@@ -318,18 +524,43 @@ export async function POST(req: NextRequest) {
     }
 
     // 1) Download the file directly from Supabase Storage using service role (works for private buckets)
+    logger.info('process-cim: Attempting to download file from storage', { cimStoragePath });
     const { data: fileData, error: downloadError } = await supabaseAdmin.storage
       .from('cims')
       .download(cimStoragePath);
 
     if (downloadError || !fileData) {
-      logger.error('Failed to download CIM file from storage:', downloadError);
+      logger.error('Failed to download CIM file from storage:', {
+        error: downloadError,
+        cimStoragePath,
+        errorMessage: downloadError?.message,
+        errorStatus: downloadError?.statusCode
+      });
       return NextResponse.json({ success: false, error: 'Failed to download CIM file from storage.' }, { status: 500 });
     }
 
-    logger.info('process-cim: file downloaded successfully');
+    logger.info('process-cim: file downloaded successfully', {
+      cimStoragePath,
+      fileSize: fileData.size,
+      fileType: fileData.type
+    });
 
     const fileArrayBuffer = await fileData.arrayBuffer();
+
+    // Check for empty or very small files first
+    if (fileArrayBuffer.byteLength === 0) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'The uploaded file is empty. Please upload a valid PDF, DOCX, or DOC file.' 
+      }, { status: 400 });
+    }
+    
+    if (fileArrayBuffer.byteLength < 100) {
+      return NextResponse.json({ 
+        success: false, 
+        error: `The uploaded file is too small (${fileArrayBuffer.byteLength} bytes). It may be corrupted or incomplete. Please upload a valid PDF, DOCX, or DOC file.` 
+      }, { status: 400 });
+    }
 
     // Validate file size
     const sizeCheck = validateFileSize(fileArrayBuffer.byteLength);
@@ -340,11 +571,61 @@ export async function POST(req: NextRequest) {
     // Get file extension from storage path to help with type detection
     const pathExtension = cimStoragePath.split('.').pop()?.toLowerCase() || '';
     
+    // Check if file extension matches expected CIM types
+    const validExtensions = ['pdf', 'docx', 'doc'];
+    const hasValidExtension = validExtensions.includes(pathExtension);
+    
+    // Log first few bytes for debugging (only in development)
+    if (process.env.NODE_ENV === 'development' && fileArrayBuffer.byteLength > 0) {
+      const firstBytes = new Uint8Array(fileArrayBuffer.slice(0, Math.min(20, fileArrayBuffer.byteLength)));
+      const hexString = Array.from(firstBytes).map(b => b.toString(16).padStart(2, '0')).join(' ');
+      logger.info('process-cim: First bytes of file', { 
+        hex: hexString, 
+        ascii: String.fromCharCode(...Array.from(firstBytes).filter(b => b >= 32 && b < 127)),
+        extension: pathExtension,
+        size: fileArrayBuffer.byteLength 
+      });
+    }
+    
     // Validate file type by magic bytes - support PDF, DOCX, and DOC
+    // Note: CSV is NOT in expectedTypes, so CSV detection won't run (prevents false positives)
     const typeCheck = validateFileType(fileArrayBuffer, ['pdf', 'docx', 'doc', 'xlsx', 'xls']); // Include xlsx/xls for detection
     
     if (!typeCheck.valid) {
-      return NextResponse.json({ success: false, error: typeCheck.error || 'Invalid file type. Only PDF, DOCX, and DOC files are supported.' }, { status: 400 });
+      // Provide more helpful error message based on file extension
+      if (hasValidExtension) {
+        // Check if file might be text-based (could help diagnose issues)
+        // But skip this for PDFs since they're binary and will show false positives
+        let diagnosticInfo = '';
+        if (pathExtension !== 'pdf') {
+          try {
+            const textPreview = new TextDecoder("utf-8", { fatal: false }).decode(
+              fileArrayBuffer.slice(0, Math.min(200, fileArrayBuffer.byteLength))
+            );
+            if (textPreview.trim().length > 0 && !textPreview.includes('%PDF')) {
+              const preview = textPreview.substring(0, 100).replace(/\n/g, ' ').trim();
+              diagnosticInfo = ` File appears to contain text: "${preview}..."`;
+            }
+          } catch {
+            // Ignore decoding errors
+          }
+        }
+        
+        return NextResponse.json({ 
+          success: false, 
+          error: `The file has a ${pathExtension.toUpperCase()} extension but the file content doesn't match a valid ${pathExtension.toUpperCase()} file.${diagnosticInfo} The file may be corrupted, empty, or not actually a ${pathExtension.toUpperCase()} file. Please re-upload a valid ${pathExtension.toUpperCase()} file.` 
+        }, { status: 400 });
+      } else if (pathExtension) {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Invalid file type. The file has a .${pathExtension} extension, but only PDF, DOCX, and DOC files are supported for CIM processing.` 
+        }, { status: 400 });
+      } else {
+        return NextResponse.json({ 
+          success: false, 
+          error: typeCheck.error || 'Invalid file type. Only PDF, DOCX, and DOC files are supported.' 
+        }, { status: 400 });
+      }
     }
 
     // Determine actual file type - use extension as hint for ZIP/OLE2 files
@@ -398,36 +679,56 @@ export async function POST(req: NextRequest) {
         break;
     }
 
-    // 3) Extract text from PDF (for DOCX/DOC, we would need different extraction methods)
-    if (detectedType !== 'pdf') {
-      return NextResponse.json(
-        { success: false, error: 'Currently only PDF files are supported for CIM processing. DOCX and DOC support coming soon.' },
-        { status: 400 }
-      );
-    }
-
-    logger.info('process-cim: extracting text from PDF');
+    // 3) Extract text from file based on detected type
+    logger.info(`process-cim: extracting text from ${detectedType.toUpperCase()}`);
     const fileBuffer = Buffer.from(fileArrayBuffer);
     let extractedText: string;
+    let wasTruncated = false;
+    
     try {
-      extractedText = await extractPDFText(fileBuffer);
-      if (!extractedText || extractedText.trim().length === 0) {
+      let extractionResult: { text: string; wasTruncated: boolean };
+      
+      if (detectedType === 'pdf') {
+        extractionResult = await extractPDFText(fileBuffer);
+      } else if (detectedType === 'docx') {
+        extractionResult = await extractDOCXText(fileBuffer);
+      } else if (detectedType === 'doc') {
+        extractionResult = await extractDOCText(fileBuffer);
+      } else {
         return NextResponse.json(
-          { success: false, error: 'Failed to extract text from PDF. The file may be corrupted or image-based.' },
+          { success: false, error: `Unsupported file type: ${detectedType}. Only PDF, DOCX, and DOC files are supported.` },
           { status: 400 }
         );
       }
-      logger.info('process-cim: PDF text extracted successfully, length:', extractedText.length);
       
-      // Truncate text if it exceeds MAX_CHARS to prevent context window overflow
-      if (extractedText.length > MAX_CHARS) {
-        logger.warn(`process-cim: PDF text exceeds MAX_CHARS (${extractedText.length} > ${MAX_CHARS}), truncating...`);
-        extractedText = extractedText.slice(0, MAX_CHARS) + '\n\n[Content truncated for analysis...]';
-        logger.info('process-cim: Text truncated to', extractedText.length, 'characters');
+      extractedText = extractionResult.text;
+      wasTruncated = extractionResult.wasTruncated;
+      
+      if (!extractedText || typeof extractedText !== 'string' || extractedText.trim().length === 0) {
+        logger.error(`Text extraction returned empty result for ${detectedType.toUpperCase()}:`, {
+          hasText: !!extractedText,
+          textType: typeof extractedText,
+          textLength: extractedText?.length,
+          detectedType
+        });
+        return NextResponse.json(
+          { success: false, error: `Failed to extract text from ${detectedType.toUpperCase()}. The file may be corrupted, image-based, or contain no extractable text. Please try a different file.` },
+          { status: 400 }
+        );
       }
+      logger.info(`CIM text extracted: ${extractedText.length} chars${wasTruncated ? ' (truncated)' : ''}`);
     } catch (error) {
-      logger.error('process-cim: PDF extraction error:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      
+      logger.error(`process-cim: ${detectedType.toUpperCase()} extraction error:`, {
+        errorMessage,
+        errorStack,
+        errorName: error instanceof Error ? error.name : 'Unknown',
+        detectedType,
+        fileSize: fileArrayBuffer.byteLength,
+        pathExtension
+      });
       
       // Return user-friendly error messages based on error type
       if (errorMessage === 'PDF_PARSING_ENCRYPTED') {
@@ -436,14 +737,30 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         );
       }
-      if (errorMessage === 'PDF_PARSING_CORRUPT') {
+      if (errorMessage === 'PDF_PARSING_EMPTY_TEXT' || errorMessage.includes('EMPTY_TEXT')) {
         return NextResponse.json(
-          { success: false, error: 'PDF parsing failed. The file may be corrupted. Please try uploading the file again or use a different PDF.' },
+          { success: false, error: 'PDF contains no extractable text. The file may be image-based or the text may not be extractable. Please upload a PDF with extractable text.' },
           { status: 400 }
         );
       }
+      if (errorMessage === 'PDF_PARSING_CORRUPT' || errorMessage === 'DOCX_PARSING_CORRUPT' || errorMessage === 'DOC_PARSING_FAILED') {
+        return NextResponse.json(
+          { success: false, error: `${detectedType.toUpperCase()} parsing failed. The file may be corrupted or not a valid ${detectedType.toUpperCase()} file. Please try uploading the file again or use a different file.` },
+          { status: 400 }
+        );
+      }
+      if (errorMessage === 'DOCX_PARSING_FAILED' || errorMessage === 'DOC_PARSING_FAILED') {
+        // Include more diagnostic info in development
+        const diagnosticInfo = process.env.NODE_ENV === 'development' 
+          ? ` (Error: ${errorMessage})`
+          : '';
+        return NextResponse.json(
+          { success: false, error: `Failed to extract text from ${detectedType.toUpperCase()}. The file may not be a valid ${detectedType.toUpperCase()} file, may be corrupted, or may contain only images with no extractable text.${diagnosticInfo} Please try a different file or convert it to PDF.` },
+          { status: 500 }
+        );
+      }
       return NextResponse.json(
-        { success: false, error: 'Failed to extract text from PDF. Please ensure the file is a valid PDF.' },
+        { success: false, error: `Failed to extract text from ${detectedType.toUpperCase()}. Please ensure the file is valid.` },
         { status: 500 }
       );
     }
@@ -653,6 +970,13 @@ export async function POST(req: NextRequest) {
     }
 
     statusCode = 200;
+    
+    // Revalidate deal page and dashboard
+    if (companyId) {
+      revalidatePath(`/deals/${companyId}`);
+      revalidatePath('/dashboard');
+    }
+    
     const response = NextResponse.json({
       success: true,
       companyId,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { authenticateRequest, AuthError } from '@/lib/api/auth';
 import { DealsRepository } from '@/lib/data-access/deals';
 import { NotFoundError, DatabaseError } from '@/lib/data-access/base';
@@ -44,6 +45,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       console.error('Error updating broker:', updateError);
       return NextResponse.json({ error: 'Failed to update broker' }, { status: 500 });
     }
+
+    // Revalidate deal page and dashboard
+    revalidatePath(`/deals/${dealId}`);
+    revalidatePath('/dashboard');
 
     return NextResponse.json({ success: true });
   } catch (e: unknown) {

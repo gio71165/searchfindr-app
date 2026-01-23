@@ -9,6 +9,7 @@ import { ContentHeader } from '@/components/dashboard/ContentHeader';
 import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
 import { DollarSign } from 'lucide-react';
 import { DragDropZone } from '@/components/ui/DragDropZone';
+import { JargonTooltip } from '@/components/ui/JargonTooltip';
 
 function isAllowedFinancialFile(file: File) {
   const name = (file.name || '').toLowerCase();
@@ -118,7 +119,12 @@ export default function FinancialsPage() {
     // Scroll to the upload zone
     const uploadZone = document.querySelector('[data-upload-zone]');
     if (uploadZone) {
-      uploadZone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Only scroll if element is not already in viewport
+      const rect = uploadZone.getBoundingClientRect();
+      const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+      if (!isVisible) {
+        uploadZone.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     }
   };
 
@@ -278,7 +284,9 @@ export default function FinancialsPage() {
         <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-300">
           <div className="text-6xl mb-4">💰</div>
           <h3 className="text-xl font-semibold mb-2">No financials uploaded yet</h3>
-          <p className="text-gray-600 mb-6">Upload financial statements to get QoE-level analysis</p>
+          <p className="text-gray-600 mb-6">
+            Upload financial statements to get <JargonTooltip term="QoE">QoE</JargonTooltip>-level analysis
+          </p>
           <button
             onClick={handleFinancialsButtonClick}
             className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"

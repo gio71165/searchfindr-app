@@ -374,21 +374,29 @@ export class DealsRepository extends BaseRepository {
    * @param dealId - The deal ID
    * @param passReason - The reason for passing (required)
    * @param passNotes - Additional notes (optional)
+   * @param brokerFeedbackSent - Whether broker feedback was sent (optional)
    * @returns The updated deal
    * @throws NotFoundError if deal not found
    * @throws DatabaseError if database error occurs
    */
-  async passDeal(dealId: string, passReason: string, passNotes?: string | null): Promise<Deal> {
+  async passDeal(dealId: string, passReason: string, passNotes?: string | null, brokerFeedbackSent?: boolean): Promise<Deal> {
     const now = new Date().toISOString();
+    const updateData: Record<string, any> = {
+      passed_at: now,
+      stage: 'passed',
+      verdict: 'pass',
+      pass_reason: passReason,
+      pass_notes: passNotes || null,
+      last_action_at: now,
+    };
+
+    // Set broker_feedback_sent if provided
+    if (brokerFeedbackSent !== undefined) {
+      updateData.broker_feedback_sent = brokerFeedbackSent;
+    }
+
     const { data, error } = await this.ensureWorkspaceScope(
-      this.supabase.from("companies").update({ 
-        passed_at: now,
-        stage: 'passed',
-        verdict: 'pass',
-        pass_reason: passReason,
-        pass_notes: passNotes || null,
-        last_action_at: now,
-      }).eq("id", dealId)
+      this.supabase.from("companies").update(updateData).eq("id", dealId)
     ).select().single();
 
     if (error) {

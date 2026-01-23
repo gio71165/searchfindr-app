@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { authenticateRequest, AuthError } from '@/lib/api/auth';
 import { DealsRepository } from '@/lib/data-access/deals';
 import { NotFoundError, DatabaseError } from '@/lib/data-access/base';
@@ -28,6 +29,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await deals.update(dealId, {
       user_notes: notes || null,
     });
+
+    // Revalidate deal page
+    revalidatePath(`/deals/${dealId}`);
 
     return NextResponse.json({ success: true });
   } catch (e: unknown) {

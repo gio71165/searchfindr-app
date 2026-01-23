@@ -94,23 +94,3 @@ WITH CHECK (workspace_id IN (
   SELECT workspace_id FROM workspace_members WHERE user_id = auth.uid()
 ));
 
--- ============================================
--- VERIFICATION QUERIES
--- ============================================
--- Run these after executing the migration to verify:
---
--- 1. Check columns were added:
---    SELECT column_name, data_type, column_default 
---    FROM information_schema.columns 
---    WHERE table_name = 'companies' 
---    AND column_name IN ('verdict', 'stage', 'next_action', 'last_action_at');
---
--- 2. Check activity table exists:
---    SELECT * FROM deal_activities LIMIT 1;
---
--- 3. Test trigger by updating a deal's stage:
---    UPDATE companies SET stage = 'reviewing' WHERE id = '<some-deal-id>' RETURNING id, stage;
---    Then check: SELECT * FROM deal_activities WHERE deal_id = '<some-deal-id>' ORDER BY created_at DESC;
---
--- 4. Verify RLS policies:
---    SELECT * FROM pg_policies WHERE tablename = 'deal_activities';

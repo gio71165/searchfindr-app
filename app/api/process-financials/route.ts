@@ -1,5 +1,6 @@
 // app/api/process-financials/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from 'next/cache';
 import { createClient } from "@supabase/supabase-js";
 import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { DealsRepository } from "@/lib/data-access/deals";
@@ -429,7 +430,7 @@ export async function POST(req: NextRequest) {
     const industry = company.industry ?? null;
 
     // Get industry benchmark comparison
-    const benchmarkComparison = getBenchmarkForDeal(industry, revenue, ebitda);
+    const benchmarkComparison = await getBenchmarkForDeal(industry, revenue, ebitda);
 
     // Generate owner interview questions based on red flags and missing items
     const ownerInterviewQuestions: Array<{ category: string; question: string }> = [];
@@ -611,6 +612,12 @@ export async function POST(req: NextRequest) {
     } catch (activityErr) {
       console.error('Failed to log activity:', activityErr);
       // Don't fail the request, just log the error
+    }
+
+    // Revalidate deal page and dashboard
+    if (dealId) {
+      revalidatePath(`/deals/${dealId}`);
+      revalidatePath('/dashboard');
     }
 
     return NextResponse.json({ ok: true }, { status: 200, headers: corsHeaders });

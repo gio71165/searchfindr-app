@@ -2,6 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authenticateRequest, AuthError } from '@/lib/api/auth';
 import { BrokersRepository } from '@/lib/data-access/brokers';
 import { DatabaseError } from '@/lib/data-access/base';
+import { getCorsHeaders } from '@/lib/api/security';
+
+export const runtime = 'nodejs';
+
+const corsHeaders = getCorsHeaders();
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200, headers: corsHeaders });
+}
 
 export async function GET(req: NextRequest) {
   try {
@@ -10,25 +19,33 @@ export async function GET(req: NextRequest) {
 
     const brokersList = await brokers.getAll();
     
-    // Get deal counts for each broker
-    const brokersWithCounts = await Promise.all(
+    // Update stats for all brokers and get deal counts
+    const brokersWithStats = await Promise.all(
       brokersList.map(async (broker) => {
-        const dealCount = await brokers.getDealCount(broker.id);
-        return { ...broker, deal_count: dealCount };
+        // Update stats
+        await brokers.updateBrokerStats(broker.id).catch(err => {
+          console.error(`Failed to update stats for broker ${broker.id}:`, err);
+        });
+        
+        // Get fresh broker data with updated stats
+        const updatedBroker = await brokers.getById(broker.id);
+        const dealCount = updatedBroker.deals_received || 0;
+        
+        return { ...updatedBroker, deal_count: dealCount };
       })
     );
 
-    return NextResponse.json({ brokers: brokersWithCounts });
+    return NextResponse.json({ brokers: brokersWithStats }, { status: 200, headers: corsHeaders });
   } catch (e: unknown) {
     if (e instanceof AuthError) {
-      return NextResponse.json({ error: e.message }, { status: e.statusCode });
+      return NextResponse.json({ error: e.message }, { status: e.statusCode, headers: corsHeaders });
     }
     if (e instanceof DatabaseError) {
-      return NextResponse.json({ error: 'Database error occurred' }, { status: 500 });
+      return NextResponse.json({ error: 'Database error occurred' }, { status: 500, headers: corsHeaders });
     }
     const error = e instanceof Error ? e : new Error('Unknown error');
     console.error('Get brokers error:', error);
-    return NextResponse.json({ error: 'Failed to load brokers' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to load brokers' }, { status: 500, headers: corsHeaders });
   }
 }
 

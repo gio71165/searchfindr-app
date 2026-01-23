@@ -6,7 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import type { Deal, FinancialAnalysis } from '@/lib/types/deal';
 
 export function useDealData(dealId: string | undefined) {
-  const { workspaceId, user, session } = useAuth();
+  const { workspaceId, user, session, loading: authLoading } = useAuth();
   const [deal, setDeal] = useState<Deal | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -85,6 +85,19 @@ export function useDealData(dealId: string | undefined) {
   // Load deal from Supabase
   useEffect(() => {
     if (!dealId) return;
+    
+    // Wait for auth to finish loading AND ensure we have workspaceId and user
+    if (authLoading) {
+      return;
+    }
+
+    // If auth is done loading but we don't have workspaceId or user, wait a bit more
+    // This handles the race condition where authLoading becomes false before workspaceId is set
+    if (!workspaceId || !user) {
+      // Don't log error here - this is expected during initial load
+      // Just wait for the next render when workspaceId/user are available
+      return;
+    }
 
     const loadDeal = async () => {
       setLoading(true);
@@ -95,8 +108,9 @@ export function useDealData(dealId: string | undefined) {
       setFinError(null);
       setFinAnalysis(null);
 
+      // Double-check workspaceId and user are still available (defensive check)
       if (!workspaceId || !user) {
-        console.error('loadDeal: No workspaceId or user');
+        console.error('loadDeal: No workspaceId or user after auth loaded');
         setDeal(null);
         setLoading(false);
         return;
@@ -126,7 +140,7 @@ export function useDealData(dealId: string | undefined) {
     };
 
     loadDeal();
-  }, [dealId, workspaceId, user]);
+  }, [dealId, workspaceId, user, authLoading]);
 
   // Save / Unsave
   const toggleSaved = async () => {
@@ -241,6 +255,8 @@ export function useDealData(dealId: string | undefined) {
       if (updateError) throw new Error('Failed to save AI result: ' + updateError.message);
 
       await refreshDeal(dealId);
+      // Track AI analysis run
+      window.dispatchEvent(new CustomEvent('onboarding:ai-analysis-run'));
     } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error('Unknown error');
       console.error('runOnMarketInitialDiligence error', error);
@@ -341,6 +357,8 @@ export function useDealData(dealId: string | undefined) {
       if (updateError) throw new Error('Failed to save diligence: ' + updateError.message);
 
       await refreshDeal(dealId);
+      // Track AI analysis run
+      window.dispatchEvent(new CustomEvent('onboarding:ai-analysis-run'));
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error('Unknown error');
       console.error('runOffMarketInitialDiligence error:', error);
@@ -408,6 +426,8 @@ export function useDealData(dealId: string | undefined) {
 
       await refreshDeal(dealId);
       setCimSuccess(true);
+      // Track AI analysis run
+      window.dispatchEvent(new CustomEvent('onboarding:ai-analysis-run'));
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error('Unknown error');
       console.error('runCimAnalysis error:', error);
@@ -473,6 +493,8 @@ export function useDealData(dealId: string | undefined) {
 
       await refreshDeal(dealId);
       await fetchLatestFinancialAnalysis(dealId);
+      // Track AI analysis run
+      window.dispatchEvent(new CustomEvent('onboarding:ai-analysis-run'));
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error('Unknown error');
       console.error('runFinancialAnalysis error:', error);

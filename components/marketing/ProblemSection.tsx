@@ -1,65 +1,19 @@
-import { Clock, XCircle, AlertTriangle, FileQuestion } from 'lucide-react';
-
-const problems = [
-  {
-    icon: Clock,
-    title: 'Manual triage burns weeks',
-    description: 'Spending days reading CIMs and financials before you even know if a deal is worth pursuing.',
-  },
-  {
-    icon: XCircle,
-    title: 'Most deals aren\'t a real fit',
-    description: 'Wading through dozens of opportunities that don\'t match your criteria, wasting precious time.',
-  },
-  {
-    icon: AlertTriangle,
-    title: 'Risk shows up late',
-    description: 'Missing red flags and quality-of-earnings issues until deep in diligence, when it\'s too late.',
-  },
-  {
-    icon: FileQuestion,
-    title: 'No workflow system',
-    description: 'Deals scattered across spreadsheets and emails. No way to track stages, set reminders, or manage your pipeline systematically.',
-  },
-];
-
 export function ProblemSection() {
   return (
-    <section id="problem" className="py-20 lg:py-32 px-4 sm:px-6 lg:px-8">
+    <section id="problem" className="py-16 lg:py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-white/10 to-white/5 border-y border-white/10">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl sm:text-5xl font-bold text-white mb-4 tracking-tight">
-            Early-stage deal screening is{' '}
-            <span className="text-red-400">slow</span>,{' '}
-            <span className="text-red-400">messy</span>, and{' '}
-            <span className="text-red-400">inconsistent</span>
+        <div className="text-center">
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-8 tracking-tight">
+            You've read 47 CIMs this quarter.{' '}
+            <br className="hidden sm:block" />
+            3 were worth a call. That's 88 hours wasted.
           </h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-          {problems.map((problem, index) => {
-            const Icon = problem.icon;
-            return (
-              <div
-                key={index}
-                className="group p-6 lg:p-8 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/8 hover:border-white/20 transition-all duration-300 hover:scale-[1.02]"
-              >
-                <div className="flex items-start gap-4">
-                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 group-hover:bg-red-500/20 transition-colors">
-                    <Icon className="h-6 w-6 text-red-400" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-semibold text-white mb-2">
-                      {problem.title}
-                    </h3>
-                    <p className="text-white/60 leading-relaxed">
-                      {problem.description}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          <p className="text-center text-white/70 max-w-2xl mx-auto text-lg leading-relaxed">
+            The average searcher spends 15+ hours per week reading CIMs.
+            Most are garbage. You just can't tell until page 30.
+            <br /><br />
+            <strong className="text-white">SearchFindr reads the CIM for you. In 60 seconds.</strong>
+          </p>
         </div>
       </div>
     </section>

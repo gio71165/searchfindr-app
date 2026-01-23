@@ -1,9 +1,11 @@
 // app/api/analyze-deal/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { sanitizeForPrompt, sanitizeShortText } from "@/lib/utils/sanitize";
 import { withRetry } from "@/lib/utils/retry";
 import { DealsRepository } from "@/lib/data-access/deals";
+import { logger } from "@/lib/utils/logger";
 import type { DealScoring, FinancialMetrics, CriteriaMatch, ConfidenceJson } from "@/lib/types/deal";
 
 export const runtime = "nodejs";
@@ -229,7 +231,7 @@ Listing Text:
 
     if (!aiResponse.ok) {
       const errorBody = await aiResponse.text();
-      console.error("OpenAI error:", errorBody);
+      logger.error("OpenAI error:", errorBody);
       return NextResponse.json({ error: "Unable to analyze deal. Please try again later." }, { status: 500 });
     }
 
@@ -241,7 +243,7 @@ Listing Text:
     try {
       parsed = JSON.parse(content);
     } catch (err) {
-      console.error("JSON Parse Error:", err, content);
+      logger.error("JSON Parse Error:", err, content?.substring(0, 500)); // Limit content length in logs
       return NextResponse.json({ error: "Unable to process analysis results. Please try again." }, { status: 500 });
     }
 
@@ -323,7 +325,7 @@ Listing Text:
           .eq('workspace_id', workspace.id);
 
         if (updateError) {
-          console.error('Failed to update deal analysis outputs:', updateError);
+          logger.error('Failed to update deal analysis outputs:', updateError);
         }
 
         // Log activity
@@ -349,6 +351,12 @@ Listing Text:
         console.error('Failed to update deal:', dbErr);
         // Don't fail the request, just log the error
       }
+
+      // Revalidate deal page and dashboard if dealId was provided
+      if (dealId) {
+        revalidatePath(`/deals/${dealId}`);
+        revalidatePath('/dashboard');
+      }
     }
 
     return NextResponse.json(parsed);
@@ -357,7 +365,7 @@ Listing Text:
       return NextResponse.json({ error: err.message }, { status: err.statusCode });
     }
     const error = err instanceof Error ? err : new Error("Unknown error");
-    console.error("analyze-deal error:", error);
+    logger.error("analyze-deal error:", error.message);
     return NextResponse.json({ error: "Unable to analyze deal. Please try again later." }, { status: 500 });
   }
 }

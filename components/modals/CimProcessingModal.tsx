@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 
-type ProcessingStage = 'uploading' | 'extracting' | 'analyzing' | 'finalizing' | 'complete' | 'error';
+type ProcessingStage = 'uploading' | 'extracting' | 'analyzing' | 'generating' | 'finalizing' | 'complete' | 'error';
 
 interface CimProcessingModalProps {
   isOpen: boolean;
@@ -16,20 +16,32 @@ interface CimProcessingModalProps {
 
 const STAGE_MESSAGES: Record<ProcessingStage, string> = {
   uploading: 'Uploading PDF...',
-  extracting: 'Extracting text from PDF...',
-  analyzing: 'AI analyzing deal...',
+  extracting: 'Extracting text from CIM...',
+  analyzing: 'AI analyzing deal structure...',
+  generating: 'Generating red flags & recommendations...',
   finalizing: 'Finalizing analysis...',
   complete: 'Analysis complete!',
   error: 'Processing failed',
 };
 
 const STAGE_DESCRIPTIONS: Record<ProcessingStage, string> = {
-  uploading: 'Uploading your CIM file to secure storage',
-  extracting: 'Reading and extracting text from the PDF document',
-  analyzing: 'AI is analyzing the deal structure, financials, and risks',
-  finalizing: 'Saving analysis results to your dashboard',
+  uploading: 'Uploading your CIM file to secure storage (0-2 seconds)',
+  extracting: 'Reading and extracting text from the PDF document (2-10 seconds)',
+  analyzing: 'AI is analyzing the deal structure, financials, and risks (10-30 seconds)',
+  generating: 'Generating red flags, recommendations, and investment memo (30-50 seconds)',
+  finalizing: 'Saving analysis results to your dashboard (50-60 seconds)',
   complete: 'Your CIM has been analyzed and is ready to review',
   error: 'An error occurred during processing',
+};
+
+const STAGE_PROGRESS: Record<ProcessingStage, number> = {
+  uploading: 5,
+  extracting: 20,
+  analyzing: 50,
+  generating: 80,
+  finalizing: 95,
+  complete: 100,
+  error: 0,
 };
 
 export function CimProcessingModal({
@@ -41,37 +53,39 @@ export function CimProcessingModal({
   onCancel,
 }: CimProcessingModalProps) {
   const [progress, setProgress] = useState(0);
+  const [timeElapsed, setTimeElapsed] = useState(0);
 
   useEffect(() => {
     if (!isOpen) {
       setProgress(0);
+      setTimeElapsed(0);
       return;
     }
 
-    // Simulate progress based on stage
-    const progressMap: Record<ProcessingStage, number> = {
-      uploading: 10,
-      extracting: 30,
-      analyzing: 80,
-      finalizing: 95,
-      complete: 100,
-      error: 0,
-    };
-
-    const targetProgress = progressMap[stage] || 0;
+    const targetProgress = STAGE_PROGRESS[stage] || 0;
     
-    // Animate progress smoothly
-    const interval = setInterval(() => {
+    // Animate progress smoothly toward target
+    const progressInterval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= targetProgress) {
-          clearInterval(interval);
           return targetProgress;
         }
-        return Math.min(prev + 2, targetProgress);
+        // Smooth animation: move 2% per interval toward target
+        const diff = targetProgress - prev;
+        return Math.min(prev + Math.max(1, diff * 0.1), targetProgress);
       });
     }, 100);
 
-    return () => clearInterval(interval);
+    // Track elapsed time
+    const startTime = Date.now();
+    const timeInterval = setInterval(() => {
+      setTimeElapsed(Math.floor((Date.now() - startTime) / 1000));
+    }, 1000);
+
+    return () => {
+      clearInterval(progressInterval);
+      clearInterval(timeInterval);
+    };
   }, [isOpen, stage]);
 
   if (!isOpen) return null;
@@ -107,20 +121,29 @@ export function CimProcessingModal({
         {isProcessing && (
           <div className="mb-6">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-slate-500">Progress</span>
-              <span className="text-xs text-slate-500">{Math.round(progress)}%</span>
+              <span className="text-xs font-medium text-slate-700">Progress</span>
+              <span className="text-xs font-medium text-slate-700">{Math.round(progress)}%</span>
             </div>
-            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+            <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden mb-2">
               <div
                 className="bg-blue-600 h-full rounded-full transition-all duration-300 ease-out"
                 style={{ width: `${progress}%` }}
               />
             </div>
-            {estimatedTimeRemaining && estimatedTimeRemaining > 0 && (
-              <p className="text-xs text-slate-500 mt-2">
-                Estimated time remaining: {estimatedTimeRemaining}s
+            <div className="flex items-center justify-between">
+              {estimatedTimeRemaining !== undefined && estimatedTimeRemaining > 0 ? (
+                <p className="text-xs text-slate-600">
+                  Estimated time remaining: <span className="font-medium">{estimatedTimeRemaining}s</span>
+                </p>
+              ) : (
+                <p className="text-xs text-slate-600">
+                  Elapsed: <span className="font-medium">{timeElapsed}s</span>
+                </p>
+              )}
+              <p className="text-xs text-slate-500">
+                Usually takes 30-45 seconds
               </p>
-            )}
+            </div>
           </div>
         )}
 

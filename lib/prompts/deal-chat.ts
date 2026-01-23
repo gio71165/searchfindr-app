@@ -16,6 +16,8 @@ export type DealChatContext = {
   criteria_match_json?: any | null;
   ai_confidence_json?: any | null;
   raw_listing_text?: string | null;
+  cim_storage_path?: string | null;
+  financials_storage_path?: string | null;
 };
 
 /**
@@ -99,5 +101,9 @@ ${helpers.safeJsonStringify(context?.ai_confidence_json, 5000)}
 
 Raw listing text (clipped):
 ${helpers.clipText(context?.raw_listing_text, 9000)}
+
+Available documents:
+- CIM: ${context?.cim_storage_path ? "Available" : "Not available"}
+- Financials: ${context?.financials_storage_path ? "Available" : "Not available"}
 `.trim();
 }

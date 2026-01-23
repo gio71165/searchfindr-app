@@ -70,6 +70,14 @@ export function Footer() {
               </li>
               <li>
                 <Link
+                  href="/help"
+                  className="text-sm text-white/60 hover:text-white transition-colors"
+                >
+                  Help & Support
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/login"
                   className="text-sm text-white/60 hover:text-white transition-colors"
                 >

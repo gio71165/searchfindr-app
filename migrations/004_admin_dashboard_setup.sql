@@ -77,23 +77,3 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ============================================
--- VERIFICATION QUERIES (run these after setup)
--- ============================================
-
--- 1. Verify is_admin column exists
-SELECT column_name, data_type, column_default
-FROM information_schema.columns
-WHERE table_schema = 'public' 
-  AND table_name = 'profiles'
-  AND column_name = 'is_admin';
-
--- 2. Verify usage_logs table exists
-SELECT to_regclass('public.usage_logs');
-
--- 3. Verify indexes exist
-SELECT indexname, indexdef
-FROM pg_indexes
-WHERE schemaname = 'public' 
-  AND tablename IN ('profiles', 'usage_logs')
-ORDER BY tablename, indexname;

@@ -11,56 +11,16 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
-
-  const [authChecking, setAuthChecking] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // If already authenticated, redirect to dashboard
+  // Check if already authenticated and redirect (non-blocking)
   useEffect(() => {
-    let mounted = true;
-    let timeoutId: NodeJS.Timeout;
-
-    const checkAuth = async () => {
-      try {
-        // Use getSession() instead of getUser() - faster, uses cached session
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-        
-        if (session?.user) {
-          router.replace('/dashboard');
-          return;
-        }
-      } catch (err) {
-        // Silently fail - user just needs to log in
-        console.error('Auth check error:', err);
-      } finally {
-        if (mounted) {
-          setAuthChecking(false);
-        }
-      }
-    };
-
-    // Set a timeout to prevent hanging forever
-    timeoutId = setTimeout(() => {
-      if (mounted) {
-        setAuthChecking(false);
-      }
-    }, 3000); // 3 second max wait
-
-    checkAuth().finally(() => {
-      if (mounted) {
-        clearTimeout(timeoutId);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        router.replace('/dashboard');
       }
     });
-
-    return () => {
-      mounted = false;
-      clearTimeout(timeoutId);
-    };
   }, [router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -78,14 +38,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
-  if (authChecking) {
-    return (
-      <main className="min-h-screen bg-[#0b0f17] text-slate-100 flex items-center justify-center">
-        <p className="text-slate-400">Loading…</p>
-      </main>
-    );
-  }
 
   return (
     <>

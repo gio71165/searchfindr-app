@@ -30,7 +30,8 @@ export function Sidebar() {
     {
       section: 'PIPELINE',
       items: [
-        { icon: '🎯', label: 'Today', href: '/today' }
+        { icon: '🎯', label: 'Today', href: '/today' },
+        { icon: '🤝', label: 'Brokers', href: '/brokers' }
       ]
     }
   ];

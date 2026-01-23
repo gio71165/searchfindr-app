@@ -1,18 +1,35 @@
 /**
  * Test Suite for CIM Processing
  * Tests critical paths for CIM PDF processing functionality
- * 
+ *
  * Run with: npm test
- * 
- * Note: These tests mock OpenAI API responses and PDF parsing
+ *
+ * Note: These tests mock OpenAI API responses and PDF parsing (unpdf)
  */
 
 // Mock dependencies
-jest.mock('pdf-parse');
+jest.mock('unpdf');
 jest.mock('@/lib/api/auth');
 jest.mock('@/lib/data-access/deals');
 
-const mockPdfParse = require('pdf-parse');
+const unpdf = require('unpdf') as {
+  getDocumentProxy: jest.Mock;
+  extractText: jest.Mock;
+};
+const mockGetDocumentProxy = jest.fn();
+const mockExtractText = jest.fn();
+unpdf.getDocumentProxy = mockGetDocumentProxy;
+unpdf.extractText = mockExtractText;
+
+/** Simulates PDF extraction flow used by process-cim (unpdf API) */
+async function mockExtractPDF(buffer: Buffer, text: string) {
+  mockGetDocumentProxy.mockResolvedValueOnce({ _proxy: true });
+  mockExtractText.mockResolvedValueOnce({ totalPages: 1, text });
+  const pdf = await unpdf.getDocumentProxy(new Uint8Array(buffer));
+  const { text: out } = await unpdf.extractText(pdf, { mergePages: true });
+  return { text: out };
+}
+
 const mockFetch = jest.fn() as jest.MockedFunction<typeof fetch>;
 
 // Mock global fetch
@@ -21,16 +38,14 @@ global.fetch = mockFetch;
 describe('CIM Processing', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockFetch.mockClear();
+    mockFetch.mockReset(); // clear queued mockResolvedValueOnce from tests that never call fetch
   });
 
   describe('Small CIM (5 pages)', () => {
     it('should process successfully', async () => {
-      // Mock PDF extraction
       const smallText = 'This is a small CIM document. '.repeat(100); // ~3KB
-      mockPdfParse.mockResolvedValue({ text: smallText });
+      const result = await mockExtractPDF(Buffer.from('test'), smallText);
 
-      // Mock OpenAI API response
       const mockOpenAIResponse = {
         choices: [{
           message: {
@@ -50,53 +65,50 @@ describe('CIM Processing', () => {
         json: async () => mockOpenAIResponse,
       });
 
-      // Test would call the actual route handler here
-      // For now, we verify the mocks are set up correctly
-      expect(mockPdfParse).toBeDefined();
+      expect(mockGetDocumentProxy).toBeDefined();
+      expect(mockExtractText).toBeDefined();
       expect(mockFetch).toBeDefined();
+      expect(result.text).toBe(smallText);
     });
   });
 
   describe('Large CIM (100 pages)', () => {
     it('should truncate and process', async () => {
-      // Mock large PDF text (exceeds MAX_CHARS = 100000)
       const largeText = 'This is a large CIM document. '.repeat(5000); // ~150KB
-      mockPdfParse.mockResolvedValue({ text: largeText });
+      await mockExtractPDF(Buffer.from('test'), largeText);
 
-      // Verify truncation logic
       const MAX_CHARS = 100000;
       let processedText = largeText;
-      
+
       if (processedText.length > MAX_CHARS) {
         processedText = processedText.slice(0, MAX_CHARS) + '\n\n[Content truncated for analysis...]';
       }
 
-      expect(processedText.length).toBeLessThanOrEqual(MAX_CHARS + 50); // Account for truncation message
+      expect(processedText.length).toBeLessThanOrEqual(MAX_CHARS + 50);
       expect(processedText).toContain('[Content truncated for analysis...]');
     });
   });
 
   describe('Invalid PDF', () => {
     it('should return error message for encrypted PDF', async () => {
-      mockPdfParse.mockRejectedValue(new Error('encrypted'));
+      mockGetDocumentProxy.mockRejectedValueOnce(new Error('encrypted'));
 
-      try {
-        await mockPdfParse(Buffer.from('fake pdf'));
-      } catch (error: any) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        expect(errorMessage).toContain('encrypted');
-      }
+      await expect(
+        (async () => {
+          const pdf = await unpdf.getDocumentProxy(new Uint8Array(Buffer.from('fake pdf')));
+          await unpdf.extractText(pdf, { mergePages: true });
+        })(),
+      ).rejects.toThrow('encrypted');
     });
 
     it('should return error message for corrupted PDF', async () => {
-      mockPdfParse.mockRejectedValue(new Error('corrupt'));
+      mockGetDocumentProxy.mockRejectedValueOnce(new Error('corrupt'));
 
-      try {
-        await mockPdfParse(Buffer.from('invalid data'));
-      } catch (error: any) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        expect(errorMessage).toContain('corrupt');
-      }
+      await expect(
+        (async () => {
+          await unpdf.getDocumentProxy(new Uint8Array(Buffer.from('invalid data')));
+        })(),
+      ).rejects.toThrow('corrupt');
     });
   });
 
@@ -123,18 +135,16 @@ describe('CIM Processing', () => {
 
   describe('Context overflow scenario', () => {
     it('should handle gracefully with truncation', async () => {
-      // Create text that would cause context overflow
       const hugeText = 'A'.repeat(200000); // 200KB
-      mockPdfParse.mockResolvedValue({ text: hugeText });
+      await mockExtractPDF(Buffer.from('test'), hugeText);
 
       const MAX_CHARS = 100000;
       let processedText = hugeText;
-      
+
       if (processedText.length > MAX_CHARS) {
         processedText = processedText.slice(0, MAX_CHARS) + '\n\n[Content truncated for analysis...]';
       }
 
-      // Mock OpenAI API that would normally fail with context overflow
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -197,16 +207,12 @@ describe('CIM Processing', () => {
   describe('Text extraction', () => {
     it('should extract text from valid PDF buffer', async () => {
       const mockText = 'Extracted PDF text content';
-      mockPdfParse.mockResolvedValue({ text: mockText });
-
-      const result = await mockPdfParse(Buffer.from('pdf data'));
+      const result = await mockExtractPDF(Buffer.from('pdf data'), mockText);
       expect(result.text).toBe(mockText);
     });
 
     it('should handle empty PDF text', async () => {
-      mockPdfParse.mockResolvedValue({ text: '' });
-
-      const result = await mockPdfParse(Buffer.from('pdf data'));
+      const result = await mockExtractPDF(Buffer.from('pdf data'), '');
       expect(result.text).toBe('');
     });
   });
@@ -241,7 +247,7 @@ describe('CIM Processing', () => {
           break;
         }
         if (attempt < 3) {
-          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+          await new Promise((resolve) => setTimeout(resolve, 10));
         }
       }
 

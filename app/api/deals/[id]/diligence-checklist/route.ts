@@ -1,5 +1,6 @@
 // app/api/deals/[id]/diligence-checklist/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { revalidatePath } from 'next/cache';
 import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { DealsRepository } from "@/lib/data-access/deals";
 import { NotFoundError, DatabaseError } from "@/lib/data-access/base";
@@ -101,6 +102,9 @@ export async function PUT(
     }
 
     await deals.updateDiligenceChecklist(dealId, checklist);
+
+    // Revalidate deal page
+    revalidatePath(`/deals/${dealId}`);
 
     return NextResponse.json({ success: true, checklist }, { status: 200, headers: corsHeaders });
   } catch (e: unknown) {

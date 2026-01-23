@@ -78,9 +78,12 @@ export default function PricingPage() {
               'Unlimited financial screenings',
               'Unlimited off-market searches',
               'Unlimited saved deals',
-              'All features included',
               'Priority support',
               '30-day money-back guarantee',
+              '1-on-1 access to founder',
+              'Direct input on product development',
+              'Changes implemented based on your feedback',
+              'Founders access (you\'re a founder too)',
             ]}
             ctaText="Lock in $149/mo Forever"
             ctaHref={STRIPE_PAYMENT_URL}
@@ -97,7 +100,6 @@ export default function PricingPage() {
               '10 financial screenings/month',
               '30 off-market searches/month',
               '100 saved deals',
-              'All features included',
               'Email support',
               '30-day money-back guarantee',
             ]}
@@ -116,7 +118,6 @@ export default function PricingPage() {
               'Unlimited financial screenings',
               'Unlimited off-market searches',
               'Unlimited saved deals',
-              'All features included',
               'Priority support',
               'Custom integrations',
               '30-day money-back guarantee',
@@ -172,6 +173,24 @@ export default function PricingPage() {
                     <td className="px-6 py-4 text-center text-sm text-emerald-400 font-medium">Priority</td>
                     <td className="px-6 py-4 text-center text-sm text-white/60">Email</td>
                     <td className="px-6 py-4 text-center text-sm text-white/60">Priority</td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 text-sm text-white/80">1-on-1 Founder Access</td>
+                    <td className="px-6 py-4 text-center text-sm text-emerald-400 font-medium">✓</td>
+                    <td className="px-6 py-4 text-center text-sm text-white/60">—</td>
+                    <td className="px-6 py-4 text-center text-sm text-white/60">—</td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 text-sm text-white/80">Direct Product Input</td>
+                    <td className="px-6 py-4 text-center text-sm text-emerald-400 font-medium">✓</td>
+                    <td className="px-6 py-4 text-center text-sm text-white/60">—</td>
+                    <td className="px-6 py-4 text-center text-sm text-white/60">—</td>
+                  </tr>
+                  <tr>
+                    <td className="px-6 py-4 text-sm text-white/80">Founders Access</td>
+                    <td className="px-6 py-4 text-center text-sm text-emerald-400 font-medium">✓</td>
+                    <td className="px-6 py-4 text-center text-sm text-white/60">—</td>
+                    <td className="px-6 py-4 text-center text-sm text-white/60">—</td>
                   </tr>
                   <tr>
                     <td className="px-6 py-4 text-sm text-white/80">Price</td>

@@ -279,6 +279,14 @@ export interface Deal {
   tags?: string[] | null;
   // Broker relationship
   broker_id?: string | null;
+  broker_feedback_sent?: boolean | null;
+  // Outcome tracking for ML model
+  outcome?: 'closed' | 'lost' | 'passed' | 'active' | null;
+  outcome_date?: string | null;
+  outcome_notes?: string | null;
+  score_components?: Record<string, number> | null;
+  // Gut check score (1-10)
+  gut_check_score?: number | null;
 }
 
 /**

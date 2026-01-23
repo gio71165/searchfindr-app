@@ -1,6 +1,7 @@
 // app/deals/[id]/page.tsx
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useDealData } from './hooks/useDealData';
 import { FinancialsDealView } from './views/FinancialsDealView';
@@ -43,6 +44,13 @@ export default function DealPage() {
     refreshDeal,
   } = useDealData(id);
 
+  // Track CIM opened - MUST be before early returns (React hooks rule)
+  useEffect(() => {
+    if (deal?.source_type === 'cim_pdf') {
+      window.dispatchEvent(new CustomEvent('onboarding:cim-opened'));
+    }
+  }, [deal?.source_type]);
+
   // Page states
   if (!id) return <main className="py-10 text-center">Loading deal…</main>;
   if (loading) return <main className="py-10 text-center">Loading deal details…</main>;
@@ -60,6 +68,7 @@ export default function DealPage() {
         analysis={finAnalysis}
         error={finError}
         onRun={runFinancialAnalysis}
+        onRefresh={() => refreshDeal(id)}
       />
     );
   }

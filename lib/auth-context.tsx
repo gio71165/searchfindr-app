@@ -17,6 +17,7 @@ type AuthState = {
   session: Session | null;
   workspaceId: string | null;
   isAdmin: boolean;
+  role: string | null;
   loading: boolean;
   error: string | null;
 };
@@ -26,6 +27,7 @@ const defaultState: AuthState = {
   session: null,
   workspaceId: null,
   isAdmin: false,
+  role: null,
   loading: true,
   error: null,
 };
@@ -37,21 +39,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchProfile = useCallback(async (uid: string) => {
-    const { data, error: e } = await supabase
-      .from('profiles')
-      .select('workspace_id, is_admin')
-      .eq('id', uid)
-      .single();
-    if (e) {
-      setError(e.message);
-      return;
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
+    );
+    
+    try {
+      const result = await Promise.race([
+        supabase
+          .from('profiles')
+          .select('workspace_id, is_admin, onboarding_completed, role')
+          .eq('id', uid)
+          .single(),
+        timeoutPromise
+      ]) as { data: any; error: any };
+      
+      if (result.error) {
+        setError(result.error.message);
+        return;
+      }
+      setWorkspaceId(result.data?.workspace_id ?? null);
+      setIsAdmin(result.data?.is_admin === true);
+      setRole(result.data?.role ?? null);
+    } catch (e) {
+      console.error('Profile fetch failed:', e);
+      // Don't block app, just log error
     }
-    setWorkspaceId(data?.workspace_id ?? null);
-    setIsAdmin(data?.is_admin === true);
   }, []);
 
   useEffect(() => {
@@ -89,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
           setWorkspaceId(null);
           setIsAdmin(false);
+          setRole(null);
           if (mounted) {
             if (timeoutId) clearTimeout(timeoutId);
             setLoading(false);
@@ -100,19 +118,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(s);
         setUser(s.user);
         
-        // Fetch profile but don't block - set loading false immediately
-        // Profile will update when it loads
+        // Wait for profile fetch before setting loading=false
+        try {
+          await fetchProfile(s.user.id);
+        } catch (e) {
+          console.error('Profile fetch error:', e);
+        }
+
         if (mounted) {
           if (timeoutId) clearTimeout(timeoutId);
-          setLoading(false); // Don't wait for profile fetch
+          setLoading(false);
         }
-        
-        // Fetch profile in background
-        fetchProfile(s.user.id).catch((e) => {
-          if (mounted) {
-            console.error('Profile fetch error:', e);
-          }
-        });
       } catch (e) {
         if (mounted) {
           setError(e instanceof Error ? e.message : 'Auth error');
@@ -127,14 +143,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, s) => {
         if (!mounted) return;
+        
         setSession(s);
         setUser(s?.user ?? null);
+        
         if (s?.user) {
-          await fetchProfile(s.user.id);
+          // Fetch profile in background, don't block UI
+          fetchProfile(s.user.id).catch(e => {
+            console.error('Profile fetch error in auth state change:', e);
+          });
         } else {
           setWorkspaceId(null);
           setIsAdmin(false);
+          setRole(null);
         }
+        
+        // Don't set loading here - let the profile fetch complete naturally
+        // The UI will update when workspaceId is set
       }
     );
 
@@ -151,10 +176,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       workspaceId,
       isAdmin,
+      role,
       loading,
       error,
     }),
-    [user, session, workspaceId, isAdmin, loading, error]
+    [user, session, workspaceId, isAdmin, role, loading, error]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

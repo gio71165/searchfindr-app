@@ -11,6 +11,7 @@ import { PipelineSummary } from '@/components/dashboard/PipelineSummary';
 import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
 import { BulkActionsBar } from '@/components/dashboard/BulkActionsBar';
 import { SavedFilters } from '@/components/dashboard/SavedFilters';
+import { ApplyCriteriaFilter } from '@/components/dashboard/ApplyCriteriaFilter';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Search as SearchIcon, FileText, TrendingUp } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -114,7 +115,8 @@ function DashboardPageContent() {
   const cimInputRef = useRef<HTMLInputElement | null>(null);
   const [cimUploadStatus, setCimUploadStatus] = useState<'idle' | 'uploading' | 'uploaded' | 'error'>('idle');
   const [cimUploadProgress, setCimUploadProgress] = useState(0);
-  const [cimProcessingStage, setCimProcessingStage] = useState<'uploading' | 'extracting' | 'analyzing' | 'finalizing' | 'complete' | 'error'>('uploading');
+  const [cimProcessingStage, setCimProcessingStage] = useState<'uploading' | 'extracting' | 'analyzing' | 'generating' | 'finalizing' | 'complete' | 'error'>('uploading');
+  const [cimProcessingStartTime, setCimProcessingStartTime] = useState<number | null>(null);
   const [showCimProcessingModal, setShowCimProcessingModal] = useState(false);
   const [cimProcessingError, setCimProcessingError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -216,9 +218,16 @@ function DashboardPageContent() {
     })) as Company[]);
   }
 
-  // Apply all filters
+  // State for criteria-filtered deals
+  const [criteriaFilteredDeals, setCriteriaFilteredDeals] = useState<Company[] | null>(null);
+  const [activeCriteria, setActiveCriteria] = useState<any>(null);
+
+  // Apply all filters (including criteria filter)
   const filteredDeals = useMemo(() => {
-    return deals.filter(deal => {
+    // Start with criteria-filtered deals if available, otherwise use all deals
+    const baseDeals = criteriaFilteredDeals !== null ? criteriaFilteredDeals : deals;
+    
+    return baseDeals.filter(deal => {
       // Source filter
       if (selectedSource !== null && deal.source_type !== selectedSource) return false;
       
@@ -239,7 +248,12 @@ function DashboardPageContent() {
       
       return true;
     });
-  }, [deals, selectedSource, selectedStage, selectedVerdict, searchQuery]);
+  }, [deals, criteriaFilteredDeals, selectedSource, selectedStage, selectedVerdict, searchQuery]);
+
+  const handleCriteriaFilterChange = (filtered: Company[], criteria: any) => {
+    setCriteriaFilteredDeals(filtered);
+    setActiveCriteria(criteria);
+  };
 
   // Count by stage (within selected source)
   const stageCounts = useMemo(() => {
@@ -284,6 +298,7 @@ function DashboardPageContent() {
       setCimUploadStatus('uploading');
       setCimUploadProgress(0);
       setCimProcessingStage('uploading');
+      setCimProcessingStartTime(Date.now());
       setShowCimProcessingModal(true);
 
       try {
@@ -351,8 +366,7 @@ function DashboardPageContent() {
 
       const companyId = insertData.id;
       
-      // Start processing modal
-      setShowCimProcessingModal(true);
+      // Start processing modal - transition to extracting stage
       setCimProcessingStage('extracting');
       setCimProcessingError(null);
       
@@ -368,8 +382,13 @@ function DashboardPageContent() {
           throw new Error('Not authenticated');
         }
         
-        // Update stage to analyzing
+        // Simulate stage progression with realistic timing
+        // Stage 1: Extracting (2-10 seconds)
+        await new Promise(resolve => setTimeout(resolve, 2000));
         setCimProcessingStage('analyzing');
+        
+        // Stage 2: Analyzing (10-30 seconds) - this is the main AI call
+        const analyzeStartTime = Date.now();
         
         // Call process-cim API
         const processRes = await fetch('/api/process-cim', {
@@ -386,6 +405,12 @@ function DashboardPageContent() {
           signal: abortControllerRef.current.signal,
         });
         
+        // Stage 3: Generating (after API call starts processing)
+        const analyzeElapsed = Date.now() - analyzeStartTime;
+        if (analyzeElapsed > 10000) {
+          setCimProcessingStage('generating');
+        }
+        
         const processText = await processRes.text();
         let processJson: { success?: boolean; error?: string } | null = null;
         try {
@@ -396,7 +421,7 @@ function DashboardPageContent() {
           throw new Error(processJson?.error || `Processing failed (HTTP ${processRes.status})`);
         }
         
-        // Update stage to finalizing
+        // Stage 4: Finalizing
         setCimProcessingStage('finalizing');
         
         // Refresh deals list
@@ -412,13 +437,11 @@ function DashboardPageContent() {
           setShowCimProcessingModal(false);
           setCimProcessingStage('uploading');
           setCimUploadStatus('idle');
+          setCimProcessingStartTime(null);
         }, 3000);
       } catch (err: unknown) {
         if (err instanceof Error && err.name === 'AbortError') {
-          // User cancelled
-          setCimProcessingStage('error');
-          setCimProcessingError('Processing was cancelled.');
-          setCimUploadStatus('error');
+          // User cancelled - already handled in onCancel
           return;
         }
         
@@ -560,7 +583,14 @@ function DashboardPageContent() {
           setSelectedDealIndex(nextIndex);
           // Scroll into view
           const element = document.getElementById(`deal-${filteredDeals[nextIndex].id}`);
-          element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (element) {
+            // Only scroll if element is not already in viewport
+            const rect = element.getBoundingClientRect();
+            const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+            if (!isVisible) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          }
         }
       }, 'Next deal in list', ['dashboard']),
       createShortcut('K', () => {
@@ -570,12 +600,20 @@ function DashboardPageContent() {
           setSelectedDealIndex(prevIndex);
           // Scroll into view
           const element = document.getElementById(`deal-${filteredDeals[prevIndex].id}`);
-          element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          if (element) {
+            // Only scroll if element is not already in viewport
+            const rect = element.getBoundingClientRect();
+            const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+            if (!isVisible) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          }
         }
       }, 'Previous deal in list', ['dashboard']),
       createShortcut('Enter', () => {
         if (selectedDealIndex !== null && filteredDeals[selectedDealIndex]) {
-          router.push(`/deals/${filteredDeals[selectedDealIndex].id}`);
+          const viewParam = selectedSource ? `?from_view=${selectedSource}` : '';
+          router.push(`/deals/${filteredDeals[selectedDealIndex].id}${viewParam}`);
         }
       }, 'Open selected deal', ['dashboard']),
       createShortcut('N', () => {
@@ -592,7 +630,7 @@ function DashboardPageContent() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto overflow-x-hidden">
-      <div className="mb-6 sm:mb-8">
+      <div className="mb-6 sm:mb-8" data-onboarding="dashboard-main">
         <ContentHeader
           title={`Welcome${user?.email ? `, ${user.email.split('@')[0]}` : ''}`}
           description="Quickly evaluate deals and find the good ones"
@@ -621,6 +659,11 @@ function DashboardPageContent() {
       />
 
       {/* Saved Filters */}
+      <ApplyCriteriaFilter
+        deals={deals as any}
+        onFilterChange={handleCriteriaFilterChange}
+      />
+      
       <SavedFilters
         onLoadFilter={(filters) => {
           if (filters.source !== undefined) setSelectedSource(filters.source as SourceType);
@@ -637,7 +680,7 @@ function DashboardPageContent() {
       />
 
       {/* Verdict & Quick Filters */}
-      <div className="mb-8">
+      <div className="mb-8" data-onboarding="filter-buttons">
         <VerdictFilters
           selectedVerdict={selectedVerdict}
           setSelectedVerdict={(verdict: string) => setSelectedVerdict(verdict as Verdict)}
@@ -785,7 +828,12 @@ function DashboardPageContent() {
         <>
           <div className="mb-6 text-sm font-medium text-slate-600">
             Showing <span className="font-semibold text-slate-900">{filteredDeals.length}</span> of{' '}
-            <span className="font-semibold text-slate-900">{deals.length}</span> deals
+            <span className="font-semibold text-slate-900">{criteriaFilteredDeals !== null ? criteriaFilteredDeals.length : deals.length}</span> deals
+            {activeCriteria && (
+              <span className="ml-2 text-blue-600">
+                (filtered by "{activeCriteria.name}")
+              </span>
+            )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {filteredDeals.map((deal, index) => (
@@ -799,6 +847,7 @@ function DashboardPageContent() {
                   isSelected={selectedDealIds.has(deal.id)}
                   onToggleSelect={handleToggleDealSelection}
                   canSelect={selectedDealIds.size < 3 || selectedDealIds.has(deal.id)}
+                  fromView={selectedSource || undefined}
                 />
               </div>
             ))}
@@ -826,24 +875,34 @@ function DashboardPageContent() {
         onClose={() => {
           setShowCimProcessingModal(false);
           setCimProcessingStage('uploading');
+          setCimProcessingStartTime(null);
           if (cimProcessingStage === 'complete') {
             setCimUploadStatus('idle');
           }
         }}
         stage={cimProcessingStage}
         error={cimProcessingError}
-        estimatedTimeRemaining={
-          cimProcessingStage === 'analyzing' ? 30 :
-          cimProcessingStage === 'extracting' ? 45 :
-          cimProcessingStage === 'finalizing' ? 5 : undefined
-        }
+        estimatedTimeRemaining={(() => {
+          if (!cimProcessingStartTime) return undefined;
+          const elapsed = (Date.now() - cimProcessingStartTime) / 1000;
+          const typicalTotalTime = 45; // 30-45 seconds typical
+          const remaining = Math.max(0, typicalTotalTime - elapsed);
+          
+          // Adjust based on stage
+          if (cimProcessingStage === 'uploading') return Math.max(0, 45 - elapsed);
+          if (cimProcessingStage === 'extracting') return Math.max(0, 40 - elapsed);
+          if (cimProcessingStage === 'analyzing') return Math.max(0, 30 - elapsed);
+          if (cimProcessingStage === 'generating') return Math.max(0, 10 - elapsed);
+          if (cimProcessingStage === 'finalizing') return Math.max(0, 5 - elapsed);
+          return undefined;
+        })()}
         onCancel={() => {
           if (abortControllerRef.current) {
             abortControllerRef.current.abort();
+            setCimProcessingStage('error');
+            setCimProcessingError('Processing was cancelled.');
+            setCimUploadStatus('error');
           }
-          setShowCimProcessingModal(false);
-          setCimProcessingStage('uploading');
-          setCimUploadStatus('idle');
         }}
       />
 
@@ -857,6 +916,7 @@ function DashboardPageContent() {
           Press <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded text-xs">?</kbd> for shortcuts
         </button>
       </div>
+
     </div>
   );
 }

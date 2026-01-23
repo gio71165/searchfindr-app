@@ -14,6 +14,7 @@ import { SetReminderButton } from '@/components/deal/SetReminderButton';
 import { MoreActionsMenu } from '@/components/deal/MoreActionsMenu';
 import { CompareDealModal } from '@/components/modals/CompareDealModal';
 import { exportDealToPDF } from '@/lib/pdf/exportDealPDF';
+import { JargonTooltip } from '@/components/ui/JargonTooltip';
 
 function VerdictBadge({ verdict }: { verdict: string | null }) {
   if (!verdict) return null;
@@ -298,13 +299,17 @@ export function DealHeader({
             </div>
           </div>
           <div className="p-3 border rounded">
-            <div className="text-sm text-gray-500">EBITDA</div>
+            <div className="text-sm text-gray-500">
+              <JargonTooltip term="EBITDA">EBITDA</JargonTooltip>
+            </div>
             <div className="text-lg font-semibold">
               {ebitda || 'Unknown'}
             </div>
           </div>
           <div className="p-3 border rounded">
-            <div className="text-sm text-gray-500">SBA Eligible</div>
+            <div className="text-sm text-gray-500">
+              <JargonTooltip term="SBA">SBA</JargonTooltip> Eligible
+            </div>
             <div className="text-lg font-semibold">
               {sbaEligible === true ? '✓ Yes' : sbaEligible === false ? '✗ No' : 'Unknown'}
             </div>

@@ -6,9 +6,11 @@ import { MapPin, Building2, Calendar, DollarSign, TrendingUp, StickyNote, Plus, 
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { SourceBadge } from './SourceBadge';
 import { Skeleton } from './Skeleton';
+import { DealScoreBadge } from './DealScoreBadge';
 import { MoreActionsMenu } from '@/components/deal/MoreActionsMenu';
 import { TierBadge } from '@/app/deals/[id]/components/TierBadge';
 import { supabase } from '@/app/supabaseClient';
+import { JargonTooltip } from './JargonTooltip';
 
 type Deal = {
   id: string;
@@ -33,6 +35,8 @@ type Deal = {
   next_action_date?: string | null;
   archived_at?: string | null;
   user_notes?: string | null;
+  score?: number | null;
+  score_components?: Record<string, number> | null;
   criteria_match_json?: {
     verdict?: string;
     asking_price?: string;
@@ -270,7 +274,7 @@ function DealCardComponent({
         {sbaEligible && (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-xs font-semibold">
             <TrendingUp className="h-3 w-3" />
-            SBA Eligible
+            <JargonTooltip term="SBA">SBA</JargonTooltip> Eligible
           </span>
         )}
       </div>
@@ -302,6 +306,13 @@ function DealCardComponent({
               <TierBadge tier={deal.final_tier} />
             )}
             <ConfidenceBadge level={confidenceLevel} analyzed={analyzed} />
+            {deal.final_tier && (deal.final_tier === 'A' || deal.final_tier === 'B' || deal.final_tier === 'C') && (
+              <DealScoreBadge 
+                tier={deal.final_tier as 'A' | 'B' | 'C'} 
+                score={deal.score || undefined}
+                breakdown={deal.score_components || undefined}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -353,7 +364,9 @@ function DealCardComponent({
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-blue-200 rounded-lg">
                 <TrendingUp className="h-4 w-4 text-blue-600 flex-shrink-0" />
                 <div className="flex flex-col">
-                  <span className="text-xs text-slate-500 font-medium">EBITDA</span>
+                  <span className="text-xs text-slate-500 font-medium">
+                    <JargonTooltip term="EBITDA">EBITDA</JargonTooltip>
+                  </span>
                   <span className="text-sm font-bold text-blue-700">{ebitda}</span>
                 </div>
               </div>

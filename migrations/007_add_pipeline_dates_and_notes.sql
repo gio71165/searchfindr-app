@@ -159,18 +159,3 @@ USING (workspace_id IN (
   SELECT workspace_id FROM profiles WHERE id = auth.uid()
 ));
 
--- ============================================
--- VERIFICATION QUERIES
--- ============================================
--- Run these after executing the migration to verify:
---
--- 1. Check columns were added:
---    SELECT column_name, data_type 
---    FROM information_schema.columns 
---    WHERE table_name = 'companies' 
---    AND column_name IN ('ioi_date', 'loi_date', 'expected_close_date', 'deal_value', 'user_notes', 'tags', 'broker_id');
---
--- 2. Check tables were created:
---    SELECT * FROM brokers LIMIT 1;
---    SELECT * FROM saved_filter_presets LIMIT 1;
---    SELECT * FROM deal_documents LIMIT 1;

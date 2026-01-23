@@ -53,13 +53,29 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5) Mode A enforcement (schema truth)
+    // 5) Determine deal type and source type
     const isCim = !!deal.cim_storage_path;
     const isOnMarket = !!deal.listing_url || !!deal.external_id;
-    if (!isCim && !isOnMarket) {
-      return NextResponse.json({ error: "Chat is not enabled for this deal type." }, { status: 400 });
+    const isFinancials = !!deal.financials_storage_path;
+    const isOffMarket = deal.source_type === 'off_market';
+    
+    // Chat is enabled for all deal types: CIM, on-market, off-market, and financials
+    // No need to restrict - all deals can use chat
+    
+    // Determine source type for context
+    let sourceType: string;
+    if (isCim) {
+      sourceType = "cim_pdf";
+    } else if (isFinancials) {
+      sourceType = "financials";
+    } else if (isOnMarket) {
+      sourceType = "on_market";
+    } else if (isOffMarket) {
+      sourceType = "off_market";
+    } else {
+      // Default fallback
+      sourceType = deal.source_type || "unknown";
     }
-    const sourceType = isCim ? "cim_pdf" : "on_market";
 
     // 6) Rate limit (window)
     const MAX_USER_MESSAGES_PER_WINDOW = 5;
@@ -99,6 +115,7 @@ export async function POST(req: NextRequest) {
       ai_confidence_json: deal.ai_confidence_json,
       raw_listing_text: sanitizeForPrompt(deal.raw_listing_text ?? "", 8000),
       cim_storage_path: deal.cim_storage_path,
+      financials_storage_path: deal.financials_storage_path,
       listing_url: sanitizeShortText(deal.listing_url ?? ""),
     };
 
@@ -127,6 +144,15 @@ export async function POST(req: NextRequest) {
 
     const answer = ai?.answer ?? "";
     const sources_used = ai?.sources_used ?? ["companies.ai_*"];
+
+    // Check if the answer indicates an error (chatForDeal returns error messages in answer field)
+    if (answer.startsWith("Chat failed:") || answer.includes("Server misconfigured")) {
+      console.error("Chat AI returned error:", answer);
+      return NextResponse.json(
+        { error: "Unable to process your question. Please try again later." },
+        { status: 500 }
+      );
+    }
 
     // 11) Persist (best effort)
     try {

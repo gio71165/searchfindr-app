@@ -41,6 +41,7 @@ export function ExecutiveSummaryCard({
   onRequestInfo,
   settingVerdict,
   financialAnalysis,
+  hideVerdictButtons,
 }: {
   deal: Deal;
   onProceed: () => void;
@@ -49,6 +50,7 @@ export function ExecutiveSummaryCard({
   onRequestInfo?: () => void; // Optional - button removed but kept for backward compatibility
   settingVerdict: boolean;
   financialAnalysis?: FinancialAnalysis | null;
+  hideVerdictButtons?: boolean; // Hide buttons when used in tabs (StickyDealHeader has them)
 }) {
   const redFlags = normalizeRedFlags(deal.ai_red_flags);
   const confidence = getDealConfidence(deal, { financialAnalysis: financialAnalysis ?? null });
@@ -226,29 +228,31 @@ export function ExecutiveSummaryCard({
       )}
       
       {/* Primary Actions - Verdict Buttons */}
-      <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-slate-200">
-        <button
-          onClick={onProceed}
-          disabled={settingVerdict}
-          className="px-6 py-2.5 font-medium rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {settingVerdict ? 'Setting…' : 'Proceed'}
-        </button>
-        <button
-          onClick={onPark}
-          disabled={settingVerdict}
-          className="px-6 py-2.5 font-medium rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {settingVerdict ? 'Setting…' : 'Park'}
-        </button>
-        <button
-          onClick={onPass}
-          disabled={settingVerdict}
-          className="px-6 py-2.5 font-medium rounded-lg border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Pass
-        </button>
-      </div>
+      {!hideVerdictButtons && (
+        <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-slate-200">
+          <button
+            onClick={onProceed}
+            disabled={settingVerdict}
+            className="px-6 py-2.5 font-medium rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {settingVerdict ? 'Setting…' : 'Proceed'}
+          </button>
+          <button
+            onClick={onPark}
+            disabled={settingVerdict}
+            className="px-6 py-2.5 font-medium rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {settingVerdict ? 'Setting…' : 'Park'}
+          </button>
+          <button
+            onClick={onPass}
+            disabled={settingVerdict}
+            className="px-6 py-2.5 font-medium rounded-lg border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Pass
+          </button>
+        </div>
+      )}
     </div>
   );
 }
