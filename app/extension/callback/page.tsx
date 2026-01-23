@@ -1,7 +1,7 @@
 // app/extension/callback/page.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/app/supabaseClient";
 
@@ -12,7 +12,7 @@ function safeInternalPath(p: string | null, fallback: string): string {
   return p;
 }
 
-export default function ExtensionCallback() {
+function ExtensionCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -81,5 +81,18 @@ export default function ExtensionCallback() {
       <h2>Connecting SearchFindr Extension…</h2>
       <p>Please wait a moment. This tab will redirect automatically.</p>
     </div>
+  );
+}
+
+export default function ExtensionCallback() {
+  return (
+    <Suspense fallback={
+      <div style={{ padding: 40, fontFamily: "system-ui, sans-serif" }}>
+        <h2>Connecting SearchFindr Extension…</h2>
+        <p>Please wait a moment.</p>
+      </div>
+    }>
+      <ExtensionCallbackContent />
+    </Suspense>
   );
 }
