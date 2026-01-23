@@ -662,6 +662,55 @@ function DashboardPageContent() {
         />
       </div>
 
+      {/* Gradient Stat Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {/* New Deals - Emerald */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer hover:scale-[1.02]">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
+          <div className="relative">
+            <div className="text-sm font-medium opacity-90 mb-1">New Deals</div>
+            <div className="text-3xl font-bold">{stageCounts.new || 0}</div>
+            {stageCounts.new > 0 && (
+              <div className="text-xs opacity-80 mt-2">Review these first</div>
+            )}
+          </div>
+        </div>
+
+        {/* Reviewing - Blue */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer hover:scale-[1.02]">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
+          <div className="relative">
+            <div className="text-sm font-medium opacity-90 mb-1">Reviewing</div>
+            <div className="text-3xl font-bold">{stageCounts.reviewing || 0}</div>
+            {stageCounts.reviewing > 0 && (
+              <div className="text-xs opacity-80 mt-2">In analysis</div>
+            )}
+          </div>
+        </div>
+
+        {/* Active Pipeline - Purple */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer hover:scale-[1.02]">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
+          <div className="relative">
+            <div className="text-sm font-medium opacity-90 mb-1">In Pipeline</div>
+            <div className="text-3xl font-bold">
+              {(stageCounts.follow_up || 0) + (stageCounts.ioi_sent || 0) + (stageCounts.loi || 0) + (stageCounts.dd || 0)}
+            </div>
+            <div className="text-xs opacity-80 mt-2">Active deals</div>
+          </div>
+        </div>
+
+        {/* Passed - Slate */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-slate-500 to-slate-600 text-white rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer hover:scale-[1.02]">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
+          <div className="relative">
+            <div className="text-sm font-medium opacity-90 mb-1">Passed</div>
+            <div className="text-3xl font-bold">{stageCounts.passed || 0}</div>
+            <div className="text-xs opacity-80 mt-2">Declined</div>
+          </div>
+        </div>
+      </div>
+
       {/* Pipeline Summary - Full variant */}
       <PipelineSummary
         selectedStage={selectedStage}

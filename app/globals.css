@@ -5,45 +5,71 @@
    Techy blue-gray, consistent light/dark
    ========================= */
 :root {
-  /* App */
-  --background: #f3f6fb;
-  --foreground: #0b1220;
-
+  /* Backgrounds - Add warmth and depth */
+  --background: #f8fafc;
+  --background-subtle: #f1f5f9;
   --surface: #ffffff;
-  --muted: #e8effa;
-  --hover: rgba(11, 18, 32, 0.05);
-
-  --border: rgba(11, 18, 32, 0.12);
-
-  --input-bg: #ffffff;
-  --input-border: rgba(11, 18, 32, 0.18);
-
-  --ui-strong: #0b1220;
-  --ui-strong-hover: #111a2c;
-
-  color-scheme: light;
-
-  /* =========================
-     AI Chat (distinct + cohesive)
-     ========================= */
-  --ai-chat-bg: #e6eefc;              /* clearly different from page bg */
+  
+  /* Brand colors */
+  --brand-primary: #10b981;
+  --brand-primary-dark: #059669;
+  --brand-primary-light: #d1fae5;
+  
+  --brand-secondary: #3b82f6;
+  --brand-secondary-dark: #2563eb;
+  --brand-secondary-light: #dbeafe;
+  
+  --brand-accent: #8b5cf6;
+  --brand-accent-dark: #7c3aed;
+  --brand-accent-light: #ede9fe;
+  
+  /* Status colors - Vibrant */
+  --success: #10b981;
+  --success-bg: #d1fae5;
+  --success-border: #6ee7b7;
+  
+  --warning: #f59e0b;
+  --warning-bg: #fef3c7;
+  --warning-border: #fcd34d;
+  
+  --danger: #ef4444;
+  --danger-bg: #fee2e2;
+  --danger-border: #fca5a5;
+  
+  --info: #3b82f6;
+  --info-bg: #dbeafe;
+  --info-border: #93c5fd;
+  
+  /* Keep existing AI chat variables */
+  --ai-chat-bg: #e6eefc;
   --ai-chat-border: rgba(11, 18, 32, 0.16);
   --ai-chat-hover: rgba(11, 18, 32, 0.08);
-
-  /* bubbles */
   --ai-bubble-assistant-bg: #f8fbff;
   --ai-bubble-user-bg: #eef4ff;
   --ai-bubble-prompt-bg: #ffffff;
-
-  /* input row */
   --ai-input-bg: #ffffff;
   --ai-input-border: rgba(11, 18, 32, 0.18);
+  
+  /* Keep other existing variables */
+  --foreground: #0f172a;
+  --muted: #e2e8f0;
+  --hover: rgba(15, 23, 42, 0.05);
+  --border: rgba(15, 23, 42, 0.12);
+  --input-bg: #ffffff;
+  --input-border: rgba(15, 23, 42, 0.18);
+  --ui-strong: #0f172a;
+  --ui-strong-hover: #1e293b;
+  
+  color-scheme: light;
 }
 
 
 html,
 body {
-  background: var(--background);
+  background: 
+    radial-gradient(circle at 20% 20%, rgba(16, 185, 129, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.03) 0%, transparent 50%),
+    #f8fafc;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }

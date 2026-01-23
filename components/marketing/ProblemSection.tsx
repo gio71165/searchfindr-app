@@ -6,7 +6,7 @@ export function ProblemSection() {
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-8 tracking-tight">
             You've read 47 CIMs this quarter.{' '}
             <br className="hidden sm:block" />
-            3 were worth a call. That's 88 hours wasted.
+            3 were worth a call. That's 88 hours wasted = $22,000 in opportunity cost at $250/hr.
           </h2>
           <p className="text-center text-white/70 max-w-2xl mx-auto text-lg leading-relaxed">
             The average searcher spends 15+ hours per week reading CIMs.

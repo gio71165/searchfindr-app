@@ -277,11 +277,21 @@ function DealCardComponent({
             }
           }}
         >
-          <div className={`rounded-xl border bg-white p-6 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.01] group-hover:border-gray-300 ${
+          <div className={`relative group rounded-xl border bg-white p-6 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.01] group-hover:border-gray-300 ${
             isSelected 
               ? 'border-blue-500 border-2 bg-blue-50/30' 
               : 'border-slate-200'
           }`}>
+            {/* Colored top border based on verdict */}
+            <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-xl transition-all ${
+              verdict === 'proceed' 
+                ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' 
+                : verdict === 'park' 
+                ? 'bg-gradient-to-r from-blue-400 to-blue-600' 
+                : verdict === 'pass' 
+                ? 'bg-gradient-to-r from-red-400 to-red-600' 
+                : 'bg-gradient-to-r from-gray-300 to-gray-400'
+            }`} />
       {/* Comparison Checkbox */}
       {onToggleSelect && (
         <div className="flex items-center justify-end mb-3" data-no-link onClick={(e) => e.stopPropagation()}>
@@ -416,9 +426,25 @@ function DealCardComponent({
       {deal.stage && (
         <div className="mb-4 pb-4 border-b border-slate-200">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Stage</div>
-          <div className="text-sm font-semibold capitalize text-slate-900">
-            {deal.stage.replace('_', ' ')}
-          </div>
+          <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${
+            deal.stage === 'new' 
+              ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-500/20'
+              : deal.stage === 'reviewing'
+              ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-500/20'
+              : deal.stage === 'follow_up'
+              ? 'bg-purple-100 text-purple-700 ring-1 ring-purple-500/20'
+              : deal.stage === 'ioi_sent'
+              ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-500/20'
+              : deal.stage === 'loi'
+              ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-500/20'
+              : deal.stage === 'dd'
+              ? 'bg-orange-100 text-orange-700 ring-1 ring-orange-500/20'
+              : deal.stage === 'passed'
+              ? 'bg-gray-100 text-gray-700 ring-1 ring-gray-500/20'
+              : 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-500/20'
+          }`}>
+            {deal.stage.replace('_', ' ').toUpperCase()}
+          </span>
         </div>
       )}
 

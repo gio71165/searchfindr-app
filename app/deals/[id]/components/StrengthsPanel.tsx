@@ -78,20 +78,32 @@ export function StrengthsPanel({ deal, financialAnalysis }: { deal: Deal; financ
   
   if (uniqueStrengths.length === 0) {
     return (
-      <div className="text-sm text-slate-600">
-        No specific strengths identified yet. Run analysis to generate strengths.
+      <div className="bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-xl p-6 shadow-sm">
+        <div className="text-sm text-emerald-700">
+          No specific strengths identified yet. Run analysis to generate strengths.
+        </div>
       </div>
     );
   }
   
   return (
-    <ul className="space-y-2">
-      {uniqueStrengths.map((strength, idx) => (
-        <li key={idx} className="flex items-start gap-2 text-sm">
-          <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-          <span className="text-slate-700">{strength}</span>
-        </li>
-      ))}
-    </ul>
+    <div className="bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-xl p-6 shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30">
+          <CheckCircle2 className="w-6 h-6 text-white" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-bold text-emerald-900 text-lg mb-3">Key Strengths</h3>
+          <div className="space-y-2">
+            {uniqueStrengths.map((strength, idx) => (
+              <div key={idx} className="flex items-start gap-2 bg-white/60 rounded-lg p-3 border border-emerald-200 hover:bg-white/80 transition-colors">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 flex-shrink-0" />
+                <p className="text-emerald-900 text-sm leading-relaxed">{strength}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

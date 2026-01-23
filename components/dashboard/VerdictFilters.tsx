@@ -1,66 +1,81 @@
 'use client';
 
+import { CheckCircle, Pause, XCircle } from 'lucide-react';
+
 interface VerdictFiltersProps {
   selectedVerdict: string;
   setSelectedVerdict: (verdict: string) => void;
+  proceedCount?: number;
+  parkCount?: number;
+  passCount?: number;
 }
 
 export function VerdictFilters(props: VerdictFiltersProps) {
+  const { selectedVerdict, setSelectedVerdict, proceedCount = 0, parkCount = 0, passCount = 0 } = props;
+  
   return (
-    <div className="flex flex-wrap gap-3 sm:gap-4 items-center mb-6 text-sm bg-white p-3 sm:p-4 rounded-lg border border-gray-200 overflow-x-auto">
-      {/* Verdict buttons */}
-      <div className="flex gap-2 items-center flex-wrap">
-        <span className="text-gray-700 font-medium text-xs sm:text-sm whitespace-nowrap">Verdict:</span>
-        <VerdictButton
-          active={props.selectedVerdict === 'all'}
-          onClick={() => props.setSelectedVerdict('all')}
-          label="All"
-        />
-        <VerdictButton
-          active={props.selectedVerdict === 'proceed'}
-          onClick={() => props.setSelectedVerdict('proceed')}
-          label="Proceed"
-          color="green"
-        />
-        <VerdictButton
-          active={props.selectedVerdict === 'park'}
-          onClick={() => props.setSelectedVerdict('park')}
-          label="Park"
-          color="yellow"
-        />
-        <VerdictButton
-          active={props.selectedVerdict === 'pass'}
-          onClick={() => props.setSelectedVerdict('pass')}
-          label="Pass"
-          color="gray"
-        />
-      </div>
+    <div className="flex flex-wrap gap-2 mb-6">
+      {/* Proceed */}
+      <button
+        onClick={() => setSelectedVerdict('proceed')}
+        className={`
+          px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200
+          flex items-center gap-2
+          ${selectedVerdict === 'proceed'
+            ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 scale-105'
+            : 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 hover:shadow-md'
+          }
+        `}
+      >
+        <CheckCircle className="w-4 h-4" />
+        Proceed {proceedCount > 0 && `(${proceedCount})`}
+      </button>
+
+      {/* Park */}
+      <button
+        onClick={() => setSelectedVerdict('park')}
+        className={`
+          px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200
+          flex items-center gap-2
+          ${selectedVerdict === 'park'
+            ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30 scale-105'
+            : 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 hover:shadow-md'
+          }
+        `}
+      >
+        <Pause className="w-4 h-4" />
+        Park {parkCount > 0 && `(${parkCount})`}
+      </button>
+
+      {/* Pass */}
+      <button
+        onClick={() => setSelectedVerdict('pass')}
+        className={`
+          px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200
+          flex items-center gap-2
+          ${selectedVerdict === 'pass'
+            ? 'bg-red-500 text-white shadow-lg shadow-red-500/30 scale-105'
+            : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 hover:shadow-md'
+          }
+        `}
+      >
+        <XCircle className="w-4 h-4" />
+        Pass {passCount > 0 && `(${passCount})`}
+      </button>
+
+      {/* All */}
+      <button
+        onClick={() => setSelectedVerdict('all')}
+        className={`
+          px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200
+          ${selectedVerdict === 'all'
+            ? 'bg-gray-700 text-white shadow-lg shadow-gray-500/30 scale-105'
+            : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200 hover:shadow-md'
+          }
+        `}
+      >
+        All Deals
+      </button>
     </div>
-  );
-}
-
-interface VerdictButtonProps {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  color?: 'green' | 'yellow' | 'gray';
-}
-
-function VerdictButton({ active, onClick, label, color }: VerdictButtonProps) {
-  const colors = {
-    green: active ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-800',
-    yellow: active ? 'bg-yellow-600 text-white' : 'bg-yellow-100 text-yellow-800',
-    gray: active ? 'bg-gray-600 text-white' : 'bg-gray-100 text-gray-800'
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      className={`px-4 py-2.5 min-h-[44px] rounded-lg text-sm font-medium transition-all touch-manipulation whitespace-nowrap ${
-        color ? colors[color as keyof typeof colors] : (active ? 'bg-gray-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200')
-      }`}
-    >
-      {label}
-    </button>
   );
 }

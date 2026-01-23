@@ -122,14 +122,11 @@ export function DealTabs({ deal, children }: DealTabsProps) {
   return (
     <div className="w-full">
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200 mb-6 relative">
-        {/* Fade indicator on right side (mobile only) */}
-        <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-white to-transparent pointer-events-none z-10 md:hidden" />
-        
+      <div className="border-b border-gray-200 bg-gray-50/50 px-4 mb-6 relative">
         {/* Scrollable tabs */}
         <nav 
           ref={scrollContainerRef}
-          className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide scroll-smooth snap-x snap-mandatory md:space-x-8 md:overflow-x-visible md:pb-0"
+          className="flex gap-1 -mb-px overflow-x-auto scrollbar-hide scroll-smooth"
           aria-label="Tabs"
         >
           {visibleTabs.map((tab) => {
@@ -140,11 +137,12 @@ export function DealTabs({ deal, children }: DealTabsProps) {
                 data-tab={tab.id}
                 onClick={() => handleTabChange(tab.id)}
                 className={`
-                  py-4 px-4 md:px-1 border-b-2 font-medium text-sm transition-colors
-                  min-h-[44px] snap-start flex-shrink-0 whitespace-nowrap
+                  px-4 py-3 rounded-t-lg font-medium text-sm transition-all duration-200
+                  flex items-center gap-2 whitespace-nowrap
+                  min-h-[44px] snap-start flex-shrink-0
                   ${isActive
-                    ? 'border-emerald-500 text-emerald-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'bg-white text-emerald-600 border-t-2 border-t-emerald-500 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                   }
                 `}
                 aria-current={isActive ? 'page' : undefined}

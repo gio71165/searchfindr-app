@@ -2,26 +2,27 @@ import { AlertTriangle } from 'lucide-react';
 
 export function RedFlagsPanel({ redFlags }: { redFlags: string[] }) {
   return (
-    <div className="rounded-lg border border-red-200 bg-red-50 border-l-4 border-l-red-500 p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <AlertTriangle className="h-5 w-5 text-red-600" />
-        <h3 className="text-xl font-semibold text-slate-900">Red Flags</h3>
-        <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
-          {redFlags.length}
-        </span>
+    <div className="bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-200 rounded-xl p-6 shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 bg-red-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-red-500/30">
+          <AlertTriangle className="w-6 h-6 text-white" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-bold text-red-900 text-lg mb-3">Red Flags Detected</h3>
+          {redFlags.length === 0 ? (
+            <p className="text-sm text-red-700">No red flags detected yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {redFlags.map((flag, idx) => (
+                <div key={idx} className="flex items-start gap-2 bg-white/60 rounded-lg p-3 border border-red-200 hover:bg-white/80 transition-colors">
+                  <div className="w-2 h-2 bg-red-500 rounded-full mt-2 flex-shrink-0" />
+                  <p className="text-red-900 text-sm leading-relaxed">{flag}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      {redFlags.length === 0 ? (
-        <p className="text-sm text-slate-600">No red flags detected yet.</p>
-      ) : (
-        <ul className="space-y-2">
-          {redFlags.map((flag, idx) => (
-            <li key={idx} className="flex items-start gap-2 text-sm">
-              <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <span className="text-slate-700">{flag}</span>
-            </li>
-          ))}
-        </ul>
-      )}
     </div>
   );
 }

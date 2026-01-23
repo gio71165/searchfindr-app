@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { CheckCircle2, AlertTriangle, XCircle, TrendingUp, MapPin, Building2, DollarSign, Circle, ExternalLink } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, XCircle, TrendingUp, MapPin, Building2, DollarSign, Circle, ExternalLink, Sparkles } from 'lucide-react';
 import { ConfidenceBadge } from '@/components/ui/ConfidenceBadge';
 import { AsyncButton } from '@/components/ui/AsyncButton';
 import { formatMoney, formatPct } from '../lib/formatters';
@@ -123,17 +123,32 @@ export function ExecutiveSummaryCard({
   const userVerdictStyle = userVerdictNormalized ? userVerdictConfig[userVerdictNormalized as keyof typeof userVerdictConfig] : null;
   
   return (
-    <div className={`rounded-xl border-2 ${config.borderColor} ${config.bgColor} p-8`}>
-      {/* User Verdict Badge - Prominently displayed at top */}
-      {userVerdictStyle && (
-        <div className="mb-4 flex justify-end">
-          <span className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 ${userVerdictStyle.bg} ${userVerdictStyle.text} ${userVerdictStyle.border}`}>
-            Status: {userVerdictStyle.label}
-          </span>
+    <div className="bg-white rounded-xl border border-purple-200 shadow-sm overflow-hidden mb-6">
+      {/* AI Gradient Header */}
+      <div className="bg-gradient-to-r from-purple-500 to-purple-600 px-6 py-4">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+            <Sparkles className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h3 className="text-white font-semibold">AI Analysis</h3>
+            <p className="text-purple-100 text-xs">Deal evaluation complete</p>
+          </div>
         </div>
-      )}
+      </div>
       
-      {/* AI Recommendation Badge */}
+      {/* Card content */}
+      <div className={`p-8 ${config.bgColor} rounded-b-xl`}>
+        {/* User Verdict Badge - Prominently displayed at top */}
+        {userVerdictStyle && (
+          <div className="mb-4 flex justify-end">
+            <span className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 ${userVerdictStyle.bg} ${userVerdictStyle.text} ${userVerdictStyle.border}`}>
+              Status: {userVerdictStyle.label}
+            </span>
+          </div>
+        )}
+        
+        {/* AI Recommendation Badge */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <div className={`rounded-full p-2 ${config.bgColor} ${config.borderColor} border`}>
@@ -256,6 +271,7 @@ export function ExecutiveSummaryCard({
           </AsyncButton>
         </div>
       )}
+      </div>
     </div>
   );
 }

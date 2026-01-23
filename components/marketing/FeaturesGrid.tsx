@@ -12,7 +12,7 @@ import {
 const features = [
   {
     icon: FileText,
-    title: 'Know in 2 minutes if a deal is worth your time',
+    title: 'Know in 2 minutes what would take you 2 hours to find on page 30',
     description: 'AI reads the entire CIM, extracts financials, identifies red flags, and gives you a clear Proceed/Park/Pass recommendation.',
   },
   {

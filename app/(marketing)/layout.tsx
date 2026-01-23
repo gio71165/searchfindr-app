@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { MarketingNavigation } from '@/components/marketing/Navigation';
 import { Footer } from '@/components/marketing/Footer';
+import { ExitIntentPopup } from '@/components/marketing/ExitIntentPopup';
 import '../globals.css';
 
 export const metadata: Metadata = {
@@ -56,6 +57,7 @@ export default async function MarketingLayout({
         {children}
       </main>
       <Footer />
+      <ExitIntentPopup />
     </div>
   );
 }
