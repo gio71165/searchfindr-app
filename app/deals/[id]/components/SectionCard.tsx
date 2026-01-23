@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, LucideIcon } from 'lucide-react';
+import { IconButton } from '@/components/ui/IconButton';
 
 export function SectionCard({
   title,
@@ -26,7 +27,9 @@ export function SectionCard({
     <div className={`rounded-lg border ${borderColor} ${bgColor} shadow-sm overflow-hidden`}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
+        className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors min-h-[44px]"
+        aria-label={isOpen ? `Collapse ${title}` : `Expand ${title}`}
+        aria-expanded={isOpen}
       >
         <div className="flex items-center gap-3">
           {Icon && <Icon className="h-5 w-5 text-slate-600" />}
@@ -38,9 +41,9 @@ export function SectionCard({
           )}
         </div>
         {isOpen ? (
-          <ChevronUp className="h-5 w-5 text-slate-400" />
+          <ChevronUp className="h-5 w-5 text-slate-400" aria-hidden="true" />
         ) : (
-          <ChevronDown className="h-5 w-5 text-slate-400" />
+          <ChevronDown className="h-5 w-5 text-slate-400" aria-hidden="true" />
         )}
       </button>
       

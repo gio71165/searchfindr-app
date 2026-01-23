@@ -4,7 +4,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../../supabaseClient';
 import type { ChatMsg } from '../lib/types';
 import type { Deal } from '@/lib/types/deal';
-import { User, Bot, Send, Copy, Loader2, X, MessageCircle } from 'lucide-react';
+import { User, Bot, Send, Copy, X, MessageCircle } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) {
   // Chat is available for ALL deal types: on-market, off-market, CIM, and financials
@@ -438,7 +439,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
             </div>
             <div className="bg-slate-100 rounded-lg px-3 py-2">
               <div className="flex items-center gap-2 text-xs text-slate-600">
-                <Loader2 className="h-3 w-3 animate-spin" />
+                <LoadingSpinner size="sm" />
                 <span>Analyzing...</span>
               </div>
             </div>
@@ -464,7 +465,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
                 key={idx}
                 onClick={() => onClickPrompt(prompt)}
                 disabled={sending}
-                className="px-3 py-1 text-xs rounded-full border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                className="px-3 py-2.5 text-xs rounded-full border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors min-h-[44px]"
               >
                 {prompt.text}
               </button>
@@ -506,7 +507,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
           >
             {sending ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
+              <LoadingSpinner size="sm" />
             ) : (
               <Send className="h-3 w-3" />
             )}

@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { FileDown } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/LoadingSpinner';
+import { AsyncButton } from '@/components/ui/AsyncButton';
 
 export default function GenerateMonthlyUpdateButton() {
   const [loading, setLoading] = useState(false);
@@ -22,13 +24,14 @@ export default function GenerateMonthlyUpdateButton() {
   };
 
   return (
-    <button
+    <AsyncButton
       onClick={handleGenerate}
-      disabled={loading}
-      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+      isLoading={loading}
+      loadingText="Generating..."
+      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
     >
       <FileDown className="h-4 w-4" />
-      {loading ? 'Generating...' : 'Generate Monthly Update'}
-    </button>
+      Generate Monthly Update
+    </AsyncButton>
   );
 }

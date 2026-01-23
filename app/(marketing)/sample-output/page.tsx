@@ -232,8 +232,8 @@ export default function SampleOutputPage() {
             </div>
 
             <div className="p-5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-all">
-              <div className="p-3 rounded-xl border bg-green-500/20 border-green-500/30 inline-block mb-3">
-                <CheckCircle2 className="h-5 w-5 text-green-400" />
+              <div className="p-3 rounded-xl border bg-emerald-500/20 border-emerald-500/30 inline-block mb-3">
+                <CheckCircle2 className="h-5 w-5 text-emerald-400" />
               </div>
               <h3 className="text-lg font-semibold text-white mb-2">
                 Strengths Identification

@@ -4,6 +4,7 @@ import { MapPin, Building2, Calendar, Star, Trash2 } from 'lucide-react';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { SourceBadge } from './SourceBadge';
 import { TierBadge } from '@/app/deals/[id]/components/TierBadge';
+import { IconButton } from './IconButton';
 
 type Deal = {
   id: string;
@@ -166,30 +167,28 @@ export function DealListView({
                   <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-2">
                       {onSaveToggle && (
-                        <button
+                        <IconButton
                           onClick={(e) => {
                             e.stopPropagation();
                             onSaveToggle(deal.id);
                           }}
-                          className="p-1.5 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                          title={deal.is_saved ? 'Unsave' : 'Save'}
-                        >
-                          <Star className={`h-4 w-4 ${deal.is_saved ? 'text-yellow-500 fill-yellow-500' : ''}`} />
-                        </button>
+                          icon={<Star className={`h-4 w-4 ${deal.is_saved ? 'text-yellow-500 fill-yellow-500' : ''}`} />}
+                          label={deal.is_saved ? `Unsave ${deal.company_name || 'deal'}` : `Save ${deal.company_name || 'deal'}`}
+                          className="p-2 text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded"
+                        />
                       )}
                       {onDelete && (
-                        <button
+                        <IconButton
                           onClick={(e) => {
                             e.stopPropagation();
                             if (window.confirm('Delete this deal?')) {
                               onDelete(deal.id);
                             }
                           }}
-                          className="p-1.5 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                          icon={<Trash2 className="h-4 w-4" />}
+                          label={`Delete ${deal.company_name || 'deal'}`}
+                          className="p-2 text-slate-600 hover:text-red-600 hover:bg-red-50 rounded"
+                        />
                       )}
                     </div>
                   </td>

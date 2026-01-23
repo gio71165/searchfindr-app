@@ -130,7 +130,7 @@ export default function HelpPage() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <a
                 href={`mailto:${CONTACT_EMAIL}?subject=SearchFindr Support Request`}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-semibold transition-colors"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-brand hover:bg-brand-dark text-white font-semibold transition-colors"
               >
                 <Mail className="h-5 w-5" />
                 Email Us

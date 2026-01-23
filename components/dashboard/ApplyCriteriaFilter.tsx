@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Filter, X, Plus, Loader2, AlertCircle } from 'lucide-react';
+import { Filter, X, Plus, AlertCircle } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { supabase } from '@/app/supabaseClient';
 import { showToast } from '@/components/ui/Toast';
 import { dealMatchesCriteria, filterDealsByCriteria } from '@/lib/utils/criteria-matcher';
@@ -109,7 +110,7 @@ export function ApplyCriteriaFilter({ deals, onFilterChange }: ApplyCriteriaFilt
         </div>
         
         {loading ? (
-          <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
+          <LoadingSpinner size="sm" />
         ) : (
           <>
             <select
@@ -139,8 +140,9 @@ export function ApplyCriteriaFilter({ deals, onFilterChange }: ApplyCriteriaFilt
                 </button>
                 <button
                   onClick={() => handleSelectCriteria(null)}
-                  className="p-1 text-slate-400 hover:text-slate-600"
+                  className="touch-target p-2 text-slate-400 hover:text-slate-600"
                   title="Clear filter"
+                  aria-label="Clear filter"
                 >
                   <X className="h-3 w-3" />
                 </button>

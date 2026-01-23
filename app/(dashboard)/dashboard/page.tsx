@@ -15,6 +15,8 @@ import { ApplyCriteriaFilter } from '@/components/dashboard/ApplyCriteriaFilter'
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Search as SearchIcon, FileText, TrendingUp } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { ErrorState } from '@/components/ui/ErrorState';
 import { useKeyboardShortcuts, createShortcut } from '@/lib/hooks/useKeyboardShortcuts';
 import { KeyboardShortcutsModal } from '@/components/KeyboardShortcutsModal';
 import { showToast } from '@/components/ui/Toast';
@@ -626,7 +628,16 @@ function DashboardPageContent() {
   );
 
   if (authLoading || loading) {
-    return <div className="p-8">Loading...</div>;
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <LoadingSpinner size="lg" className="mb-4" />
+            <p className="text-sm text-slate-600">Loading dashboard...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -857,10 +868,14 @@ function DashboardPageContent() {
       )}
 
       {/* Error Message */}
-      {errorMsg && (
-        <div className="rounded-xl border-2 border-red-200 bg-red-50 p-4 text-red-700 mt-6">
-          <div className="font-semibold mb-1">Error</div>
-          <div className="text-sm">{errorMsg}</div>
+      {errorMsg && !loading && (
+        <div className="mt-6">
+          <ErrorState
+            title="Couldn't load deals"
+            message={errorMsg}
+            onRetry={() => workspaceId && loadDeals(workspaceId)}
+            retryText="Try again"
+          />
         </div>
       )}
 
@@ -928,7 +943,7 @@ export default function DashboardPage() {
       <div className="p-8 max-w-7xl mx-auto">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+            <LoadingSpinner size="lg" className="mb-4" />
             <p className="text-sm text-slate-600">Loading dashboard...</p>
           </div>
         </div>

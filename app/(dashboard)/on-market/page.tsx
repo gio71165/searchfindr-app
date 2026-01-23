@@ -8,6 +8,7 @@ import { DealCard } from '@/components/ui/DealCard';
 import { ContentHeader } from '@/components/dashboard/ContentHeader';
 import { PipelineSummary } from '@/components/dashboard/PipelineSummary';
 import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export default function OnMarketPage() {
   const router = useRouter();
@@ -87,7 +88,18 @@ export default function OnMarketPage() {
     };
   }, [deals]);
 
-  if (authLoading || loading) return <div className="p-8">Loading...</div>;
+  if (authLoading || loading) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <LoadingSpinner size="lg" className="mb-4" />
+            <p className="text-sm text-slate-600">Loading on-market deals...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto">

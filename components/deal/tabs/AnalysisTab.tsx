@@ -18,6 +18,7 @@ import { safeDateLabel, formatMoney, formatPct, sortYearsLikeHuman } from '@/app
 import type { Deal, FinancialMetrics, FinancialAnalysis } from '@/lib/types/deal';
 import { CheckCircle2, FileCheck, BarChart3, TrendingUp, User, AlertTriangle } from 'lucide-react';
 import { ConfidenceBadge } from '@/components/ui/ConfidenceBadge';
+import { AsyncButton } from '@/components/ui/AsyncButton';
 import { JargonTooltip } from '@/components/ui/JargonTooltip';
 import { GutCheck } from '@/components/deal/GutCheck';
 import type { MarginRow } from '@/app/deals/[id]/lib/types';
@@ -170,20 +171,21 @@ export function AnalysisTab({
                 <p className="text-sm text-red-600 mt-2">{cimError}</p>
               )}
               {cimSuccess && (
-                <p className="text-sm text-green-600 mt-2">CIM processed successfully. Analysis is up to date.</p>
+                <p className="text-sm text-emerald-600 mt-2">CIM processed successfully. Analysis is up to date.</p>
               )}
             </div>
-            <button
+            <AsyncButton
               onClick={onRunCim}
-              disabled={processingCim}
+              isLoading={processingCim}
+              loadingText="Processing…"
               className={`px-6 py-3 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
                 hasCimAnalysis
-                  ? 'border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50'
-                  : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50'
+                  ? 'border border-slate-300 bg-white hover:bg-slate-50'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
             >
-              {processingCim ? 'Processing…' : hasCimAnalysis ? 'Re-run Analysis' : 'Run AI Analysis'}
-            </button>
+              {hasCimAnalysis ? 'Re-run Analysis' : 'Run AI Analysis'}
+            </AsyncButton>
           </div>
         </div>
       )}
@@ -210,14 +212,14 @@ export function AnalysisTab({
       <RedFlagsPanel redFlags={redFlags} />
 
       {/* Strengths */}
-      <div className="rounded-lg border border-green-200 bg-green-50 border-l-4 border-l-green-500 p-6">
+      <div className="rounded-lg border border-emerald-200 bg-emerald-50 border-l-4 border-l-emerald-500 p-6">
         <div className="flex items-center gap-2 mb-4">
-          <CheckCircle2 className="h-5 w-5 text-green-600" />
+          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
           <h3 className="text-xl font-semibold text-slate-900">
             {sourceType === 'financials' ? 'Strengths (Green Flags)' : 'Strengths'}
           </h3>
           {sourceType === 'financials' && greenFlags.length > 0 && (
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
               {greenFlags.length}
             </span>
           )}
@@ -227,7 +229,7 @@ export function AnalysisTab({
             <ul className="space-y-2">
               {greenFlags.map((x, idx) => (
                 <li key={idx} className="flex items-start gap-2 text-sm">
-                  <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
                   <span className="text-slate-700">{x}</span>
                 </li>
               ))}

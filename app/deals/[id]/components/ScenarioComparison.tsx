@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TrendingUp, AlertTriangle, XCircle, CheckCircle2, Loader2 } from 'lucide-react';
+import { TrendingUp, AlertTriangle, XCircle, CheckCircle2 } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/LoadingSpinner';
 import type { Deal } from '@/lib/types/deal';
 import type { SBA7aInputs } from '@/lib/types/sba';
 import { buildScenarios, type Scenario } from '@/lib/utils/scenario-analysis';
@@ -103,13 +104,13 @@ export function ScenarioComparison({ deal }: { deal: Deal | null }) {
   };
 
   const getDSCRColor = (dscr: number) => {
-    if (dscr >= 1.25) return 'text-green-600';
+    if (dscr >= 1.25) return 'text-emerald-600';
     if (dscr >= 1.15) return 'text-yellow-600';
     return 'text-red-600';
   };
 
   const getDSCRIcon = (dscr: number) => {
-    if (dscr >= 1.25) return <CheckCircle2 className="h-4 w-4 text-green-600 inline" />;
+    if (dscr >= 1.25) return <CheckCircle2 className="h-4 w-4 text-emerald-600 inline" />;
     if (dscr >= 1.15) return <AlertTriangle className="h-4 w-4 text-yellow-600 inline" />;
     return <XCircle className="h-4 w-4 text-red-600 inline" />;
   };
@@ -162,7 +163,7 @@ export function ScenarioComparison({ deal }: { deal: Deal | null }) {
           >
             {loading ? (
               <>
-                <Loader2 className="h-3 w-3 animate-spin" />
+                <LoadingDots />
                 <span>Calculating...</span>
               </>
             ) : (
@@ -196,7 +197,7 @@ export function ScenarioComparison({ deal }: { deal: Deal | null }) {
                 <tr className="border-b border-slate-100">
                   <td className="p-3 text-sm font-medium text-slate-900">Revenue</td>
                   <td className="p-3 text-sm text-right text-slate-700">{formatCurrency(scenarios.baseCase.adjustedRevenue)}</td>
-                  <td className="p-3 text-sm text-right text-green-700">
+                  <td className="p-3 text-sm text-right text-emerald-700">
                     {formatCurrency(scenarios.upside.adjustedRevenue)} 
                     <span className="text-xs ml-1">(+20%)</span>
                   </td>
@@ -212,7 +213,7 @@ export function ScenarioComparison({ deal }: { deal: Deal | null }) {
                 <tr className="border-b border-slate-100">
                   <td className="p-3 text-sm font-medium text-slate-900">EBITDA</td>
                   <td className="p-3 text-sm text-right text-slate-700">{formatCurrency(scenarios.baseCase.adjustedEBITDA)}</td>
-                  <td className="p-3 text-sm text-right text-green-700">{formatCurrency(scenarios.upside.adjustedEBITDA)}</td>
+                  <td className="p-3 text-sm text-right text-emerald-700">{formatCurrency(scenarios.upside.adjustedEBITDA)}</td>
                   <td className="p-3 text-sm text-right text-yellow-700">{formatCurrency(scenarios.downside.adjustedEBITDA)}</td>
                   <td className="p-3 text-sm text-right text-red-700">{formatCurrency(scenarios.worstCase.adjustedEBITDA)}</td>
                 </tr>
@@ -234,7 +235,7 @@ export function ScenarioComparison({ deal }: { deal: Deal | null }) {
                 <tr className="border-b border-slate-100">
                   <td className="p-3 text-sm font-medium text-slate-900">Cash-on-Cash</td>
                   <td className="p-3 text-sm text-right text-slate-700">{scenarios.baseCase.outputs.cashOnCash.toFixed(1)}%</td>
-                  <td className="p-3 text-sm text-right text-green-700">{scenarios.upside.outputs.cashOnCash.toFixed(1)}%</td>
+                  <td className="p-3 text-sm text-right text-emerald-700">{scenarios.upside.outputs.cashOnCash.toFixed(1)}%</td>
                   <td className="p-3 text-sm text-right text-yellow-700">{scenarios.downside.outputs.cashOnCash.toFixed(1)}%</td>
                   <td className="p-3 text-sm text-right text-red-700">{scenarios.worstCase.outputs.cashOnCash.toFixed(1)}%</td>
                 </tr>
@@ -243,7 +244,7 @@ export function ScenarioComparison({ deal }: { deal: Deal | null }) {
                   <td className="p-3 text-sm text-right">
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
                       scenarios.baseCase.viabilityScore === 'viable' 
-                        ? 'bg-green-100 text-green-700'
+                        ? 'bg-emerald-100 text-emerald-700'
                         : scenarios.baseCase.viabilityScore === 'marginal'
                           ? 'bg-yellow-100 text-yellow-700'
                           : 'bg-red-100 text-red-700'
@@ -252,14 +253,14 @@ export function ScenarioComparison({ deal }: { deal: Deal | null }) {
                     </span>
                   </td>
                   <td className="p-3 text-sm text-right">
-                    <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
+                    <span className="px-2 py-1 rounded text-xs font-medium bg-emerald-100 text-emerald-700">
                       {scenarios.upside.viabilityScore}
                     </span>
                   </td>
                   <td className="p-3 text-sm text-right">
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
                       scenarios.downside.viabilityScore === 'viable' 
-                        ? 'bg-green-100 text-green-700'
+                        ? 'bg-emerald-100 text-emerald-700'
                         : scenarios.downside.viabilityScore === 'marginal'
                           ? 'bg-yellow-100 text-yellow-700'
                           : 'bg-red-100 text-red-700'
@@ -270,7 +271,7 @@ export function ScenarioComparison({ deal }: { deal: Deal | null }) {
                   <td className="p-3 text-sm text-right">
                     <span className={`px-2 py-1 rounded text-xs font-medium ${
                       scenarios.worstCase.viabilityScore === 'viable' 
-                        ? 'bg-green-100 text-green-700'
+                        ? 'bg-emerald-100 text-emerald-700'
                         : scenarios.worstCase.viabilityScore === 'marginal'
                           ? 'bg-yellow-100 text-yellow-700'
                           : 'bg-red-100 text-red-700'
@@ -326,7 +327,7 @@ export function ScenarioComparison({ deal }: { deal: Deal | null }) {
                 <p className="text-xs text-slate-600 mb-1">Margin of Safety</p>
                 <p className={`text-lg font-semibold ${
                   scenarios.breakeven.marginOfSafety >= 20 
-                    ? 'text-green-600'
+                    ? 'text-emerald-600'
                     : scenarios.breakeven.marginOfSafety >= 10
                       ? 'text-yellow-600'
                       : 'text-red-600'

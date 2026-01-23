@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { supabase } from '@/app/supabaseClient';
 import { showToast } from '@/components/ui/Toast';
 import { SearchCriteriaModal } from '@/components/dashboard/SearchCriteriaModal';
 import type { SearchCriteria } from '@/lib/types/search-criteria';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export function SearchCriteriaSettings() {
   const [criteriaList, setCriteriaList] = useState<SearchCriteria[]>([]);
@@ -84,7 +85,7 @@ export function SearchCriteriaSettings() {
 
       {loading ? (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <LoadingSpinner size="md" />
         </div>
       ) : criteriaList.length === 0 ? (
         <div className="text-center py-8">

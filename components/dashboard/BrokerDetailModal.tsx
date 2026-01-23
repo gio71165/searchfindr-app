@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Building2, Mail, Phone, Star, Calendar, FileText, TrendingUp, Loader2 } from 'lucide-react';
+import { X, Building2, Mail, Phone, Star, Calendar, FileText, TrendingUp } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { supabase } from '@/app/supabaseClient';
 import { showToast } from '@/components/ui/Toast';
 import Link from 'next/link';
@@ -148,7 +149,8 @@ export function BrokerDetailModal({
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
+            className="touch-target text-slate-400 hover:text-slate-600"
+            aria-label="Close"
           >
             <X className="h-5 w-5" />
           </button>
@@ -261,7 +263,7 @@ export function BrokerDetailModal({
             </h3>
             {loading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                <LoadingSpinner size="md" />
               </div>
             ) : deals.length === 0 ? (
               <p className="text-sm text-slate-500">No deals from this broker</p>
@@ -308,7 +310,7 @@ export function BrokerDetailModal({
             </h3>
             {loading ? (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+                <LoadingSpinner size="md" />
               </div>
             ) : interactions.length === 0 ? (
               <p className="text-sm text-slate-500">No interactions recorded</p>

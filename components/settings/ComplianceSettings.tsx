@@ -5,6 +5,7 @@ import { supabase } from '@/app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
 import { logger } from '@/lib/utils/logger';
 import { showToast } from '@/components/ui/Toast';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export function ComplianceSettings() {
   const { user } = useAuth();
@@ -215,7 +216,12 @@ export function ComplianceSettings() {
     return (
       <div className="p-6 bg-slate-50 rounded-lg border border-slate-200">
         <h3 className="font-semibold text-slate-900 mb-2">SBA Compliance</h3>
-        <p className="text-sm text-slate-600">Loading...</p>
+        <div className="flex items-center justify-center py-8">
+          <div className="text-center">
+            <LoadingSpinner size="md" className="mb-2" />
+            <p className="text-sm text-slate-600">Loading...</p>
+          </div>
+        </div>
       </div>
     );
   }

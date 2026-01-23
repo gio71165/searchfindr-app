@@ -3,6 +3,7 @@
 import React from 'react';
 import { CheckCircle2, AlertTriangle, XCircle, TrendingUp, MapPin, Building2, DollarSign, Circle, ExternalLink } from 'lucide-react';
 import { ConfidenceBadge } from '@/components/ui/ConfidenceBadge';
+import { AsyncButton } from '@/components/ui/AsyncButton';
 import { formatMoney, formatPct } from '../lib/formatters';
 import { normalizeRedFlags } from '../lib/normalizers';
 import { getDealConfidence } from '../lib/confidence';
@@ -75,9 +76,9 @@ export function ExecutiveSummaryCard({
       icon: CheckCircle2,
       label: 'Strong Opportunity',
       color: 'green',
-      bgColor: 'bg-green-50',
-      borderColor: 'border-green-200',
-      textColor: 'text-green-700',
+      bgColor: 'bg-emerald-50',
+      borderColor: 'border-emerald-200',
+      textColor: 'text-emerald-700',
     },
     caution: {
       icon: AlertTriangle,
@@ -113,7 +114,7 @@ export function ExecutiveSummaryCard({
   
   // User verdict badge config
   const userVerdictConfig = {
-    proceed: { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300', label: 'Proceed' },
+    proceed: { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300', label: 'Proceed' },
     park: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-300', label: 'Parked' },
     pass: { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-300', label: 'Passed' }
   };
@@ -230,27 +231,29 @@ export function ExecutiveSummaryCard({
       {/* Primary Actions - Verdict Buttons */}
       {!hideVerdictButtons && (
         <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-slate-200">
-          <button
+          <AsyncButton
             onClick={onProceed}
-            disabled={settingVerdict}
-            className="px-6 py-2.5 font-medium rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            isLoading={settingVerdict}
+            loadingText="Setting…"
+            className="px-6 py-2.5 font-medium rounded-lg bg-brand hover:bg-brand-dark text-white transition-colors"
           >
-            {settingVerdict ? 'Setting…' : 'Proceed'}
-          </button>
-          <button
+            Proceed
+          </AsyncButton>
+          <AsyncButton
             onClick={onPark}
-            disabled={settingVerdict}
-            className="px-6 py-2.5 font-medium rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            isLoading={settingVerdict}
+            loadingText="Setting…"
+            className="px-6 py-2.5 font-medium rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white transition-colors"
           >
-            {settingVerdict ? 'Setting…' : 'Park'}
-          </button>
-          <button
+            Park
+          </AsyncButton>
+          <AsyncButton
             onClick={onPass}
-            disabled={settingVerdict}
-            className="px-6 py-2.5 font-medium rounded-lg border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            isLoading={settingVerdict}
+            className="px-6 py-2.5 font-medium rounded-lg border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
           >
             Pass
-          </button>
+          </AsyncButton>
         </div>
       )}
     </div>

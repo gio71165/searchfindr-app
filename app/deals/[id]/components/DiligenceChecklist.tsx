@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { CheckSquare, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../../../supabaseClient';
+import { IconButton } from '@/components/ui/IconButton';
 
 type ChecklistItem = {
   id: string;
@@ -186,16 +187,18 @@ export function DiligenceChecklist({
                   >
                     {item.text}
                   </span>
-                  <button
+                  <IconButton
                     onClick={() => toggleNotes(item.id)}
+                    icon={
+                      expandedNotes.has(item.id) ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )
+                    }
+                    label={expandedNotes.has(item.id) ? `Collapse notes for ${item.text}` : `Expand notes for ${item.text}`}
                     className="text-xs text-slate-500 hover:text-slate-700"
-                  >
-                    {expandedNotes.has(item.id) ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
-                    )}
-                  </button>
+                  />
                 </div>
                 {expandedNotes.has(item.id) && (
                   <textarea

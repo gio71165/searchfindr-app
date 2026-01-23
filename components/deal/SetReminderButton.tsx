@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { supabase } from '@/app/supabaseClient';
+import { LoadingDots } from '@/components/ui/LoadingSpinner';
+import { AsyncButton } from '@/components/ui/AsyncButton';
 
 interface SetReminderButtonProps {
   dealId: string;
@@ -150,13 +152,15 @@ export function SetReminderButton({
               >
                 Cancel
               </button>
-              <button
+              <AsyncButton
                 onClick={handleSave}
-                disabled={saving || !date}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                isLoading={saving}
+                loadingText="Saving..."
+                disabled={!date}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                {saving ? 'Saving...' : 'Save'}
-              </button>
+                Save
+              </AsyncButton>
             </div>
           </div>
         </div>

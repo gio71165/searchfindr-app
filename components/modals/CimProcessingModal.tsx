@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import { X } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { IconButton } from '@/components/ui/IconButton';
 
 type ProcessingStage = 'uploading' | 'extracting' | 'analyzing' | 'generating' | 'finalizing' | 'complete' | 'error';
 
@@ -98,13 +100,12 @@ export function CimProcessingModal({
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 relative">
         {/* Close button (only show if not processing or on error) */}
         {(!isProcessing || (stage as string) === 'error') && (
-          <button
+          <IconButton
             onClick={onClose}
-            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
-            aria-label="Close"
-          >
-            <X className="h-5 w-5" />
-          </button>
+            icon={<X className="h-5 w-5" />}
+            label="Close modal"
+            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+          />
         )}
 
         {/* Header */}
@@ -126,7 +127,7 @@ export function CimProcessingModal({
             </div>
             <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden mb-2">
               <div
-                className="bg-blue-600 h-full rounded-full transition-all duration-300 ease-out"
+                className="bg-emerald-500 h-full rounded-full transition-all duration-300 ease-out"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -150,7 +151,7 @@ export function CimProcessingModal({
         {/* Loading spinner */}
         {isProcessing && (
           <div className="flex items-center justify-center mb-6">
-            <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+            <LoadingSpinner size="lg" />
           </div>
         )}
 
@@ -184,7 +185,7 @@ export function CimProcessingModal({
           {showCancel && (
             <button
               onClick={onCancel}
-              className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              className="flex-1 px-4 py-3 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors min-h-[44px]"
             >
               Cancel
             </button>
@@ -192,7 +193,7 @@ export function CimProcessingModal({
           {(!isProcessing || (stage as string) === 'error') && (
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              className="flex-1 px-4 py-3 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors min-h-[44px]"
             >
               {stage === 'error' ? 'Close' : 'Done'}
             </button>

@@ -6,6 +6,7 @@ import { SearcherMetrics } from '@/lib/data-access/investor-analytics';
 import { Eye, TrendingUp, Edit2, Check, X } from 'lucide-react';
 import { supabase } from '@/app/supabaseClient';
 import { showToast } from '@/components/ui/Toast';
+import { AsyncButton } from '@/components/ui/AsyncButton';
 
 interface SearcherPerformanceProps {
   searchers: SearcherMetrics[];
@@ -168,14 +169,14 @@ export default function SearcherPerformance({ searchers, onSearcherUpdate }: Sea
                         autoFocus
                         disabled={saving}
                       />
-                      <button
+                      <AsyncButton
                         onClick={() => handleSaveEdit(searcher.linkId)}
-                        disabled={saving}
-                        className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
+                        isLoading={saving}
+                        className="p-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded transition-colors"
                         title="Save"
                       >
                         <Check className="h-4 w-4" />
-                      </button>
+                      </AsyncButton>
                       <button
                         onClick={handleCancelEdit}
                         disabled={saving}

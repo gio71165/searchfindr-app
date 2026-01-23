@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
 import { showToast } from '@/components/ui/Toast';
+import { LoadingDots } from '@/components/ui/LoadingSpinner';
+import { AsyncButton } from '@/components/ui/AsyncButton';
 import { Key, Plus, Trash2, Copy, Check, Edit2, X, AlertTriangle } from 'lucide-react';
 
 interface ApiKey {
@@ -102,7 +104,10 @@ export function ApiKeysSettings() {
       await loadKeys();
     } catch (error: any) {
       console.error('Error generating API key:', error);
-      showToast(error.message || 'Failed to generate API key', 'error', 3000);
+      showToast(error.message || 'Failed to generate API key', 'error', 5000, {
+        label: 'Retry',
+        onClick: generateKey
+      });
     } finally {
       setGenerating(false);
     }
@@ -307,13 +312,15 @@ export function ApiKeysSettings() {
               </p>
             </div>
             <div className="flex gap-2">
-              <button
+              <AsyncButton
                 onClick={generateKey}
-                disabled={!newKeyName.trim() || generating}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                isLoading={generating}
+                loadingText="Generating..."
+                disabled={!newKeyName.trim()}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
               >
-                {generating ? 'Generating...' : 'Generate Key'}
-              </button>
+                Generate Key
+              </AsyncButton>
               <button
                 onClick={() => {
                   setShowNewKeyModal(false);
@@ -347,7 +354,7 @@ export function ApiKeysSettings() {
                   title="Copy to clipboard"
                 >
                   {copied ? (
-                    <Check className="h-4 w-4 text-green-600" />
+                    <Check className="h-4 w-4 text-emerald-600" />
                   ) : (
                     <Copy className="h-4 w-4 text-slate-600" />
                   )}
@@ -449,7 +456,7 @@ export function ApiKeysSettings() {
                       />
                       <button
                         onClick={() => updateKeyName(key.id)}
-                        className="p-1 text-green-600 hover:bg-green-50 rounded"
+                        className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
                       >
                         <Check className="h-4 w-4" />
                       </button>
@@ -483,7 +490,7 @@ export function ApiKeysSettings() {
                       <code className="text-xs font-mono bg-slate-100 px-2 py-0.5 rounded">
                         {key.key_prefix}•••
                       </code>
-                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded">
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded">
                         Active
                       </span>
                     </div>

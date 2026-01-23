@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { DollarSign, Loader2, AlertTriangle, Copy, CheckCircle2, TrendingUp, TrendingDown } from 'lucide-react';
+import { DollarSign, AlertTriangle, Copy, CheckCircle2, TrendingUp, TrendingDown } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/LoadingSpinner';
 import type { Deal } from '@/lib/types/deal';
 import type { WorkingCapitalInputs, WorkingCapitalOutputs } from '@/lib/utils/working-capital';
 import { showToast } from '@/components/ui/Toast';
@@ -223,7 +224,7 @@ export function WorkingCapitalAnalysis({ deal }: { deal: Deal | null }) {
       >
         {calculating ? (
           <>
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <LoadingDots />
             <span>Calculating...</span>
           </>
         ) : (
@@ -268,7 +269,7 @@ export function WorkingCapitalAnalysis({ deal }: { deal: Deal | null }) {
             </div>
             <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
               <span className="text-sm font-semibold text-slate-900">Current WC:</span>
-              <span className={`text-lg font-bold ${currentWC >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <span className={`text-lg font-bold ${currentWC >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                 {formatCurrency(currentWC)}
               </span>
             </div>

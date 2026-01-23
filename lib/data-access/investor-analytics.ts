@@ -157,6 +157,20 @@ export async function getInvestorDashboard(
   
   const totalCapitalCommitted = links.reduce((sum, l) => sum + (Number(l.capital_committed) || 0), 0);
   
+  // Use service role client to query deals (bypass RLS since we've verified investor is linked)
+  // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are already declared above
+  let supabaseForDeals = supabase;
+  if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      supabaseForDeals = createSupabaseClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { persistSession: false },
+      });
+    } catch (error) {
+      console.warn('Failed to create service role client for deals query (will use regular client):', error);
+      // Fall back to regular client - may fail due to RLS but we'll handle errors
+    }
+  }
+  
   const searcherMetrics: SearcherMetrics[] = [];
   let totalPipelineValue = 0;
   let totalDealsInPipeline = 0;
@@ -188,7 +202,8 @@ export async function getInvestorDashboard(
     const searcherName = customDisplayName || searcherEmail || `Searcher ${link.searcher_id.slice(0, 8)}`;
     
     // Get deals for this searcher's workspace (active deals only, not passed)
-    const { data: deals, error: dealsError } = await supabase
+    // Use service role client to bypass RLS - we've verified investor is linked via investor_searcher_links
+    const { data: deals, error: dealsError } = await supabaseForDeals
       .from('companies')
       .select('*')
       .eq('workspace_id', workspaceId)
@@ -296,8 +311,8 @@ export async function getInvestorDashboard(
     const ioiToLoi = ioiDeals.length > 0 ? (loiDeals.length / ioiDeals.length) * 100 : 0;
     const loiToClose = loiDeals.length > 0 ? (closedDeals.length / loiDeals.length) * 100 : 0;
     
-    // Get recent activity
-    const { data: activities } = await supabase
+    // Get recent activity (use service role to bypass RLS)
+    const { data: activities } = await supabaseForDeals
       .from('deal_activities')
       .select('activity_type, created_at')
       .eq('workspace_id', workspaceId)
@@ -305,25 +320,25 @@ export async function getInvestorDashboard(
       .limit(1)
       .maybeSingle();
     
-    // Get passed deals count
-    const { count: passedCount } = await supabase
+    // Get passed deals count (use service role to bypass RLS)
+    const { count: passedCount } = await supabaseForDeals
       .from('companies')
       .select('*', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
       .not('passed_at', 'is', null);
     
-    // Get CIMs reviewed this month
+    // Get CIMs reviewed this month (use service role to bypass RLS)
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const { count: cimsThisMonth } = await supabase
+    const { count: cimsThisMonth } = await supabaseForDeals
       .from('companies')
       .select('*', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
       .eq('source_type', 'cim_pdf')
       .gte('created_at', startOfMonth.toISOString());
     
-    // Get deals passed this month
-    const { count: passedThisMonth } = await supabase
+    // Get deals passed this month (use service role to bypass RLS)
+    const { count: passedThisMonth } = await supabaseForDeals
       .from('companies')
       .select('*', { count: 'exact', head: true })
       .eq('workspace_id', workspaceId)
@@ -410,8 +425,24 @@ export async function getSearcherDeals(
     throw new Error('Access denied: Investor not linked to this searcher');
   }
   
-  // Get deals
-  const { data: deals, error: dealsError } = await supabase
+  // Use service role to bypass RLS when querying deals (we've verified investor is linked)
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  let supabaseForDeals = supabase;
+  if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      supabaseForDeals = createSupabaseClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { persistSession: false },
+      });
+    } catch (error) {
+      console.warn('Failed to create service role client for deals query:', error);
+      // Fall back to regular client
+    }
+  }
+  
+  // Get deals (use service role to bypass RLS)
+  const { data: deals, error: dealsError } = await supabaseForDeals
     .from('companies')
     .select('*')
     .eq('workspace_id', workspaceId)
@@ -420,13 +451,14 @@ export async function getSearcherDeals(
     .order('created_at', { ascending: false });
   
   if (dealsError) {
-    throw new Error('Failed to fetch deals');
+    throw new Error(`Failed to fetch deals: ${dealsError.message || dealsError.code || 'Unknown error'}`);
   }
   
   // Apply visibility settings based on access level
+  // Use service role for visibility queries too (we've verified investor is linked)
   const dealsWithVisibility = await Promise.all(
     (deals || []).map(async (deal) => {
-      const { data: visibility } = await supabase
+      const { data: visibility } = await supabaseForDeals
         .from('deal_investor_visibility')
         .select('*')
         .eq('deal_id', deal.id)

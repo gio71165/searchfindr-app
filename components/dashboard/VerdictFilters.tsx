@@ -48,7 +48,7 @@ interface VerdictButtonProps {
 
 function VerdictButton({ active, onClick, label, color }: VerdictButtonProps) {
   const colors = {
-    green: active ? 'bg-green-600 text-white' : 'bg-green-100 text-green-800',
+    green: active ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-800',
     yellow: active ? 'bg-yellow-600 text-white' : 'bg-yellow-100 text-yellow-800',
     gray: active ? 'bg-gray-600 text-white' : 'bg-gray-100 text-gray-800'
   };

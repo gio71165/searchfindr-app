@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Loader2, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2 } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/LoadingSpinner';
+import { AsyncButton } from '@/components/ui/AsyncButton';
 import { supabase } from '@/app/supabaseClient';
 import { showToast } from '@/components/ui/Toast';
 import type { SearchCriteria, CreateSearchCriteriaData } from '@/lib/types/search-criteria';
 import { JargonTooltip } from '@/components/ui/JargonTooltip';
+import { IconButton } from '@/components/ui/IconButton';
 
 interface SearchCriteriaModalProps {
   criteria: SearchCriteria | null;
@@ -178,12 +181,12 @@ export function SearchCriteriaModal({ criteria, onClose, onSuccess }: SearchCrit
           <h2 className="text-xl font-semibold text-slate-900">
             {criteria ? 'Edit Search Criteria' : 'Create Search Criteria'}
           </h2>
-          <button
+          <IconButton
             onClick={onClose}
+            icon={<X className="h-5 w-5" />}
+            label="Close modal"
             className="text-slate-400 hover:text-slate-600"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          />
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
@@ -483,20 +486,14 @@ export function SearchCriteriaModal({ criteria, onClose, onSuccess }: SearchCrit
 
           {/* Actions */}
           <div className="flex items-center gap-2 pt-4 border-t">
-            <button
+            <AsyncButton
               type="submit"
-              disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              isLoading={loading}
+              loadingText="Saving..."
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                criteria ? 'Update Criteria' : 'Create Criteria'
-              )}
-            </button>
+              {criteria ? 'Update Criteria' : 'Create Criteria'}
+            </AsyncButton>
             {criteria && (
               <button
                 type="button"

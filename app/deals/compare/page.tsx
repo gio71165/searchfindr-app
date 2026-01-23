@@ -9,6 +9,7 @@ import { getDealConfidence } from '@/app/deals/[id]/lib/confidence';
 import type { Deal, FinancialAnalysis, FinancialMetrics, DealScoring } from '@/lib/types/deal';
 import { Download, X, ExternalLink, TrendingUp, TrendingDown, Minus, Award } from 'lucide-react';
 import { showToast } from '@/components/ui/Toast';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 type ComparisonDeal = Deal & {
   financialAnalysis?: FinancialAnalysis | null;
@@ -369,7 +370,7 @@ function ComparePageContent() {
     return (
       <div className="p-8 max-w-7xl mx-auto">
         <div className="text-center py-20">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+          <LoadingSpinner size="lg" className="mb-4" />
           <p className="text-sm text-slate-600">Loading comparison...</p>
         </div>
       </div>
@@ -493,14 +494,14 @@ function ComparePageContent() {
                           key={idx}
                           className={`px-4 py-3 text-center text-sm ${
                             isWinner
-                              ? 'bg-green-50 text-green-900 font-semibold'
+                              ? 'bg-emerald-50 text-emerald-900 font-semibold'
                               : isLoser
                               ? 'bg-red-50 text-red-900'
                               : 'text-slate-700'
                           }`}
                         >
                           <div className="flex items-center justify-center gap-2">
-                            {isWinner && <Award className="h-4 w-4 text-green-600" />}
+                            {isWinner && <Award className="h-4 w-4 text-emerald-600" />}
                             {isLoser && <TrendingDown className="h-4 w-4 text-red-600" />}
                             {!isWinner && !isLoser && raw !== null && raw !== undefined && winnerIdx === null && (
                               <Minus className="h-4 w-4 text-slate-400" />
@@ -543,7 +544,7 @@ function ComparePageContent() {
                   <ul className="text-xs text-slate-700 space-y-1">
                     {strengths.slice(0, 3).map((s, sIdx) => (
                       <li key={sIdx} className="flex items-start gap-1">
-                        <span className="text-green-600">•</span>
+                        <span className="text-emerald-600">•</span>
                         <span>{s}</span>
                       </li>
                     ))}
@@ -603,7 +604,7 @@ export default function ComparePage() {
     <Suspense fallback={
       <div className="p-8 max-w-7xl mx-auto">
         <div className="text-center py-20">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+          <LoadingSpinner size="lg" className="mb-4" />
           <p className="text-sm text-slate-600">Loading comparison...</p>
         </div>
       </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Info, X, RefreshCw } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -10,6 +10,10 @@ export interface Toast {
   message: string;
   type: ToastType;
   duration?: number;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
 interface ToastProps {
@@ -38,10 +42,10 @@ function ToastComponent({ toast, onRemove }: ToastProps) {
   const config = {
     success: {
       icon: CheckCircle2,
-      bg: 'bg-green-50',
-      border: 'border-green-200',
-      text: 'text-green-800',
-      iconColor: 'text-green-600',
+      bg: 'bg-emerald-50',
+      border: 'border-emerald-200',
+      text: 'text-emerald-800',
+      iconColor: 'text-emerald-600',
     },
     error: {
       icon: AlertCircle,
@@ -75,7 +79,21 @@ function ToastComponent({ toast, onRemove }: ToastProps) {
       aria-live="polite"
     >
       <Icon className={`h-5 w-5 ${style.iconColor} flex-shrink-0 mt-0.5`} />
-      <p className="flex-1 text-sm font-medium">{toast.message}</p>
+      <div className="flex-1">
+        <p className="text-sm font-medium">{toast.message}</p>
+        {toast.action && (
+          <button
+            onClick={() => {
+              toast.action?.onClick();
+              handleRemove();
+            }}
+            className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium underline hover:no-underline"
+          >
+            <RefreshCw className="h-3 w-3" />
+            {toast.action.label}
+          </button>
+        )}
+      </div>
       <button
         onClick={handleRemove}
         className={`${style.iconColor} hover:opacity-70 transition-opacity flex-shrink-0`}
@@ -117,9 +135,14 @@ function notifyListeners() {
   toastListeners.forEach((listener) => listener([...toasts]));
 }
 
-export function showToast(message: string, type: ToastType = 'info', duration?: number) {
+export function showToast(
+  message: string, 
+  type: ToastType = 'info', 
+  duration?: number,
+  action?: { label: string; onClick: () => void }
+) {
   const id = `toast-${++toastIdCounter}`;
-  const newToast: Toast = { id, message, type, duration };
+  const newToast: Toast = { id, message, type, duration, action };
   toasts = [...toasts, newToast];
   notifyListeners();
   return id;

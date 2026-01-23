@@ -8,6 +8,8 @@ import { DealCard } from '@/components/ui/DealCard';
 import { ContentHeader } from '@/components/dashboard/ContentHeader';
 import { PipelineSummary } from '@/components/dashboard/PipelineSummary';
 import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { AsyncButton } from '@/components/ui/AsyncButton';
 
 const OFFMARKET_INDUSTRIES = [
   'HVAC',
@@ -261,7 +263,12 @@ export default function OffMarketPage() {
   if (authLoading || loading) {
     return (
       <div className="p-8 max-w-7xl mx-auto">
-        <div className="text-center py-12">Loading...</div>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <LoadingSpinner size="lg" className="mb-4" />
+            <p className="text-sm text-slate-600">Loading off-market deals...</p>
+          </div>
+        </div>
       </div>
     );
   }
@@ -375,7 +382,7 @@ export default function OffMarketPage() {
             className={`mb-4 p-3 rounded-lg ${
               searchStatus.includes('error') || searchStatus.includes('failed')
                 ? 'bg-red-50 text-red-700 border border-red-200'
-                : 'bg-green-50 text-green-700 border border-green-200'
+                : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
             }`}
           >
             {searchStatus}
@@ -383,13 +390,15 @@ export default function OffMarketPage() {
         )}
 
         {/* Search Button */}
-        <button
+        <AsyncButton
           onClick={handleSearch}
-          disabled={searching || industries.length === 0 || !city.trim()}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          isLoading={searching}
+          loadingText="Searching..."
+          disabled={industries.length === 0 || !city.trim()}
+          className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
         >
-          {searching ? 'Searching...' : 'Search'}
-        </button>
+          Search
+        </AsyncButton>
       </div>
 
       {/* Off-Market Deals Section */}

@@ -6,7 +6,6 @@ import {
   ChevronDown, 
   ChevronUp, 
   FileText, 
-  Loader2, 
   AlertTriangle,
   CheckCircle2,
   Clock,
@@ -20,6 +19,7 @@ import {
 import { supabase } from '@/app/supabaseClient';
 import { getDDProgress, type DDProgress, type DDItem } from '@/lib/data-access/dd-tracker';
 import { showToast } from '@/components/ui/Toast';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 type StatusFilter = 'all' | 'not_started' | 'requested' | 'received' | 'reviewed' | 'issue_found' | 'cleared';
 
@@ -228,9 +228,9 @@ export function DDTracker({ dealId }: { dealId: string }) {
       not_started: { icon: Clock, color: 'bg-gray-100 text-gray-700', label: 'Not Started' },
       requested: { icon: FileText, color: 'bg-blue-100 text-blue-700', label: 'Requested' },
       received: { icon: FileCheck, color: 'bg-yellow-100 text-yellow-700', label: 'Received' },
-      reviewed: { icon: CheckCircle2, color: 'bg-green-100 text-green-700', label: 'Reviewed' },
+      reviewed: { icon: CheckCircle2, color: 'bg-emerald-100 text-emerald-700', label: 'Reviewed' },
       issue_found: { icon: AlertTriangle, color: 'bg-red-100 text-red-700', label: 'Issue Found' },
-      cleared: { icon: CheckSquare, color: 'bg-green-100 text-green-700', label: 'Cleared' },
+      cleared: { icon: CheckSquare, color: 'bg-emerald-100 text-emerald-700', label: 'Cleared' },
     };
     
     const badge = badges[status];
@@ -284,7 +284,7 @@ export function DDTracker({ dealId }: { dealId: string }) {
     return (
       <div className="rounded-lg border border-slate-200 bg-white p-6">
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          <LoadingSpinner size="md" />
         </div>
       </div>
     );
@@ -306,7 +306,7 @@ export function DDTracker({ dealId }: { dealId: string }) {
           >
             {initializing ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <LoadingSpinner size="sm" />
                 Initializing...
               </>
             ) : (
@@ -355,7 +355,7 @@ export function DDTracker({ dealId }: { dealId: string }) {
         </div>
         <div className="w-full bg-slate-200 rounded-full h-3">
           <div
-            className="bg-green-600 h-3 rounded-full transition-all"
+            className="bg-emerald-600 h-3 rounded-full transition-all"
             style={{ width: `${progress.progressPercent}%` }}
           />
         </div>
@@ -434,7 +434,7 @@ export function DDTracker({ dealId }: { dealId: string }) {
                           key={item.id}
                           className={`p-3 rounded-lg border ${
                             item.status === 'issue_found' ? 'border-red-200 bg-red-50' :
-                            item.status === 'cleared' ? 'border-green-200 bg-green-50' :
+                            item.status === 'cleared' ? 'border-emerald-200 bg-emerald-50' :
                             'border-slate-200 bg-white'
                           }`}
                         >

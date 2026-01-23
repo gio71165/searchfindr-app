@@ -11,6 +11,9 @@ import { PipelineSummary } from '@/components/dashboard/PipelineSummary';
 import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
 import { Upload } from 'lucide-react';
 import { DragDropZone } from '@/components/ui/DragDropZone';
+import { LoadingSpinner, LoadingDots } from '@/components/ui/LoadingSpinner';
+import { AsyncButton } from '@/components/ui/AsyncButton';
+import { ErrorState } from '@/components/ui/ErrorState';
 
 export default function CimsPage() {
   const router = useRouter();
@@ -94,6 +97,7 @@ export default function CimsPage() {
   }, [authLoading, user, workspaceId, router]);
 
   async function loadDeals(wsId: string) {
+    setErrorMsg(null);
     // Optimized: Only fetch columns needed for DealCard display
     const columns = 'id,company_name,location_city,location_state,industry,source_type,final_tier,created_at,stage,verdict,next_action_date,sba_eligible,deal_size_band,is_saved,asking_price_extracted,ebitda_ttm_extracted,next_action';
     const { data, error } = await supabase
@@ -106,12 +110,12 @@ export default function CimsPage() {
       .limit(100);
 
     if (error) {
-      // Error already handled via setErrorMsg
       setErrorMsg(`Failed to load deals: ${error.message || 'Unknown error'}`);
       return;
     }
 
     setDeals(data || []);
+    setErrorMsg(null);
   }
 
   // Apply filters
@@ -429,7 +433,7 @@ export default function CimsPage() {
     <div className="p-4 sm:p-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-4"></div>
+          <LoadingSpinner size="lg" className="mb-4" />
           <p className="text-sm text-slate-600">Loading...</p>
         </div>
       </div>
@@ -453,13 +457,15 @@ export default function CimsPage() {
                 Upload our sample CIM to see how AI analysis works. This will create a demo deal you can explore.
               </p>
             </div>
-            <button
+            <AsyncButton
               onClick={handleUploadSampleCim}
-              disabled={uploadingSample || !user || !workspaceId}
-              className="ml-4 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium whitespace-nowrap"
+              isLoading={uploadingSample}
+              loadingText="Uploading..."
+              disabled={!user || !workspaceId}
+              className="ml-4 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium whitespace-nowrap"
             >
-              {uploadingSample ? 'Uploading...' : 'Upload Sample CIM'}
-            </button>
+              Upload Sample CIM
+            </AsyncButton>
           </div>
         </div>
       )}
@@ -532,9 +538,14 @@ export default function CimsPage() {
       )}
 
       {/* Error Message */}
-      {errorMsg && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 mt-4">
-          {errorMsg}
+      {errorMsg && !loading && !cimUploadStatus && (
+        <div className="mt-4">
+          <ErrorState
+            title="Couldn't load CIMs"
+            message={errorMsg}
+            onRetry={() => workspaceId && loadDeals(workspaceId)}
+            retryText="Try again"
+          />
         </div>
       )}
     </div>

@@ -3,7 +3,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { ComparisonTable, type ComparisonDeal } from '@/app/deals/[id]/components/ComparisonTable';
-import { X, Loader2 } from 'lucide-react';
+import { X } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { IconButton } from '@/components/ui/IconButton';
 
 interface CompareDealModalProps {
   dealId: string;
@@ -80,20 +82,20 @@ export function CompareDealModal({
               Compare this deal against your recent deals
             </p>
           </div>
-          <button
+          <IconButton
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="h-5 w-5 text-gray-500" />
-          </button>
+            icon={<X className="h-5 w-5 text-gray-500" />}
+            label="Close modal"
+            className="p-2 hover:bg-gray-100"
+          />
         </div>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              <span className="ml-3 text-gray-600">Loading comparison data...</span>
+            <div className="flex items-center justify-center py-12 gap-3">
+              <LoadingSpinner size="lg" />
+              <span className="text-gray-600">Loading comparison data...</span>
             </div>
           ) : error ? (
             <div className="text-center py-12">

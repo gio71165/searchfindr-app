@@ -115,7 +115,8 @@ export function DealTags({ dealId, tags: initialTags, onUpdate }: DealTagsProps)
                 <button
                   onClick={() => handleRemoveTag(tag)}
                   disabled={isSaving}
-                  className="hover:bg-blue-100 rounded-full p-0.5 transition-colors disabled:opacity-50"
+                  className="touch-target hover:bg-blue-100 rounded-full p-2 transition-colors disabled:opacity-50"
+                  aria-label="Remove tag"
                 >
                   <X className="h-3 w-3" />
                 </button>

@@ -2,7 +2,7 @@
 
 import React, { useState, memo, useCallback } from 'react';
 import Link from 'next/link';
-import { MapPin, Building2, Calendar, DollarSign, TrendingUp, StickyNote, Plus, Tag } from 'lucide-react';
+import { MapPin, Building2, Calendar, DollarSign, TrendingUp, StickyNote, Plus, Tag, Clock, ChevronRight } from 'lucide-react';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { SourceBadge } from './SourceBadge';
 import { Skeleton } from './Skeleton';
@@ -13,6 +13,8 @@ import { supabase } from '@/app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
 import { logger } from '@/lib/utils/logger';
 import { JargonTooltip } from './JargonTooltip';
+import { LoadingDots } from './LoadingSpinner';
+import { AsyncButton } from './AsyncButton';
 
 type Deal = {
   id: string;
@@ -163,7 +165,7 @@ function DealCardComponent({
 
       onArchive?.(deal.id);
     } catch (error) {
-      console.error('Error archiving deal:', error);
+      logger.error('Error archiving deal:', error);
       alert(error instanceof Error ? error.message : 'Failed to archive deal');
     } finally {
       setIsArchiving(false);
@@ -239,15 +241,50 @@ function DealCardComponent({
   const sbaEligible = deal.sba_eligible !== undefined ? deal.sba_eligible : deal.criteria_match_json?.sba_eligible ?? null;
   const nextAction = deal.next_action || deal.criteria_match_json?.recommended_next_action || null;
 
+  // Helper to format currency from string or number
+  const formatCurrency = (value: string | number | null | undefined): string => {
+    if (!value) return '—';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number') {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0,
+      }).format(value);
+    }
+    return '—';
+  };
+
   return (
-    <div className={`group rounded-xl border bg-white p-6 transition-all duration-200 hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-0.5 ${
-      isSelected 
-        ? 'border-blue-500 border-2 bg-blue-50/30' 
-        : 'border-slate-200 hover:border-slate-300'
-    }`}>
+    <>
+      {/* Desktop card (current design) */}
+      <div className="hidden md:block">
+        <Link
+          href={`/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`}
+          className="block group focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded-xl"
+          aria-label={`View details for ${deal.company_name || 'deal'}`}
+          onClick={(e) => {
+            // Allow clicks on interactive elements to work normally
+            const target = e.target as HTMLElement;
+            if (
+              target.closest('button') ||
+              target.closest('input') ||
+              target.closest('[role="button"]') ||
+              target.closest('a[href]') ||
+              target.closest('[data-no-link]')
+            ) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <div className={`rounded-xl border bg-white p-6 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.01] group-hover:border-gray-300 ${
+            isSelected 
+              ? 'border-blue-500 border-2 bg-blue-50/30' 
+              : 'border-slate-200'
+          }`}>
       {/* Comparison Checkbox */}
       {onToggleSelect && (
-        <div className="flex items-center justify-end mb-3">
+        <div className="flex items-center justify-end mb-3" data-no-link onClick={(e) => e.stopPropagation()}>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -284,20 +321,19 @@ function DealCardComponent({
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3 mb-3">
-            <Link
-              href={`/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`}
-              className="block flex-1 min-w-0"
-            >
-              <h3 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors duration-200 leading-tight">
+            <div className="flex-1 min-w-0" data-no-link>
+              <h3 className="text-xl font-bold text-slate-900 group-hover:text-emerald-600 transition-colors duration-200 leading-tight">
                 {deal.company_name || 'Untitled Deal'}
               </h3>
-            </Link>
-            <MoreActionsMenu
-              dealId={deal.id}
-              isArchived={isArchived}
-              onArchive={handleArchive}
-              onDelete={handleDelete}
-            />
+            </div>
+            <div data-no-link onClick={(e) => e.stopPropagation()}>
+              <MoreActionsMenu
+                dealId={deal.id}
+                isArchived={isArchived}
+                onArchive={handleArchive}
+                onDelete={handleDelete}
+              />
+            </div>
           </div>
 
           {/* Badges Row */}
@@ -415,11 +451,13 @@ function DealCardComponent({
             </div>
             {!showNoteInput && (
               <button
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setNoteInput(deal.user_notes || '');
                   setShowNoteInput(true);
                 }}
-                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+                className="text-xs text-blue-600 hover:text-blue-700 font-medium min-h-[44px] px-2 py-1"
+                data-no-link
               >
                 Edit
               </button>
@@ -427,7 +465,7 @@ function DealCardComponent({
           </div>
           
           {showNoteInput ? (
-            <div className="space-y-2">
+              <div className="space-y-2" data-no-link onClick={(e) => e.stopPropagation()}>
               <textarea
                 value={noteInput}
                 onChange={(e) => setNoteInput(e.target.value)}
@@ -435,10 +473,12 @@ function DealCardComponent({
                 className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                 rows={3}
                 maxLength={1000}
+                onClick={(e) => e.stopPropagation()}
               />
               <div className="flex items-center gap-2">
-                <button
-                  onClick={async () => {
+                <AsyncButton
+                  onClick={async (e) => {
+                    e.stopPropagation();
                     setIsSavingNote(true);
                     try {
                       if (!session) {
@@ -469,18 +509,21 @@ function DealCardComponent({
                       setIsSavingNote(false);
                     }
                   }}
-                  disabled={isSavingNote}
-                  className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                  isLoading={isSavingNote}
+                  loadingText="Saving..."
+                  className="px-3 py-2.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors min-h-[44px]"
                 >
-                  {isSavingNote ? 'Saving...' : 'Save'}
-                </button>
+                  Save
+                </AsyncButton>
                 <button
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     setNoteInput(deal.user_notes || '');
                     setShowNoteInput(false);
                   }}
                   disabled={isSavingNote}
-                  className="px-3 py-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors disabled:opacity-50"
+                  className="px-3 py-2.5 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors disabled:opacity-50 min-h-[44px]"
+                  data-no-link
                 >
                   Cancel
                 </button>
@@ -496,13 +539,15 @@ function DealCardComponent({
 
       {/* Quick Add Note Button */}
       {!deal.user_notes && !showNoteInput && (
-        <div className="mb-4">
+        <div className="mb-4" data-no-link onClick={(e) => e.stopPropagation()}>
           <button
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               setNoteInput('');
               setShowNoteInput(true);
             }}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors"
+            className="w-full flex items-center justify-center gap-2 px-3 py-3 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors min-h-[44px]"
+            data-no-link
           >
             <Plus className="h-3.5 w-3.5" />
             Add Note
@@ -511,26 +556,146 @@ function DealCardComponent({
       )}
 
       {/* Action Buttons */}
-      <div className="flex items-center gap-3 pt-4 border-t border-slate-200">
-        <Link
-          href={`/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`}
-          className="flex-1 text-center px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-200 hover:shadow-md hover:shadow-blue-200"
-        >
+      <div className="flex items-center gap-3 pt-4 border-t border-slate-200" data-no-link onClick={(e) => e.stopPropagation()}>
+        <div className="flex-1 text-center px-4 py-3 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-200 hover:shadow-md hover:shadow-blue-200 pointer-events-none min-h-[44px] flex items-center justify-center">
           View Details
-        </Link>
+        </div>
         {onSaveToggle && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               onSaveToggle(deal.id);
             }}
-            className="px-4 py-2.5 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:border-slate-400 rounded-lg transition-all duration-200"
+            className="px-4 py-3 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:border-slate-400 rounded-lg transition-all duration-200 min-h-[44px]"
+            data-no-link
           >
             {deal.is_saved ? 'Unsave' : 'Save'}
           </button>
         )}
       </div>
-    </div>
+      </div>
+        </Link>
+      </div>
+
+      {/* Mobile card (simplified) */}
+      <div className="md:hidden">
+        <Link
+          href={`/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`}
+          className="block focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded-lg"
+          aria-label={`View details for ${deal.company_name || 'deal'}`}
+          onClick={(e) => {
+            // Allow clicks on interactive elements to work normally
+            const target = e.target as HTMLElement;
+            if (
+              target.closest('button') ||
+              target.closest('input') ||
+              target.closest('[role="button"]') ||
+              target.closest('[data-no-link]')
+            ) {
+              e.preventDefault();
+            }
+          }}
+        >
+          <div className={`bg-white rounded-lg p-4 border border-gray-200 active:bg-gray-50 relative ${
+            isSelected 
+              ? 'border-blue-500 border-2 bg-blue-50/30' 
+              : ''
+          }`}>
+            {/* Comparison Checkbox */}
+            {onToggleSelect && (
+              <div className="flex items-center justify-end mb-3" data-no-link onClick={(e) => e.stopPropagation()}>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isSelected || false}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      if (canSelect !== false) {
+                        onToggleSelect(deal.id);
+                      }
+                    }}
+                    disabled={canSelect === false && !isSelected}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <span className="text-xs text-slate-600 font-medium">
+                    {isSelected ? 'Selected' : 'Select'}
+                  </span>
+                </label>
+              </div>
+            )}
+
+            {/* Header: Name + Tier */}
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex-1 min-w-0 pr-2">
+                <h3 className="font-semibold text-base truncate text-gray-900 mb-1">
+                  {deal.company_name || 'Untitled Deal'}
+                </h3>
+                {deal.industry && (
+                  <p className="text-sm text-gray-600 truncate">
+                    {deal.industry}
+                  </p>
+                )}
+              </div>
+              {(deal.source_type === 'on_market' || deal.source_type === 'off_market') && deal.final_tier && (
+                <div className="flex-shrink-0" data-no-link onClick={(e) => e.stopPropagation()}>
+                  <TierBadge tier={deal.final_tier} />
+                </div>
+              )}
+            </div>
+            
+            {/* Key metrics - 2 column grid */}
+            {(askingPrice || ebitda) && (
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                {askingPrice && (
+                  <div>
+                    <p className="text-xs text-gray-500">Asking Price</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {formatCurrency(askingPrice)}
+                    </p>
+                  </div>
+                )}
+                {ebitda && (
+                  <div>
+                    <p className="text-xs text-gray-500">EBITDA</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {formatCurrency(ebitda)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Badges - horizontal scroll */}
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-4 px-4 scrollbar-hide">
+              {sbaEligible && (
+                <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded whitespace-nowrap">
+                  SBA Eligible
+                </span>
+              )}
+              {verdict && (
+                <VerdictBadge verdict={verdict} />
+              )}
+              <SourceBadge source={deal.source_type} />
+              {confidenceLevel && (
+                <ConfidenceBadge level={confidenceLevel} analyzed={analyzed} />
+              )}
+            </div>
+            
+            {/* Next action - condensed */}
+            {nextAction && (
+              <div className="flex items-center gap-2 text-xs text-gray-600">
+                <Clock className="w-3 h-3 flex-shrink-0" />
+                <span className="truncate">{nextAction}</span>
+              </div>
+            )}
+            
+            {/* Chevron indicator */}
+            <ChevronRight className="absolute right-4 top-4 w-5 h-5 text-gray-400 pointer-events-none" />
+          </div>
+        </Link>
+      </div>
+    </>
   );
 }
 

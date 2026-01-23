@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { supabase } from '../app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
 import { ChevronDown, LogOut, Settings, User, Zap, Shield, LayoutDashboard, TrendingUp, HelpCircle, Mail } from 'lucide-react';
+import { IconButton } from '@/components/ui/IconButton';
 
 const STRIPE_PAYMENT_URL = 'https://buy.stripe.com/dRm4gz1ReaTxct01lKawo00';
 
@@ -78,7 +79,7 @@ export function Navigation() {
           <div className="flex items-center gap-3">
             <Link
               href="/settings"
-              className="flex items-center gap-2 px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-700 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 text-sm font-medium text-slate-700 transition-colors min-h-[44px]"
             >
               <Zap className="h-4 w-4" />
               <span className="hidden sm:inline">Extension API Key</span>
@@ -88,7 +89,7 @@ export function Navigation() {
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-lg transition-colors min-h-[44px]"
               >
                 <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
                   <User className="h-4 w-4 text-blue-600" />
@@ -112,7 +113,7 @@ export function Navigation() {
                       <Link
                         href="/admin"
                         onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                        className="flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors min-h-[44px]"
                       >
                         <Shield className="h-4 w-4" />
                         Admin Dashboard
@@ -122,7 +123,7 @@ export function Navigation() {
                       <Link
                         href="/investor"
                         onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                        className="flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors min-h-[44px]"
                       >
                         <TrendingUp className="h-4 w-4" />
                         Investor Dashboard
@@ -132,7 +133,7 @@ export function Navigation() {
                       <Link
                         href="/dashboard"
                         onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                        className="flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors min-h-[44px]"
                       >
                         <LayoutDashboard className="h-4 w-4" />
                         User Dashboard
@@ -142,7 +143,7 @@ export function Navigation() {
                       <Link
                         href="/dashboard"
                         onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                        className="flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors min-h-[44px]"
                       >
                         <LayoutDashboard className="h-4 w-4" />
                         Searcher Dashboard
@@ -152,7 +153,7 @@ export function Navigation() {
                       href="/settings"
                       onClick={() => setShowUserMenu(false)}
                       data-onboarding="settings-link"
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      className="flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors min-h-[44px]"
                     >
                       <Settings className="h-4 w-4" />
                       Settings
@@ -160,7 +161,7 @@ export function Navigation() {
                     <Link
                       href="/help"
                       onClick={() => setShowUserMenu(false)}
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      className="flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors min-h-[44px]"
                     >
                       <HelpCircle className="h-4 w-4" />
                       Help & Support
@@ -170,7 +171,7 @@ export function Navigation() {
                         setShowUserMenu(false);
                         handleLogout();
                       }}
-                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors min-h-[44px]"
                     >
                       <LogOut className="h-4 w-4" />
                       Log out

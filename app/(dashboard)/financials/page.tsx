@@ -11,6 +11,7 @@ import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
 import { DollarSign } from 'lucide-react';
 import { DragDropZone } from '@/components/ui/DragDropZone';
 import { JargonTooltip } from '@/components/ui/JargonTooltip';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 function isAllowedFinancialFile(file: File) {
   const name = (file.name || '').toLowerCase();
@@ -227,7 +228,18 @@ export default function FinancialsPage() {
     }
   };
 
-  if (authLoading || loading) return <div className="p-8">Loading...</div>;
+  if (authLoading || loading) {
+    return (
+      <div className="p-8 max-w-7xl mx-auto">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <LoadingSpinner size="lg" className="mb-4" />
+            <p className="text-sm text-slate-600">Loading financials...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-8 max-w-7xl mx-auto">
@@ -264,7 +276,7 @@ export default function FinancialsPage() {
           disabled={!userId || !workspaceId}
           label="Upload Financials"
           description="Drag and drop a PDF, CSV, or Excel file here, or click to browse"
-          icon={<DollarSign className="h-12 w-12 text-green-500" />}
+          icon={<DollarSign className="h-12 w-12 text-emerald-500" />}
           allowedFileTypes={['.pdf', '.csv', '.xlsx', '.xls', 'application/pdf', 'text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel']}
           validateFile={(file) => {
             if (!isAllowedFinancialFile(file)) {
@@ -290,7 +302,7 @@ export default function FinancialsPage() {
           </p>
           <button
             onClick={handleFinancialsButtonClick}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+            className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium"
           >
             Upload Financials
           </button>

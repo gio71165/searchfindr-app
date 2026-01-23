@@ -3,13 +3,13 @@
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Navigation } from '@/components/Navigation';
 import { useAuth } from '@/lib/auth-context';
-import { Loader2 } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 function LoadingScreen() {
   return (
     <div className="flex h-screen items-center justify-center bg-[#F9FAFB]">
       <div className="text-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+        <LoadingSpinner size="lg" className="mx-auto mb-4" />
         <p className="text-slate-600">Loading SearchFindr...</p>
       </div>
     </div>
@@ -27,10 +27,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   
   return (
     <div className="flex h-screen overflow-hidden flex-col">
+      {/* Skip to content link - only visible on keyboard focus */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-emerald-600 focus:text-white focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+      >
+        Skip to main content
+      </a>
       <Navigation />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto bg-[#F9FAFB] lg:ml-0">
+        <main id="main-content" className="flex-1 overflow-y-auto bg-[#F9FAFB] lg:ml-0">
           {children}
         </main>
       </div>

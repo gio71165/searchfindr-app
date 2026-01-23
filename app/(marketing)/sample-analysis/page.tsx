@@ -54,9 +54,9 @@ export default function SampleAnalysisPage() {
         icon: CheckCircle2,
         label: 'Proceed',
         color: 'green',
-        bgColor: 'bg-green-50',
-        borderColor: 'border-green-200',
-        textColor: 'text-green-700',
+        bgColor: 'bg-emerald-50',
+        borderColor: 'border-emerald-200',
+        textColor: 'text-emerald-700',
       };
     }
     return {
@@ -241,15 +241,15 @@ export default function SampleAnalysisPage() {
             </div>
 
             {/* Strengths */}
-            <div className="rounded-lg border border-green-200 bg-green-50 border-l-4 border-l-green-500 p-6">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 border-l-4 border-l-emerald-500 p-6">
               <div className="flex items-center gap-2 mb-4">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                 <h3 className="text-xl font-semibold text-slate-900">Strengths</h3>
               </div>
               <ul className="space-y-2">
                 {SAMPLE_ANALYSIS.strengths.map((strength, idx) => (
                   <li key={idx} className="flex items-start gap-2 text-sm">
-                    <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
                     <span className="text-slate-700">{strength}</span>
                   </li>
                 ))}

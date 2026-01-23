@@ -4,6 +4,8 @@ import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../supabaseClient';
 import { Navigation } from '@/components/Navigation';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { AsyncButton } from '@/components/ui/AsyncButton';
 
 function safeInternalPath(p: string | null, fallback: string): string {
   if (!p) return fallback;
@@ -156,13 +158,14 @@ function LoginPageContent() {
                   </p>
                 </div>
 
-                <button
+                <AsyncButton
                   type="submit"
-                  disabled={loading}
-                  className="w-full rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  isLoading={loading}
+                  loadingText="Please wait…"
+                  className="w-full rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-400"
                 >
-                  {loading ? 'Please wait…' : 'Log in'}
-                </button>
+                  Log in
+                </AsyncButton>
 
                 <p className="text-center text-xs text-slate-400">
                   By continuing, you agree to keep deal data private.
@@ -181,7 +184,10 @@ export default function LoginPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen bg-[#0b0f17] text-slate-100 flex items-center justify-center">
-        <div className="text-slate-400">Loading...</div>
+        <div className="text-center">
+          <LoadingSpinner size="lg" className="mb-4" />
+          <p className="text-sm text-slate-400">Loading...</p>
+        </div>
       </div>
     }>
       <LoginPageContent />

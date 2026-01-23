@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Building2, Plus, X, Edit2, Trash2, Star } from 'lucide-react';
 import { supabase } from '@/app/supabaseClient';
 import { showToast } from '@/components/ui/Toast';
+import { AsyncButton } from '@/components/ui/AsyncButton';
 
 interface Broker {
   id: string;
@@ -23,7 +24,7 @@ interface BrokerSelectorProps {
 }
 
 const QUALITY_COLORS = {
-  excellent: 'text-green-600 bg-green-50 border-green-200',
+  excellent: 'text-emerald-600 bg-emerald-50 border-emerald-200',
   good: 'text-blue-600 bg-blue-50 border-blue-200',
   average: 'text-yellow-600 bg-yellow-50 border-yellow-200',
   poor: 'text-red-600 bg-red-50 border-red-200',
@@ -34,6 +35,7 @@ export function BrokerSelector({ dealId, currentBrokerId, onUpdate }: BrokerSele
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingBroker, setEditingBroker] = useState<Broker | null>(null);
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     firm: '',
@@ -257,14 +259,14 @@ export function BrokerSelector({ dealId, currentBrokerId, onUpdate }: BrokerSele
             <div className="flex items-center gap-1">
               <button
                 onClick={() => startEdit(currentBroker)}
-                className="p-1 text-slate-400 hover:text-blue-600 transition-colors"
+                className="touch-target p-2 text-slate-400 hover:text-blue-600 transition-colors"
                 title="Edit broker"
               >
                 <Edit2 className="h-3 w-3" />
               </button>
               <button
                 onClick={() => handleSelectBroker(null)}
-                className="p-1 text-slate-400 hover:text-red-600 transition-colors"
+                className="touch-target p-2 text-slate-400 hover:text-red-600 transition-colors"
                 title="Remove broker"
               >
                 <X className="h-3 w-3" />
@@ -379,12 +381,14 @@ export function BrokerSelector({ dealId, currentBrokerId, onUpdate }: BrokerSele
             </div>
 
             <div className="flex items-center gap-2 mt-6">
-              <button
+              <AsyncButton
                 onClick={handleSaveBroker}
+                isLoading={saving}
+                loadingText={editingBroker ? 'Updating...' : 'Creating...'}
                 className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
               >
                 {editingBroker ? 'Update' : 'Create'}
-              </button>
+              </AsyncButton>
               {editingBroker && (
                 <button
                   onClick={() => handleDeleteBroker(editingBroker.id)}

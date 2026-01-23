@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Calculator, Loader2, AlertTriangle, CheckCircle2, TrendingUp, Info, Sparkles } from 'lucide-react';
+import { Calculator, AlertTriangle, CheckCircle2, TrendingUp, Info, Sparkles } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/LoadingSpinner';
 import type { Deal } from '@/lib/types/deal';
 import type { SBA7aInputs, SBA7aOutputs, SBAScenario } from '@/lib/types/sba';
 import { JargonTooltip } from '@/components/ui/JargonTooltip';
@@ -237,12 +238,12 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
 
   const getMetricColor = (value: number, metric: string) => {
     if (metric === 'dsc') {
-      if (value >= 1.5) return 'text-green-600';
+      if (value >= 1.5) return 'text-emerald-600';
       if (value >= 1.25) return 'text-yellow-600';
       return 'text-red-600';
     }
     if (metric === 'coc') {
-      if (value >= 20) return 'text-green-600';
+      if (value >= 20) return 'text-emerald-600';
       if (value >= 10) return 'text-yellow-600';
       return 'text-red-600';
     }
@@ -460,7 +461,7 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
         >
           {calculating ? (
             <>
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <LoadingDots />
               <span>Calculating...</span>
             </>
           ) : (
@@ -522,10 +523,10 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
             </div>
           )}
           {sbaResult.sbaEligible && sbaResult.sbaEligibilityWarnings.length === 0 && (
-            <div className="p-4 rounded-lg bg-green-50 border border-green-200">
+            <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <p className="text-sm font-medium text-green-900">SBA eligible - meets all requirements</p>
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                <p className="text-sm font-medium text-emerald-900">SBA eligible - meets all requirements</p>
               </div>
             </div>
           )}
@@ -634,18 +635,18 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
           </div>
           {/* Fee Waiver Savings - Display prominently */}
           {sbaResult.feeWaiverSavings && sbaResult.feeWaiverSavings > 0 && (
-            <div className="p-4 rounded-lg bg-green-50 border-2 border-green-400 shadow-sm">
+            <div className="p-4 rounded-lg bg-emerald-50 border-2 border-emerald-400 shadow-sm">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-medium text-green-700 mb-1">Manufacturing Fee Waiver Savings</p>
-                  <p className="text-2xl font-bold text-green-900">
+                  <p className="text-xs font-medium text-emerald-700 mb-1">Manufacturing Fee Waiver Savings</p>
+                  <p className="text-2xl font-bold text-emerald-900">
                     ${sbaResult.feeWaiverSavings.toLocaleString()}
                   </p>
-                  <p className="text-xs text-green-600 mt-1">
+                  <p className="text-xs text-emerald-600 mt-1">
                     $0 SBA guarantee fee applied (waiver expires Sept 30, 2026)
                   </p>
                 </div>
-                <Sparkles className="h-8 w-8 text-green-600" />
+                <Sparkles className="h-8 w-8 text-emerald-600" />
               </div>
             </div>
           )}

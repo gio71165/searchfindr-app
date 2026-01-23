@@ -32,7 +32,7 @@ export function FinancialSnapshot({
         <span className="text-slate-700">
           {value} (Industry: {range})
         </span>
-        <span className={withinRange ? 'text-green-600' : 'text-yellow-600'}>
+        <span className={withinRange ? 'text-emerald-600' : 'text-yellow-600'}>
           {withinRange ? '✅' : '⚠️'}
         </span>
       </div>

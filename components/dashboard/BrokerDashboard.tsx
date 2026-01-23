@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { 
   Building2, 
-  Loader2, 
   Eye, 
   Edit2, 
   MessageSquare, 
@@ -174,7 +174,7 @@ export function BrokerDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -325,7 +325,7 @@ export function BrokerDashboard() {
                       <div className="flex items-center justify-end gap-1">
                         {calculateProceedRate(broker)}%
                         {calculateProceedRate(broker) >= 50 ? (
-                          <TrendingUp className="h-4 w-4 text-green-600" />
+                          <TrendingUp className="h-4 w-4 text-emerald-600" />
                         ) : (
                           <TrendingDown className="h-4 w-4 text-red-600" />
                         )}
@@ -335,7 +335,7 @@ export function BrokerDashboard() {
                       <div className="flex items-center justify-end gap-1">
                         {calculateWinRate(broker)}%
                         {calculateWinRate(broker) >= 30 ? (
-                          <TrendingUp className="h-4 w-4 text-green-600" />
+                          <TrendingUp className="h-4 w-4 text-emerald-600" />
                         ) : (
                           <TrendingDown className="h-4 w-4 text-red-600" />
                         )}
@@ -364,7 +364,7 @@ export function BrokerDashboard() {
                             setSelectedBroker(broker);
                             setShowInteractionModal(true);
                           }}
-                          className="p-1.5 text-slate-400 hover:text-green-600 transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-emerald-600 transition-colors"
                           title="Log Interaction"
                         >
                           <MessageSquare className="h-4 w-4" />

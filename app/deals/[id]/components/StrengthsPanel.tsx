@@ -88,7 +88,7 @@ export function StrengthsPanel({ deal, financialAnalysis }: { deal: Deal; financ
     <ul className="space-y-2">
       {uniqueStrengths.map((strength, idx) => (
         <li key={idx} className="flex items-start gap-2 text-sm">
-          <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
+          <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
           <span className="text-slate-700">{strength}</span>
         </li>
       ))}

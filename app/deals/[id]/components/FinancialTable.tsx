@@ -276,7 +276,7 @@ export function FinancialTable({ table }: FinancialTableProps) {
                           {formatValue(value as number | null, row.unit)}
                         </div>
                         {yoYChange && (
-                          <div className={`text-xs ${yoYChange.startsWith('+') ? 'text-green-600' : yoYChange.startsWith('-') ? 'text-red-600' : 'text-slate-500'}`}>
+                          <div className={`text-xs ${yoYChange.startsWith('+') ? 'text-emerald-600' : yoYChange.startsWith('-') ? 'text-red-600' : 'text-slate-500'}`}>
                             {yoYChange}
                           </div>
                         )}

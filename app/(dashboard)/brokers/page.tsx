@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
 import { BrokerDashboard } from '@/components/dashboard/BrokerDashboard';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export default function BrokersPage() {
   const router = useRouter();
@@ -27,7 +28,10 @@ export default function BrokersPage() {
   if (loading || authLoading) {
     return (
       <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
-        <div className="text-slate-600">Loading...</div>
+        <div className="text-center">
+          <LoadingSpinner size="lg" className="mb-4" />
+          <p className="text-sm text-slate-600">Loading brokers...</p>
+        </div>
       </div>
     );
   }

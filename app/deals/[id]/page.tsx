@@ -8,6 +8,8 @@ import { FinancialsDealView } from './views/FinancialsDealView';
 import { CimDealView } from './views/CimDealView';
 import { OffMarketDealView } from './views/OffMarketDealView';
 import { OnMarketDealView } from './views/OnMarketDealView';
+import { ErrorState } from '@/components/ui/ErrorState';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export default function DealPage() {
   const router = useRouter();
@@ -52,9 +54,36 @@ export default function DealPage() {
   }, [deal?.source_type]);
 
   // Page states
-  if (!id) return <main className="py-10 text-center">Loading deal…</main>;
-  if (loading) return <main className="py-10 text-center">Loading deal details…</main>;
-  if (!deal) return <main className="py-10 text-center text-red-600">Deal not found.</main>;
+  if (!id) {
+    return (
+      <main className="py-10 text-center">
+        <LoadingSpinner size="lg" className="mb-4" />
+        <p className="text-slate-600">Loading deal…</p>
+      </main>
+    );
+  }
+  
+  if (loading) {
+    return (
+      <main className="py-10 text-center">
+        <LoadingSpinner size="lg" className="mb-4" />
+        <p className="text-slate-600">Loading deal details…</p>
+      </main>
+    );
+  }
+  
+  if (!deal) {
+    return (
+      <main className="py-10 max-w-2xl mx-auto px-4">
+        <ErrorState
+          title="Deal not found"
+          message="The deal you're looking for doesn't exist or you don't have access to it."
+          onRetry={() => window.location.reload()}
+          retryText="Reload page"
+        />
+      </main>
+    );
+  }
 
   // Branch: Financials vs CIM vs Off-market vs On-market
   if (deal.source_type === 'financials') {

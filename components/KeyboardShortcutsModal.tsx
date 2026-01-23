@@ -181,7 +181,7 @@ export function KeyboardShortcutsModal({ isOpen, onClose, currentContext }: Keyb
           </h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
+            className="touch-target text-slate-400 hover:text-slate-600 transition-colors"
             aria-label="Close shortcuts modal"
           >
             <X className="h-6 w-6" />

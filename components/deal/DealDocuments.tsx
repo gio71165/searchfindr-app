@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/app/supabaseClient';
 import { showToast } from '@/components/ui/Toast';
+import { LoadingDots } from '@/components/ui/LoadingSpinner';
 import { useKeyboardShortcuts, createShortcut } from '@/lib/hooks/useKeyboardShortcuts';
 
 interface DealDocument {
@@ -558,7 +559,7 @@ export function DealDocuments({ dealId }: DealDocumentsProps) {
 
   const getFileIcon = (mimeType: string | null, documentType: string | null) => {
     if (documentType === 'cim') return <FileText className="h-4 w-4 text-blue-600" />;
-    if (documentType === 'financials') return <FileText className="h-4 w-4 text-green-600" />;
+    if (documentType === 'financials') return <FileText className="h-4 w-4 text-emerald-600" />;
     if (documentType === 'loi') return <FileText className="h-4 w-4 text-purple-600" />;
     if (documentType === 'term_sheet') return <FileText className="h-4 w-4 text-orange-600" />;
     if (mimeType?.includes('pdf')) return <FileText className="h-4 w-4 text-red-600" />;
@@ -975,16 +976,23 @@ export function DealDocuments({ dealId }: DealDocumentsProps) {
                   <button
                     onClick={handleFileSelect}
                     disabled={uploading}
-                    className="w-full px-4 py-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                    className="w-full px-4 py-3 border-2 border-dashed border-slate-300 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50 flex flex-col items-center gap-2"
                   >
-                    <Upload className="h-5 w-5 mx-auto mb-2 text-slate-400" />
-                    <span className="text-sm text-slate-600">
-                      {uploading ? `Uploading... ${uploadProgress}%` : 'Click to select file'}
+                    <Upload className="h-5 w-5 text-slate-400" />
+                    <span className="text-sm text-slate-600 flex items-center gap-2">
+                      {uploading ? (
+                        <>
+                          <LoadingDots />
+                          <span>Uploading... {uploadProgress}%</span>
+                        </>
+                      ) : (
+                        'Click to select file'
+                      )}
                     </span>
                     {uploading && (
                       <div className="mt-2 w-full bg-slate-200 rounded-full h-2">
                         <div
-                          className="bg-blue-600 h-2 rounded-full transition-all"
+                          className="bg-emerald-500 h-2 rounded-full transition-all"
                           style={{ width: `${uploadProgress}%` }}
                         />
                       </div>

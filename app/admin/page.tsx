@@ -448,7 +448,7 @@ export default function AdminDashboard() {
                         <PipelineBreakdown breakdown={user.stageBreakdown} />
                       </td>
                       <td className="p-4">
-                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                        <span className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-medium">
                           {user.plan}
                         </span>
                       </td>

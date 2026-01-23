@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useCallback, type DragEvent, type ChangeEvent } from 'react';
-import { Upload, File, X, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, File, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 type UploadStatus = 'idle' | 'uploading' | 'uploaded' | 'error';
 
@@ -172,7 +173,7 @@ export function DragDropZone({
           ${isDragging ? 'border-blue-500 bg-blue-50 scale-[1.02]' : 'border-gray-300 bg-white'}
           ${disabled || isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-400 hover:bg-gray-50'}
           ${hasError ? 'border-red-300 bg-red-50' : ''}
-          ${isUploaded ? 'border-green-300 bg-green-50' : ''}
+          ${isUploaded ? 'border-emerald-300 bg-emerald-50' : ''}
         `}
       >
         <input
@@ -188,9 +189,9 @@ export function DragDropZone({
           {/* Icon */}
           <div className="mb-4">
             {isUploading ? (
-              <Loader2 className="h-12 w-12 text-blue-500 animate-spin" />
+              <LoadingSpinner size="lg" />
             ) : isUploaded ? (
-              <CheckCircle2 className="h-12 w-12 text-green-500" />
+              <CheckCircle2 className="h-12 w-12 text-emerald-500" />
             ) : hasError ? (
               <AlertCircle className="h-12 w-12 text-red-500" />
             ) : icon ? (
@@ -256,13 +257,13 @@ export function DragDropZone({
           {isUploading && previewFile && (
             <div className="w-full max-w-md mt-4">
               <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                <Loader2 className="h-5 w-5 text-blue-500 animate-spin flex-shrink-0" />
+                <LoadingSpinner size="sm" className="flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{previewFile.name}</p>
                   <div className="mt-2">
-                    <div className="w-full bg-blue-200 rounded-full h-2">
+                    <div className="w-full bg-slate-200 rounded-full h-2">
                       <div
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${uploadProgress || 0}%` }}
                       />
                     </div>
@@ -278,9 +279,9 @@ export function DragDropZone({
           {/* Success State */}
           {isUploaded && successMessage && (
             <div className="w-full max-w-md mt-4">
-              <div className="flex items-center gap-3 p-4 bg-green-50 rounded-lg border border-green-200">
-                <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
-                <p className="text-sm font-medium text-green-900">{successMessage}</p>
+              <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+                <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0" />
+                <p className="text-sm font-medium text-emerald-900">{successMessage}</p>
               </div>
             </div>
           )}

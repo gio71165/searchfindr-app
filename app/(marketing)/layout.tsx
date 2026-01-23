@@ -37,6 +37,13 @@ export default async function MarketingLayout({
 
   return (
     <div className="min-h-screen bg-[#0a0e14] text-white flex flex-col">
+      {/* Skip to content link - only visible on keyboard focus */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-emerald-600 focus:text-white focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+      >
+        Skip to main content
+      </a>
       {/* Subtle background gradients */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -top-32 left-1/2 h-96 w-[44rem] -translate-x-1/2 rounded-full bg-emerald-500/10 blur-3xl" />
@@ -45,7 +52,7 @@ export default async function MarketingLayout({
       </div>
 
       <MarketingNavigation />
-      <main className="flex-1 relative z-10">
+      <main id="main-content" className="flex-1 relative z-10">
         {children}
       </main>
       <Footer />

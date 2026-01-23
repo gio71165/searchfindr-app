@@ -213,9 +213,35 @@ select option {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* =========================
+   Touch Target Utility
+   ========================= */
+@layer utilities {
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
+  }
+  
+  /* Hide scrollbar while keeping scroll functionality */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
 /* Prevent horizontal scroll on mobile */
 body {
   overflow-x: hidden;
+}
+
+/* =========================
+   Keyboard Focus Styles
+   ========================= */
+*:focus-visible {
+  outline: 2px solid #10b981; /* emerald-500 */
+  outline-offset: 2px;
 }
 
 /* Ensure inputs are readable on mobile */
@@ -341,4 +367,19 @@ a, button {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
 }

@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FileText, Loader2, Copy, CheckCircle2, Download, Eye, ArrowLeft } from 'lucide-react';
+import { FileText, Copy, CheckCircle2, Download, Eye, ArrowLeft } from 'lucide-react';
+import { LoadingDots } from '@/components/ui/LoadingSpinner';
+import { AsyncButton } from '@/components/ui/AsyncButton';
 import type { Deal } from '@/lib/types/deal';
 import type { LOIData } from '@/lib/types/deal-templates';
 import { useAuth } from '@/lib/auth-context';
@@ -223,7 +225,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
               onClick={handleCopy}
               className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50"
             >
-              {copied ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+              {copied ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
               {copied ? 'Copied!' : 'Copy to Clipboard'}
             </button>
             <button
@@ -595,23 +597,15 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
             </div>
           </div>
 
-          <button
+          <AsyncButton
             onClick={handleGenerate}
-            disabled={loading}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            isLoading={loading}
+            loadingText="Generating..."
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
           >
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Generating...
-              </>
-            ) : (
-              <>
-                <Eye className="h-4 w-4" />
-                Preview LOI
-              </>
-            )}
-          </button>
+            <Eye className="h-4 w-4" />
+            Preview LOI
+          </AsyncButton>
         </div>
       )}
     </div>

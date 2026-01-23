@@ -15,12 +15,14 @@ import { MoreActionsMenu } from '@/components/deal/MoreActionsMenu';
 import { CompareDealModal } from '@/components/modals/CompareDealModal';
 import { exportDealToPDF } from '@/lib/pdf/exportDealPDF';
 import { JargonTooltip } from '@/components/ui/JargonTooltip';
+import { LoadingDots } from '@/components/ui/LoadingSpinner';
+import { AsyncButton } from '@/components/ui/AsyncButton';
 
 function VerdictBadge({ verdict }: { verdict: string | null }) {
   if (!verdict) return null;
   
   const config = {
-    proceed: { bg: 'bg-green-100', text: 'text-green-800', label: 'Proceed' },
+    proceed: { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Proceed' },
     park: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Parked' },
     pass: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Passed' }
   };
@@ -234,15 +236,16 @@ export function DealHeader({
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <button
+              <AsyncButton
                 onClick={handleExportPDF}
-                disabled={isExportingPDF}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                isLoading={isExportingPDF}
+                loadingText="Generating..."
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
                 title="Export to PDF"
               >
                 <Download className="h-4 w-4" />
-                {isExportingPDF ? 'Generating...' : 'Export PDF'}
-              </button>
+                Export PDF
+              </AsyncButton>
               <MoreActionsMenu
                 dealId={deal.id}
                 isArchived={isArchived}

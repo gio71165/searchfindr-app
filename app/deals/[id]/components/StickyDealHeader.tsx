@@ -1,6 +1,7 @@
 'use client';
 
 import type { Deal } from '@/lib/types/deal';
+import { AsyncButton } from '@/components/ui/AsyncButton';
 
 interface StickyDealHeaderProps {
   deal: Deal;
@@ -28,7 +29,7 @@ export function StickyDealHeader({
   const userVerdict = (deal as any).verdict || deal.criteria_match_json?.verdict || null;
   
   const verdictConfig = {
-    proceed: { bg: 'bg-green-100', text: 'text-green-800', label: 'Proceed' },
+    proceed: { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Proceed' },
     park: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Parked' },
     pass: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Passed' }
   };
@@ -58,27 +59,29 @@ export function StickyDealHeader({
           )}
           
           <div className="flex items-center gap-2 flex-shrink-0">
-            <button
+            <AsyncButton
               onClick={onProceed}
-              disabled={settingVerdict}
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-green-600 hover:bg-green-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              isLoading={settingVerdict}
+              loadingText="Setting…"
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-brand hover:bg-brand-dark text-white transition-colors whitespace-nowrap"
             >
-              {settingVerdict ? 'Setting…' : 'Proceed'}
-            </button>
-            <button
+              Proceed
+            </AsyncButton>
+            <AsyncButton
               onClick={onPark}
-              disabled={settingVerdict}
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              isLoading={settingVerdict}
+              loadingText="Setting…"
+              className="px-4 py-2 text-sm font-medium rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white transition-colors whitespace-nowrap"
             >
-              {settingVerdict ? 'Setting…' : 'Park'}
-            </button>
-            <button
+              Park
+            </AsyncButton>
+            <AsyncButton
               onClick={onPass}
-              disabled={settingVerdict}
-              className="px-4 py-2 text-sm font-medium rounded-lg border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              isLoading={settingVerdict}
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors whitespace-nowrap"
             >
               Pass
-            </button>
+            </AsyncButton>
           </div>
         </div>
       </div>
