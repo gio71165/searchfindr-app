@@ -11,7 +11,6 @@ interface LinkSearcherModalProps {
 }
 
 export function LinkSearcherModal({ isOpen, onClose, onSuccess }: LinkSearcherModalProps) {
-  const [searcherEmail, setSearcherEmail] = useState('');
   const [workspaceId, setWorkspaceId] = useState('');
   const [capitalCommitted, setCapitalCommitted] = useState('');
   const [accessLevel, setAccessLevel] = useState<'full' | 'summary'>('summary');
@@ -38,7 +37,6 @@ export function LinkSearcherModal({ isOpen, onClose, onSuccess }: LinkSearcherMo
           'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          searcherEmail,
           workspaceId,
           capitalCommitted: capitalCommitted || null,
           accessLevel,
@@ -52,7 +50,6 @@ export function LinkSearcherModal({ isOpen, onClose, onSuccess }: LinkSearcherMo
       }
 
       // Reset form
-      setSearcherEmail('');
       setWorkspaceId('');
       setCapitalCommitted('');
       setAccessLevel('summary');
@@ -87,29 +84,15 @@ export function LinkSearcherModal({ isOpen, onClose, onSuccess }: LinkSearcherMo
 
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">
-              Searcher Email *
-            </label>
-            <input
-              type="email"
-              required
-              value={searcherEmail}
-              onChange={(e) => setSearcherEmail(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="searcher@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-              Workspace ID *
+              Searcher Workspace ID *
             </label>
             <input
               type="text"
               required
               value={workspaceId}
               onChange={(e) => setWorkspaceId(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="UUID"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+              placeholder="00000000-0000-0000-0000-000000000000"
             />
             <p className="mt-1 text-xs text-slate-500">
               The searcher's workspace ID. They can find this in their Settings page under Profile Information.

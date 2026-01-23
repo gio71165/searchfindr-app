@@ -424,3 +424,11 @@ function bindButtons() {
 // ---- Init ----
 bindButtons();
 ensureStateFromToken();
+
+// Listen for storage changes (when token is saved from callback page)
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === "session" && changes[TOKEN_KEY]) {
+    console.log("[SearchFindr] Token storage changed, refreshing state");
+    ensureStateFromToken();
+  }
+});

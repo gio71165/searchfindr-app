@@ -3,15 +3,21 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SearcherMetrics } from '@/lib/data-access/investor-analytics';
-import { Eye, TrendingUp } from 'lucide-react';
+import { Eye, TrendingUp, Edit2, Check, X } from 'lucide-react';
+import { supabase } from '@/app/supabaseClient';
+import { showToast } from '@/components/ui/Toast';
 
 interface SearcherPerformanceProps {
   searchers: SearcherMetrics[];
+  onSearcherUpdate?: () => void; // Callback to refresh dashboard data
 }
 
-export default function SearcherPerformance({ searchers }: SearcherPerformanceProps) {
+export default function SearcherPerformance({ searchers, onSearcherUpdate }: SearcherPerformanceProps) {
   const router = useRouter();
   const [expandedSearcher, setExpandedSearcher] = useState<string | null>(null);
+  const [editingSearcher, setEditingSearcher] = useState<string | null>(null);
+  const [editName, setEditName] = useState<string>('');
+  const [saving, setSaving] = useState(false);
 
   const formatCurrency = (value: number) => {
     if (value >= 1000000) {
@@ -36,6 +42,67 @@ export default function SearcherPerformance({ searchers }: SearcherPerformancePr
     router.push(`/investor/searchers/${searcher.searcherId}?workspace=${searcher.workspaceId}`);
   };
 
+  const handleStartEdit = (searcher: SearcherMetrics) => {
+    setEditingSearcher(searcher.linkId);
+    setEditName(searcher.searcherName);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingSearcher(null);
+    setEditName('');
+  };
+
+  const handleSaveEdit = async (linkId: string) => {
+    if (saving) return;
+    
+    setSaving(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        showToast('Not authenticated', 'error', 3000);
+        return;
+      }
+
+      const res = await fetch(`/api/investor/links/${linkId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          custom_display_name: editName.trim() || null,
+        }),
+      });
+
+      let data;
+      try {
+        const text = await res.text();
+        data = text ? JSON.parse(text) : {};
+      } catch (parseError) {
+        console.error('Failed to parse response:', parseError);
+        throw new Error(`Server returned invalid response (${res.status})`);
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || `Failed to update searcher name (${res.status})`);
+      }
+
+      showToast('Searcher name updated', 'success', 2000);
+      setEditingSearcher(null);
+      setEditName('');
+      
+      // Refresh dashboard data
+      if (onSearcherUpdate) {
+        onSearcherUpdate();
+      }
+    } catch (err) {
+      console.error('Error updating searcher name:', err);
+      showToast(err instanceof Error ? err.message : 'Failed to update searcher name', 'error', 3000);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (searchers.length === 0) {
     return (
       <div className="bg-white rounded-lg border border-slate-200 p-8 text-center">
@@ -55,7 +122,7 @@ export default function SearcherPerformance({ searchers }: SearcherPerformancePr
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
-                Searcher
+                Searcher (click to edit name)
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
                 Capital Committed
@@ -84,12 +151,55 @@ export default function SearcherPerformance({ searchers }: SearcherPerformancePr
             {searchers.map((searcher) => (
               <tr key={searcher.searcherId} className="hover:bg-slate-50">
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div>
-                    <div className="text-sm font-medium text-slate-900">
-                      {searcher.searcherName}
+                  {editingSearcher === searcher.linkId ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            handleSaveEdit(searcher.linkId);
+                          } else if (e.key === 'Escape') {
+                            handleCancelEdit();
+                          }
+                        }}
+                        className="px-2 py-1 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        autoFocus
+                        disabled={saving}
+                      />
+                      <button
+                        onClick={() => handleSaveEdit(searcher.linkId)}
+                        disabled={saving}
+                        className="p-1 text-green-600 hover:text-green-800 hover:bg-green-50 rounded transition-colors disabled:opacity-50"
+                        title="Save"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={handleCancelEdit}
+                        disabled={saving}
+                        className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                        title="Cancel"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
                     </div>
-                    <div className="text-sm text-slate-500">{searcher.searcherEmail}</div>
-                  </div>
+                  ) : (
+                    <div 
+                      className="group cursor-pointer"
+                      onClick={() => handleStartEdit(searcher)}
+                      title="Click to edit name"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium text-slate-900">
+                          {searcher.searcherName}
+                        </div>
+                        <Edit2 className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <div className="text-sm text-slate-500">{searcher.searcherEmail}</div>
+                    </div>
+                  )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
                   {formatCurrency(searcher.capitalCommitted)}

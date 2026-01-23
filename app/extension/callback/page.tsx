@@ -2,17 +2,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/app/supabaseClient";
-
-type Props = {
-  searchParams?: Record<string, string | string[] | undefined>;
-};
-
-function firstString(v: string | string[] | undefined): string | null {
-  if (!v) return null;
-  return Array.isArray(v) ? (v[0] ?? null) : v;
-}
 
 function safeInternalPath(p: string | null, fallback: string): string {
   if (!p) return fallback;
@@ -21,15 +12,16 @@ function safeInternalPath(p: string | null, fallback: string): string {
   return p;
 }
 
-export default function ExtensionCallback({ searchParams }: Props) {
+export default function ExtensionCallback() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout> | null = null;
 
     (async () => {
       try {
-        const nextParam = firstString(searchParams?.next);
+        const nextParam = searchParams.get("next");
         const safeNext = safeInternalPath(nextParam, "/extension/success");
 
         // 1) Check login state
@@ -45,10 +37,33 @@ export default function ExtensionCallback({ searchParams }: Props) {
           return;
         }
 
-        // 3) Logged in → give content script time to read localStorage + store token
+        // 3) Logged in → inject token into page for content script to read
+        // Inject a script that runs in page context (not isolated world)
+        // This script can access localStorage and communicate with content script
+        const accessToken = session.access_token;
+        
+        // Inject script that posts message to content script
+        const script = document.createElement("script");
+        script.textContent = `
+          (function() {
+            const token = ${JSON.stringify(accessToken)};
+            // Post message to window for content script to receive
+            window.postMessage({
+              type: 'SEARCHFINDR_EXTENSION_TOKEN',
+              token: token
+            }, window.location.origin);
+            
+            // Also store in a data attribute as backup
+            document.documentElement.setAttribute('data-searchfindr-token', token);
+          })();
+        `;
+        document.documentElement.appendChild(script);
+        script.remove();
+
+        // 4) Give content script time to receive token and save it
         timeout = setTimeout(() => {
           router.replace(safeNext);
-        }, 900);
+        }, 2000);
       } catch {
         router.replace(`/?next=${encodeURIComponent("/extension/callback")}`);
       }

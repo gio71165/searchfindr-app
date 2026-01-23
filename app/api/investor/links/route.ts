@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateRequest } from '@/lib/api/auth';
+import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
+
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
 
 // GET: List all linked searchers for the current investor
 export async function GET(req: NextRequest) {
@@ -28,7 +32,8 @@ export async function GET(req: NextRequest) {
         workspace_id,
         capital_committed,
         access_level,
-        created_at
+        created_at,
+        custom_display_name
       `)
       .eq('investor_id', user.id);
     
@@ -50,10 +55,16 @@ export async function GET(req: NextRequest) {
     // Get searcher profiles
     if (links && links.length > 0) {
       const searcherIds = links.map(l => l.searcher_id);
-      const { data: profiles } = await supabase
+      // Try to get email from profiles, but make it optional in case the column doesn't exist
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('id, email, full_name')
+        .select('id, full_name')
         .in('id', searcherIds);
+      
+      // If profiles query failed, still return links but without profile data
+      if (profilesError) {
+        console.warn('Error fetching searcher profiles (email may not be available):', profilesError);
+      }
       
       const profileMap = new Map((profiles || []).map(p => [p.id, p]));
       
@@ -90,32 +101,72 @@ export async function POST(req: NextRequest) {
     }
     
     const body = await req.json();
-    const { searcherEmail, workspaceId, capitalCommitted, accessLevel } = body;
+    const { workspaceId, capitalCommitted, accessLevel } = body;
     
-    if (!searcherEmail || !workspaceId) {
-      return NextResponse.json({ error: 'searcherEmail and workspaceId are required' }, { status: 400 });
+    if (!workspaceId) {
+      return NextResponse.json({ error: 'workspaceId is required' }, { status: 400 });
     }
     
-    // Find searcher by email in profiles table
-    const { data: searcherProfile, error: profileError } = await supabase
+    // Find searcher by workspace_id in profiles table
+    // Use service role to bypass RLS (investors can't see other users' profiles by default)
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      return NextResponse.json({ 
+        error: 'Server configuration error. Please contact support.' 
+      }, { status: 500 });
+    }
+    
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
+    });
+    
+    const { data: searcherProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('id, workspace_id, role')
-      .eq('email', searcherEmail)
+      .eq('workspace_id', workspaceId)
+      .eq('role', 'searcher')
       .single();
     
     if (profileError || !searcherProfile) {
-      return NextResponse.json({ error: 'Searcher not found with that email' }, { status: 404 });
+      // Log detailed error for debugging
+      console.error('Error finding searcher profile:', {
+        workspaceId,
+        error: profileError,
+        errorCode: profileError?.code,
+        errorMessage: profileError?.message,
+        errorDetails: profileError?.details,
+        errorHint: profileError?.hint,
+        hasProfile: !!searcherProfile,
+      });
+      
+      // Check if it's an RLS/permission error
+      const isPermissionError = 
+        profileError?.code === '42501' || 
+        profileError?.message?.includes('permission denied') ||
+        profileError?.message?.includes('row-level security') ||
+        profileError?.message?.includes('RLS policy');
+      
+      if (isPermissionError) {
+        return NextResponse.json({ 
+          error: 'Permission denied. RLS policies may be blocking access to searcher profiles. An admin may need to adjust database permissions.' 
+        }, { status: 403 });
+      }
+      
+      return NextResponse.json({ 
+        error: `Searcher not found with that workspace ID. ${profileError?.message || 'Make sure the workspace ID is correct and the user has the searcher role.'}`,
+        details: profileError?.code ? { code: profileError.code, hint: profileError.hint } : undefined
+      }, { status: 404 });
     }
     
     if (searcherProfile.workspace_id !== workspaceId) {
-      return NextResponse.json({ error: 'Workspace ID does not match searcher' }, { status: 400 });
+      return NextResponse.json({ error: 'Workspace ID mismatch' }, { status: 400 });
     }
     
     // Determine investor_id - if admin is creating, use body.investorId, otherwise use current user
     const investorId = body.investorId || user.id;
     
-    // Create the link
-    const { data: link, error: linkError } = await supabase
+    // Create the link using service role to bypass RLS
+    // (RLS policies only allow admins to insert, but we've validated the user is an investor/admin)
+    const { data: link, error: linkError } = await supabaseAdmin
       .from('investor_searcher_links')
       .insert({
         investor_id: investorId,

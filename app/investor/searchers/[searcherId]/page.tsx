@@ -6,11 +6,15 @@ import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
 interface SearcherDetailPageProps {
-  params: { searcherId: string };
-  searchParams: { workspace?: string };
+  params: Promise<{ searcherId: string }>;
+  searchParams: Promise<{ workspace?: string }>;
 }
 
 export default async function SearcherDetailPage({ params, searchParams }: SearcherDetailPageProps) {
+  // Await params and searchParams (Next.js 15+ requirement)
+  const { searcherId } = await params;
+  const { workspace } = await searchParams;
+  
   const supabase = await createClient();
   
   // Get current user
@@ -31,22 +35,23 @@ export default async function SearcherDetailPage({ params, searchParams }: Searc
     redirect('/dashboard');
   }
   
-  const workspaceId = searchParams.workspace;
+  const workspaceId = workspace;
   if (!workspaceId) {
     redirect('/investor');
   }
   
   // Get searcher profile
+  // Profiles table doesn't have full_name or email columns
   const { data: searcherProfile } = await supabase
     .from('profiles')
-    .select('full_name, email')
-    .eq('id', params.searcherId)
+    .select('id')
+    .eq('id', searcherId)
     .single();
   
   // Get deals for this searcher
   let deals = [];
   try {
-    deals = await getSearcherDeals(user.id, params.searcherId, workspaceId);
+    deals = await getSearcherDeals(user.id, searcherId, workspaceId);
   } catch (error) {
     console.error('Error fetching searcher deals:', error);
     return (
@@ -73,7 +78,7 @@ export default async function SearcherDetailPage({ params, searchParams }: Searc
       
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-slate-900 mb-2">
-          {searcherProfile?.full_name || searcherProfile?.email || 'Searcher'} Pipeline
+          Searcher Pipeline
         </h1>
         <p className="text-slate-600">
           {deals.length} {deals.length === 1 ? 'deal' : 'deals'} in pipeline

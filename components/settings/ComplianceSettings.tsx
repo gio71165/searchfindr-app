@@ -38,6 +38,22 @@ export function ComplianceSettings() {
             return;
           }
           
+          // Check for permission/RLS errors - handle silently
+          const isPermissionError = 
+            errorCode === '42501' || 
+            (errorMessage && (
+              errorMessage.includes('permission denied') || 
+              errorMessage.includes('row-level security') ||
+              errorMessage.includes('RLS policy')
+            ));
+          
+          if (isPermissionError) {
+            // Permission denied - silently default to true (user may not have access to workspace settings)
+            setAllInvestorsUS(true);
+            setLoading(false);
+            return;
+          }
+          
           // Only log if error has meaningful, non-empty content
           const errorDetails = (error as any)?.details;
           const errorHint = (error as any)?.hint;
@@ -57,7 +73,10 @@ export function ComplianceSettings() {
             if (errorDetails) logData.details = errorDetails;
             if (errorHint && errorHint.trim()) logData.hint = errorHint;
             
-            console.error('Error loading compliance settings:', logData);
+            // Only log if we actually have data to log
+            if (Object.keys(logData).length > 0) {
+              console.error('Error loading compliance settings:', logData);
+            }
           }
           // Default to true on any error (including empty errors - silently handle)
           setAllInvestorsUS(true);

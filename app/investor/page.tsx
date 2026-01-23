@@ -17,55 +17,59 @@ export default function InvestorDashboardPage() {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
 
-  useEffect(() => {
-    const loadDashboard = async () => {
-      try {
-        // Use getSession() for better performance
-        const { data: { session } } = await supabase.auth.getSession();
-        const user = session?.user;
+  const loadDashboard = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Use getSession() for better performance
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
 
-        if (!user) {
-          router.replace('/');
-          return;
-        }
-
-        // Check if user has investor role
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .single();
-
-        if (!profile || profile.role !== 'investor') {
-          router.replace('/dashboard');
-          return;
-        }
-
-        // Fetch investor dashboard data
-        const token = session.access_token;
-        const headers = { Authorization: `Bearer ${token}` };
-
-        const res = await fetch('/api/investor/dashboard', { 
-          method: 'GET',
-          headers 
-        });
-
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-          throw new Error(errorData.error || `Failed to load investor dashboard (${res.status})`);
-        }
-
-        const data = await res.json();
-        setDashboardData(data);
-      } catch (err) {
-        console.error('Investor dashboard error:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load investor dashboard';
-        setError(errorMessage);
-      } finally {
-        setLoading(false);
+      if (!user) {
+        router.replace('/');
+        return;
       }
-    };
 
+      // Check if user has investor role
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile || profile.role !== 'investor') {
+        router.replace('/dashboard');
+        return;
+      }
+
+      // Fetch investor dashboard data
+      const token = session.access_token;
+      const headers = { Authorization: `Bearer ${token}` };
+
+      const res = await fetch('/api/investor/dashboard', { 
+        method: 'GET',
+        headers,
+        cache: 'no-store', // Ensure fresh data
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `Failed to load investor dashboard (${res.status})`);
+      }
+
+      const data = await res.json();
+      setDashboardData(data);
+    } catch (err) {
+      console.error('Investor dashboard error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load investor dashboard';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadDashboard();
   }, [router]);
 
@@ -124,7 +128,10 @@ export default function InvestorDashboardPage() {
             <>
               <InvestorOverview data={dashboardData} />
               <div className="mt-8">
-                <SearcherPerformance searchers={dashboardData.searchers} />
+                <SearcherPerformance 
+                  searchers={dashboardData.searchers} 
+                  onSearcherUpdate={loadDashboard}
+                />
               </div>
               <div className="mt-8">
                 <PipelineVisibility dealsByStage={dashboardData.dealsByStage} />
@@ -138,25 +145,7 @@ export default function InvestorDashboardPage() {
         isOpen={showLinkModal}
         onClose={() => setShowLinkModal(false)}
         onSuccess={() => {
-          // Reload dashboard data
-          const loadDashboard = async () => {
-            try {
-              const { data: { session } } = await supabase.auth.getSession();
-              if (!session) return;
-              
-              const res = await fetch('/api/investor/dashboard', {
-                method: 'GET',
-                headers: { Authorization: `Bearer ${session.access_token}` },
-              });
-              
-              if (res.ok) {
-                const data = await res.json();
-                setDashboardData(data);
-              }
-            } catch (err) {
-              console.error('Error reloading dashboard:', err);
-            }
-          };
+          // Reload dashboard data after linking searcher
           loadDashboard();
         }}
       />

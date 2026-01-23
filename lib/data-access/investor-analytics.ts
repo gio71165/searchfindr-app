@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 export interface InvestorDashboardData {
@@ -29,6 +30,7 @@ export interface InvestorDashboardData {
 }
 
 export interface SearcherMetrics {
+  linkId: string; // ID of the investor_searcher_links record (for updating custom name)
   searcherId: string;
   searcherName: string;
   searcherEmail: string;
@@ -71,10 +73,10 @@ export async function getInvestorDashboard(
 ): Promise<InvestorDashboardData> {
   const supabase = supabaseClient || await createClient();
   
-  // Get linked searchers (without direct profile join initially)
+  // Get linked searchers (including custom_display_name and link id)
   const { data: links, error: linksError } = await supabase
     .from('investor_searcher_links')
-    .select('searcher_id, workspace_id, capital_committed, access_level, created_at')
+    .select('id, searcher_id, workspace_id, capital_committed, access_level, created_at, custom_display_name')
     .eq('investor_id', investorId);
   
   if (linksError) {
@@ -106,20 +108,52 @@ export async function getInvestorDashboard(
     };
   }
   
-  // Fetch profiles for all searchers in one separate query
+  // Fetch searcher emails from auth.users using service role
+  // Also verify profiles exist
   const searcherIds = links.map(l => l.searcher_id);
-  const { data: profiles, error: profilesError } = await supabase
-    .from('profiles')
-    .select('id, email, full_name')
-    .in('id', searcherIds);
   
-  if (profilesError) {
-    console.error('Error fetching searcher profiles:', profilesError);
-    throw new Error(`Failed to fetch searcher profiles: ${profilesError.message || profilesError.code || 'Unknown error'}`);
+  // Use service role to bypass RLS (investors can't see other users' data by default)
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  const emailMap = new Map<string, string>();
+  const profileMap = new Map<string, { id: string }>();
+  
+  if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const supabaseAdmin = createSupabaseClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { persistSession: false },
+      });
+      
+      // Fetch profiles to verify searchers exist
+      const { data: profiles, error: profilesError } = await supabaseAdmin
+        .from('profiles')
+        .select('id')
+        .in('id', searcherIds);
+      
+      if (profilesError) {
+        console.warn('Error fetching searcher profiles (will continue without profile verification):', profilesError);
+      } else if (profiles) {
+        // Populate the map instead of reassigning
+        profiles.forEach(p => profileMap.set(p.id, p));
+      }
+      
+      // Fetch emails from auth.users
+      // Note: We need to use the admin API to get user emails
+      for (const searcherId of searcherIds) {
+        try {
+          const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(searcherId);
+          if (!userError && userData?.user?.email) {
+            emailMap.set(searcherId, userData.user.email);
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch email for searcher ${searcherId}:`, error);
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to fetch searcher data with service role (will continue without email):', error);
+    }
   }
-  
-  // Create a map of searcher_id -> profile for quick lookup
-  const profileMap = new Map((profiles || []).map(p => [p.id, p]));
   
   const totalCapitalCommitted = links.reduce((sum, l) => sum + (Number(l.capital_committed) || 0), 0);
   
@@ -137,18 +171,21 @@ export async function getInvestorDashboard(
   const allDealsByIndustry: Record<string, number> = {};
   
   // Process each searcher
+  // Note: We don't skip searchers even if profile isn't found - the link itself is proof they exist
   for (const link of links) {
     const searcherProfile = profileMap.get(link.searcher_id);
-    if (!searcherProfile) {
-      console.warn(`Profile not found for searcher ${link.searcher_id}`);
-      continue;
-    }
+    // Don't skip if profile not found - we can still process the searcher from link data
     
     const workspaceId = link.workspace_id;
     const searchStartDate = link.created_at ? new Date(link.created_at) : null;
     const monthsSearching = searchStartDate 
       ? Math.max(1, Math.floor((Date.now() - searchStartDate.getTime()) / (1000 * 60 * 60 * 24 * 30)))
       : 0;
+    
+    // Get searcher email and custom display name (do this once at the top)
+    const searcherEmail = emailMap.get(link.searcher_id) || '';
+    const customDisplayName = (link as any).custom_display_name;
+    const searcherName = customDisplayName || searcherEmail || `Searcher ${link.searcher_id.slice(0, 8)}`;
     
     // Get deals for this searcher's workspace (active deals only, not passed)
     const { data: deals, error: dealsError } = await supabase
@@ -166,9 +203,10 @@ export async function getInvestorDashboard(
     if (!deals || deals.length === 0) {
       // Still add searcher with zero metrics
       searcherMetrics.push({
+        linkId: link.id,
         searcherId: link.searcher_id,
-        searcherName: (searcherProfile.full_name as string) || (searcherProfile.email as string) || 'Unknown',
-        searcherEmail: (searcherProfile.email as string) || '',
+        searcherName,
+        searcherEmail,
         capitalCommitted: Number(link.capital_committed) || 0,
         searchStartDate,
         monthsSearching,
@@ -293,9 +331,10 @@ export async function getInvestorDashboard(
       .gte('passed_at', startOfMonth.toISOString());
     
     searcherMetrics.push({
+      linkId: link.id,
       searcherId: link.searcher_id,
-      searcherName: searcherProfile.full_name || searcherProfile.email || 'Unknown',
-      searcherEmail: searcherProfile.email || '',
+      searcherName,
+      searcherEmail,
       capitalCommitted: Number(link.capital_committed) || 0,
       searchStartDate,
       monthsSearching,

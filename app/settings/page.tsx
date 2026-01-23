@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, PlayCircle } from 'lucide-react';
+import { ArrowLeft, PlayCircle, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
@@ -114,6 +114,23 @@ export default function SettingsPage() {
               </button>
             </div>
 
+            {/* Chrome Extension Section */}
+            <div className="p-6 bg-slate-50 rounded-lg border border-slate-200">
+              <h2 className="font-semibold text-slate-900 mb-2">Chrome Extension</h2>
+              <p className="text-sm text-slate-600 mb-4">
+                Install the SearchFindr Chrome extension to capture on-market listings directly from your browser.
+              </p>
+              <a
+                href="https://chromewebstore.google.com/detail/searchfindr/lenhmbalallphfadbfbpjimbfpmgeocj"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Download Chrome Extension
+              </a>
+            </div>
+
             {/* SBA Compliance Settings */}
             <ComplianceSettings />
 
@@ -121,7 +138,7 @@ export default function SettingsPage() {
             <div className="p-6 bg-slate-50 rounded-lg border border-slate-200">
               <h2 className="font-semibold text-slate-900 mb-2">Future Settings</h2>
               <p className="text-sm text-slate-600">
-                This page will include preferences, extension connection, notification settings, and more.
+                This page will include preferences, notification settings, and more.
               </p>
             </div>
           </div>

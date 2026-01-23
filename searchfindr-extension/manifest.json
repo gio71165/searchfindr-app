@@ -21,7 +21,7 @@
     {
       "matches": ["https://searchfindr-app.vercel.app/extension/callback*"],
       "js": ["contentScript.js"],
-      "run_at": "document_start"
+      "run_at": "document_idle"
     }
   ]
 }
