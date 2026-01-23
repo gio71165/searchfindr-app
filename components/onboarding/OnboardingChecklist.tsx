@@ -36,6 +36,11 @@ export function OnboardingChecklist() {
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [showSampleCimButton, setShowSampleCimButton] = useState(true);
+  
+  // Don't show checklist if user is not logged in or on login page
+  if (!user || pathname === '/login') {
+    return null;
+  }
 
   // Load checklist state from localStorage
   useEffect(() => {
