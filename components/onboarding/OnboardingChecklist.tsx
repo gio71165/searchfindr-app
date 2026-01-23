@@ -17,7 +17,7 @@ interface ChecklistItem {
 
 const CHECKLIST_ITEMS: Omit<ChecklistItem, 'completed'>[] = [
   { id: 'open-cim', label: 'Open a CIM deal', eventName: 'onboarding:cim-opened' },
-  { id: 'upload-sample-cim', label: 'Upload sample CIM', eventName: 'onboarding:sample-cim-uploaded' },
+  { id: 'download-extension', label: 'Download Chrome extension (in settings)', eventName: 'onboarding:extension-downloaded' },
   { id: 'run-ai', label: 'Run AI analysis', eventName: 'onboarding:ai-analysis-run' },
   { id: 'use-chat', label: 'Use AI chat', eventName: 'onboarding:chat-used' },
   { id: 'search-criteria', label: 'Set search criteria', eventName: 'onboarding:search-criteria-set' },
@@ -35,12 +35,6 @@ export function OnboardingChecklist() {
   const [isExpanded, setIsExpanded] = useState(true); // Start expanded so users see it
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
-  const [showSampleCimButton, setShowSampleCimButton] = useState(true);
-  
-  // Don't show checklist if user is not logged in or on login page
-  if (!user || pathname === '/login') {
-    return null;
-  }
 
   // Load checklist state from localStorage
   useEffect(() => {
@@ -52,7 +46,6 @@ export function OnboardingChecklist() {
         try {
           const parsed = JSON.parse(saved);
           setItems(parsed.items || CHECKLIST_ITEMS.map(item => ({ ...item, completed: false })));
-          setShowSampleCimButton(!parsed.sampleCimUploaded);
         } catch (e) {
           // Start fresh if parse fails
           setItems(CHECKLIST_ITEMS.map(item => ({ ...item, completed: false })));
@@ -85,7 +78,6 @@ export function OnboardingChecklist() {
     const handleReset = async () => {
       // Reset checklist items to not completed
       setItems(CHECKLIST_ITEMS.map(item => ({ ...item, completed: false })));
-      setShowSampleCimButton(true);
       setOnboardingCompleted(false);
       
       // Re-check database status to ensure it's updated
@@ -187,9 +179,8 @@ export function OnboardingChecklist() {
     if (typeof window === 'undefined') return;
     localStorage.setItem('onboarding_checklist', JSON.stringify({
       items: updatedItems,
-      sampleCimUploaded: !showSampleCimButton,
     }));
-  }, [showSampleCimButton]);
+  }, []);
 
   // Mark item as completed
   const markCompleted = useCallback((itemId: string) => {
@@ -242,142 +233,34 @@ export function OnboardingChecklist() {
     }
   }, [pathname]);
 
-  // Handle sample CIM upload
-  const handleUploadSampleCim = async () => {
-    if (!user) return;
-
-    try {
-      // Fetch sample CIM from public folder
-      const response = await fetch('/sample-cim.pdf');
-      if (!response.ok) {
-        alert('Sample CIM file not found. Please upload your own CIM file.');
-        return;
-      }
-      
-      const blob = await response.blob();
-      
-      // Validate it's actually a PDF by checking the blob type and content
-      if (blob.type && !blob.type.includes('pdf') && blob.type !== 'application/octet-stream') {
-        alert('Sample CIM file is not a valid PDF. Please upload your own CIM file.');
-        return;
-      }
-      
-      // Check file size (should be reasonable for a PDF)
-      if (blob.size < 100 || blob.size > 50 * 1024 * 1024) {
-        alert('Sample CIM file size is invalid. Please upload your own CIM file.');
-        return;
-      }
-      
-      // Read first bytes to verify it's a PDF (PDF starts with %PDF)
-      const firstBytes = await blob.slice(0, 4).text();
-      if (!firstBytes.startsWith('%PDF')) {
-        alert('Sample CIM file is not a valid PDF. Please upload your own CIM file.');
-        return;
-      }
-      
-      const file = new File([blob], 'sample-cim.pdf', { type: 'application/pdf' });
-      
-      // Upload to Supabase storage
-      const fileExt = 'pdf';
-      const fileName = `${Date.now()}-sample-cim.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
-
-      const { data: storageData, error: storageError } = await supabase.storage
-        .from('cims')
-        .upload(filePath, file);
-
-      if (storageError) {
-        throw new Error('Failed to upload sample CIM');
-      }
-
-      // Create deal record
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Not authenticated');
-      }
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('workspace_id')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.workspace_id) {
-        throw new Error('Missing workspace');
-      }
-
-      const { data: insertData, error: insertError } = await supabase
-        .from('companies')
-        .insert({
-          company_name: 'Sample Deal - Manufacturing Company',
-          source_type: 'cim_pdf',
-          cim_storage_path: storageData?.path || filePath,
-          user_id: user.id,
-          workspace_id: profile.workspace_id,
-        })
-        .select('id')
-        .single();
-
-      if (insertError || !insertData) {
-        throw new Error('Failed to create deal record');
-      }
-
-      // Process the CIM
-      const token = session.access_token;
-      const processResponse = await fetch('/api/process-cim', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          companyId: insertData.id,
-          cimStoragePath: storageData?.path || filePath,
-          companyName: 'Sample Deal - Manufacturing Company',
-        }),
-      });
-
-      if (!processResponse.ok) {
-        const errorText = await processResponse.text();
-        let errorMessage = 'Failed to process sample CIM';
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.error || errorMessage;
-        } catch {
-          errorMessage = errorText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-
-      // Mark as completed and hide button
-      markCompleted('upload-sample-cim');
-      setShowSampleCimButton(false);
-      window.dispatchEvent(new CustomEvent('onboarding:sample-cim-uploaded'));
-      
-      // Navigate to the deal
-      window.location.href = `/deals/${insertData.id}`;
-    } catch (error) {
-      console.error('Error uploading sample CIM:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to upload sample CIM.';
-      
-      // Provide helpful error message
-      if (errorMessage.includes('not found') || errorMessage.includes('404')) {
-        alert('Sample CIM file is not available. Please upload your own CIM file from the CIMs page.');
-      } else if (errorMessage.includes('not a valid PDF')) {
-        alert('The sample CIM file is corrupted or invalid. Please upload your own CIM file.');
-      } else if (errorMessage.includes('CSV') || errorMessage.includes('Invalid file type')) {
-        alert('The sample CIM file format is invalid. Please upload your own PDF, DOCX, or DOC file.');
-      } else {
-        alert(errorMessage + ' Please try uploading your own CIM file.');
-      }
-    }
-  };
-
   // Don't show if onboarding is marked as completed in database AND progress is 100%
   // But allow showing if checklist was just reset (localStorage cleared)
   const hasChecklistData = typeof window !== 'undefined' && localStorage.getItem('onboarding_checklist');
   const shouldHide = onboardingCompleted && isComplete && hasChecklistData;
-  if (shouldHide) return null;
+  
+  // Define marketing and public pages where checklist should not show
+  const marketingPages = [
+    '/',
+    '/pricing',
+    '/compare',
+    '/demo',
+    '/help',
+    '/privacy',
+    '/terms',
+    '/sample-analysis',
+    '/sample-output',
+  ];
+  const isMarketingPage = pathname && marketingPages.includes(pathname);
+  const isLoginPage = pathname === '/login';
+  const isPublicPage = isMarketingPage || isLoginPage;
+  
+  // Don't show checklist if:
+  // 1. User is not logged in
+  // 2. On marketing/public pages (home, pricing, login, etc.)
+  // 3. Onboarding is completed and checklist is done
+  if (!user || isPublicPage || shouldHide) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-4 right-4 z-50 max-w-sm">
@@ -442,17 +325,6 @@ export function OnboardingChecklist() {
               </div>
             ))}
 
-            {/* Sample CIM button - only show if not completed */}
-            {showSampleCimButton && (
-              <div className="mt-4 pt-4 border-t border-slate-200">
-                <button
-                  onClick={handleUploadSampleCim}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                >
-                  Upload Sample CIM
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>
