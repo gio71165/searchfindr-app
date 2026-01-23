@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../supabaseClient';
 import { Navigation } from '@/components/Navigation';
@@ -9,6 +9,7 @@ import SearcherPerformance from './components/SearcherPerformance';
 import PipelineVisibility from './components/PipelineVisibility';
 import GenerateMonthlyUpdateButton from './components/GenerateMonthlyUpdateButton';
 import { LinkSearcherModal } from './components/LinkSearcherModal';
+import { useInvestorRealtime } from './hooks/useInvestorRealtime';
 
 export default function InvestorDashboardPage() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export default function InvestorDashboardPage() {
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
 
-  const loadDashboard = async () => {
+  const loadDashboard = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -67,11 +68,26 @@ export default function InvestorDashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+
+  // Extract workspace IDs from dashboard data for realtime subscriptions
+  const workspaceIds = useMemo(() => {
+    if (!dashboardData?.searchers) return [];
+    return dashboardData.searchers
+      .map((searcher: any) => searcher.workspaceId)
+      .filter((id: string | null | undefined): id is string => !!id);
+  }, [dashboardData]);
+
+  // Set up realtime subscriptions to automatically update when searchers make changes
+  useInvestorRealtime({
+    workspaceIds,
+    onUpdate: loadDashboard,
+    enabled: !loading && !!dashboardData && workspaceIds.length > 0,
+  });
 
   useEffect(() => {
     loadDashboard();
-  }, [router]);
+  }, [loadDashboard]);
 
   if (loading) {
     return (
