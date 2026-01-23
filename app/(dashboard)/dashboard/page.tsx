@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { useKeyboardShortcuts, createShortcut } from '@/lib/hooks/useKeyboardShortcuts';
 import { KeyboardShortcutsModal } from '@/components/KeyboardShortcutsModal';
 import { showToast } from '@/components/ui/Toast';
+import { logger } from '@/lib/utils/logger';
 import { CimProcessingModal } from '@/components/modals/CimProcessingModal';
 
 type SourceType = 'on_market' | 'off_market' | 'cim_pdf' | 'financials' | null;
@@ -335,7 +336,7 @@ function DashboardPageContent() {
         clearInterval(progressInterval);
         setCimUploadProgress(100);
       if (storageError) {
-        console.error('CIM upload error:', storageError);
+        logger.error('CIM upload error:', storageError);
         setErrorMsg('Failed to upload CIM. Please try again.');
         setCimUploadStatus('error');
         return;
@@ -356,7 +357,7 @@ function DashboardPageContent() {
         .single();
 
       if (insertError || !insertData) {
-        console.error('Error inserting CIM company row:', insertError);
+        logger.error('Error inserting CIM company row:', insertError);
         setErrorMsg('CIM uploaded, but failed to create deal record.');
         setCimUploadStatus('error');
         setCimProcessingStage('error');
@@ -446,14 +447,14 @@ function DashboardPageContent() {
         }
         
         const error = err instanceof Error ? err : new Error('Unknown error');
-        console.error('CIM processing error:', error);
+        logger.error('CIM processing error:', error);
         setCimProcessingStage('error');
         setCimProcessingError(error.message || 'Failed to process CIM.');
         setCimUploadStatus('error');
         setErrorMsg(error.message || 'Failed to process CIM.');
       }
     } catch (err) {
-      console.error('Unexpected CIM upload error:', err);
+      logger.error('Unexpected CIM upload error:', err);
       setErrorMsg('Unexpected error uploading CIM.');
       setCimUploadStatus('error');
     }
@@ -492,7 +493,7 @@ function DashboardPageContent() {
         .from('financials')
         .upload(filePath, file);
       if (storageError) {
-        console.error('Financials upload error:', storageError);
+        logger.error('Financials upload error:', storageError);
         setErrorMsg('Failed to upload Financials. Please try again.');
         setFinUploadStatus('error');
         setFinUploadMsg(storageError.message || 'Upload failed.');
@@ -518,7 +519,7 @@ function DashboardPageContent() {
         .single();
 
       if (insertError || !insertData?.id) {
-        console.error('Error inserting Financials company row:', insertError);
+        logger.error('Error inserting Financials company row:', insertError);
         setErrorMsg('Financials uploaded, but failed to create deal record.');
         setFinUploadStatus('error');
         setFinUploadMsg('Deal creation failed.');
@@ -534,7 +535,7 @@ function DashboardPageContent() {
         setFinUploadMsg(null);
       }, 5000);
     } catch (err: any) {
-      console.error('Unexpected financials upload error:', err);
+      logger.error('Unexpected financials upload error:', err);
       setFinUploadStatus('error');
       setFinUploadMsg(err?.message || 'Unexpected error uploading financials.');
     }

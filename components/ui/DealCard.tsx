@@ -10,6 +10,8 @@ import { DealScoreBadge } from './DealScoreBadge';
 import { MoreActionsMenu } from '@/components/deal/MoreActionsMenu';
 import { TierBadge } from '@/app/deals/[id]/components/TierBadge';
 import { supabase } from '@/app/supabaseClient';
+import { useAuth } from '@/lib/auth-context';
+import { logger } from '@/lib/utils/logger';
 import { JargonTooltip } from './JargonTooltip';
 
 type Deal = {
@@ -132,6 +134,7 @@ function DealCardComponent({
 
   const location = [deal.location_city, deal.location_state].filter(Boolean).join(', ') || null;
   const isArchived = Boolean(deal.archived_at);
+  const { session } = useAuth();
   
   // Extract verdict and economics from deal or criteria_match_json
   const verdict = deal.verdict || deal.criteria_match_json?.verdict || null;
@@ -140,7 +143,6 @@ function DealCardComponent({
     if (!deal || isArchiving) return;
     setIsArchiving(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         alert('Please log in to archive deals');
         return;
@@ -198,7 +200,6 @@ function DealCardComponent({
 
     setIsDeleting(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         alert('Please log in to delete deals');
         return;
@@ -227,7 +228,7 @@ function DealCardComponent({
         window.location.reload();
       }
     } catch (error) {
-      console.error('Error deleting deal:', error);
+      logger.error('Error deleting deal:', error);
       alert(error instanceof Error ? error.message : 'Failed to delete deal');
     } finally {
       setIsDeleting(false);
@@ -440,8 +441,7 @@ function DealCardComponent({
                   onClick={async () => {
                     setIsSavingNote(true);
                     try {
-                      const { data: sessionData } = await supabase.auth.getSession();
-                      if (!sessionData?.session) {
+                      if (!session) {
                         alert('Please log in to save notes');
                         return;
                       }
@@ -449,7 +449,7 @@ function DealCardComponent({
                       const response = await fetch(`/api/deals/${deal.id}/notes`, {
                         method: 'POST',
                         headers: {
-                          'Authorization': `Bearer ${sessionData.session.access_token}`,
+                          'Authorization': `Bearer ${session.access_token}`,
                           'Content-Type': 'application/json',
                         },
                         body: JSON.stringify({ notes: noteInput.trim() || null }),
@@ -463,7 +463,7 @@ function DealCardComponent({
                       setShowNoteInput(false);
                       onNoteUpdate?.();
                     } catch (error) {
-                      console.error('Error saving note:', error);
+                      logger.error('Error saving note:', error);
                       alert(error instanceof Error ? error.message : 'Failed to save note');
                     } finally {
                       setIsSavingNote(false);

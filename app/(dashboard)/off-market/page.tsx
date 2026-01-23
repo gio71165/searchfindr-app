@@ -82,7 +82,7 @@ const ALLOWED_RADIUS = [5, 10, 15, 25, 50, 75, 100];
 
 export default function OffMarketPage() {
   const router = useRouter();
-  const { user, workspaceId, loading: authLoading } = useAuth();
+  const { user, workspaceId, session, loading: authLoading } = useAuth();
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searching, setSearching] = useState(false);
@@ -173,8 +173,7 @@ export default function OffMarketPage() {
     setSearchStatus(null);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
+      const token = session?.access_token;
 
       if (!token) {
         setSearchStatus('Not signed in.');

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
+import { logger } from '@/lib/utils/logger';
 import type { Deal, FinancialAnalysis } from '@/lib/types/deal';
 
 export function useDealData(dealId: string | undefined) {
@@ -40,7 +41,7 @@ export function useDealData(dealId: string | undefined) {
 
   const refreshDeal = async (id: string) => {
     if (!workspaceId || !user) {
-      console.error('refreshDeal: No workspaceId or user');
+      logger.error('refreshDeal: No workspaceId or user');
       return null;
     }
     
@@ -51,7 +52,7 @@ export function useDealData(dealId: string | undefined) {
       .eq('workspace_id', workspaceId)
       .single();
     if (error) {
-      console.error('refreshDeal error:', error);
+      logger.error('refreshDeal error:', error);
       return null;
     }
     setDeal(data);
@@ -70,7 +71,7 @@ export function useDealData(dealId: string | undefined) {
       .limit(1);
 
     if (error) {
-      console.error('Error loading financial analysis:', error);
+      logger.error('Error loading financial analysis:', error);
       setFinAnalysis(null);
       setFinError('Failed to load financial analysis.');
       setFinLoading(false);
@@ -110,7 +111,7 @@ export function useDealData(dealId: string | undefined) {
 
       // Double-check workspaceId and user are still available (defensive check)
       if (!workspaceId || !user) {
-        console.error('loadDeal: No workspaceId or user after auth loaded');
+        logger.error('loadDeal: No workspaceId or user after auth loaded');
         setDeal(null);
         setLoading(false);
         return;
@@ -125,7 +126,7 @@ export function useDealData(dealId: string | undefined) {
         .single();
 
       if (error) {
-        console.error('Error loading deal:', error);
+        logger.error('Error loading deal:', error);
         setDeal(null);
         setLoading(false);
         return;
@@ -161,7 +162,7 @@ export function useDealData(dealId: string | undefined) {
       setDeal((prev: Deal | null) => (prev ? { ...prev, is_saved: next } : prev));
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error('Unknown error');
-      console.error('toggleSaved error:', error);
+      logger.error('toggleSaved error:', error);
     } finally {
       setSavingToggle(false);
     }
@@ -230,8 +231,8 @@ export function useDealData(dealId: string | undefined) {
       } catch {}
 
       if (!res.ok || !json?.ai_summary) {
-        console.error('analyze status:', res.status);
-        console.error('analyze raw:', text);
+        logger.error('analyze status:', res.status);
+        logger.error('analyze raw:', text);
         throw new Error(json?.error || `Failed to run on-market diligence (HTTP ${res.status})`);
       }
 
@@ -259,7 +260,7 @@ export function useDealData(dealId: string | undefined) {
       window.dispatchEvent(new CustomEvent('onboarding:ai-analysis-run'));
     } catch (err: unknown) {
       const error = err instanceof Error ? err : new Error('Unknown error');
-      console.error('runOnMarketInitialDiligence error', error);
+      logger.error('runOnMarketInitialDiligence error', error);
       setAiError(error.message || 'Something went wrong running AI.');
     } finally {
       setAnalyzing(false);
@@ -327,8 +328,8 @@ export function useDealData(dealId: string | undefined) {
       } catch {}
 
       if (!res.ok || !json?.success) {
-        console.error('diligence status:', res.status);
-        console.error('diligence raw:', text);
+        logger.error('diligence status:', res.status);
+        logger.error('diligence raw:', text);
         throw new Error(json?.error || `Failed to run initial diligence (HTTP ${res.status})`);
       }
 
@@ -361,7 +362,7 @@ export function useDealData(dealId: string | undefined) {
       window.dispatchEvent(new CustomEvent('onboarding:ai-analysis-run'));
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error('Unknown error');
-      console.error('runOffMarketInitialDiligence error:', error);
+      logger.error('runOffMarketInitialDiligence error:', error);
       setOffMarketError(error.message || 'Failed to run initial diligence.');
     } finally {
       setRunningOffMarketDD(false);
@@ -395,9 +396,8 @@ export function useDealData(dealId: string | undefined) {
     setCimSuccess(false);
 
     try {
-      // Get fresh session token for API call
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      const token = currentSession?.access_token;
+      // Get session token from AuthContext
+      const token = session?.access_token;
       
       if (!token) {
         throw new Error('Not authenticated');
@@ -419,8 +419,8 @@ export function useDealData(dealId: string | undefined) {
       } catch {}
 
       if (!res.ok || !json?.success) {
-        console.error('process-cim status:', res.status);
-        console.error('process-cim raw:', text);
+        logger.error('process-cim status:', res.status);
+        logger.error('process-cim raw:', text);
         throw new Error(json?.error || `Failed to process CIM (HTTP ${res.status}).`);
       }
 
@@ -430,7 +430,7 @@ export function useDealData(dealId: string | undefined) {
       window.dispatchEvent(new CustomEvent('onboarding:ai-analysis-run'));
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error('Unknown error');
-      console.error('runCimAnalysis error:', error);
+      logger.error('runCimAnalysis error:', error);
       setCimError(error.message || 'Failed to process CIM.');
     } finally {
       setProcessingCim(false);
@@ -486,8 +486,8 @@ export function useDealData(dealId: string | undefined) {
       } catch {}
 
       if (!res.ok || !json?.ok) {
-        console.error('process-financials status:', res.status);
-        console.error('process-financials raw:', text);
+        logger.error('process-financials status:', res.status);
+        logger.error('process-financials raw:', text);
         throw new Error(json?.error || `Financial analysis failed (HTTP ${res.status}).`);
       }
 
@@ -497,7 +497,7 @@ export function useDealData(dealId: string | undefined) {
       window.dispatchEvent(new CustomEvent('onboarding:ai-analysis-run'));
     } catch (e: unknown) {
       const error = e instanceof Error ? e : new Error('Unknown error');
-      console.error('runFinancialAnalysis error:', error);
+      logger.error('runFinancialAnalysis error:', error);
       setFinError(error.message || 'Failed to run financial analysis.');
     } finally {
       setFinRunning(false);

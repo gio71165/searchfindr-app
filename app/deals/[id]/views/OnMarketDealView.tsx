@@ -21,6 +21,8 @@ import { PassDealModal } from '@/components/modals/PassDealModal';
 import { useKeyboardShortcuts, createShortcut } from '@/lib/hooks/useKeyboardShortcuts';
 import { KeyboardShortcutsModal } from '@/components/KeyboardShortcutsModal';
 import { showToast } from '@/components/ui/Toast';
+import { useAuth } from '@/lib/auth-context';
+import { logger } from '@/lib/utils/logger';
 
 export function OnMarketDealView({
   deal,
@@ -39,7 +41,7 @@ export function OnMarketDealView({
   onRunInitialDiligence: () => void;
   onRefresh?: () => void;
 }) {
-
+  const { user, workspaceId, session } = useAuth();
   const [showPassModal, setShowPassModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [settingVerdict, setSettingVerdict] = useState(false);
@@ -53,12 +55,7 @@ export function OnMarketDealView({
   const handleProceed = async () => {
     setSettingVerdict(true);
     try {
-      // Use getSession() for better performance - faster than getUser()
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (!user) throw new Error('Not signed in');
-      const { data: profile } = await supabase.from('profiles').select('workspace_id').eq('id', user.id).single();
-      if (!profile?.workspace_id) throw new Error('No workspace');
+      if (!user || !workspaceId) throw new Error('Not signed in or missing workspace');
 
       const { error } = await supabase
         .from('companies')
@@ -67,7 +64,7 @@ export function OnMarketDealView({
           last_action_at: new Date().toISOString()
         })
         .eq('id', dealId)
-        .eq('workspace_id', profile.workspace_id);
+        .eq('workspace_id', workspaceId);
 
       if (error) throw error;
       showToast('Marked as Proceed', 'success', 2000);
@@ -76,7 +73,7 @@ export function OnMarketDealView({
       // Refresh deal data instead of full page reload
       onRefresh?.();
     } catch (error) {
-      console.error('Error setting proceed:', error);
+      logger.error('Error setting proceed:', error);
       showToast('Failed to set verdict. Please try again.', 'error');
     } finally {
       setSettingVerdict(false);
@@ -86,12 +83,7 @@ export function OnMarketDealView({
   const handlePark = async () => {
     setSettingVerdict(true);
     try {
-      // Use getSession() for better performance - faster than getUser()
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user;
-      if (!user) throw new Error('Not signed in');
-      const { data: profile } = await supabase.from('profiles').select('workspace_id').eq('id', user.id).single();
-      if (!profile?.workspace_id) throw new Error('No workspace');
+      if (!user || !workspaceId) throw new Error('Not signed in or missing workspace');
 
       const { error } = await supabase
         .from('companies')
@@ -100,13 +92,13 @@ export function OnMarketDealView({
           last_action_at: new Date().toISOString()
         })
         .eq('id', dealId)
-        .eq('workspace_id', profile.workspace_id);
+        .eq('workspace_id', workspaceId);
 
       if (error) throw error;
       showToast('Marked as Park', 'info', 2000);
       onRefresh?.();
     } catch (error) {
-      console.error('Error setting park:', error);
+      logger.error('Error setting park:', error);
       showToast('Failed to set verdict. Please try again.', 'error');
     } finally {
       setSettingVerdict(false);

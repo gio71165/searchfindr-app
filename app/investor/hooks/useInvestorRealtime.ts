@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/app/supabaseClient';
+import { logger } from '@/lib/utils/logger';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UseInvestorRealtimeOptions {
@@ -80,7 +81,7 @@ export function useInvestorRealtime({
           if (status === 'SUBSCRIBED') {
             console.log(`[Investor Realtime] Subscribed to workspace ${workspaceId}`);
           } else if (status === 'CHANNEL_ERROR') {
-            console.error(`[Investor Realtime] Error subscribing to workspace ${workspaceId}`);
+            logger.error(`[Investor Realtime] Error subscribing to workspace ${workspaceId}`);
           }
         });
 

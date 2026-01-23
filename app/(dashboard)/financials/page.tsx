@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '@/lib/auth-context';
+import { logger } from '@/lib/utils/logger';
 import { DealCard } from '@/components/ui/DealCard';
 import { ContentHeader } from '@/components/dashboard/ContentHeader';
 import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
@@ -60,7 +61,7 @@ export default function FinancialsPage() {
       .limit(100);
 
     if (error) {
-      console.error('loadDeals error:', error);
+      logger.error('loadDeals error:', error);
       setErrorMsg(`Failed to load deals: ${error.message || 'Unknown error'}`);
       return;
     }
@@ -176,7 +177,7 @@ export default function FinancialsPage() {
       setUploadProgress(100);
 
       if (storageError) {
-        console.error('Financials upload error:', storageError);
+        logger.error('Financials upload error:', storageError);
         setErrorMsg('Failed to upload Financials. Please try again.');
         setFinUploadStatus('error');
         setFinUploadMsg(storageError.message || 'Upload failed.');
@@ -202,7 +203,7 @@ export default function FinancialsPage() {
         .single();
 
       if (insertError || !insertData?.id) {
-        console.error('Error inserting Financials company row:', insertError);
+        logger.error('Error inserting Financials company row:', insertError);
         setErrorMsg('Financials uploaded, but failed to create deal record.');
         setFinUploadStatus('error');
         setFinUploadMsg('Deal creation failed.');
@@ -219,7 +220,7 @@ export default function FinancialsPage() {
         setUploadProgress(0);
       }, 5000);
     } catch (err: any) {
-      console.error('Unexpected financials upload error:', err);
+      logger.error('Unexpected financials upload error:', err);
       setFinUploadStatus('error');
       setFinUploadMsg(err?.message || 'Unexpected error uploading financials.');
       setUploadProgress(0);

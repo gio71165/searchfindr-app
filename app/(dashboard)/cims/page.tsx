@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../supabaseClient';
 import { useAuth } from '@/lib/auth-context';
+import { logger } from '@/lib/utils/logger';
 import { DealCard } from '@/components/ui/DealCard';
 import { ContentHeader } from '@/components/dashboard/ContentHeader';
 import { PipelineSummary } from '@/components/dashboard/PipelineSummary';
@@ -13,7 +14,7 @@ import { DragDropZone } from '@/components/ui/DragDropZone';
 
 export default function CimsPage() {
   const router = useRouter();
-  const { user, workspaceId, loading: authLoading } = useAuth();
+  const { user, workspaceId, session, loading: authLoading } = useAuth();
   const [deals, setDeals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -155,7 +156,7 @@ export default function CimsPage() {
 
     if (!userId || !workspaceId) {
       setErrorMsg('User/workspace not loaded yet. Please refresh the page and try again.');
-      console.error('Missing userId or workspaceId:', { userId, workspaceId });
+      logger.error('Missing userId or workspaceId:', { userId, workspaceId });
       return;
     }
 
@@ -189,14 +190,13 @@ export default function CimsPage() {
       }
 
       setUploadProgress(90); // Upload starting
-      console.log('Starting CIM upload:', { filePath, fileSize: fileToUpload.size, fileName });
+      logger.info('Starting CIM upload:', { filePath, fileSize: fileToUpload.size, fileName });
       
       // Ensure we have a valid session before uploading
-      const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('Not authenticated. Please log in again.');
       }
-      console.log('Session check passed, user ID:', session.user.id);
+      logger.info('Session check passed, user ID:', session.user.id);
       
       // Add timeout to prevent hanging
       const uploadPromise = supabase.storage
@@ -214,11 +214,11 @@ export default function CimsPage() {
       
       clearInterval(progressInterval);
       
-      console.log('Upload result:', { storageData, storageError });
+      logger.info('Upload result:', { storageData, storageError });
       
       if (storageError) {
         setUploadProgress(0);
-        console.error('CIM upload error:', storageError);
+        logger.error('CIM upload error:', storageError);
         // More detailed error message
         let errorMessage = 'Failed to upload CIM. ';
         if (storageError.message) {
@@ -235,7 +235,7 @@ export default function CimsPage() {
       
       if (!storageData) {
         setUploadProgress(0);
-        console.error('CIM upload returned no data');
+        logger.error('CIM upload returned no data');
         setErrorMsg('Upload completed but no data returned. Please try again.');
         setCimUploadStatus('error');
         return;
@@ -246,7 +246,7 @@ export default function CimsPage() {
       const cimNameWithoutExt = stripExt(file.name);
 
       // Debug: Log what we're trying to insert
-      console.log('Attempting to insert CIM:', {
+      logger.info('Attempting to insert CIM:', {
         userId,
         workspaceId,
         company_name: cimNameWithoutExt || 'CIM Deal',
@@ -267,7 +267,7 @@ export default function CimsPage() {
 
       if (insertError || !insertData) {
         setUploadProgress(0);
-        console.error('Error inserting CIM company row:', insertError);
+        logger.error('Error inserting CIM company row:', insertError);
         setErrorMsg(`CIM uploaded, but failed to create deal record: ${insertError?.message || 'Unknown error'}`);
         setCimUploadStatus('error');
         return;
@@ -282,7 +282,7 @@ export default function CimsPage() {
         setUploadProgress(0);
       }, 3000);
     } catch (err) {
-      console.error('Unexpected CIM upload error:', err);
+      logger.error('Unexpected CIM upload error:', err);
       setErrorMsg('Unexpected error uploading CIM.');
       setCimUploadStatus('error');
       setUploadProgress(0);
@@ -336,7 +336,6 @@ export default function CimsPage() {
       }
 
       // Create deal record
-      const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('Not authenticated');
       }
@@ -408,7 +407,7 @@ export default function CimsPage() {
       await loadDeals(workspaceId);
       router.push(`/deals/${insertData.id}`);
     } catch (error) {
-      console.error('Error uploading sample CIM:', error);
+      logger.error('Error uploading sample CIM:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to upload sample CIM.';
       
       // Provide helpful error message

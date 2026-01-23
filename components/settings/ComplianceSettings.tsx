@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
+import { logger } from '@/lib/utils/logger';
 import { showToast } from '@/components/ui/Toast';
 
 export function ComplianceSettings() {
@@ -28,12 +29,12 @@ export function ComplianceSettings() {
         });
       
       if (error) {
-        console.error('Failed to create profile:', error);
+        logger.error('Failed to create profile:', error);
       } else {
-        console.log('Profile created successfully');
+        logger.info('Profile created successfully');
       }
     } catch (e) {
-      console.error('Error creating profile:', e);
+      logger.error('Error creating profile:', e);
     }
   }
 
