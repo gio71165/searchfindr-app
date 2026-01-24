@@ -7,7 +7,6 @@ import { supabase } from '@/app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
 import { DealCard } from '@/components/ui/DealCard';
 import { ContentHeader } from '@/components/dashboard/ContentHeader';
-import { PipelineSummary } from '@/components/dashboard/PipelineSummary';
 import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
 import { BulkActionsBar } from '@/components/dashboard/BulkActionsBar';
 import { SavedFilters } from '@/components/dashboard/SavedFilters';
@@ -711,14 +710,6 @@ function DashboardPageContent() {
         </div>
       </div>
 
-      {/* Pipeline Summary - Full variant */}
-      <PipelineSummary
-        selectedStage={selectedStage}
-        setSelectedStage={(stage: string) => setSelectedStage(stage as Stage)}
-        stageCounts={stageCounts}
-        variant="full"
-      />
-
       {/* Saved Filters */}
       <ApplyCriteriaFilter
         deals={deals as any}
@@ -740,12 +731,65 @@ function DashboardPageContent() {
         }}
       />
 
-      {/* Verdict & Quick Filters */}
-      <div className="mb-8" data-onboarding="filter-buttons">
+      {/* Compact Filter Bar */}
+      <div className="bg-white rounded-lg border border-slate-200 p-4 mb-6 space-y-3" data-onboarding="filter-buttons">
+        {/* Verdict filters */}
         <VerdictFilters
           selectedVerdict={selectedVerdict}
           setSelectedVerdict={(verdict: string) => setSelectedVerdict(verdict as Verdict)}
         />
+
+        {/* Stage filters */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium text-gray-600">Stage:</span>
+          {[
+            { label: 'All', value: 'all' as const },
+            { label: 'Follow-up', value: 'follow_up' as const },
+            { label: 'IOI Sent', value: 'ioi_sent' as const },
+            { label: 'LOI', value: 'loi' as const },
+            { label: 'DD', value: 'dd' as const },
+          ].map((stage) => (
+            <button
+              key={stage.value}
+              onClick={() => setSelectedStage(stage.value as Stage)}
+              className={`
+                px-3 py-1.5 rounded-lg text-sm font-medium transition-all
+                ${selectedStage === stage.value
+                  ? 'bg-purple-500 text-white shadow-md'
+                  : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                }
+              `}
+            >
+              {stage.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Source filters */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium text-gray-600">Source:</span>
+          {[
+            { label: 'All', value: null as SourceType },
+            { label: 'CIM', value: 'cim_pdf' as const },
+            { label: 'Financials', value: 'financials' as const },
+            { label: 'On-Market', value: 'on_market' as const },
+            { label: 'Off-Market', value: 'off_market' as const },
+          ].map((source) => (
+            <button
+              key={source.value ?? 'all'}
+              onClick={() => setSelectedSource(source.value)}
+              className={`
+                px-3 py-1.5 rounded-lg text-sm font-medium transition-all
+                ${selectedSource === source.value
+                  ? 'bg-indigo-500 text-white shadow-md'
+                  : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                }
+              `}
+            >
+              {source.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Quick Actions - Enhanced styling */}
