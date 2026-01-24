@@ -277,7 +277,7 @@ function DealCardComponent({
             }
           }}
         >
-          <div className={`relative group rounded-xl border bg-white p-6 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 hover:scale-[1.01] group-hover:border-gray-300 ${
+          <div className={`relative group rounded-xl border bg-white p-6 cursor-pointer transition-all duration-200 hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] group-hover:border-emerald-300 ${
             isSelected 
               ? 'border-blue-500 border-2 bg-blue-50/30' 
               : 'border-slate-200'

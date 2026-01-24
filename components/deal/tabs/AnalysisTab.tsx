@@ -243,34 +243,38 @@ export function AnalysisTab({
       </div>
 
       {/* Data Confidence */}
-      <div className="rounded-lg border border-slate-200 bg-white p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <FileCheck className="h-5 w-5 text-slate-600" />
-          <h3 className="text-xl font-semibold text-slate-900">Data Confidence & Read Quality</h3>
+      <div className="bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-xl p-6 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30">
+            <FileCheck className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex-1">
+            <h3 className="font-bold text-emerald-900 text-lg mb-3">Data Confidence & Read Quality</h3>
+            <div className="flex flex-wrap items-center gap-2 mb-4">
+              <ConfidencePill
+                icon={confidence.icon}
+                label={confidence.label}
+                title={confidence.reason}
+                analyzed={confidence.analyzed}
+                level={confidence.level}
+              />
+              {deal?.ai_confidence_json?.updated_at && (
+                <span className="text-xs text-emerald-700">
+                  Updated {safeDateLabel(deal.ai_confidence_json.updated_at) || ''}
+                </span>
+              )}
+            </div>
+            {confidence.analyzed ? (
+              signals.length === 0 ? (
+                <p className="text-sm text-emerald-700">No confidence signals returned.</p>
+              ) : (
+                <SignalsGrid signals={signals} />
+              )
+            ) : (
+              <p className="text-sm text-emerald-700">Run AI analysis to generate read-quality signals.</p>
+            )}
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <ConfidencePill
-            icon={confidence.icon}
-            label={confidence.label}
-            title={confidence.reason}
-            analyzed={confidence.analyzed}
-            level={confidence.level}
-          />
-          {deal?.ai_confidence_json?.updated_at && (
-            <span className="text-xs text-slate-600">
-              Updated {safeDateLabel(deal.ai_confidence_json.updated_at) || ''}
-            </span>
-          )}
-        </div>
-        {confidence.analyzed ? (
-          signals.length === 0 ? (
-            <p className="text-sm text-slate-600">No confidence signals returned.</p>
-          ) : (
-            <SignalsGrid signals={signals} />
-          )
-        ) : (
-          <p className="text-sm text-slate-600">Run AI analysis to generate read-quality signals.</p>
-        )}
       </div>
 
       {/* AI Investment Memo */}
@@ -345,28 +349,32 @@ export function AnalysisTab({
 
       {/* Scoring Breakdown - Not for financials */}
       {sourceType !== 'financials' && (
-        <div className="rounded-lg border border-slate-200 bg-white p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="h-5 w-5 text-slate-600" />
-            <h3 className="text-xl font-semibold text-slate-900">
-              {sourceType === 'cim_pdf' ? (
-                <>
-                  <JargonTooltip term="CIM">CIM</JargonTooltip> Quality & Risk Signals
-                </>
-              ) : (
-                'Scoring Breakdown'
-              )}
-            </h3>
+        <div className="bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-xl p-6 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30">
+              <BarChart3 className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-emerald-900 text-lg mb-3">
+                {sourceType === 'cim_pdf' ? (
+                  <>
+                    <JargonTooltip term="CIM">CIM</JargonTooltip> Quality & Risk Signals
+                  </>
+                ) : (
+                  'Scoring Breakdown'
+                )}
+              </h3>
+              <RiskSignalsCard
+                scoring={scoring}
+                title=""
+                subtitle={
+                  sourceType === 'cim_pdf'
+                    ? 'Interpretation aids from CIM content (not a grade). Risk signals: High = more risk. Quality signals: High = stronger quality. No Tier is produced for CIM uploads.'
+                    : 'Prioritization signals (not a recommendation). Risk signals: High = more risk. Fit/quality signals: High = stronger alignment/quality.'
+                }
+              />
+            </div>
           </div>
-          <RiskSignalsCard
-            scoring={scoring}
-            title=""
-            subtitle={
-              sourceType === 'cim_pdf'
-                ? 'Interpretation aids from CIM content (not a grade). Risk signals: High = more risk. Quality signals: High = stronger quality. No Tier is produced for CIM uploads.'
-                : 'Prioritization signals (not a recommendation). Risk signals: High = more risk. Fit/quality signals: High = stronger alignment/quality.'
-            }
-          />
         </div>
       )}
 
@@ -444,14 +452,18 @@ export function AnalysisTab({
         </div>
       )}
 
-      {/* Searcher Fit Analysis */}
+      {/* Searcher Fit Analysis - TODO: Evaluate if still useful, may remove if no value */}
       {sourceType !== 'financials' && (
-        <div className="rounded-lg border border-slate-200 bg-white p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="h-5 w-5 text-slate-600" />
-            <h3 className="text-xl font-semibold text-slate-900">Searcher Fit Analysis</h3>
+        <div className="bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-xl p-6 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30">
+              <TrendingUp className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-emerald-900 text-lg mb-3">Searcher Fit Analysis</h3>
+              <SearcherSnapshot criteria={criteria} />
+            </div>
           </div>
-          <SearcherSnapshot criteria={criteria} />
         </div>
       )}
 

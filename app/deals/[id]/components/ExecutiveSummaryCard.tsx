@@ -250,7 +250,7 @@ export function ExecutiveSummaryCard({
             onClick={onProceed}
             isLoading={settingVerdict}
             loadingText="Setting…"
-            className="px-6 py-2.5 font-medium rounded-lg bg-brand hover:bg-brand-dark text-white transition-colors"
+            className="px-6 py-3 font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-all shadow-lg hover:shadow-xl"
           >
             Proceed
           </AsyncButton>
@@ -258,14 +258,14 @@ export function ExecutiveSummaryCard({
             onClick={onPark}
             isLoading={settingVerdict}
             loadingText="Setting…"
-            className="px-6 py-2.5 font-medium rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white transition-colors"
+            className="px-6 py-3 font-semibold rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white transition-all shadow-lg hover:shadow-xl"
           >
             Park
           </AsyncButton>
           <AsyncButton
             onClick={onPass}
             isLoading={settingVerdict}
-            className="px-6 py-2.5 font-medium rounded-lg border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors"
+            className="px-6 py-3 font-semibold rounded-lg border-2 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-all shadow-sm hover:shadow-md"
           >
             Pass
           </AsyncButton>

@@ -73,7 +73,7 @@ export function StickyDealHeader({
               onClick={onProceed}
               isLoading={settingVerdict}
               loadingText="Setting…"
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-brand hover:bg-brand-dark text-white transition-colors whitespace-nowrap"
+              className="px-6 py-3 text-sm font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-all shadow-lg hover:shadow-xl whitespace-nowrap"
             >
               Proceed
             </AsyncButton>
@@ -81,14 +81,14 @@ export function StickyDealHeader({
               onClick={onPark}
               isLoading={settingVerdict}
               loadingText="Setting…"
-              className="px-4 py-2 text-sm font-medium rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white transition-colors whitespace-nowrap"
+              className="px-6 py-3 text-sm font-semibold rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white transition-all shadow-lg hover:shadow-xl whitespace-nowrap"
             >
               Park
             </AsyncButton>
             <AsyncButton
               onClick={onPass}
               isLoading={settingVerdict}
-              className="px-4 py-2 text-sm font-medium rounded-lg border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-colors whitespace-nowrap"
+              className="px-6 py-3 text-sm font-semibold rounded-lg border-2 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-all shadow-sm hover:shadow-md whitespace-nowrap"
             >
               Pass
             </AsyncButton>
