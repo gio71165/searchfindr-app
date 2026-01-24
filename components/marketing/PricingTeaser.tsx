@@ -23,7 +23,7 @@ export function PricingTeaser() {
           <div className="relative p-8 lg:p-12 rounded-2xl border-2 border-emerald-500/50 bg-gradient-to-br from-emerald-500/10 to-cyan-500/5 backdrop-blur-sm">
             <div className="text-center">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-sm text-emerald-300 mb-6">
-                <span>Limited Time</span>
+                <span>21/50 spots filled</span>
               </div>
               
               <div className="mb-6">

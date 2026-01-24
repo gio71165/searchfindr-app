@@ -9,7 +9,7 @@ export function Hero() {
         <div className="flex justify-center mb-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300 backdrop-blur-sm">
             <Rocket className="h-4 w-4 animate-pulse" />
-            <span><strong>37/50 spots filled</strong> · Early bird ends Feb 28, 2026</span>
+            <span><strong>21/50 spots filled</strong> · Early bird ends Feb 28, 2026</span>
           </div>
         </div>
 

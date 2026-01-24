@@ -68,7 +68,7 @@ export default function PricingPage() {
           <div className="inline-flex items-center gap-3 rounded-full border border-red-500/30 bg-red-500/10 px-6 py-3 backdrop-blur-sm">
             <div className="flex items-center gap-2">
               <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
-              <span className="text-red-300 font-semibold">38 spots remaining</span>
+              <span className="text-red-300 font-semibold">21/50 spots filled</span>
             </div>
             <div className="h-4 w-px bg-red-500/30" />
             <span className="text-red-300">Early bird closes Feb 28</span>

@@ -115,7 +115,7 @@ export function ExitIntentPopup() {
 
           {/* Headline */}
           <h2 className="text-3xl font-bold text-white mb-4">
-            Wait! Lock in $149/mo before spots run out.
+            Wait! 21/50 spots filled. Lock in $149/mo before spots run out.
           </h2>
 
           {/* Subheadline */}
