@@ -77,6 +77,7 @@ function DealCardComponent({
   fromView,
   isLoading,
   onArchive,
+  onRefresh,
   isSelected,
   onToggleSelect,
   canSelect,
@@ -88,6 +89,7 @@ function DealCardComponent({
   fromView?: string | null;
   isLoading?: boolean;
   onArchive?: (id: string) => void;
+  onRefresh?: () => void;
   isSelected?: boolean;
   onToggleSelect?: (id: string) => void;
   canSelect?: boolean;
@@ -165,6 +167,7 @@ function DealCardComponent({
       }
 
       onArchive?.(deal.id);
+      onRefresh?.();
     } catch (error) {
       logger.error('Error archiving deal:', error);
       alert(error instanceof Error ? error.message : 'Failed to archive deal');
@@ -226,10 +229,7 @@ function DealCardComponent({
       }
 
       onDelete?.(deal.id);
-      // Optionally refresh the page or update the UI
-      if (typeof window !== 'undefined') {
-        window.location.reload();
-      }
+      onRefresh?.();
     } catch (error) {
       logger.error('Error deleting deal:', error);
       alert(error instanceof Error ? error.message : 'Failed to delete deal');
@@ -752,6 +752,7 @@ export const DealCard = memo(DealCardComponent, (prevProps, nextProps) => {
   if (prevProps.onSaveToggle !== nextProps.onSaveToggle) return false;
   if (prevProps.onDelete !== nextProps.onDelete) return false;
   if (prevProps.onArchive !== nextProps.onArchive) return false;
+  if (prevProps.onRefresh !== nextProps.onRefresh) return false;
   if (prevProps.onToggleSelect !== nextProps.onToggleSelect) return false;
   
   return true; // Props are equal, skip re-render

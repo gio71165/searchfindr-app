@@ -953,6 +953,7 @@ function DashboardPageContent() {
                   onToggleSelect={handleToggleDealSelection}
                   canSelect={selectedDealIds.size < 3 || selectedDealIds.has(deal.id)}
                   fromView={selectedSource || undefined}
+                  onRefresh={() => workspaceId && loadDeals(workspaceId)}
                 />
               </div>
             ))}

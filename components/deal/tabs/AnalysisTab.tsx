@@ -243,13 +243,13 @@ export function AnalysisTab({
       </div>
 
       {/* Data Confidence */}
-      <div className="bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-xl p-6 shadow-sm">
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 shadow-sm">
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30">
+          <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30">
             <FileCheck className="w-6 h-6 text-white" />
           </div>
           <div className="flex-1">
-            <h3 className="font-bold text-emerald-900 text-lg mb-3">Data Confidence & Read Quality</h3>
+            <h3 className="font-bold text-blue-900 text-lg mb-3">Data Confidence & Read Quality</h3>
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <ConfidencePill
                 icon={confidence.icon}
@@ -259,19 +259,19 @@ export function AnalysisTab({
                 level={confidence.level}
               />
               {deal?.ai_confidence_json?.updated_at && (
-                <span className="text-xs text-emerald-700">
+                <span className="text-xs text-blue-700">
                   Updated {safeDateLabel(deal.ai_confidence_json.updated_at) || ''}
                 </span>
               )}
             </div>
             {confidence.analyzed ? (
               signals.length === 0 ? (
-                <p className="text-sm text-emerald-700">No confidence signals returned.</p>
+                <p className="text-sm text-blue-700">No confidence signals returned.</p>
               ) : (
                 <SignalsGrid signals={signals} />
               )
             ) : (
-              <p className="text-sm text-emerald-700">Run AI analysis to generate read-quality signals.</p>
+              <p className="text-sm text-blue-700">Run AI analysis to generate read-quality signals.</p>
             )}
           </div>
         </div>
@@ -349,13 +349,13 @@ export function AnalysisTab({
 
       {/* Scoring Breakdown - Not for financials */}
       {sourceType !== 'financials' && (
-        <div className="bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-xl p-6 shadow-sm">
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 shadow-sm">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30">
+            <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30">
               <BarChart3 className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1">
-              <h3 className="font-bold text-emerald-900 text-lg mb-3">
+              <h3 className="font-bold text-blue-900 text-lg mb-3">
                 {sourceType === 'cim_pdf' ? (
                   <>
                     <JargonTooltip term="CIM">CIM</JargonTooltip> Quality & Risk Signals
@@ -454,13 +454,13 @@ export function AnalysisTab({
 
       {/* Searcher Fit Analysis - TODO: Evaluate if still useful, may remove if no value */}
       {sourceType !== 'financials' && (
-        <div className="bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-xl p-6 shadow-sm">
+        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 shadow-sm">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30">
+            <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30">
               <TrendingUp className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1">
-              <h3 className="font-bold text-emerald-900 text-lg mb-3">Searcher Fit Analysis</h3>
+              <h3 className="font-bold text-blue-900 text-lg mb-3">Searcher Fit Analysis</h3>
               <SearcherSnapshot criteria={criteria} />
             </div>
           </div>
