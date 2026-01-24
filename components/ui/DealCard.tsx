@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, memo, useCallback } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { MapPin, Building2, Calendar, DollarSign, TrendingUp, StickyNote, Plus, Tag, Clock, ChevronRight } from 'lucide-react';
 import { ConfidenceBadge } from './ConfidenceBadge';
@@ -257,33 +256,41 @@ function DealCardComponent({
     return '—';
   };
 
+  const dealHref = `/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`;
+
+  const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    const isNonNavigable =
+      target.closest('[data-no-navigate]') ||
+      target.tagName === 'BUTTON' ||
+      target.tagName === 'INPUT' ||
+      target.tagName === 'SELECT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.closest('button') ||
+      target.closest('[role="menuitem"]') ||
+      target.closest('[role="menu"]');
+    if (isNonNavigable) return;
+    router.push(dealHref);
+  };
+
   return (
     <>
       {/* Desktop card (current design) */}
       <div className="hidden md:block">
-        <Link
-          href={`/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`}
-          className="block group focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded-xl"
-          aria-label={`View details for ${deal.company_name || 'deal'}`}
-          onClickCapture={(e) => {
-            // Always prevent default navigation so clicks on menu/buttons don't navigate
-            e.preventDefault();
-          }}
-          onClick={(e) => {
-            const target = e.target as HTMLElement;
-            if (
-              target.closest('button') ||
-              target.closest('input') ||
-              target.closest('[role="button"]') ||
-              target.closest('a[href]') ||
-              target.closest('[data-no-link]')
-            ) {
-              return;
+        <div
+          role="link"
+          tabIndex={0}
+          onClick={handleCardClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              router.push(dealHref);
             }
-            router.push(`/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`);
           }}
+          className="block group focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded-xl cursor-pointer"
+          aria-label={`View details for ${deal.company_name || 'deal'}`}
         >
-          <div className={`relative group rounded-xl border bg-white p-6 cursor-pointer transition-all duration-200 hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] group-hover:border-emerald-300 ${
+          <div className={`relative group rounded-xl border bg-white p-6 transition-all duration-200 hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] group-hover:border-emerald-300 ${
             isSelected 
               ? 'border-blue-500 border-2 bg-blue-50/30' 
               : 'border-slate-200'
@@ -300,7 +307,7 @@ function DealCardComponent({
             }`} />
       {/* Comparison Checkbox */}
       {onToggleSelect && (
-        <div className="flex items-center justify-end mb-3" data-no-link onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-end mb-3" data-no-navigate onClick={(e) => e.stopPropagation()}>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -337,12 +344,12 @@ function DealCardComponent({
       <div className="flex items-start justify-between gap-4 mb-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="flex-1 min-w-0" data-no-link>
+            <div className="flex-1 min-w-0">
               <h3 className="text-xl font-bold text-slate-900 group-hover:text-emerald-600 transition-colors duration-200 leading-tight">
                 {deal.company_name || 'Untitled Deal'}
               </h3>
             </div>
-            <div data-no-link onClick={(e) => e.stopPropagation()}>
+            <div data-no-navigate onClick={(e) => e.stopPropagation()}>
               <MoreActionsMenu
                 dealId={deal.id}
                 isArchived={isArchived}
@@ -489,7 +496,7 @@ function DealCardComponent({
                   setShowNoteInput(true);
                 }}
                 className="text-xs text-blue-600 hover:text-blue-700 font-medium min-h-[44px] px-2 py-1"
-                data-no-link
+                data-no-navigate
               >
                 Edit
               </button>
@@ -497,7 +504,7 @@ function DealCardComponent({
           </div>
           
           {showNoteInput ? (
-              <div className="space-y-2" data-no-link onClick={(e) => e.stopPropagation()}>
+              <div className="space-y-2" data-no-navigate onClick={(e) => e.stopPropagation()}>
               <textarea
                 value={noteInput}
                 onChange={(e) => setNoteInput(e.target.value)}
@@ -555,7 +562,7 @@ function DealCardComponent({
                   }}
                   disabled={isSavingNote}
                   className="px-3 py-2.5 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors disabled:opacity-50 min-h-[44px]"
-                  data-no-link
+                  data-no-navigate
                 >
                   Cancel
                 </button>
@@ -571,7 +578,7 @@ function DealCardComponent({
 
       {/* Quick Add Note Button */}
       {!deal.user_notes && !showNoteInput && (
-        <div className="mb-4" data-no-link onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4" data-no-navigate onClick={(e) => e.stopPropagation()}>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -579,7 +586,7 @@ function DealCardComponent({
               setShowNoteInput(true);
             }}
             className="w-full flex items-center justify-center gap-2 px-3 py-3 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors min-h-[44px]"
-            data-no-link
+            data-no-navigate
           >
             <Plus className="h-3.5 w-3.5" />
             Add Note
@@ -588,7 +595,7 @@ function DealCardComponent({
       )}
 
       {/* Action Buttons */}
-      <div className="flex items-center gap-3 pt-4 border-t border-slate-200" data-no-link onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center gap-3 pt-4 border-t border-slate-200" data-no-navigate onClick={(e) => e.stopPropagation()}>
         <div className="flex-1 text-center px-4 py-3 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-200 hover:shadow-md hover:shadow-blue-200 pointer-events-none min-h-[44px] flex items-center justify-center">
           View Details
         </div>
@@ -599,37 +606,30 @@ function DealCardComponent({
               onSaveToggle(deal.id);
             }}
             className="px-4 py-3 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:border-slate-400 rounded-lg transition-all duration-200 min-h-[44px]"
-            data-no-link
+            data-no-navigate
           >
             {deal.is_saved ? 'Unsave' : 'Save'}
           </button>
         )}
       </div>
       </div>
-        </Link>
+        </div>
       </div>
 
       {/* Mobile card (simplified) */}
       <div className="md:hidden">
-        <Link
-          href={`/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`}
-          className="block focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded-lg"
-          aria-label={`View details for ${deal.company_name || 'deal'}`}
-          onClickCapture={(e) => {
-            e.preventDefault();
-          }}
-          onClick={(e) => {
-            const target = e.target as HTMLElement;
-            if (
-              target.closest('button') ||
-              target.closest('input') ||
-              target.closest('[role="button"]') ||
-              target.closest('[data-no-link]')
-            ) {
-              return;
+        <div
+          role="link"
+          tabIndex={0}
+          onClick={handleCardClick}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              router.push(dealHref);
             }
-            router.push(`/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`);
           }}
+          className="block focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded-lg cursor-pointer"
+          aria-label={`View details for ${deal.company_name || 'deal'}`}
         >
           <div className={`bg-white rounded-lg p-4 border border-gray-200 active:bg-gray-50 relative ${
             isSelected 
@@ -638,7 +638,7 @@ function DealCardComponent({
           }`}>
             {/* Comparison Checkbox */}
             {onToggleSelect && (
-              <div className="flex items-center justify-end mb-3" data-no-link onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-end mb-3" data-no-navigate onClick={(e) => e.stopPropagation()}>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -673,7 +673,7 @@ function DealCardComponent({
                 )}
               </div>
               {(deal.source_type === 'on_market' || deal.source_type === 'off_market') && deal.final_tier && (
-                <div className="flex-shrink-0" data-no-link onClick={(e) => e.stopPropagation()}>
+                <div className="flex-shrink-0" data-no-navigate onClick={(e) => e.stopPropagation()}>
                   <TierBadge tier={deal.final_tier} />
                 </div>
               )}
@@ -728,7 +728,7 @@ function DealCardComponent({
             {/* Chevron indicator */}
             <ChevronRight className="absolute right-4 top-4 w-5 h-5 text-gray-400 pointer-events-none" />
           </div>
-        </Link>
+        </div>
       </div>
     </>
   );

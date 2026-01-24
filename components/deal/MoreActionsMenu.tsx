@@ -48,13 +48,20 @@ export function MoreActionsMenu({
     onDelete?.();
   };
 
+  const handleMenuToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(!isOpen);
+  };
+
+  const handleOverlayClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(false);
+  };
+
   return (
-    <div className={`relative ${className}`} ref={menuRef} data-no-link>
+    <div className={`relative ${className}`} ref={menuRef} data-no-navigate>
       <IconButton
-        onClick={(e) => {
-          e.stopPropagation();
-          setIsOpen(!isOpen);
-        }}
+        onClick={handleMenuToggle}
         icon={<MoreVertical className="h-4 w-4" />}
         label="More actions"
         className="p-2 hover:bg-slate-100 text-slate-600 hover:text-slate-900"
@@ -64,15 +71,19 @@ export function MoreActionsMenu({
         <>
           <div
             className="fixed inset-0 z-40"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsOpen(false);
-            }}
+            onClick={handleOverlayClick}
+            aria-hidden="true"
           />
-          <div className="absolute right-0 mt-2 w-48 rounded-lg border border-slate-200 bg-white shadow-lg z-50">
+          <div
+            className="absolute right-0 mt-2 w-48 rounded-lg border border-slate-200 bg-white shadow-lg z-50"
+            role="menu"
+            data-no-navigate
+          >
             <div className="py-1">
               {!isArchived && (
                 <button
+                  type="button"
+                  role="menuitem"
                   onClick={handleArchive}
                   className="w-full flex items-center gap-2 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition-colors text-left min-h-[44px]"
                 >
@@ -81,6 +92,8 @@ export function MoreActionsMenu({
                 </button>
               )}
               <button
+                type="button"
+                role="menuitem"
                 onClick={handleDelete}
                 className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors text-left min-h-[44px]"
               >
