@@ -1,4 +1,5 @@
 import { Rocket } from 'lucide-react';
+import Link from 'next/link';
 import { PricingCard } from '@/components/marketing/PricingCard';
 
 const STRIPE_PAYMENT_URL = 'https://buy.stripe.com/dRm4gz1ReaTxct01lKawo00';
@@ -72,6 +73,21 @@ export default function PricingPage() {
             </div>
             <div className="h-4 w-px bg-red-500/30" />
             <span className="text-red-300">Early bird closes Feb 28</span>
+          </div>
+        </div>
+
+        {/* Primary CTA - Book Demo */}
+        <div className="text-center mb-12">
+          <div className="inline-flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link
+              href="/demo"
+              className="w-full sm:w-auto px-8 py-4 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-base font-semibold text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-105"
+            >
+              Book Demo
+            </Link>
+            <p className="text-sm text-white/60">
+              See SearchFindr in action before committing
+            </p>
           </div>
         </div>
 

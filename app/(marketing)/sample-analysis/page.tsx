@@ -350,15 +350,22 @@ export default function SampleAnalysisPage() {
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
-                href="/pricing"
+                href="/demo"
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-sm font-semibold text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-105"
+              >
+                Book Demo
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link
+                href="/pricing"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border-2 border-white/20 bg-white/5 text-sm font-semibold text-white hover:bg-white/10 transition-all"
               >
                 View Pricing
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border-2 border-white/20 bg-white/5 text-sm font-semibold text-white hover:bg-white/10 transition-all"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border-2 border-white/10 bg-white/3 text-sm font-semibold text-white/80 hover:bg-white/5 hover:border-white/20 transition-all"
               >
                 Try it yourself
                 <ArrowRight className="h-4 w-4" />
