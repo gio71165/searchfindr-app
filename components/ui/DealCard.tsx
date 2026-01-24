@@ -2,6 +2,7 @@
 
 import React, { useState, memo, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { MapPin, Building2, Calendar, DollarSign, TrendingUp, StickyNote, Plus, Tag, Clock, ChevronRight } from 'lucide-react';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { SourceBadge } from './SourceBadge';
@@ -93,6 +94,7 @@ function DealCardComponent({
   canSelect?: boolean;
   onNoteUpdate?: () => void;
 }) {
+  const router = useRouter();
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
@@ -263,8 +265,11 @@ function DealCardComponent({
           href={`/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`}
           className="block group focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded-xl"
           aria-label={`View details for ${deal.company_name || 'deal'}`}
+          onClickCapture={(e) => {
+            // Always prevent default navigation so clicks on menu/buttons don't navigate
+            e.preventDefault();
+          }}
           onClick={(e) => {
-            // Allow clicks on interactive elements to work normally
             const target = e.target as HTMLElement;
             if (
               target.closest('button') ||
@@ -273,8 +278,9 @@ function DealCardComponent({
               target.closest('a[href]') ||
               target.closest('[data-no-link]')
             ) {
-              e.preventDefault();
+              return;
             }
+            router.push(`/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`);
           }}
         >
           <div className={`relative group rounded-xl border bg-white p-6 cursor-pointer transition-all duration-200 hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] group-hover:border-emerald-300 ${
@@ -609,8 +615,10 @@ function DealCardComponent({
           href={`/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`}
           className="block focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded-lg"
           aria-label={`View details for ${deal.company_name || 'deal'}`}
+          onClickCapture={(e) => {
+            e.preventDefault();
+          }}
           onClick={(e) => {
-            // Allow clicks on interactive elements to work normally
             const target = e.target as HTMLElement;
             if (
               target.closest('button') ||
@@ -618,8 +626,9 @@ function DealCardComponent({
               target.closest('[role="button"]') ||
               target.closest('[data-no-link]')
             ) {
-              e.preventDefault();
+              return;
             }
+            router.push(`/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`);
           }}
         >
           <div className={`bg-white rounded-lg p-4 border border-gray-200 active:bg-gray-50 relative ${

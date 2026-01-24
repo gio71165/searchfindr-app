@@ -36,18 +36,20 @@ export function MoreActionsMenu({
     }
   }, [isOpen]);
 
-  const handleArchive = () => {
+  const handleArchive = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setIsOpen(false);
     onArchive?.();
   };
 
-  const handleDelete = () => {
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setIsOpen(false);
     onDelete?.();
   };
 
   return (
-    <div className={`relative ${className}`} ref={menuRef}>
+    <div className={`relative ${className}`} ref={menuRef} data-no-link>
       <IconButton
         onClick={(e) => {
           e.stopPropagation();
@@ -62,7 +64,10 @@ export function MoreActionsMenu({
         <>
           <div
             className="fixed inset-0 z-40"
-            onClick={() => setIsOpen(false)}
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(false);
+            }}
           />
           <div className="absolute right-0 mt-2 w-48 rounded-lg border border-slate-200 bg-white shadow-lg z-50">
             <div className="py-1">
