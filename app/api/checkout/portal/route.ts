@@ -19,10 +19,36 @@ function getSupabase() {
   );
 }
 
+function getAppUrl(): string {
+  let url = process.env.NEXT_PUBLIC_APP_URL || '';
+  url = url.trim();
+  
+  // If empty, try to infer from request (for local dev)
+  if (!url) {
+    return 'http://localhost:3000';
+  }
+  
+  // Ensure URL has a scheme
+  if (!url.match(/^https?:\/\//)) {
+    // If it starts with localhost, use http, otherwise https
+    if (url.includes('localhost') || url.includes('127.0.0.1')) {
+      url = `http://${url}`;
+    } else {
+      url = `https://${url}`;
+    }
+  }
+  
+  // Remove trailing slash
+  url = url.replace(/\/$/, '');
+  
+  return url;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const stripe = getStripe();
     const supabase = getSupabase();
+    const appUrl = getAppUrl();
     const { userId } = await req.json();
 
     const { data: profile } = await supabase
@@ -37,7 +63,7 @@ export async function POST(req: NextRequest) {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: profile.stripe_customer_id,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL}/settings`,
+      return_url: `${appUrl}/settings`,
     });
 
     return NextResponse.json({ url: session.url });

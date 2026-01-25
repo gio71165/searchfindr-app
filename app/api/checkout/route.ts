@@ -19,6 +19,31 @@ function getSupabase() {
   );
 }
 
+function getAppUrl(): string {
+  let url = process.env.NEXT_PUBLIC_APP_URL || '';
+  url = url.trim();
+  
+  // If empty, try to infer from request (for local dev)
+  if (!url) {
+    return 'http://localhost:3000';
+  }
+  
+  // Ensure URL has a scheme
+  if (!url.match(/^https?:\/\//)) {
+    // If it starts with localhost, use http, otherwise https
+    if (url.includes('localhost') || url.includes('127.0.0.1')) {
+      url = `http://${url}`;
+    } else {
+      url = `https://${url}`;
+    }
+  }
+  
+  // Remove trailing slash
+  url = url.replace(/\/$/, '');
+  
+  return url;
+}
+
 // Price ID mapping from env
 function getPriceIds() {
   return {
@@ -34,6 +59,7 @@ export async function POST(req: NextRequest) {
     const stripe = getStripe();
     const supabase = getSupabase();
     const PRICE_IDS = getPriceIds();
+    const appUrl = getAppUrl();
     const { tier, plan, billingCycle, userId, email } = await req.json();
 
     if (!tier || !plan || !billingCycle || !userId || !email) {
@@ -107,8 +133,8 @@ export async function POST(req: NextRequest) {
         },
       },
       
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/pricing`,
+      success_url: `${appUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/pricing`,
       
       metadata: {
         supabase_user_id: userId,
