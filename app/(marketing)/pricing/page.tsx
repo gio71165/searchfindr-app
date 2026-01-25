@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, X, Zap, Users, Infinity, FileText, BarChart, Calculator, Chrome, Mail, MessageSquare, Palette, Headphones, Database, Crown, Video } from 'lucide-react';
 import Link from 'next/link';
@@ -10,23 +10,6 @@ export default function PricingPage() {
   const router = useRouter();
   const [searcherType, setSearcherType] = useState<'traditional' | 'self_funded'>('self_funded');
   const [isLoading, setIsLoading] = useState(false);
-
-  // Check if we should auto-start checkout (from signup redirect)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('checkout') === 'true') {
-      const tier = params.get('tier') as 'self_funded' | 'search_fund' | null;
-      const plan = params.get('plan') as 'early_bird' | null;
-      const billing = params.get('billing') as 'monthly' | 'yearly' | null;
-      
-      if (tier && plan && billing) {
-        // Small delay to ensure user is authenticated
-        setTimeout(() => {
-          handleCheckout(tier, plan, billing);
-        }, 500);
-      }
-    }
-  }, []);
 
   async function handleCheckout(
     tier: 'self_funded' | 'search_fund',
@@ -39,30 +22,13 @@ export default function PricingPage() {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
+        // Redirect to signup, which will then redirect to /checkout
         router.push(`/signup?tier=${tier}&plan=${plan}&billing=${billingCycle}`);
         return;
       }
       
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tier,
-          plan,
-          billingCycle,
-          userId: user.id,
-          email: user.email,
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.error) {
-        alert(data.error);
-        return;
-      }
-      
-      window.location.href = data.url;
+      // User is authenticated, redirect to checkout page
+      router.push(`/checkout?tier=${tier}&plan=${plan}&billing=${billingCycle}`);
       
     } catch (error) {
       console.error('Checkout error:', error);

@@ -36,9 +36,9 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, url.origin));
   }
 
-  // If subscription params exist, redirect to checkout
+  // If subscription params exist, redirect to checkout route
   if (tier && plan && billing) {
-    return NextResponse.redirect(new URL(`/pricing?checkout=true&tier=${tier}&plan=${plan}&billing=${billing}`, url.origin));
+    return NextResponse.redirect(new URL(`/checkout?tier=${tier}&plan=${plan}&billing=${billing}`, url.origin));
   }
 
   return NextResponse.redirect(new URL("/dashboard", url.origin));

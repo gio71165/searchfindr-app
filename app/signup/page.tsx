@@ -76,7 +76,7 @@ function SignupPageContent() {
 
       // If we have a session immediately (email confirmation disabled), redirect to checkout
       if (data.session && tier && plan && billing) {
-        router.push(`/pricing?checkout=true&tier=${tier}&plan=${plan}&billing=${billing}`);
+        router.push(`/checkout?tier=${tier}&plan=${plan}&billing=${billing}`);
       } else if (data.session) {
         router.push('/dashboard');
       }
