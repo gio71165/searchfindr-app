@@ -8,8 +8,7 @@ import {
   Database,
 } from 'lucide-react';
 import { Feature } from './Feature';
-
-const STRIPE_PAYMENT_URL = 'https://buy.stripe.com/dRm4gz1ReaTxct01lKawo00';
+import Link from 'next/link';
 
 export function TraditionalSearchFundPricing() {
   return (
@@ -91,14 +90,12 @@ export function TraditionalSearchFundPricing() {
         </div>
 
         {/* CTA Button */}
-        <a
-          href={STRIPE_PAYMENT_URL}
-          target="_blank"
-          rel="noopener noreferrer"
+        <Link
+          href="/pricing"
           className="block w-full py-4 bg-gray-900 text-white rounded-lg font-semibold text-lg hover:bg-gray-800 transition-colors shadow-lg hover:shadow-xl text-center"
         >
           Start Free Trial
-        </a>
+        </Link>
 
         <p className="text-center text-sm text-white/50 mt-4">
           7-day free trial • No credit card required • Cancel anytime
