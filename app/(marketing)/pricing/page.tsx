@@ -86,9 +86,9 @@ export default function PricingPage() {
         
         {/* Pricing Cards */}
         {searcherType === 'self_funded' ? (
-          <SelfFundedPricingCards />
+          <SelfFundedPricingCards onCheckout={handleCheckout} isLoading={isLoading} />
         ) : (
-          <TraditionalSearchFundPricingCards />
+          <TraditionalSearchFundPricingCards onCheckout={handleCheckout} isLoading={isLoading} />
         )}
       </div>
       
@@ -136,7 +136,13 @@ function NotIncluded({ text }: { text: string }) {
 }
 
 // Self-Funded Pricing Cards
-function SelfFundedPricingCards() {
+function SelfFundedPricingCards({ 
+  onCheckout, 
+  isLoading 
+}: { 
+  onCheckout: (tier: 'self_funded' | 'search_fund', plan: 'early_bird', billing: 'monthly' | 'yearly') => void;
+  isLoading: boolean;
+}) {
   return (
     <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
       {/* Early Bird Card - HIGHLIGHTED */}
@@ -199,7 +205,7 @@ function SelfFundedPricingCards() {
           
           {/* CTA */}
           <button
-            onClick={() => handleCheckout('self_funded', 'early_bird', 'monthly')}
+            onClick={() => onCheckout('self_funded', 'early_bird', 'monthly')}
             disabled={isLoading}
             className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-500 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -274,7 +280,13 @@ function SelfFundedPricingCards() {
 }
 
 // Traditional Search Fund Pricing Cards
-function TraditionalSearchFundPricingCards() {
+function TraditionalSearchFundPricingCards({ 
+  onCheckout, 
+  isLoading 
+}: { 
+  onCheckout: (tier: 'self_funded' | 'search_fund', plan: 'early_bird', billing: 'monthly' | 'yearly') => void;
+  isLoading: boolean;
+}) {
   return (
     <>
       {/* Early Bird Section */}
@@ -363,7 +375,7 @@ function TraditionalSearchFundPricingCards() {
               
               {/* CTA */}
               <button
-                onClick={() => handleCheckout('search_fund', 'early_bird', 'monthly')}
+                onClick={() => onCheckout('search_fund', 'early_bird', 'monthly')}
                 disabled={isLoading}
                 className="w-full py-5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold text-xl hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >

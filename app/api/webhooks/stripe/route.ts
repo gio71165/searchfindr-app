@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2024-11-20.acacia',
+  apiVersion: '2025-12-15.clover',
 });
 
 const supabase = createClient(
@@ -73,6 +73,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
   const isInTrial = subscription.status === 'trialing';
+  
+  // Type assertion for subscription properties (Stripe types may be incomplete)
+  const sub = subscription as any;
 
   await supabase
     .from('profiles')
@@ -84,16 +87,16 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       stripe_subscription_id: subscription.id,
       stripe_price_id: subscription.items.data[0].price.id,
       subscription_start_date: new Date(subscription.created * 1000).toISOString(),
-      subscription_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      subscription_current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
       has_had_trial: isInTrial || undefined,
-      trial_start_date: isInTrial ? new Date(subscription.trial_start! * 1000).toISOString() : null,
-      trial_end_date: isInTrial ? new Date(subscription.trial_end! * 1000).toISOString() : null,
+      trial_start_date: isInTrial && sub.trial_start ? new Date(sub.trial_start * 1000).toISOString() : null,
+      trial_end_date: isInTrial && sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
     })
     .eq('id', userId);
 
   // Initialize usage tracking
   const periodStart = new Date();
-  const periodEnd = new Date(subscription.current_period_end * 1000);
+  const periodEnd = sub.current_period_end ? new Date(sub.current_period_end * 1000) : new Date();
 
   await supabase.from('user_usage').upsert({
     user_id: userId,
@@ -122,6 +125,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
 
   const tier = subscription.metadata?.tier;
   const plan = subscription.metadata?.plan;
+  const sub = subscription as any;
 
   await supabase
     .from('profiles')
@@ -129,16 +133,16 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
       subscription_tier: tier,
       subscription_plan: plan,
       subscription_status: subscription.status,
-      subscription_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      subscription_current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
     })
     .eq('stripe_subscription_id', subscription.id);
 
   // If trial just ended, update trial history
-  if (subscription.status === 'active' && subscription.trial_end) {
+  if (subscription.status === 'active' && sub.trial_end) {
     await supabase
       .from('trial_history')
       .update({
-        trial_ended_at: new Date(subscription.trial_end * 1000).toISOString(),
+        trial_ended_at: new Date(sub.trial_end * 1000).toISOString(),
         converted_to_paid: true,
       })
       .eq('stripe_customer_id', subscription.customer as string)
@@ -156,26 +160,29 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 }
 
 async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
-  if (!invoice.subscription) return;
+  const inv = invoice as any;
+  if (!inv.subscription) return;
 
-  const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+  const subscription = await stripe.subscriptions.retrieve(inv.subscription as string);
+  const sub = subscription as any;
 
   await supabase
     .from('profiles')
     .update({
       subscription_status: 'active',
-      subscription_current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+      subscription_current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
     })
     .eq('stripe_subscription_id', subscription.id);
 }
 
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
-  if (!invoice.subscription) return;
+  const inv = invoice as any;
+  if (!inv.subscription) return;
 
   await supabase
     .from('profiles')
     .update({
       subscription_status: 'past_due',
     })
-    .eq('stripe_subscription_id', invoice.subscription as string);
+    .eq('stripe_subscription_id', inv.subscription as string);
 }
