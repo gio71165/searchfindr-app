@@ -10,8 +10,12 @@ const STORAGE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 export function ExitIntentPopup() {
   const [isVisible, setIsVisible] = useState(false);
   const hasShownRef = useRef(false);
+  const pageLoadTimeRef = useRef<number | null>(null);
 
   useEffect(() => {
+    // Record page load time
+    pageLoadTimeRef.current = Date.now();
+
     // Check if popup was shown recently
     const checkStorage = () => {
       if (typeof window === 'undefined') return false;
@@ -38,11 +42,14 @@ export function ExitIntentPopup() {
       return;
     }
 
-    const handleMouseLeave = (e: MouseEvent) => {
-      // Only trigger if mouse is leaving from the very top of the viewport (within 5px)
-      // This indicates user is actually trying to close the tab/window
-      // Using a small threshold to avoid false positives
-      if (e.clientY <= 5 && !hasShownRef.current) {
+    const showPopup = () => {
+      // Only show if user has been on page for at least 3 seconds
+      const timeOnPage = pageLoadTimeRef.current ? Date.now() - pageLoadTimeRef.current : 0;
+      if (timeOnPage < 3000) {
+        return; // Too soon, don't show
+      }
+
+      if (!hasShownRef.current) {
         hasShownRef.current = true;
         setIsVisible(true);
         
@@ -55,10 +62,33 @@ export function ExitIntentPopup() {
       }
     };
 
-    document.addEventListener('mouseleave', handleMouseLeave);
+    const handleMouseLeave = (e: MouseEvent) => {
+      // Trigger when mouse leaves the top of the viewport (within 20px for better detection)
+      // This indicates user is trying to close the tab/window or navigate away
+      if (e.clientY <= 20 && !hasShownRef.current) {
+        showPopup();
+      }
+    };
+
+    // Also listen for mouseout on document for better cross-browser support
+    const handleMouseOut = (e: MouseEvent) => {
+      // Check if mouse is leaving the document entirely (relatedTarget is null)
+      // and mouse is at the top of the viewport
+      if (!e.relatedTarget && e.clientY <= 20 && !hasShownRef.current) {
+        showPopup();
+      }
+    };
+
+    // Add event listeners after a short delay to ensure page is loaded
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('mouseleave', handleMouseLeave, { passive: true });
+      document.addEventListener('mouseout', handleMouseOut, { passive: true });
+    }, 1000);
 
     return () => {
+      clearTimeout(timeoutId);
       document.removeEventListener('mouseleave', handleMouseLeave);
+      document.removeEventListener('mouseout', handleMouseOut);
     };
   }, []);
 
