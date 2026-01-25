@@ -5,6 +5,8 @@ import { authenticateRequest, AuthError } from "@/lib/api/auth";
 import { DealsRepository } from "@/lib/data-access/deals";
 import { checkRateLimit, getRateLimitConfig } from "@/lib/api/rate-limit";
 import { validateInputLength, getCorsHeaders } from "@/lib/api/security";
+import { handleApiError } from "@/lib/api/error-handler";
+import { withSecurityHeaders } from "@/lib/api/security-middleware";
 import { logger } from "@/lib/utils/logger";
 
 export const runtime = "nodejs";
@@ -197,7 +199,7 @@ export async function OPTIONS() {
   return new NextResponse(null, { status: 200, headers: corsHeaders });
 }
 
-export async function POST(req: NextRequest) {
+async function handlePOST(req: NextRequest) {
   try {
     // Hard fail fast if env is missing (prevents confusing Vercel runtime errors)
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -429,9 +431,11 @@ export async function POST(req: NextRequest) {
     );
   } catch (err: any) {
     if (err instanceof AuthError) {
-      return json({ error: err.message }, err.statusCode);
+      return json({ error: "Authentication failed. Please check your credentials." }, err.statusCode);
     }
-    logger.error("capture-deal error:", err);
-    return json({ error: "Unable to capture deal. Please try again later." }, 500);
+    return handleApiError(err, { endpoint: "capture-deal", userId: user?.id });
   }
 }
+
+// Export with security headers
+export const POST = withSecurityHeaders(handlePOST);

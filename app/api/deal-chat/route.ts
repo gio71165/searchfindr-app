@@ -7,6 +7,8 @@ import { ChatRepository } from "@/lib/data-access/chat";
 import { NotFoundError, DatabaseError } from "@/lib/data-access/base";
 import { sanitizeForPrompt, sanitizeShortText } from "@/lib/utils/sanitize";
 import { validateInputLength } from "@/lib/api/security";
+import { handleApiError } from "@/lib/api/error-handler";
+import { logger } from "@/lib/utils/logger";
 import type { ChatRole } from "@/lib/types/deal";
 
 const MAX_MESSAGE_LENGTH = 5000;
@@ -202,19 +204,11 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
-    const error = e instanceof Error ? e : new Error("Unknown error");
-    const errorMessage = error.message || String(e);
-    const errorStack = error.stack;
-    console.error("deal-chat POST error:", {
-      message: errorMessage,
-      stack: errorStack,
-      dealId: body?.dealId || "unknown",
-      userId: user?.id || "unknown",
+    return handleApiError(e, {
+      endpoint: "deal-chat",
+      userId: user?.id,
+      additionalInfo: { dealId: body?.dealId },
     });
-    return NextResponse.json(
-      { error: "Something went wrong. Please try again later." },
-      { status: 500 }
-    );
   }
 }
 

@@ -172,12 +172,9 @@ Here is the listing text:
     return NextResponse.json({ data: inserted }, { status: 200 });
   } catch (err) {
     if (err instanceof AuthError) {
-      return NextResponse.json({ error: err.message }, { status: err.statusCode });
+      return NextResponse.json({ error: "Authentication failed. Please check your credentials." }, { status: err.statusCode });
     }
-    logger.error('Unexpected error in /api/analyze-text:', err);
-    return NextResponse.json(
-      { error: 'An unexpected error occurred. Please try again later.' },
-      { status: 500 }
-    );
+    const { handleApiError } = await import("@/lib/api/error-handler");
+    return handleApiError(err, { endpoint: "analyze-text", userId: user?.id });
   }
 }

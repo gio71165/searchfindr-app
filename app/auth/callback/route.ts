@@ -33,7 +33,11 @@ export async function GET(request: Request) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, url.origin));
+    // Don't expose error details in URL - security risk
+    // Log error server-side for debugging
+    const { logger } = await import("@/lib/utils/logger");
+    logger.error("Auth callback error", { error: error.message });
+    return NextResponse.redirect(new URL("/login?error=auth_failed", url.origin));
   }
 
   // If subscription params exist, redirect to checkout route

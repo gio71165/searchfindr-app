@@ -1,75 +1,150 @@
+// lib/api/error-handler.ts
+// Centralized error handling to prevent information leakage
+
 import { NextResponse } from "next/server";
 import { AuthError } from "./auth";
+import { DatabaseError, NotFoundError } from "@/lib/data-access/base";
 import { logger } from "@/lib/utils/logger";
 
-export interface ApiError {
-  message: string;
-  statusCode: number;
-  code?: string;
+/**
+ * Sanitizes error messages to prevent information leakage.
+ * Only returns safe, user-friendly error messages.
+ */
+function sanitizeErrorMessage(error: unknown, isDevelopment: boolean = false): string {
+  // In development, show more details for debugging
+  if (isDevelopment && error instanceof Error) {
+    return error.message;
+  }
+
+  // Handle known error types
+  if (error instanceof AuthError) {
+    return "Authentication failed. Please check your credentials.";
+  }
+
+  if (error instanceof NotFoundError) {
+    return "The requested resource was not found.";
+  }
+
+  if (error instanceof DatabaseError) {
+    // Never expose database error details to users
+    return "A database error occurred. Please try again later.";
+  }
+
+  // Generic error handling
+  if (error instanceof Error) {
+    // Check for sensitive patterns that should never be exposed
+    const message = error.message.toLowerCase();
+    
+    // Never expose these patterns
+    if (
+      message.includes('sql') ||
+      message.includes('database') ||
+      message.includes('connection') ||
+      message.includes('query') ||
+      message.includes('schema') ||
+      message.includes('table') ||
+      message.includes('column') ||
+      message.includes('constraint') ||
+      message.includes('violation') ||
+      message.includes('permission denied') ||
+      message.includes('unauthorized') ||
+      message.includes('forbidden') ||
+      message.includes('api key') ||
+      message.includes('token') ||
+      message.includes('secret') ||
+      message.includes('password') ||
+      message.includes('credential')
+    ) {
+      return "An error occurred. Please try again later.";
+    }
+
+    // For other errors, return a generic message
+    return "An unexpected error occurred. Please try again later.";
+  }
+
+  return "An unexpected error occurred. Please try again later.";
 }
 
 /**
- * Standardized error handler for API routes
- * Ensures consistent error response format and proper status codes
+ * Centralized error handler for API routes.
+ * Ensures consistent error responses and prevents information leakage.
  */
-export function handleApiError(error: unknown): NextResponse {
-  // Auth errors
-  if (error instanceof AuthError) {
-    logger.warn("Auth error:", error.message);
-    return NextResponse.json(
-      { error: error.message },
-      { status: error.statusCode }
-    );
+export function handleApiError(
+  error: unknown,
+  context?: {
+    endpoint?: string;
+    userId?: string;
+    additionalInfo?: Record<string, unknown>;
   }
-
-  // Database errors (from BaseRepository)
+): NextResponse {
+  const isDevelopment = process.env.NODE_ENV === "development";
+  
+  // Log full error details server-side (never sent to client)
   if (error instanceof Error) {
-    const errorMessage = error.message;
-    
-    // Don't log sensitive information
-    if (errorMessage.includes('token') || errorMessage.includes('password')) {
-      logger.error("Database error (sanitized)");
-    } else {
-      logger.error("API error:", errorMessage);
-    }
-
-    // Determine status code from error message
-    let statusCode = 500;
-    if (errorMessage.includes('not found') || errorMessage.includes('NotFound')) {
-      statusCode = 404;
-    } else if (errorMessage.includes('unauthorized') || errorMessage.includes('Unauthorized')) {
-      statusCode = 401;
-    } else if (errorMessage.includes('forbidden') || errorMessage.includes('Forbidden')) {
-      statusCode = 403;
-    } else if (errorMessage.includes('validation') || errorMessage.includes('invalid')) {
-      statusCode = 400;
-    }
-
-    return NextResponse.json(
-      { error: errorMessage || "An error occurred" },
-      { status: statusCode }
-    );
+    logger.error("API Error", {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      endpoint: context?.endpoint,
+      userId: context?.userId,
+      ...context?.additionalInfo,
+    });
+  } else {
+    logger.error("API Error (non-Error object)", {
+      error: String(error),
+      endpoint: context?.endpoint,
+      userId: context?.userId,
+      ...context?.additionalInfo,
+    });
   }
 
-  // Unknown errors
-  logger.error("Unknown API error:", error);
+  // Determine status code
+  let statusCode = 500;
+  if (error instanceof AuthError) {
+    statusCode = error.statusCode;
+  } else if (error instanceof NotFoundError) {
+    statusCode = 404;
+  } else if (error instanceof DatabaseError) {
+    statusCode = error.statusCode;
+  }
+
+  // Return sanitized error message
+  const safeMessage = sanitizeErrorMessage(error, isDevelopment);
+
   return NextResponse.json(
-    { error: "An unexpected error occurred" },
-    { status: 500 }
+    { error: safeMessage },
+    { status: statusCode }
   );
 }
 
 /**
- * Wrapper for API route handlers to ensure consistent error handling
+ * Wraps an async API route handler with error handling.
+ * Use this to automatically catch and handle errors.
  */
-export function withErrorHandler(
-  handler: (req: Request) => Promise<NextResponse>
-) {
-  return async (req: Request): Promise<NextResponse> => {
+export function withErrorHandler<T extends (...args: any[]) => Promise<NextResponse>>(
+  handler: T,
+  context?: { endpoint?: string }
+): T {
+  return (async (...args: Parameters<T>) => {
     try {
-      return await handler(req);
+      return await handler(...args);
     } catch (error) {
-      return handleApiError(error);
+      // Extract userId if available from request
+      let userId: string | undefined;
+      try {
+        const req = args[0] as { headers?: Headers };
+        if (req?.headers) {
+          // Try to extract user ID from auth context if available
+          // This is a best-effort extraction
+        }
+      } catch {
+        // Ignore errors extracting context
+      }
+
+      return handleApiError(error, {
+        endpoint: context?.endpoint,
+        userId,
+      });
     }
-  };
+  }) as T;
 }

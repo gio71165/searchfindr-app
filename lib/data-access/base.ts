@@ -42,19 +42,27 @@ export abstract class BaseRepository {
 
   /**
    * Handles Supabase errors and throws a DatabaseError with a custom message.
+   * SECURITY: Never exposes database error details to prevent information leakage.
    * @param error - The error from Supabase
-   * @param message - Custom error message to display
+   * @param message - Custom error message to display (user-friendly, no sensitive details)
    * @throws DatabaseError
    */
   protected handleError(error: unknown, message: string): never {
+    // Log full error details server-side for debugging (never sent to client)
     if (error instanceof Error) {
-      // Try to extract Supabase error details if available
       const errorWithCode = error as any;
-      const details = errorWithCode.details ? ` Details: ${errorWithCode.details}` : '';
-      const hint = errorWithCode.hint ? ` Hint: ${errorWithCode.hint}` : '';
-      const code = errorWithCode.code ? ` (${errorWithCode.code})` : '';
-      throw new DatabaseError(`${message}: ${error.message}${code}${details}${hint}`, 500);
+      // Log detailed error for server-side debugging
+      const { logger } = require("@/lib/utils/logger");
+      logger.error("Database error", {
+        message: error.message,
+        code: errorWithCode.code,
+        details: errorWithCode.details,
+        hint: errorWithCode.hint,
+        workspaceId: this.workspaceId,
+      });
     }
+    
+    // Throw sanitized error - never expose database internals
     throw new DatabaseError(message, 500);
   }
 
