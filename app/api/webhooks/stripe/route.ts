@@ -3,10 +3,11 @@ import Stripe from 'stripe';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 function getStripe() {
-  if (!process.env.STRIPE_SECRET_KEY) {
+  const key = process.env.STRIPE_SECRET_KEY?.trim().replace(/^["']|["']$/g, '');
+  if (!key) {
     throw new Error('STRIPE_SECRET_KEY is not set');
   }
-  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+  return new Stripe(key, {
     apiVersion: '2025-12-15.clover',
   });
 }
