@@ -17,13 +17,13 @@ const features = [
   },
   {
     icon: LayoutDashboard,
-    title: 'Never miss a follow-up. Never lose a deal.',
-    description: 'Automatic reminders, stage-based playbooks, and broker feedback generation keep you organized and professional.',
+    title: 'Your Search OS',
+    description: 'Automatic reminders, stage-based playbooks, and broker feedback generation keep you organized and professional. Never miss a follow-up. Never lose a deal.',
   },
   {
     icon: TrendingUp,
-    title: 'Model every scenario before you make an offer',
-    description: 'Full SBA 7(a) calculator, seller financing, earnouts, and stress tests. See exactly what happens if revenue drops 20%.',
+    title: 'Instantly Check Bankability',
+    description: 'Full SBA 7(a) calculator, seller financing, earnouts, and stress tests. Model every scenario before you make an offer. See exactly what happens if revenue drops 20%.',
   },
   {
     icon: GitCompare,
@@ -42,7 +42,7 @@ const features = [
   },
   {
     icon: Download,
-    title: 'PDF Export',
+    title: 'Investor-Ready Memos in 1-Click',
     description: 'Export professional deal analysis reports to share with advisors, partners, or investors. Includes executive summary, financials, red flags, and verdict.',
   },
   {

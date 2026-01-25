@@ -1,6 +1,7 @@
 import { Hero } from '@/components/marketing/Hero';
 import { SocialProof } from '@/components/marketing/SocialProof';
 import { ProblemSection } from '@/components/marketing/ProblemSection';
+import { OldWayVsNewWay } from '@/components/marketing/OldWayVsNewWay';
 import { SolutionSection } from '@/components/marketing/SolutionSection';
 import { FeaturesGrid } from '@/components/marketing/FeaturesGrid';
 import { VisualDemo } from '@/components/marketing/VisualDemo';
@@ -18,6 +19,9 @@ export default function MarketingHomePage() {
           <ProblemSection />
         </AnimatedSection>
       </div>
+      <AnimatedSection>
+        <OldWayVsNewWay />
+      </AnimatedSection>
       <div id="solution">
         <AnimatedSection>
           <SolutionSection />

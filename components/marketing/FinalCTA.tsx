@@ -12,21 +12,25 @@ export function FinalCTA() {
           30-day money-back guarantee.
         </p>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4">
           <Link
-            href="/demo"
+            href="/pricing"
             className="w-full sm:w-auto px-8 py-4 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-base font-semibold text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-105 flex items-center justify-center gap-2"
           >
-            Book Demo
+            Start Your Free Trial
             <ArrowRight className="h-5 w-5" />
           </Link>
           <Link
-            href="/pricing"
+            href="/demo"
             className="w-full sm:w-auto px-8 py-4 rounded-lg border-2 border-white/20 bg-white/5 text-base font-semibold text-white hover:bg-white/10 hover:border-white/30 transition-all"
           >
-            See Pricing
+            Book Demo
           </Link>
         </div>
+
+        <p className="text-sm text-gray-400 mb-4">
+          <span className="font-semibold text-emerald-400">7-day free trial</span> • $0 due today • Cancel anytime with one click
+        </p>
 
         <p className="text-sm text-white/50">
           Questions? <Link href="/demo" className="text-emerald-400 hover:text-emerald-300 underline">Schedule a call</Link> or email support.

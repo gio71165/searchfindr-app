@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, X, Zap, Users, Infinity, FileText, BarChart, Calculator, Chrome, Mail, MessageSquare, Palette, Headphones, Database, Crown, Video, Clock, AlertCircle } from 'lucide-react';
+import { Check, X, Zap, Users, Infinity, FileText, BarChart, Calculator, Chrome, Mail, MessageSquare, Palette, Headphones, Database, Crown, Video } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/app/supabaseClient';
+import { ScarcityTracker } from '@/components/marketing/ScarcityTracker';
 
 export default function PricingPage() {
   const router = useRouter();
@@ -41,21 +42,7 @@ export default function PricingPage() {
   return (
     <div className="min-h-screen bg-[#0b0f17]">
       {/* Urgency Banner - Top of Page */}
-      <div className="bg-gradient-to-r from-red-600/20 to-orange-600/20 border-b border-red-500/30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 text-center">
-            <div className="flex items-center gap-2 text-red-300 font-semibold">
-              <AlertCircle className="w-5 h-5 animate-pulse" />
-              <span className="text-lg">21/50 Early Bird Spots Filled</span>
-            </div>
-            <div className="hidden sm:block w-px h-6 bg-red-500/30" />
-            <div className="flex items-center gap-2 text-orange-300 font-semibold">
-              <Clock className="w-5 h-5" />
-              <span className="text-lg">Early Bird Ends Feb 28, 2026</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ScarcityTracker variant="banner" />
 
       {/* Hero Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-6">
@@ -64,7 +51,7 @@ export default function PricingPage() {
             Simple, Transparent Pricing
           </h1>
           <p className="text-sm sm:text-base text-gray-400 mb-4">
-            Start your <span className="text-emerald-400 font-semibold">7-day free trial</span> • No credit card required
+            Start your <span className="text-emerald-400 font-semibold">7-day free trial</span> • $0 due today • Cancel anytime with one click
           </p>
         </div>
         

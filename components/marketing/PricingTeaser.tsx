@@ -1,5 +1,6 @@
 import { ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { ScarcityTracker } from './ScarcityTracker';
 
 export function PricingTeaser() {
   return (
@@ -21,8 +22,8 @@ export function PricingTeaser() {
           {/* Pricing Card */}
           <div className="relative p-8 lg:p-12 rounded-2xl border-2 border-emerald-500/50 bg-gradient-to-br from-emerald-500/10 to-cyan-500/5 backdrop-blur-sm">
             <div className="text-center">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-sm text-emerald-300 mb-6">
-                <span>21/50 spots filled</span>
+              <div className="mb-6">
+                <ScarcityTracker variant="badge" />
               </div>
               
               <div className="mb-6">
@@ -105,7 +106,7 @@ export function PricingTeaser() {
                   href="/pricing"
                   className="w-full sm:w-auto px-8 py-4 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-base font-semibold text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-105 flex items-center justify-center gap-2"
                 >
-                  View Pricing & Sign Up
+                  Start Your Free Trial
                   <ArrowRight className="h-5 w-5" />
                 </Link>
                 <Link
@@ -115,6 +116,9 @@ export function PricingTeaser() {
                   Lock in $149/mo Forever
                 </Link>
               </div>
+              <p className="text-center text-sm text-gray-400 mt-4">
+                <span className="font-semibold text-emerald-400">7-day free trial</span> • $0 due today • Cancel anytime with one click
+              </p>
             </div>
           </div>
         </div>
