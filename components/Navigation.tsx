@@ -102,7 +102,7 @@ export function Navigation() {
                     className="fixed inset-0 z-40"
                     onClick={() => setShowUserMenu(false)}
                   />
-                  <div className="absolute right-0 mt-2 w-56 rounded-lg border border-slate-200 bg-white shadow-lg z-50">
+                  <div className="absolute right-0 mt-2 w-56 rounded-lg border border-slate-200 bg-white shadow-lg z-50 backdrop-blur-sm">
                   <div className="py-1">
                     <div className="px-4 py-2 border-b border-slate-200">
                       <p className="text-sm font-medium text-slate-900">{email}</p>
