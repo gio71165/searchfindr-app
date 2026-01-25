@@ -164,13 +164,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 });
     }
 
-    // Validate file
-    if (!validateFileType(file, ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])) {
-      return NextResponse.json({ success: false, error: 'Invalid file type. Please upload a PDF, DOCX, or DOC file.' }, { status: 400 });
+    // Validate file size first
+    const sizeCheck = validateFileSize(file.size);
+    if (!sizeCheck.valid) {
+      return NextResponse.json({ success: false, error: sizeCheck.error || 'File too large. Maximum size is 25MB.' }, { status: 400 });
     }
 
-    if (!validateFileSize(file, 50 * 1024 * 1024)) { // 50MB max
-      return NextResponse.json({ success: false, error: 'File too large. Maximum size is 50MB.' }, { status: 400 });
+    // Convert file to buffer for type validation
+    const arrayBuffer = await file.arrayBuffer();
+    const typeCheck = validateFileType(arrayBuffer, ['pdf', 'docx', 'doc']);
+    if (!typeCheck.valid) {
+      return NextResponse.json({ success: false, error: typeCheck.error || 'Invalid file type. Please upload a PDF, DOCX, or DOC file.' }, { status: 400 });
     }
 
     // Upload to temporary guest storage
@@ -178,7 +182,6 @@ export async function POST(req: NextRequest) {
     const fileName = `guest-${Date.now()}-${Math.random().toString(36).slice(2)}.${fileExt}`;
     const filePath = `guest/${fileName}`;
 
-    const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
     // Upload to Supabase storage (will auto-expire based on bucket policy)
@@ -217,7 +220,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Analysis service unavailable' }, { status: 500 });
     }
 
-    const userText = buildCimAnalysisUserText(extractedText, wasTruncated);
+    // Build user text - use extracted text as company name placeholder since we don't have company name for guest uploads
+    const userText = buildCimAnalysisUserText('Unknown Company');
+    const fullUserContent = `${userText}\n\nCIM Content:\n${extractedText}${wasTruncated ? '\n\n[Note: Content was truncated due to length]' : ''}`;
     const systemPrompt = CIM_ANALYSIS_INSTRUCTIONS.template;
 
     const analysisResponse = await withRetry(
@@ -232,7 +237,7 @@ export async function POST(req: NextRequest) {
             model: 'gpt-4o',
             messages: [
               { role: 'system', content: systemPrompt },
-              { role: 'user', content: userText },
+              { role: 'user', content: fullUserContent },
             ],
             temperature: 0.2,
             response_format: { type: 'json_object' },

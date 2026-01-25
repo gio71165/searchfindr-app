@@ -17,7 +17,7 @@ export default function PricingPage() {
   const [showTrustModal, setShowTrustModal] = useState(false);
   const [pendingCheckout, setPendingCheckout] = useState<{
     tier: 'self_funded' | 'search_fund';
-    plan: 'early_bird';
+    plan: 'early_bird' | 'standard';
     billing: 'monthly' | 'yearly';
   } | null>(null);
 
