@@ -2,25 +2,37 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-12-15.clover',
-});
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY is not set');
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-12-15.clover',
+  });
+}
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 // Price ID mapping from env
-const PRICE_IDS = {
-  self_funded_early_bird_monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_SELF_FUNDED_EARLY_MONTHLY!,
-  self_funded_early_bird_yearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_SELF_FUNDED_EARLY_YEARLY!,
-  search_fund_early_bird_monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_SEARCH_FUND_EARLY_MONTHLY!,
-  search_fund_early_bird_yearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_SEARCH_FUND_EARLY_YEARLY!,
-};
+function getPriceIds() {
+  return {
+    self_funded_early_bird_monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_SELF_FUNDED_EARLY_MONTHLY!,
+    self_funded_early_bird_yearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_SELF_FUNDED_EARLY_YEARLY!,
+    search_fund_early_bird_monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_SEARCH_FUND_EARLY_MONTHLY!,
+    search_fund_early_bird_yearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_SEARCH_FUND_EARLY_YEARLY!,
+  };
+}
 
 export async function POST(req: NextRequest) {
   try {
+    const stripe = getStripe();
+    const supabase = getSupabase();
+    const PRICE_IDS = getPriceIds();
     const { tier, plan, billingCycle, userId, email } = await req.json();
 
     if (!tier || !plan || !billingCycle || !userId || !email) {
