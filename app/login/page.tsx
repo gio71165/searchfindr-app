@@ -3,9 +3,9 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../supabaseClient';
-import { Navigation } from '@/components/Navigation';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { AsyncButton } from '@/components/ui/AsyncButton';
+import Link from 'next/link';
 
 function safeInternalPath(p: string | null, fallback: string): string {
   if (!p) return fallback;
@@ -57,7 +57,24 @@ function LoginPageContent() {
 
   return (
     <>
-      <Navigation />
+      {/* Minimal nav for login page */}
+      <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#0b0f17]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <Link href="/" className="text-xl font-bold text-slate-100 hover:text-indigo-300 transition-colors">
+              SearchFindr
+            </Link>
+            <div className="flex items-center gap-4">
+              <Link
+                href="/pricing"
+                className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-500 transition-all text-sm"
+              >
+                From $49/mo
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
       <main className="min-h-screen bg-[#0b0f17] text-slate-100">
       {/* Subtle background */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">

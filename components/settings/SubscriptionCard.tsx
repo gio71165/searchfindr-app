@@ -168,10 +168,13 @@ export function SubscriptionCard() {
 
       <button
         onClick={openBillingPortal}
-        className="w-full px-6 py-3 bg-gray-100 text-gray-900 rounded-lg font-semibold hover:bg-gray-200 transition-colors"
+        className="w-full px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-500 transition-colors"
       >
-        Manage Subscription
+        Manage Subscription & Billing
       </button>
+      <p className="text-xs text-gray-500 mt-3 text-center">
+        Opens Stripe billing portal where you can update payment methods, view invoices, and cancel your subscription
+      </p>
     </div>
   );
 }
