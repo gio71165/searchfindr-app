@@ -3,7 +3,6 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase } from '../supabaseClient';
-import { Navigation } from '@/components/Navigation';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 function CheckoutPageContent() {
@@ -72,31 +71,25 @@ function CheckoutPageContent() {
 
   if (error) {
     return (
-      <>
-        <Navigation />
-        <main className="min-h-screen bg-[#0b0f17] text-slate-100 flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-red-400 mb-4">⚠️</div>
-            <h1 className="text-xl font-semibold mb-2">Checkout Error</h1>
-            <p className="text-slate-400 mb-4">{error}</p>
-            <p className="text-sm text-slate-500">Redirecting to pricing page...</p>
-          </div>
-        </main>
-      </>
+      <main className="min-h-screen bg-[#0b0f17] text-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-400 mb-4">⚠️</div>
+          <h1 className="text-xl font-semibold mb-2">Checkout Error</h1>
+          <p className="text-slate-400 mb-4">{error}</p>
+          <p className="text-sm text-slate-500">Redirecting to pricing page...</p>
+        </div>
+      </main>
     );
   }
 
   return (
-    <>
-      <Navigation />
-      <main className="min-h-screen bg-[#0b0f17] text-slate-100 flex items-center justify-center">
-        <div className="text-center">
-          <LoadingSpinner size="lg" className="mb-4" />
-          <h1 className="text-xl font-semibold mb-2">Starting Checkout...</h1>
-          <p className="text-slate-400">Redirecting to secure payment page</p>
-        </div>
-      </main>
-    </>
+    <main className="min-h-screen bg-[#0b0f17] text-slate-100 flex items-center justify-center">
+      <div className="text-center">
+        <LoadingSpinner size="lg" className="mb-4" />
+        <h1 className="text-xl font-semibold mb-2">Starting Checkout...</h1>
+        <p className="text-slate-400">Redirecting to secure payment page</p>
+      </div>
+    </main>
   );
 }
 

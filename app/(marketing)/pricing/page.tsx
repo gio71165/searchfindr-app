@@ -9,6 +9,7 @@ import { supabase } from '@/app/supabaseClient';
 export default function PricingPage() {
   const router = useRouter();
   const [searcherType, setSearcherType] = useState<'traditional' | 'self_funded'>('self_funded');
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [isLoading, setIsLoading] = useState(false);
 
   async function handleCheckout(
@@ -52,7 +53,7 @@ export default function PricingPage() {
         </div>
         
         {/* Tab Switcher */}
-        <div className="flex items-center justify-center mb-16">
+        <div className="flex flex-col items-center justify-center mb-8 gap-6">
           <div className="inline-flex rounded-xl border border-gray-700 p-1.5 bg-gray-900 w-full sm:w-auto">
             <button
               onClick={() => setSearcherType('self_funded')}
@@ -82,13 +83,38 @@ export default function PricingPage() {
               </span>
             </button>
           </div>
+          
+          {/* Billing Cycle Toggle */}
+          <div className="inline-flex rounded-xl border border-gray-700 p-1.5 bg-gray-900">
+            <button
+              onClick={() => setBillingCycle('monthly')}
+              className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${
+                billingCycle === 'monthly'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingCycle('yearly')}
+              className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${
+                billingCycle === 'yearly'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              Yearly
+              <span className="ml-2 text-xs text-emerald-400">Save 20%</span>
+            </button>
+          </div>
         </div>
         
         {/* Pricing Cards */}
         {searcherType === 'self_funded' ? (
-          <SelfFundedPricingCards onCheckout={handleCheckout} isLoading={isLoading} />
+          <SelfFundedPricingCards onCheckout={handleCheckout} isLoading={isLoading} billingCycle={billingCycle} />
         ) : (
-          <TraditionalSearchFundPricingCards onCheckout={handleCheckout} isLoading={isLoading} />
+          <TraditionalSearchFundPricingCards onCheckout={handleCheckout} isLoading={isLoading} billingCycle={billingCycle} />
         )}
       </div>
       
@@ -138,11 +164,18 @@ function NotIncluded({ text }: { text: string }) {
 // Self-Funded Pricing Cards
 function SelfFundedPricingCards({ 
   onCheckout, 
-  isLoading 
+  isLoading,
+  billingCycle
 }: { 
   onCheckout: (tier: 'self_funded' | 'search_fund', plan: 'early_bird', billing: 'monthly' | 'yearly') => void;
   isLoading: boolean;
+  billingCycle: 'monthly' | 'yearly';
 }) {
+  const monthlyPrice = 49;
+  const yearlyPrice = Math.round(monthlyPrice * 12 * 0.8); // 20% discount
+  const displayPrice = billingCycle === 'monthly' ? monthlyPrice : yearlyPrice;
+  const displayPeriod = billingCycle === 'monthly' ? 'month' : 'year';
+  const monthlyEquivalent = billingCycle === 'yearly' ? Math.round(yearlyPrice / 12) : monthlyPrice;
   return (
     <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
       {/* Early Bird Card - HIGHLIGHTED */}
@@ -168,15 +201,20 @@ function SelfFundedPricingCards({
           {/* Pricing */}
           <div className="text-center mb-8">
             <div className="flex items-baseline justify-center gap-2 mb-2">
-              <span className="text-5xl sm:text-6xl font-bold text-white">$49</span>
-              <span className="text-xl text-gray-400">/month</span>
+              <span className="text-5xl sm:text-6xl font-bold text-white">${displayPrice}</span>
+              <span className="text-xl text-gray-400">/{displayPeriod}</span>
             </div>
+            {billingCycle === 'yearly' && (
+              <p className="text-sm text-emerald-400 mb-2">
+                ${monthlyEquivalent}/month billed annually
+              </p>
+            )}
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-sm font-semibold mt-2">
               <Zap className="w-3 h-3" />
               Locked in forever
             </div>
             <p className="text-xs text-gray-500 mt-2">
-              Regular price: $79/month
+              Regular price: {billingCycle === 'monthly' ? '$79/month' : '$948/year ($79/month)'}
             </p>
           </div>
           
@@ -205,11 +243,11 @@ function SelfFundedPricingCards({
           
           {/* CTA */}
           <button
-            onClick={() => onCheckout('self_funded', 'early_bird', 'monthly')}
+            onClick={() => onCheckout('self_funded', 'early_bird', billingCycle)}
             disabled={isLoading}
             className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-500 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? 'Starting checkout...' : 'Lock In $49/Month Forever'}
+            {isLoading ? 'Starting checkout...' : billingCycle === 'monthly' ? `Lock In $${monthlyPrice}/Month Forever` : `Lock In $${yearlyPrice}/Year Forever`}
           </button>
           
           <p className="text-center text-sm text-gray-400 mt-4">
@@ -282,11 +320,18 @@ function SelfFundedPricingCards({
 // Traditional Search Fund Pricing Cards
 function TraditionalSearchFundPricingCards({ 
   onCheckout, 
-  isLoading 
+  isLoading,
+  billingCycle
 }: { 
   onCheckout: (tier: 'self_funded' | 'search_fund', plan: 'early_bird', billing: 'monthly' | 'yearly') => void;
   isLoading: boolean;
+  billingCycle: 'monthly' | 'yearly';
 }) {
+  const monthlyPrice = 149;
+  const yearlyPrice = Math.round(monthlyPrice * 12 * 0.8); // 20% discount
+  const displayPrice = billingCycle === 'monthly' ? monthlyPrice : yearlyPrice;
+  const displayPeriod = billingCycle === 'monthly' ? 'month' : 'year';
+  const monthlyEquivalent = billingCycle === 'yearly' ? Math.round(yearlyPrice / 12) : monthlyPrice;
   return (
     <>
       {/* Early Bird Section */}
@@ -319,15 +364,20 @@ function TraditionalSearchFundPricingCards({
               {/* Pricing */}
               <div className="text-center mb-10">
                 <div className="flex items-baseline justify-center gap-2 mb-3">
-                  <span className="text-6xl sm:text-7xl font-bold text-white">$149</span>
-                  <span className="text-2xl text-gray-400">/month</span>
+                  <span className="text-6xl sm:text-7xl font-bold text-white">${displayPrice}</span>
+                  <span className="text-2xl text-gray-400">/{displayPeriod}</span>
                 </div>
+                {billingCycle === 'yearly' && (
+                  <p className="text-sm text-emerald-400 mb-2">
+                    ${monthlyEquivalent}/month billed annually
+                  </p>
+                )}
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-full text-base font-semibold">
                   <Zap className="w-4 h-4" />
                   Locked in forever
                 </div>
                 <p className="text-sm text-gray-500 mt-3">
-                  vs. $369/month post-launch for same features
+                  vs. {billingCycle === 'monthly' ? '$369/month' : '$3,540/year ($295/month)'} post-launch for same features
                 </p>
               </div>
               
@@ -375,11 +425,11 @@ function TraditionalSearchFundPricingCards({
               
               {/* CTA */}
               <button
-                onClick={() => onCheckout('search_fund', 'early_bird', 'monthly')}
+                onClick={() => onCheckout('search_fund', 'early_bird', billingCycle)}
                 disabled={isLoading}
                 className="w-full py-5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold text-xl hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isLoading ? 'Starting checkout...' : 'Lock In $149/Month + Founder Access'}
+                {isLoading ? 'Starting checkout...' : billingCycle === 'monthly' ? `Lock In $${monthlyPrice}/Month + Founder Access` : `Lock In $${yearlyPrice}/Year + Founder Access`}
               </button>
               
               <p className="text-center text-sm text-gray-400 mt-4">
