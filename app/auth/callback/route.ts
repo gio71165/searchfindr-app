@@ -5,6 +5,9 @@ import { cookies } from "next/headers";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
+  const tier = url.searchParams.get("tier");
+  const plan = url.searchParams.get("plan");
+  const billing = url.searchParams.get("billing");
 
   if (!code) return NextResponse.redirect(new URL("/login?error=missing_code", url.origin));
 
@@ -31,6 +34,11 @@ export async function GET(request: Request) {
 
   if (error) {
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error.message)}`, url.origin));
+  }
+
+  // If subscription params exist, redirect to checkout
+  if (tier && plan && billing) {
+    return NextResponse.redirect(new URL(`/pricing?checkout=true&tier=${tier}&plan=${plan}&billing=${billing}`, url.origin));
   }
 
   return NextResponse.redirect(new URL("/dashboard", url.origin));

@@ -108,7 +108,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 }
 
 async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
-  const userId = subscription.metadata?.supabase_user_id;
+  let userId = subscription.metadata?.supabase_user_id;
+  
   if (!userId) {
     const { data: profile } = await supabase
       .from('profiles')
@@ -116,6 +117,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
       .eq('stripe_subscription_id', subscription.id)
       .single();
     if (!profile) return;
+    userId = profile.id;
   }
 
   const tier = subscription.metadata?.tier;
