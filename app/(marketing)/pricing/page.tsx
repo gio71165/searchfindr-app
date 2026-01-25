@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, X, Zap, Users, Infinity, FileText, BarChart, Calculator, Chrome, Mail, MessageSquare, Palette, Headphones, Database, Crown, Video } from 'lucide-react';
+import { Check, X, Zap, Users, Infinity, FileText, BarChart, Calculator, Chrome, Mail, MessageSquare, Palette, Headphones, Database, Crown, Video, Info } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/app/supabaseClient';
 import { ScarcityTracker } from '@/components/marketing/ScarcityTracker';
+import { TrustBoxModal } from '@/components/modals/TrustBoxModal';
+import { TrialTerms } from '@/components/marketing/TrialTerms';
 
 export default function PricingPage() {
   const router = useRouter();
@@ -13,6 +15,12 @@ export default function PricingPage() {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [isLoading, setIsLoading] = useState(false);
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [showTrustModal, setShowTrustModal] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState<{
+    tier: 'self_funded' | 'search_fund';
+    plan: 'early_bird';
+    billing: 'monthly' | 'yearly';
+  } | null>(null);
 
   async function handleCheckout(
     tier: 'self_funded' | 'search_fund',
@@ -29,7 +37,9 @@ export default function PricingPage() {
         return;
       }
       
-      router.push(`/checkout?tier=${tier}&plan=${plan}&billing=${billingCycle}`);
+      // Show trust modal before proceeding to checkout
+      setPendingCheckout({ tier, plan, billing: billingCycle });
+      setShowTrustModal(true);
       
     } catch (error) {
       console.error('Checkout error:', error);
@@ -37,6 +47,12 @@ export default function PricingPage() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  function proceedToCheckout() {
+    if (!pendingCheckout) return;
+    setShowTrustModal(false);
+    router.push(`/checkout?tier=${pendingCheckout.tier}&plan=${pendingCheckout.plan}&billing=${pendingCheckout.billing}`);
   }
 
   return (
@@ -136,8 +152,25 @@ export default function PricingPage() {
       {/* FAQ Section */}
       <FAQSection />
       
+      {/* Trial Terms Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-900/50">
+        <div className="max-w-4xl mx-auto">
+          <TrialTerms />
+        </div>
+      </section>
+      
       {/* Final CTA Section */}
       <FinalCTA />
+      
+      {/* Trust Box Modal */}
+      <TrustBoxModal
+        isOpen={showTrustModal}
+        onClose={() => {
+          setShowTrustModal(false);
+          setPendingCheckout(null);
+        }}
+        onContinue={proceedToCheckout}
+      />
     </div>
   );
 }
@@ -206,15 +239,23 @@ function SelfFundedPricingCards({
         onMouseEnter={() => setHoveredCard('early-bird')}
         onMouseLeave={() => setHoveredCard(null)}
       >
-        {/* Urgency Badge */}
+        {/* Urgency Badge with Progress */}
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-full text-xs font-bold shadow-lg animate-pulse">
-            <Zap className="w-3 h-3" />
-            21/50 Spots Left
-          </span>
+          <div className="inline-flex flex-col items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-red-500/90 to-orange-500/90 text-white rounded-lg text-xs font-bold shadow-lg">
+            <span className="flex items-center gap-1.5">
+              <Zap className="w-3 h-3" />
+              21/50 Spots Left
+            </span>
+            <div className="w-full max-w-[120px] h-1.5 bg-red-900/40 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-white rounded-full transition-all duration-500 ease-out"
+                style={{ width: '42%' }}
+              />
+            </div>
+          </div>
         </div>
         
-        <div className={`bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-2xl border-2 border-emerald-500 p-5 pt-8 transition-all ${
+        <div className={`bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-2xl border-2 border-emerald-500 p-5 pt-10 transition-all ${
           hoveredCard === 'early-bird' ? 'shadow-emerald-500/50' : ''
         }`}>
           <div className="text-center mb-4">
@@ -243,14 +284,55 @@ function SelfFundedPricingCards({
             </div>
           </div>
           
-          {/* Key Features - Compact List */}
+          {/* Key Features - Compact List with Checkmarks */}
           <div className="space-y-2 mb-4 text-left">
-            <Feature icon={<FileText className="w-4 h-4" />} text="20 CIM analyses/month" />
-            <Feature icon={<BarChart className="w-4 h-4" />} text="Unlimited pipeline tracking" />
-            <Feature icon={<FileText className="w-4 h-4" />} text="5 IOI + 2 LOI/month" />
-            <Feature icon={<Calculator className="w-4 h-4" />} text="SBA 7(a) calculator" />
-            <Feature icon={<Chrome className="w-4 h-4" />} text="Chrome extension" />
-            <Feature icon={<Users className="w-4 h-4" />} text="1 user seat" />
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-300">20 CIM analyses/month</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-300">Unlimited pipeline tracking</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-300">5 IOI + 2 LOI/month</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-300">SBA 7(a) calculator</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-300">Chrome extension</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-300">1 user seat</span>
+            </div>
+          </div>
+          
+          {/* Post-Launch Price Comparison */}
+          <div className="mb-3 text-center">
+            <div className="relative inline-flex items-center gap-1 group">
+              <p className="text-xs text-gray-400">
+                Price increases to <span className="font-semibold text-red-400">$79</span> on Feb 28
+              </p>
+              <div className="relative">
+                <Info className="w-3 h-3 text-gray-500 cursor-help" />
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                  Post-launch pricing: $79/month for the same features. Lock in $49/mo forever by signing up before Feb 28.
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-0 h-0 border-4 border-transparent border-t-gray-700" />
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* High-Contrast Free Trial Text - Above CTA */}
+          <div className="mb-3 text-center">
+            <p className="text-sm font-bold text-white bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+              7-day free trial • $0 due today
+            </p>
           </div>
           
           {/* Primary CTA - Free Trial */}
@@ -262,8 +344,15 @@ function SelfFundedPricingCards({
             {isLoading ? 'Starting...' : 'Start Your Free Trial'}
           </button>
           
+          {/* Micro-Copy: No-Surprise Policy */}
+          <div className="mt-2 mb-2 px-2">
+            <p className="text-xs text-gray-300 leading-relaxed text-center">
+              Your trial is <span className="font-semibold text-emerald-400">100% free for 7 days</span>. We'll send you a reminder email on Day 6 before your subscription begins. Cancel with one click in your dashboard anytime.
+            </p>
+          </div>
+          
           <p className="text-center text-xs text-gray-400">
-            <span className="font-semibold text-emerald-400">7-day free trial</span> • Cancel anytime
+            Cancel anytime
           </p>
           <p className="text-center text-xs text-gray-500 mt-1">
             Then ${displayPrice}/{displayPeriod}
@@ -353,8 +442,8 @@ function TraditionalSearchFundPricingCards({
   const postLaunchUnlimitedMonthlyEquivalent = billingCycle === 'yearly' ? Math.round(postLaunchUnlimitedYearly / 12) : postLaunchUnlimitedMonthly;
   
   return (
-    <div className="grid md:grid-cols-3 gap-4 max-w-7xl mx-auto">
-      {/* Early Bird Card - Compact */}
+    <div className="grid md:grid-cols-[1.15fr_1fr_1fr] gap-4 max-w-7xl mx-auto">
+      {/* Early Bird Card - Larger with Most Popular Badge */}
       <div 
         className={`relative transition-all duration-300 ${
           hoveredCard === 'search-fund-early' ? 'scale-105 z-10' : 'scale-100'
@@ -362,17 +451,35 @@ function TraditionalSearchFundPricingCards({
         onMouseEnter={() => setHoveredCard('search-fund-early')}
         onMouseLeave={() => setHoveredCard(null)}
       >
-        {/* Urgency Badge */}
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-          <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-full text-xs font-bold shadow-lg animate-pulse">
-            <Crown className="w-3 h-3" />
-            21/50 Founder Spots Left
+        {/* Most Popular Badge */}
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-20">
+          <span className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white rounded-full text-xs font-bold shadow-lg shadow-emerald-500/50">
+            <Crown className="w-4 h-4" />
+            Most Popular
           </span>
         </div>
         
-        <div className={`bg-gradient-to-br from-emerald-900/30 to-gray-900 rounded-xl shadow-2xl border-2 border-emerald-500 p-6 pt-10 transition-all ${
-          hoveredCard === 'search-fund-early' ? 'shadow-emerald-500/50' : ''
+        {/* Urgency Badge with Progress */}
+        <div className="absolute -top-3 right-4 z-10">
+          <div className="inline-flex flex-col items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-red-500/90 to-orange-500/90 text-white rounded-lg text-xs font-bold shadow-lg">
+            <span className="flex items-center gap-1.5">
+              <Zap className="w-3 h-3" />
+              21/50 Spots Left
+            </span>
+            <div className="w-full max-w-[120px] h-1.5 bg-red-900/40 rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-white rounded-full transition-all duration-500 ease-out"
+                style={{ width: '42%' }}
+              />
+            </div>
+          </div>
+        </div>
+        
+        <div className={`bg-gradient-to-br from-emerald-900/30 to-gray-900 rounded-xl shadow-2xl border-[3px] border-emerald-500 p-7 pt-12 transition-all relative ${
+          hoveredCard === 'search-fund-early' ? 'shadow-emerald-500/50 ring-4 ring-emerald-500/30' : ''
         }`}>
+          {/* Glow Effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 via-cyan-500/10 to-emerald-500/20 rounded-xl blur-xl opacity-60 -z-10" />
           <div className="text-center mb-4">
             <h3 className="text-2xl font-bold text-white mb-1">
               Early Bird - Unlimited
@@ -393,51 +500,80 @@ function TraditionalSearchFundPricingCards({
                 ${monthlyEquivalent}/mo billed annually
               </p>
             )}
-            <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-semibold">
+            <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-semibold mb-2">
               <Zap className="w-3 h-3" />
               Locked forever
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              vs. {billingCycle === 'monthly' ? '$369/month' : '$3,540/year'} post-launch
-            </p>
+            {/* Post-Launch Price Comparison - Tooltip Style */}
+            <div className="relative inline-flex items-center gap-1 group">
+              <p className="text-xs text-gray-400">
+                Price increases to <span className="font-semibold text-red-400">${billingCycle === 'monthly' ? '369' : '3,540'}</span> on Feb 28
+              </p>
+              <div className="relative">
+                <Info className="w-3 h-3 text-gray-500 cursor-help" />
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                  Post-launch pricing: ${billingCycle === 'monthly' ? '369/month' : '$3,540/year'} for the same unlimited plan. Lock in $149/mo forever by signing up before Feb 28.
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-0 h-0 border-4 border-transparent border-t-gray-700" />
+                </div>
+              </div>
+            </div>
           </div>
           
-          {/* Features Grid - Compact */}
+          {/* Features Grid - Compact with Checkmarks */}
           <div className="grid grid-cols-2 gap-2 mb-4 text-left">
-            <Feature icon={<Infinity className="w-4 h-4" />} text="UNLIMITED CIM analyses" highlight />
-            <Feature icon={<Infinity className="w-4 h-4" />} text="UNLIMITED IOI/LOI" highlight />
-            <Feature icon={<Users className="w-4 h-4" />} text="3 user seats" highlight />
-            <Feature icon={<BarChart className="w-4 h-4" />} text="Investor dashboard" highlight />
-            <Feature icon={<MessageSquare className="w-4 h-4" />} text="Team collaboration" highlight />
-            <Feature icon={<Palette className="w-4 h-4" />} text="Custom branding" highlight />
-            <Feature icon={<Headphones className="w-4 h-4" />} text="Priority support" highlight />
-            <Feature icon={<Database className="w-4 h-4" />} text="500 document storage" highlight />
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-300">UNLIMITED CIM analyses</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-300">UNLIMITED IOI/LOI</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-300">3 user seats</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-300">Investor dashboard</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-300">Team collaboration</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-300">Custom branding</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-300">Priority support</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-300">500 document storage</span>
+            </div>
           </div>
           
-          {/* Founder Benefits - Compact */}
+          {/* Founder Exclusives - Simple Text */}
           <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3 mb-4">
             <h4 className="text-xs font-bold text-emerald-400 mb-2 flex items-center gap-1">
               <Crown className="w-3 h-3" />
               Founder Exclusives:
             </h4>
-            <div className="grid grid-cols-2 gap-1 text-xs text-white/90">
-              <div className="flex items-center gap-1">
-                <Video className="w-3 h-3 text-emerald-400" />
-                <span>Monthly calls with Gio</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Zap className="w-3 h-3 text-emerald-400" />
-                <span>Priority feature requests</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Users className="w-3 h-3 text-emerald-400" />
-                <span>Private community</span>
-              </div>
-              <div className="flex items-center gap-1">
-                <Crown className="w-3 h-3 text-emerald-400" />
-                <span>Lifetime pricing</span>
-              </div>
+            <div className="space-y-1.5 text-xs text-white/90">
+              <p className="text-emerald-300 font-medium">Monthly Group Strategy Session with Founder & Early Birds</p>
+              <p className="text-gray-300">Priority feature requests</p>
+              <p className="text-gray-300">Private community</p>
+              <p className="text-gray-300">Lifetime pricing</p>
             </div>
+          </div>
+          
+          {/* High-Contrast Free Trial Text - Above CTA */}
+          <div className="mb-3 text-center">
+            <p className="text-sm font-bold text-white bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+              7-day free trial • $0 due today
+            </p>
           </div>
           
           {/* Primary CTA - Free Trial */}
@@ -449,8 +585,15 @@ function TraditionalSearchFundPricingCards({
             {isLoading ? 'Starting...' : 'Start Your Free Trial'}
           </button>
           
+          {/* Micro-Copy: No-Surprise Policy */}
+          <div className="mt-2 mb-2 px-2">
+            <p className="text-xs text-gray-300 leading-relaxed text-center">
+              Your trial is <span className="font-semibold text-emerald-400">100% free for 7 days</span>. We'll send you a reminder email on Day 6 before your subscription begins. Cancel with one click in your dashboard anytime.
+            </p>
+          </div>
+          
           <p className="text-center text-xs text-gray-400">
-            <span className="font-semibold text-emerald-400">7-day free trial</span> • Cancel anytime
+            Cancel anytime
           </p>
           <p className="text-center text-xs text-gray-500 mt-1">
             Then ${displayPrice}/{displayPeriod} + Founder Access
@@ -510,7 +653,7 @@ function TraditionalSearchFundPricingCards({
             </div>
             <div className="flex items-center gap-1">
               <X className="w-3 h-3" />
-              <span>Monthly calls with founder</span>
+              <span>Monthly group strategy sessions</span>
             </div>
             <div className="flex items-center gap-1">
               <X className="w-3 h-3" />
@@ -583,7 +726,7 @@ function TraditionalSearchFundPricingCards({
           <div className="text-xs text-gray-500 space-y-1">
             <div className="flex items-center gap-1">
               <X className="w-3 h-3" />
-              <span>Monthly calls with founder</span>
+              <span>Monthly group strategy sessions</span>
             </div>
             <div className="flex items-center gap-1">
               <X className="w-3 h-3" />
@@ -624,7 +767,7 @@ function FAQSection() {
     },
     {
       q: "What's the difference between early bird and post-launch pricing?",
-      a: "Early bird pricing locks in forever—you'll pay $49/month (self-funded) or $149/month (search fund) for life, even as prices increase for new customers. Traditional search fund early birds also get monthly 1-on-1 calls with Gio and access to the private founder community."
+      a: "Early bird pricing locks in forever—you'll pay $49/month (self-funded) or $149/month (search fund) for life, even as prices increase for new customers. Traditional search fund early birds also get monthly group strategy sessions with the founder & early birds, and access to the private founder community."
     },
     {
       q: "Do I get a refund if I cancel?",
