@@ -18,14 +18,17 @@ type AnalyzeTextRequest = {
 };
 
 export async function POST(req: NextRequest) {
+  let user: { id: string } | null = null;
   try {
     // 1) Authentication - CRITICAL FIX
-    const { supabase, user, workspace } = await authenticateRequest(req);
+    const authResult = await authenticateRequest(req);
+    const { supabase, user: authUser, workspace } = authResult;
+    user = authUser;
     const deals = new DealsRepository(supabase, workspace.id);
 
     // 2) Rate limiting
     const config = getRateLimitConfig('analyze-text');
-    const rateLimit = await checkRateLimit(user.id, 'analyze-text', config.limit, config.windowSeconds, supabase);
+    const rateLimit = await checkRateLimit(authUser.id, 'analyze-text', config.limit, config.windowSeconds, supabase);
     if (!rateLimit.allowed) {
       return NextResponse.json(
         { error: `Rate limit exceeded. Maximum ${config.limit} requests per hour. Please try again later.` },
@@ -164,7 +167,7 @@ Here is the listing text:
 
     // Insert into Supabase with proper workspace and user scoping
     const inserted = await deals.create({
-      user_id: user.id,
+      user_id: authUser.id,
       ...parsed,
     });
 

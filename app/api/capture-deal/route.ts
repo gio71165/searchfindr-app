@@ -200,6 +200,7 @@ export async function OPTIONS() {
 }
 
 async function handlePOST(req: NextRequest) {
+  let user: { id: string } | null = null;
   try {
     // Hard fail fast if env is missing (prevents confusing Vercel runtime errors)
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -215,14 +216,16 @@ async function handlePOST(req: NextRequest) {
     /* ===============================
        1) AUTH — Use centralized auth helper
     ================================ */
-    const { supabase, user, workspace } = await authenticateRequest(req);
+    const authResult = await authenticateRequest(req);
+    const { supabase, user: authUser, workspace } = authResult;
+    user = authUser;
     const deals = new DealsRepository(supabase, workspace.id);
 
     /* ===============================
        2) RATE LIMITING
     ================================ */
     const config = getRateLimitConfig('capture-deal');
-    const rateLimit = await checkRateLimit(user.id, 'capture-deal', config.limit, config.windowSeconds, supabase);
+    const rateLimit = await checkRateLimit(authUser.id, 'capture-deal', config.limit, config.windowSeconds, supabase);
     if (!rateLimit.allowed) {
       return json({ error: `Rate limit exceeded. Maximum ${config.limit} requests per hour. Please try again later.` }, 429);
     }
@@ -396,7 +399,7 @@ async function handlePOST(req: NextRequest) {
        6) INSERT COMPANY
     ================================ */
     const inserted = await deals.create({
-      user_id: user.id,
+      user_id: authUser.id,
       company_name,
       listing_url: url,
       raw_listing_text: text,
