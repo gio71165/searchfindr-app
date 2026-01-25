@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Check, X, Zap, Users, Infinity, FileText, BarChart, Calculator, Chrome, Mail, MessageSquare, Palette, Headphones, Database, Crown, Video, Info } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/app/supabaseClient';
-import { ScarcityTracker } from '@/components/marketing/ScarcityTracker';
 import { TrustBoxModal } from '@/components/modals/TrustBoxModal';
 import { TrialTerms } from '@/components/marketing/TrialTerms';
 
@@ -24,7 +23,7 @@ export default function PricingPage() {
 
   async function handleCheckout(
     tier: 'self_funded' | 'search_fund',
-    plan: 'early_bird',
+    plan: 'early_bird' | 'standard',
     billingCycle: 'monthly' | 'yearly'
   ) {
     setIsLoading(true);
@@ -57,8 +56,21 @@ export default function PricingPage() {
 
   return (
     <div className="min-h-screen bg-[#0b0f17]">
-      {/* Urgency Banner - Top of Page */}
-      <ScarcityTracker variant="banner" />
+      {/* Early Adopter Banner - Top of Page */}
+      <div className="bg-gradient-to-r from-emerald-600/20 to-cyan-600/20 border-b border-emerald-500/30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col items-center justify-center gap-2 text-center">
+            <div className="flex items-center gap-2 text-emerald-300 font-semibold">
+              <span className="text-lg">
+                First 50 customers get early bird pricing locked forever
+              </span>
+            </div>
+            <p className="text-sm text-emerald-200/80">
+              Traditional Search Fund early bird: Lock in $149/mo forever. Price increases to $249/mo on March 1.
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Hero Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-6">
@@ -217,54 +229,36 @@ function SelfFundedPricingCards({
   hoveredCard,
   setHoveredCard
 }: { 
-  onCheckout: (tier: 'self_funded' | 'search_fund', plan: 'early_bird', billing: 'monthly' | 'yearly') => void;
+  onCheckout: (tier: 'self_funded' | 'search_fund', plan: 'early_bird' | 'standard', billing: 'monthly' | 'yearly') => void;
   isLoading: boolean;
   billingCycle: 'monthly' | 'yearly';
   hoveredCard: string | null;
   setHoveredCard: (card: string | null) => void;
 }) {
-  const monthlyPrice = 49;
+  const monthlyPrice = 99;
   const yearlyPrice = Math.round(monthlyPrice * 12 * 0.8);
   const displayPrice = billingCycle === 'monthly' ? monthlyPrice : yearlyPrice;
   const displayPeriod = billingCycle === 'monthly' ? 'month' : 'year';
   const monthlyEquivalent = billingCycle === 'yearly' ? Math.round(yearlyPrice / 12) : monthlyPrice;
   
   return (
-    <div className="grid md:grid-cols-2 gap-6 max-w-5xl mx-auto">
-      {/* Early Bird Card - Compact */}
+    <div className="flex justify-center">
+      <div className="w-full max-w-md">
+      {/* Self-Funded Card */}
       <div 
         className={`relative transition-all duration-300 ${
-          hoveredCard === 'early-bird' ? 'scale-105 z-10' : 'scale-100'
+          hoveredCard === 'self-funded' ? 'scale-105 z-10' : 'scale-100'
         }`}
-        onMouseEnter={() => setHoveredCard('early-bird')}
+        onMouseEnter={() => setHoveredCard('self-funded')}
         onMouseLeave={() => setHoveredCard(null)}
       >
-        {/* Urgency Badge with Progress */}
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-          <div className="inline-flex flex-col items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-red-500/90 to-orange-500/90 text-white rounded-lg text-xs font-bold shadow-lg">
-            <span className="flex items-center gap-1.5">
-              <Zap className="w-3 h-3" />
-              21/50 Spots Left
-            </span>
-            <div className="w-full max-w-[120px] h-1.5 bg-red-900/40 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-white rounded-full transition-all duration-500 ease-out"
-                style={{ width: '42%' }}
-              />
-            </div>
-          </div>
-        </div>
-        
-        <div className={`bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-2xl border-2 border-emerald-500 p-5 pt-10 transition-all ${
-          hoveredCard === 'early-bird' ? 'shadow-emerald-500/50' : ''
+        <div className={`bg-gradient-to-br from-gray-800 to-gray-900 rounded-xl shadow-2xl border-2 border-emerald-500 p-5 transition-all ${
+          hoveredCard === 'self-funded' ? 'shadow-emerald-500/50' : ''
         }`}>
           <div className="text-center mb-4">
             <h3 className="text-xl font-bold text-white mb-1">
-              Early Bird
+              Self-Funded Searcher
             </h3>
-            <p className="text-xs text-gray-400 mb-3">
-              Ends Feb 28, 2026
-            </p>
           </div>
           
           {/* Pricing - Compact */}
@@ -278,10 +272,6 @@ function SelfFundedPricingCards({
                 ${monthlyEquivalent}/mo billed annually
               </p>
             )}
-            <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full text-xs font-semibold">
-              <Zap className="w-3 h-3" />
-              Locked forever
-            </div>
           </div>
           
           {/* Key Features - Compact List with Checkmarks */}
@@ -312,22 +302,6 @@ function SelfFundedPricingCards({
             </div>
           </div>
           
-          {/* Post-Launch Price Comparison */}
-          <div className="mb-3 text-center">
-            <div className="relative inline-flex items-center gap-1 group">
-              <p className="text-xs text-gray-400">
-                Price increases to <span className="font-semibold text-red-400">$79</span> on Feb 28
-              </p>
-              <div className="relative">
-                <Info className="w-3 h-3 text-gray-500 cursor-help" />
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-                  Post-launch pricing: $79/month for the same features. Lock in $49/mo forever by signing up before Feb 28.
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-0 h-0 border-4 border-transparent border-t-gray-700" />
-                </div>
-              </div>
-            </div>
-          </div>
-          
           {/* High-Contrast Free Trial Text - Above CTA */}
           <div className="mb-3 text-center">
             <p className="text-sm font-bold text-white bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
@@ -337,7 +311,7 @@ function SelfFundedPricingCards({
           
           {/* Primary CTA - Free Trial */}
           <button
-            onClick={() => onCheckout('self_funded', 'early_bird', billingCycle)}
+            onClick={() => onCheckout('self_funded', 'standard', billingCycle)}
             disabled={isLoading}
             className="w-full py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg font-bold text-base hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30 disabled:opacity-50 disabled:cursor-not-allowed mb-2"
           >
@@ -359,53 +333,6 @@ function SelfFundedPricingCards({
           </p>
         </div>
       </div>
-      
-      {/* Post-Launch Card - Compact */}
-      <div 
-        className={`bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-5 opacity-90 transition-all duration-300 ${
-          hoveredCard === 'post-launch' ? 'scale-105 opacity-100' : ''
-        }`}
-        onMouseEnter={() => setHoveredCard('post-launch')}
-        onMouseLeave={() => setHoveredCard(null)}
-      >
-        <div className="text-center mb-4">
-          <h3 className="text-xl font-bold text-white mb-1">
-            Post-Launch
-          </h3>
-          <p className="text-xs text-gray-400">
-            After Feb 28, 2026
-          </p>
-        </div>
-        
-        <div className="text-center mb-4">
-          <div className="flex items-baseline justify-center gap-1 mb-1">
-            <span className="text-4xl font-bold text-gray-300">$79</span>
-            <span className="text-sm text-gray-400">/month</span>
-          </div>
-          <p className="text-xs text-gray-500">
-            Same features
-          </p>
-        </div>
-        
-        <div className="space-y-2 mb-4 text-left">
-          <Feature icon={<FileText className="w-4 h-4" />} text="20 CIM analyses/month" muted />
-          <Feature icon={<BarChart className="w-4 h-4" />} text="Unlimited pipeline tracking" muted />
-          <Feature icon={<FileText className="w-4 h-4" />} text="5 IOI + 2 LOI/month" muted />
-          <Feature icon={<Calculator className="w-4 h-4" />} text="SBA 7(a) calculator" muted />
-          <Feature icon={<Chrome className="w-4 h-4" />} text="Chrome extension" muted />
-          <Feature icon={<Users className="w-4 h-4" />} text="1 user seat" muted />
-        </div>
-        
-        <button
-          disabled
-          className="w-full py-3 bg-gray-700 text-gray-400 rounded-lg font-bold text-base cursor-not-allowed mb-2"
-        >
-          Available After Launch
-        </button>
-        
-        <p className="text-center text-xs text-gray-500">
-          Lock in $49/mo now →
-        </p>
       </div>
     </div>
   );
@@ -419,7 +346,7 @@ function TraditionalSearchFundPricingCards({
   hoveredCard,
   setHoveredCard
 }: { 
-  onCheckout: (tier: 'self_funded' | 'search_fund', plan: 'early_bird', billing: 'monthly' | 'yearly') => void;
+  onCheckout: (tier: 'self_funded' | 'search_fund', plan: 'early_bird' | 'standard', billing: 'monthly' | 'yearly') => void;
   isLoading: boolean;
   billingCycle: 'monthly' | 'yearly';
   hoveredCard: string | null;
@@ -431,19 +358,10 @@ function TraditionalSearchFundPricingCards({
   const displayPeriod = billingCycle === 'monthly' ? 'month' : 'year';
   const monthlyEquivalent = billingCycle === 'yearly' ? Math.round(yearlyPrice / 12) : monthlyPrice;
   
-  const postLaunchStandardMonthly = 249;
-  const postLaunchStandardYearly = Math.round(postLaunchStandardMonthly * 12 * 0.8);
-  const postLaunchStandardPrice = billingCycle === 'monthly' ? postLaunchStandardMonthly : postLaunchStandardYearly;
-  const postLaunchStandardMonthlyEquivalent = billingCycle === 'yearly' ? Math.round(postLaunchStandardYearly / 12) : postLaunchStandardMonthly;
-  
-  const postLaunchUnlimitedMonthly = 369;
-  const postLaunchUnlimitedYearly = Math.round(postLaunchUnlimitedMonthly * 12 * 0.8);
-  const postLaunchUnlimitedPrice = billingCycle === 'monthly' ? postLaunchUnlimitedMonthly : postLaunchUnlimitedYearly;
-  const postLaunchUnlimitedMonthlyEquivalent = billingCycle === 'yearly' ? Math.round(postLaunchUnlimitedYearly / 12) : postLaunchUnlimitedMonthly;
-  
   return (
-    <div className="grid md:grid-cols-[1.15fr_1fr_1fr] gap-4 max-w-7xl mx-auto">
-      {/* Early Bird Card - Larger with Most Popular Badge */}
+    <div className="flex justify-center">
+      <div className="w-full max-w-md">
+      {/* Early Bird Card - Traditional Search Fund */}
       <div 
         className={`relative transition-all duration-300 ${
           hoveredCard === 'search-fund-early' ? 'scale-105 z-10' : 'scale-100'
@@ -459,19 +377,11 @@ function TraditionalSearchFundPricingCards({
           </span>
         </div>
         
-        {/* Urgency Badge with Progress */}
+        {/* Early Bird Badge */}
         <div className="absolute -top-3 right-4 z-10">
-          <div className="inline-flex flex-col items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-red-500/90 to-orange-500/90 text-white rounded-lg text-xs font-bold shadow-lg">
-            <span className="flex items-center gap-1.5">
-              <Zap className="w-3 h-3" />
-              21/50 Spots Left
-            </span>
-            <div className="w-full max-w-[120px] h-1.5 bg-red-900/40 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-white rounded-full transition-all duration-500 ease-out"
-                style={{ width: '42%' }}
-              />
-            </div>
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-500/90 to-cyan-500/90 text-white rounded-lg text-xs font-bold shadow-lg">
+            <Zap className="w-3 h-3" />
+            Early Bird Pricing
           </div>
         </div>
         
@@ -482,10 +392,10 @@ function TraditionalSearchFundPricingCards({
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 via-cyan-500/10 to-emerald-500/20 rounded-xl blur-xl opacity-60 -z-10" />
           <div className="text-center mb-4">
             <h3 className="text-2xl font-bold text-white mb-1">
-              Early Bird - Unlimited
+              Traditional Search Fund
             </h3>
             <p className="text-xs text-emerald-400 font-semibold mb-2">
-              Ends Feb 28, 2026 • Limited to first 50 search funds
+              Lock in $149/mo forever
             </p>
           </div>
           
@@ -504,18 +414,14 @@ function TraditionalSearchFundPricingCards({
               <Zap className="w-3 h-3" />
               Locked forever
             </div>
-            {/* Post-Launch Price Comparison - Tooltip Style */}
-            <div className="relative inline-flex items-center gap-1 group">
+            {/* Price Lock Notice */}
+            <div className="mt-2">
               <p className="text-xs text-gray-400">
-                Price increases to <span className="font-semibold text-red-400">${billingCycle === 'monthly' ? '369' : '3,540'}</span> on Feb 28
+                Price increases to <span className="font-semibold text-red-400">$249/mo</span> on March 1
               </p>
-              <div className="relative">
-                <Info className="w-3 h-3 text-gray-500 cursor-help" />
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-gray-800 border border-gray-700 rounded-lg text-xs text-gray-300 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
-                  Post-launch pricing: ${billingCycle === 'monthly' ? '369/month' : '$3,540/year'} for the same unlimited plan. Lock in $149/mo forever by signing up before Feb 28.
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 w-0 h-0 border-4 border-transparent border-t-gray-700" />
-                </div>
-              </div>
+              <p className="text-xs text-emerald-400 mt-1 font-semibold">
+                Lock in $149/mo forever by signing up now
+              </p>
             </div>
           </div>
           
@@ -555,19 +461,6 @@ function TraditionalSearchFundPricingCards({
             </div>
           </div>
           
-          {/* Founder Exclusives - Simple Text */}
-          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3 mb-4">
-            <h4 className="text-xs font-bold text-emerald-400 mb-2 flex items-center gap-1">
-              <Crown className="w-3 h-3" />
-              Founder Exclusives:
-            </h4>
-            <div className="space-y-1.5 text-xs text-white/90">
-              <p className="text-emerald-300 font-medium">Monthly Group Strategy Session with Founder & Early Birds</p>
-              <p className="text-gray-300">Priority feature requests</p>
-              <p className="text-gray-300">Private community</p>
-              <p className="text-gray-300">Lifetime pricing</p>
-            </div>
-          </div>
           
           {/* High-Contrast Free Trial Text - Above CTA */}
           <div className="mb-3 text-center">
@@ -596,159 +489,10 @@ function TraditionalSearchFundPricingCards({
             Cancel anytime
           </p>
           <p className="text-center text-xs text-gray-500 mt-1">
-            Then ${displayPrice}/{displayPeriod} + Founder Access
+            Then ${displayPrice}/{displayPeriod}
           </p>
         </div>
       </div>
-      
-      {/* Post-Launch Standard - With Limits */}
-      <div 
-        className={`bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-5 opacity-90 transition-all duration-300 ${
-          hoveredCard === 'search-fund-standard' ? 'scale-105 opacity-100' : ''
-        }`}
-        onMouseEnter={() => setHoveredCard('search-fund-standard')}
-        onMouseLeave={() => setHoveredCard(null)}
-      >
-        <div className="text-center mb-4">
-          <h3 className="text-xl font-bold text-white mb-1">
-            Post-Launch Standard
-          </h3>
-          <p className="text-xs text-gray-400">
-            After Feb 28, 2026
-          </p>
-        </div>
-        
-        <div className="text-center mb-4">
-          <div className="flex items-baseline justify-center gap-1 mb-1">
-            <span className="text-4xl font-bold text-gray-300">${postLaunchStandardPrice}</span>
-            <span className="text-sm text-gray-400">/{displayPeriod}</span>
-          </div>
-          {billingCycle === 'yearly' && (
-            <p className="text-xs text-gray-400 mb-1">
-              ${postLaunchStandardMonthlyEquivalent}/mo billed annually
-            </p>
-          )}
-          <p className="text-xs text-red-400 font-semibold mt-1">
-            ${postLaunchStandardPrice - displayPrice} more than early bird
-          </p>
-        </div>
-        
-        <div className="space-y-2 mb-4 text-left">
-          <Feature icon={<FileText className="w-4 h-4" />} text="20 CIM analyses/month" muted />
-          <Feature icon={<FileText className="w-4 h-4" />} text="5 IOI + 2 LOI/month" muted />
-          <Feature icon={<Users className="w-4 h-4" />} text="3 user seats" muted />
-          <Feature icon={<BarChart className="w-4 h-4" />} text="Investor dashboard" muted />
-          <Feature icon={<MessageSquare className="w-4 h-4" />} text="Team collaboration" muted />
-          <Feature icon={<Palette className="w-4 h-4" />} text="Custom branding" muted />
-          <Feature icon={<Headphones className="w-4 h-4" />} text="Priority support" muted />
-          <Feature icon={<Database className="w-4 h-4" />} text="500 document storage" muted />
-        </div>
-        
-        <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-3 mb-4">
-          <p className="text-xs text-gray-400 mb-1 font-semibold">Not included:</p>
-          <div className="text-xs text-gray-500 space-y-1">
-            <div className="flex items-center gap-1">
-              <X className="w-3 h-3" />
-              <span>Unlimited CIM/IOI/LOI</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <X className="w-3 h-3" />
-              <span>Monthly group strategy sessions</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <X className="w-3 h-3" />
-              <span>Priority feature requests</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <X className="w-3 h-3" />
-              <span>Private founder community</span>
-            </div>
-          </div>
-        </div>
-        
-        <button
-          disabled
-          className="w-full py-3 bg-gray-700 text-gray-400 rounded-lg font-bold text-base cursor-not-allowed mb-2"
-        >
-          Available After Launch
-        </button>
-        
-        <p className="text-center text-xs text-gray-500">
-          Lock in $149/mo now →
-        </p>
-      </div>
-      
-      {/* Post-Launch Unlimited */}
-      <div 
-        className={`bg-gray-800 rounded-xl shadow-xl border border-gray-700 p-5 opacity-90 transition-all duration-300 ${
-          hoveredCard === 'search-fund-unlimited' ? 'scale-105 opacity-100' : ''
-        }`}
-        onMouseEnter={() => setHoveredCard('search-fund-unlimited')}
-        onMouseLeave={() => setHoveredCard(null)}
-      >
-        <div className="text-center mb-4">
-          <h3 className="text-xl font-bold text-white mb-1">
-            Post-Launch Unlimited
-          </h3>
-          <p className="text-xs text-gray-400">
-            After Feb 28, 2026
-          </p>
-        </div>
-        
-        <div className="text-center mb-4">
-          <div className="flex items-baseline justify-center gap-1 mb-1">
-            <span className="text-4xl font-bold text-gray-300">${postLaunchUnlimitedPrice}</span>
-            <span className="text-sm text-gray-400">/{displayPeriod}</span>
-          </div>
-          {billingCycle === 'yearly' && (
-            <p className="text-xs text-gray-400 mb-1">
-              ${postLaunchUnlimitedMonthlyEquivalent}/mo billed annually
-            </p>
-          )}
-          <p className="text-xs text-red-400 font-semibold mt-1">
-            ${postLaunchUnlimitedPrice - displayPrice} more than early bird
-          </p>
-        </div>
-        
-        <div className="space-y-2 mb-4 text-left">
-          <Feature icon={<Infinity className="w-4 h-4" />} text="UNLIMITED CIM analyses" muted />
-          <Feature icon={<Infinity className="w-4 h-4" />} text="UNLIMITED IOI/LOI" muted />
-          <Feature icon={<Users className="w-4 h-4" />} text="3 user seats" muted />
-          <Feature icon={<BarChart className="w-4 h-4" />} text="Investor dashboard" muted />
-          <Feature icon={<MessageSquare className="w-4 h-4" />} text="Team collaboration" muted />
-          <Feature icon={<Palette className="w-4 h-4" />} text="Custom branding" muted />
-          <Feature icon={<Headphones className="w-4 h-4" />} text="Priority support" muted />
-          <Feature icon={<Database className="w-4 h-4" />} text="500 document storage" muted />
-        </div>
-        
-        <div className="bg-gray-700/50 border border-gray-600 rounded-lg p-3 mb-4">
-          <p className="text-xs text-gray-400 mb-1 font-semibold">Not included:</p>
-          <div className="text-xs text-gray-500 space-y-1">
-            <div className="flex items-center gap-1">
-              <X className="w-3 h-3" />
-              <span>Monthly group strategy sessions</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <X className="w-3 h-3" />
-              <span>Priority feature requests</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <X className="w-3 h-3" />
-              <span>Private founder community</span>
-            </div>
-          </div>
-        </div>
-        
-        <button
-          disabled
-          className="w-full py-3 bg-gray-700 text-gray-400 rounded-lg font-bold text-base cursor-not-allowed mb-2"
-        >
-          Available After Launch
-        </button>
-        
-        <p className="text-center text-xs text-gray-500">
-          Lock in $149/mo now →
-        </p>
       </div>
     </div>
   );
@@ -766,8 +510,8 @@ function FAQSection() {
       a: "Yes! You can upgrade or downgrade your plan at any time from your settings. Changes take effect immediately, and we'll prorate any differences."
     },
     {
-      q: "What's the difference between early bird and post-launch pricing?",
-      a: "Early bird pricing locks in forever—you'll pay $49/month (self-funded) or $149/month (search fund) for life, even as prices increase for new customers. Traditional search fund early birds also get monthly group strategy sessions with the founder & early birds, and access to the private founder community."
+      q: "What's the difference between early bird and standard pricing?",
+      a: "Early bird pricing is available for Traditional Search Fund plans only—lock in $149/month forever. Self-Funded plans are $99/month. All plans include a 7-day free trial."
     },
     {
       q: "Do I get a refund if I cancel?",
@@ -806,9 +550,9 @@ function FinalCTA() {
         <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
           Ready to start your search smarter?
         </h2>
-        <p className="text-lg text-gray-400 mb-8">
-          Join 21+ early bird founders already using SearchFindr
-        </p>
+          <p className="text-lg text-gray-400 mb-8">
+            Join our early adopter program and lock in lifetime pricing
+          </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
             href="/pricing"

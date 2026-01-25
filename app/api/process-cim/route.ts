@@ -309,9 +309,30 @@ function extractChatCompletionContent(chatResponse: any): string {
 }
 
 // ✅ Force bullet formatting no matter what comes back
+// Now handles both old format (strings) and new format (objects with flag, confidence, citation, impact)
 function coerceRedFlagsToBulletedMarkdown(value: unknown): string | null {
-  // Case 1: array of strings
-  if (Array.isArray(value)) {
+  // Case 1: array of objects (new format with citations)
+  if (Array.isArray(value) && value.length > 0) {
+    // Check if first item is an object (new format)
+    if (typeof value[0] === 'object' && value[0] !== null && 'flag' in value[0]) {
+      const items = value
+        .map((x: any) => {
+          if (typeof x === 'object' && x !== null && typeof x.flag === 'string') {
+            const flagText = x.flag.trim();
+            const citation = x.citation ? ` (${x.citation})` : '';
+            const confidence = x.confidence ? ` [${x.confidence} confidence]` : '';
+            const impact = x.impact ? ` - Impact: ${x.impact}` : '';
+            return `${flagText}${citation}${confidence}${impact}`;
+          }
+          return null;
+        })
+        .filter(Boolean);
+
+      if (items.length === 0) return null;
+      return items.map((s) => `- ${s}`).join('\n');
+    }
+
+    // Case 1b: array of strings (old format - backward compatibility)
     const items = value
       .map((x) => (typeof x === 'string' ? x.trim() : ''))
       .filter(Boolean)
@@ -322,7 +343,7 @@ function coerceRedFlagsToBulletedMarkdown(value: unknown): string | null {
     return items.map((s) => `- ${s}`).join('\n');
   }
 
-  // Case 2: model returns a string blob
+  // Case 2: model returns a string blob (old format - backward compatibility)
   if (typeof value === 'string' && value.trim()) {
     const raw = value.replace(/\r\n/g, '\n').trim();
 
@@ -407,7 +428,14 @@ function countUnknownScoringFields(scoring: {
 
 function countRedFlags(parsed: any): number {
   const v = parsed?.ai_red_flags;
-  if (Array.isArray(v)) return v.filter((x) => typeof x === 'string' && x.trim()).length;
+  if (Array.isArray(v)) {
+    // Check if new format (objects with 'flag' property)
+    if (v.length > 0 && typeof v[0] === 'object' && v[0] !== null && 'flag' in v[0]) {
+      return v.filter((x: any) => x && typeof x.flag === 'string' && x.flag.trim()).length;
+    }
+    // Old format (array of strings)
+    return v.filter((x) => typeof x === 'string' && x.trim()).length;
+  }
   if (typeof v === 'string' && v.trim()) return v.split('\n').filter(Boolean).length;
   return 0;
 }

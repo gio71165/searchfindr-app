@@ -5,7 +5,7 @@ const steps = [
     number: '01',
     icon: Upload,
     title: 'Add a company',
-    description: 'Four entry points: CIM upload, financials, browser extension, or off-market search. Get started in seconds.',
+    description: 'Multiple entry points: financials, browser extension, or off-market search. Get started in seconds.',
   },
   {
     number: '02',

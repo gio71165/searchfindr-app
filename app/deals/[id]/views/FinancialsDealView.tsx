@@ -225,8 +225,17 @@ export function FinancialsDealView({
                 </button>
               </div>
               {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
-              {showLoadingLine && <p className="text-sm mt-3 text-slate-600">Loading analysis…</p>}
-              {!hasAnyAnalysis && (
+              {showLoadingLine && (
+                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm font-medium text-blue-900 mb-1">
+                    Analyzing financials... Expected time: 20-40 seconds
+                  </p>
+                  <p className="text-xs text-blue-700">
+                    AI is extracting financial data, analyzing quality of earnings, and identifying red flags. This typically takes 20-40 seconds depending on file size.
+                  </p>
+                </div>
+              )}
+              {!hasAnyAnalysis && !showLoadingLine && (
                 <p className="text-sm mt-3 text-slate-600">
                   No analysis yet. Click "Run Analysis" to generate outputs and populate sections below.
                 </p>

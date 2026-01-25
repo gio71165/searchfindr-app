@@ -9,29 +9,39 @@ const comparisonData = [
     dealsage: 'PE firms',
   },
   {
+    feature: 'Domain expertise',
+    searchfindr: 'Knows QoE red flags, SBA eligibility, search fund deal structures',
+    dealsage: 'Generic M&A analysis',
+  },
+  {
     feature: 'Pricing',
-    searchfindr: '$149/mo self-serve',
-    dealsage: 'Enterprise pricing',
+    searchfindr: '$99-$149/mo self-serve',
+    dealsage: 'Enterprise pricing (contact sales)',
   },
   {
     feature: 'Setup',
-    searchfindr: '5 minutes',
-    dealsage: 'Demo required',
+    searchfindr: '5 minutes, no demo required',
+    dealsage: 'Demo required, enterprise onboarding',
   },
   {
     feature: 'Deal sourcing',
-    searchfindr: 'Active (extension + aggregation)',
+    searchfindr: 'Active (Chrome extension + aggregation)',
     dealsage: 'Passive (upload only)',
   },
   {
-    feature: 'Pipeline',
-    searchfindr: 'Full workflow',
+    feature: 'Pipeline management',
+    searchfindr: 'Full workflow (IOI → LOI → DD → Close)',
     dealsage: 'Repository only',
   },
   {
+    feature: 'SBA 7(a) analysis',
+    searchfindr: 'Built-in calculator + eligibility assessment',
+    dealsage: 'Not included',
+  },
+  {
     feature: 'Best for',
-    searchfindr: 'Active searchers',
-    dealsage: 'Enterprise teams',
+    searchfindr: 'Active searchers doing 20+ deals/month',
+    dealsage: 'Enterprise PE teams',
   },
 ];
 
@@ -45,7 +55,8 @@ export default function ComparePage() {
             SearchFindr vs DealSage
           </h1>
           <p className="text-xl text-white/60 max-w-2xl mx-auto">
-            Built for searchers, not PE firms
+            SearchFindr knows what QoE red flags actually matter for search fund operators. 
+            ChatGPT doesn't know what a QoE red flag is. We do.
           </p>
         </div>
 
@@ -89,9 +100,12 @@ export default function ComparePage() {
               The Bottom Line
             </h2>
             <p className="text-lg text-white/80 text-center leading-relaxed max-w-3xl mx-auto">
-              <span className="font-semibold text-emerald-300">SearchFindr is your complete search workflow platform.</span>{' '}
-              We built it specifically for independent operators who need deal sourcing, screening, pipeline management, and analysis—all in one place.
-              DealSage is for PE firms analyzing deal flow—powerful, but built for a different use case.
+              <span className="font-semibold text-emerald-300">SearchFindr is your complete search workflow platform, built specifically for search fund operators.</span>{' '}
+              We built it for searchers who need deal sourcing, screening, pipeline management, and analysis—all in one place. 
+              Our AI knows what QoE red flags actually matter for search fund deals, not generic M&A data.
+              <br /><br />
+              DealSage is powerful, but it's built for PE firms analyzing deal flow—a different use case with different needs. 
+              If you're a searcher doing 20+ deals per month, you need SearchFindr.
             </p>
           </div>
         </div>

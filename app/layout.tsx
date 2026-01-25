@@ -11,9 +11,32 @@ export const metadata: Metadata = {
     default: 'SearchFindr - AI Deal Analysis for Search Funds',
     template: '%s | SearchFindr'
   },
-  description: 'AI-powered deal analysis and due diligence for search fund operators and SMB buyers. Analyze CIMs, financials, and off-market opportunities.',
-  keywords: ['search fund', 'deal analysis', 'due diligence', 'AI analysis', 'CIM', 'M&A', 'SMB acquisition'],
+  description: 'AI-powered deal analysis and due diligence for search fund operators and SMB buyers. Analyze CIMs, financials, and off-market opportunities. Get instant red flags, deal tier, and verdict in 60 seconds.',
+  keywords: [
+    'search fund',
+    'deal analysis',
+    'due diligence',
+    'AI analysis',
+    'CIM analysis',
+    'M&A software',
+    'SMB acquisition',
+    'search fund software',
+    'deal screening',
+    'confidential information memorandum',
+    'quality of earnings',
+    'SBA 7a loan calculator',
+    'search fund operator',
+    'ETA buyer',
+    'lower middle market',
+    'deal pipeline management',
+    'broker deal tracking',
+    'financial analysis',
+    'red flags analysis',
+    'deal memo generator'
+  ],
   authors: [{ name: 'SearchFindr' }],
+  creator: 'SearchFindr',
+  publisher: 'SearchFindr',
   icons: {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },
@@ -29,27 +52,46 @@ export const metadata: Metadata = {
     locale: 'en_US',
     url: 'https://searchfindr-app.vercel.app',
     siteName: 'SearchFindr',
-    title: 'SearchFindr - AI Deal Analysis',
-    description: 'AI-powered deal analysis for search fund operators',
+    title: 'SearchFindr - AI Deal Analysis for Search Funds',
+    description: 'AI-powered deal analysis and due diligence for search fund operators. Analyze CIMs, financials, and off-market opportunities. Get instant red flags, deal tier, and verdict in 60 seconds.',
     images: [
       {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'SearchFindr',
+        alt: 'SearchFindr - AI Deal Analysis for Search Funds',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'SearchFindr - AI Deal Analysis',
-    description: 'AI-powered deal analysis for search fund operators',
+    title: 'SearchFindr - AI Deal Analysis for Search Funds',
+    description: 'AI-powered deal analysis and due diligence for search fund operators. Analyze CIMs, financials, and off-market opportunities.',
     images: ['/og-image.png'],
+    creator: '@searchfindr',
   },
   robots: {
     index: true,
-    follow: true
-  }
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  verification: {
+    // Add Google Search Console verification if you have it
+    // google: 'your-verification-code',
+  },
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
 };
 
 export default function RootLayout({

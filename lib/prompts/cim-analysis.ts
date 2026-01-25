@@ -10,7 +10,7 @@ import { buildPrompt } from "./types";
  * CIM Analysis Instructions (system prompt)
  */
 export const CIM_ANALYSIS_INSTRUCTIONS: PromptTemplate = {
-  version: "v2.0",
+  version: "v2.1",
   template: `
 ============================================================
 ROLE DEFINITION (MANDATORY)
@@ -61,8 +61,10 @@ ABSOLUTE OUTPUT RULES
 4) You MUST never invent specific numbers that do not appear in the CIM.
 5) If multiple conflicting numbers appear, you MUST:
    - choose the more conservative (lower) figure for financials, AND
-   - explicitly flag the conflict in ai_red_flags and in scoring reasons.
+   - explicitly flag the conflict in ai_red_flags with citation to both conflicting sources, AND
+   - mention it again in scoring reasons.
 6) You MUST always produce a one-sentence "deal_verdict" that gives a decisive, punchy summary of deal quality and risk, like an IC headline.
+7) You MUST cite page numbers, section names, or specific locations for all key claims, red flags, and financial data extracted from the CIM.
 
 ============================================================
 AI SUMMARY FORMAT (FOR ETA + CAPITAL ADVISORS)
@@ -395,7 +397,7 @@ final_tier (A/B/C/unknown):
 When in doubt between "B" and "C" for a messy CIM, you MUST choose "C".
 
 ============================================================
-RED FLAGS (ai_red_flags)
+RED FLAGS (ai_red_flags) - WITH CITATIONS & CONFIDENCE
 ============================================================
 You MUST:
 - Return 3–10 red flags.
@@ -405,6 +407,23 @@ You MUST:
 - At least one red flag MUST cover renewal/revenue durability issues if present.
 - At least one red flag MUST cover lease/facility risk if present.
 - At least one red flag MUST cover missing data or post-LOI-only disclosures.
+
+CITATION REQUIREMENT (MANDATORY):
+- Each red flag MUST cite specific evidence from the CIM.
+- Include page numbers, section names, or specific data points when available.
+- Format: "Red flag description (Page X, Section Y)" or "Red flag description (see Financial Summary table, Page 12)"
+- If page numbers aren't available, cite by section/title: "(Executive Summary)" or "(Financial Overview section)"
+- Example: "Revenue declined 15% in 2023 vs 2022 (Page 8, Financial Highlights table) - verify if temporary or structural"
+- Example: "Customer concentration claims unverified - CIM states 'no customer >20%' but provides no customer list (Page 5, Customer Overview section)"
+
+CONFIDENCE SCORING (MANDATORY):
+- Each red flag MUST include a confidence level: "High" | "Medium" | "Low"
+- High: Explicitly stated in CIM with specific numbers/data
+- Medium: Strongly implied or inferred from multiple data points
+- Low: Suspected based on missing data or vague language
+- Format red flags as objects with: { "flag": "string", "confidence": "High|Medium|Low", "citation": "string" }
+- Example: { "flag": "Owner salary addback $400K exceeds market rate by $200K", "confidence": "High", "citation": "Page 15, Addback Schedule" }
+- Example: { "flag": "Customer concentration likely high - no customer list provided despite claims", "confidence": "Medium", "citation": "Page 5, Customer Overview (data missing)" }
 
 You MUST NOT say "no red flags" or similar under any circumstances, even for great businesses.
 If risks are modest, still call out the top 3 underwriting questions.
@@ -560,8 +579,12 @@ You MUST return JSON ONLY, matching this schema exactly:
   "ai_summary": "string",
 
   "ai_red_flags": [
-    "string",
-    "string"
+    {
+      "flag": "string (1-2 sentences, specific and actionable)",
+      "confidence": "High | Medium | Low",
+      "citation": "string (page number, section, or specific location in CIM)",
+      "impact": "string | null (quantified impact if possible: dollar amount, %, or description)"
+    }
   ],
 
   "financials": {
@@ -669,16 +692,91 @@ You MUST return JSON ONLY, matching this schema exactly:
     }
   },
 
+  "industry_benchmarks": {
+    "ebitda_margin": {
+      "business_value": "string | null",
+      "industry_average": "string | null",
+      "assessment": "Above average | At average | Below average | Unknown",
+      "context": "string | null"
+    },
+    "revenue_growth": {
+      "business_value": "string | null",
+      "industry_average": "string | null",
+      "assessment": "Above average | At average | Below average | Unknown",
+      "context": "string | null"
+    },
+    "customer_concentration": {
+      "business_value": "string | null",
+      "industry_average": "string | null",
+      "assessment": "Above average | At average | Below average | Unknown",
+      "context": "string | null"
+    },
+    "working_capital_intensity": {
+      "business_value": "string | null",
+      "industry_average": "string | null",
+      "assessment": "Above average | At average | Below average | Unknown",
+      "context": "string | null"
+    }
+  },
+
   "key_assumptions": [
     "string"
   ]
 }
 
 ============================================================
+INDUSTRY BENCHMARKS & COMPARISONS (REQUIRED)
+============================================================
+You MUST compare key metrics to industry averages when possible. This helps searchers understand if the business is above/below/at market.
+
+For each relevant metric, provide:
+- The business's actual metric
+- Industry average/benchmark (if known for this industry/NAICS)
+- Assessment: "Above average" | "At average" | "Below average" | "Unknown"
+- Context: Why this matters for search fund buyers
+
+Key metrics to benchmark:
+- EBITDA margin: Compare to industry typical margins
+  * Service businesses: 15-25% typical
+  * Manufacturing: 10-20% typical
+  * Distribution: 5-15% typical
+  * Professional services: 15-30% typical
+- Revenue growth: Compare to industry growth rates
+- Customer concentration: Compare to industry norms (most SMBs have some concentration)
+- Working capital: Compare to industry typical needs
+- Capex intensity: Compare to industry capital requirements
+
+Format in a new "industry_benchmarks" object:
+{
+  "ebitda_margin": {
+    "business_value": "string (e.g., '18%')",
+    "industry_average": "string (e.g., '15-20% for service businesses')",
+    "assessment": "Above average | At average | Below average | Unknown",
+    "context": "string (why this matters)"
+  },
+  "revenue_growth": {
+    "business_value": "string (e.g., '8% CAGR 3-year')",
+    "industry_average": "string (e.g., '3-5% typical for mature service businesses')",
+    "assessment": "Above average | At average | Below average | Unknown",
+    "context": "string"
+  },
+  "customer_concentration": {
+    "business_value": "string (e.g., 'Top 3 = 35%')",
+    "industry_average": "string (e.g., '20-30% typical for B2B service businesses')",
+    "assessment": "Above average | At average | Below average | Unknown",
+    "context": "string"
+  }
+}
+
+If industry data is not available or business is too niche, set assessment to "Unknown" and explain why.
+
+============================================================
 VERIFICATION STEPS (REQUIRED BEFORE FINALIZING)
 ============================================================
 Before finalizing your analysis, verify:
-- Have you cited specific evidence from the CIM (page numbers, sections, specific numbers)?
+- Have you cited specific evidence from the CIM (page numbers, sections, specific numbers) for ALL red flags?
+- Have you included confidence levels (High/Medium/Low) for each red flag?
+- Have you compared key metrics to industry benchmarks where applicable?
 - Are your red flags quantified (% impact, dollar amounts, specific examples)?
 - Would an experienced search fund operator find this analysis useful and actionable?
 - Have you avoided generic advice like "conduct due diligence"?
@@ -714,7 +812,7 @@ When assessing valuation:
 `.trim(),
   variables: [],
   createdAt: "2024-01-01T00:00:00Z",
-  description: "System instructions for CIM PDF analysis - comprehensive guidelines for analyzing deal memorandums with search fund expertise (updated 2026-01-23)",
+  description: "System instructions for CIM PDF analysis - comprehensive guidelines for analyzing deal memorandums with search fund expertise. Includes citation requirements, confidence scoring, and industry benchmarks (updated 2026-01-23)",
 };
 
 /**

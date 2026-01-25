@@ -64,6 +64,26 @@ export function normalizeStringArray(raw: unknown): string[] {
 }
 
 export function normalizeRedFlags(raw: unknown): string[] {
+  // Handle new format: array of objects with flag, confidence, citation, impact
+  if (Array.isArray(raw) && raw.length > 0) {
+    // Check if first item is an object with 'flag' property (new format)
+    if (typeof raw[0] === 'object' && raw[0] !== null && 'flag' in raw[0]) {
+      return raw
+        .map((x: any) => {
+          if (typeof x === 'object' && x !== null && typeof x.flag === 'string') {
+            const flagText = x.flag.trim();
+            const citation = x.citation ? ` (${x.citation})` : '';
+            const confidence = x.confidence ? ` [${x.confidence}]` : '';
+            const impact = x.impact ? ` - Impact: ${x.impact}` : '';
+            return `${flagText}${citation}${confidence}${impact}`;
+          }
+          return null;
+        })
+        .filter(Boolean) as string[];
+    }
+  }
+  
+  // Fall back to existing normalization for old formats (strings, arrays of strings, etc.)
   return normalizeStringArray(raw);
 }
 

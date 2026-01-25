@@ -45,6 +45,18 @@ export function Navigation() {
             </a>
             <div className="flex items-center gap-4">
               <Link
+                href="/blog"
+                className="text-sm text-slate-300 hover:text-indigo-300 transition-colors"
+              >
+                Blog
+              </Link>
+              <Link
+                href="/mission"
+                className="text-sm text-slate-300 hover:text-indigo-300 transition-colors"
+              >
+                About
+              </Link>
+              <Link
                 href="/help"
                 className="text-sm text-slate-300 hover:text-indigo-300 transition-colors"
               >
@@ -54,7 +66,7 @@ export function Navigation() {
                 href="/pricing"
                 className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-500 transition-all text-sm"
               >
-                From $49/mo
+                From $99/mo
               </Link>
             </div>
           </div>

@@ -134,15 +134,15 @@ export function CimProcessingModal({
             <div className="flex items-center justify-between">
               {estimatedTimeRemaining !== undefined && estimatedTimeRemaining > 0 ? (
                 <p className="text-xs text-slate-600">
-                  Estimated time remaining: <span className="font-medium">{estimatedTimeRemaining}s</span>
+                  Estimated time remaining: <span className="font-medium text-emerald-600">{Math.round(estimatedTimeRemaining)}s</span>
                 </p>
               ) : (
                 <p className="text-xs text-slate-600">
                   Elapsed: <span className="font-medium">{timeElapsed}s</span>
                 </p>
               )}
-              <p className="text-xs text-slate-500">
-                Usually takes 30-45 seconds
+              <p className="text-xs font-medium text-slate-700">
+                Expected: 30-60 seconds
               </p>
             </div>
           </div>
@@ -174,8 +174,11 @@ export function CimProcessingModal({
         {/* Info message */}
         {isProcessing && (
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm font-medium text-blue-900 mb-1">
+              Expected processing time: 30-60 seconds
+            </p>
             <p className="text-xs text-blue-700">
-              This usually takes 30-45 seconds. Please don't close this window.
+              Your CIM is being analyzed. This typically takes 30-60 seconds depending on file size. Please don't close this window.
             </p>
           </div>
         )}

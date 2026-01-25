@@ -23,8 +23,11 @@ export function MarketingNavigation() {
 
   const navLinks = [
     { href: '/#features', label: 'Features', scroll: true },
-    { href: '/sample-output', label: 'Sample Output' },
-    { href: '/pricing', label: 'Pricing' },
+    { href: '/sample-analysis', label: 'Try It' },
+    { href: '/blog', label: 'Blog' },
+    { href: '/tools', label: 'Tools' },
+    { href: '/mission', label: 'About' },
+    { href: '/help', label: 'Help' },
   ];
 
   const handleLinkClick = (e: React.MouseEvent, href: string, scroll: boolean) => {
@@ -112,6 +115,12 @@ export function MarketingNavigation() {
               Log In
             </Link>
             <Link
+              href="/pricing"
+              className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-500 transition-all text-sm"
+            >
+              Pricing
+            </Link>
+            <Link
               href="/demo"
               className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-sm font-semibold text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30"
             >
@@ -176,6 +185,13 @@ export function MarketingNavigation() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Log In
+                </Link>
+                <Link
+                  href="/pricing"
+                  className="px-4 py-2 rounded-lg bg-emerald-600 text-sm font-semibold text-white text-center hover:bg-emerald-500 transition-all"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Pricing
                 </Link>
                 <Link
                   href="/demo"

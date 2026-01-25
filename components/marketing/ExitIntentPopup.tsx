@@ -144,24 +144,25 @@ export function ExitIntentPopup() {
 
           {/* Headline */}
           <h2 className="text-3xl font-bold text-white mb-4">
-            Wait! 21/50 spots filled. Lock in $149/mo before spots run out.
+            Lock in early bird pricing forever
           </h2>
 
           {/* Subheadline */}
           <p className="text-lg text-white/80 mb-6">
-            After Feb 28, pricing increases to $249/mo.
+            Traditional Search Fund early bird: Lock in $149/mo forever. 
+            Price increases to $249/mo on March 1. Self-Funded plans are $99/mo.
           </p>
 
           {/* Benefits */}
           <div className="text-left mb-8 space-y-3">
             <p className="text-base font-semibold text-white mb-3">
-              Early bird founders also get:
+              Early bird benefits:
             </p>
             <div className="space-y-2">
               {[
-                'Direct access to build product with you',
-                'Your feature requests prioritized',
-                'Lifetime price lock'
+                'Lifetime price lock at early bird rates',
+                '7-day free trial, $0 due today',
+                'Cancel anytime with one click'
               ].map((benefit, index) => (
                 <div key={index} className="flex items-start gap-3">
                   <Check className="h-5 w-5 text-emerald-400 flex-shrink-0 mt-0.5" />
@@ -185,7 +186,7 @@ export function ExitIntentPopup() {
               onClick={handleClose}
               className="inline-block w-full px-8 py-4 rounded-lg border-2 border-white/20 bg-white/5 text-base font-semibold text-white hover:bg-white/10 hover:border-white/30 transition-all"
             >
-              Lock in $149/mo Forever
+              View Pricing
             </Link>
           </div>
 

@@ -11,15 +11,51 @@ export const metadata: Metadata = {
     default: 'SearchFindr - AI Deal Screening for Search Funds',
     template: '%s | SearchFindr'
   },
-  description: 'Find better deals faster. AI-powered deal screening for search fund operators. Analyze CIMs, track deals, and make faster acquisition decisions.',
-  keywords: ['search fund', 'deal screening', 'CIM analysis', 'AI deal analysis', 'M&A', 'search fund software'],
+  description: 'Find better deals faster. AI-powered deal screening for search fund operators. Analyze CIMs, track deals, and make faster acquisition decisions. Get instant red flags, deal tier, and verdict in 60 seconds.',
+  keywords: [
+    'search fund',
+    'deal screening',
+    'CIM analysis',
+    'AI deal analysis',
+    'M&A software',
+    'search fund software',
+    'confidential information memorandum',
+    'deal pipeline management',
+    'SBA 7a loan calculator',
+    'quality of earnings',
+    'red flags analysis',
+    'search fund operator',
+    'ETA buyer',
+    'lower middle market',
+    'broker deal tracking',
+    'financial analysis',
+    'deal memo generator'
+  ],
   openGraph: {
     type: 'website',
     locale: 'en_US',
     url: 'https://searchfindr-app.vercel.app',
     siteName: 'SearchFindr',
     title: 'SearchFindr - AI Deal Screening for Search Funds',
+    description: 'Find better deals faster. AI-powered deal screening for search fund operators. Analyze CIMs, track deals, and make faster acquisition decisions.',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'SearchFindr - AI Deal Screening for Search Funds',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'SearchFindr - AI Deal Screening for Search Funds',
     description: 'Find better deals faster. AI-powered deal screening for search fund operators.',
+    images: ['/og-image.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
