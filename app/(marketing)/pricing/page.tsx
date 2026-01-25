@@ -58,12 +58,12 @@ export default function PricingPage() {
       </div>
 
       {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-3">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-6">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
             Simple, Transparent Pricing
           </h1>
-          <p className="text-lg text-gray-400 mb-6">
+          <p className="text-sm sm:text-base text-gray-400 mb-4">
             Start your <span className="text-emerald-400 font-semibold">7-day free trial</span> • No credit card required
           </p>
         </div>
