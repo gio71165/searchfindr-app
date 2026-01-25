@@ -26,26 +26,25 @@ export function Hero() {
           </p>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8">
-            <Link
-              href="/demo"
-              className="w-full sm:w-auto px-8 py-4 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-base font-semibold text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-105"
-            >
-              Book Demo
-            </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
             <Link
               href="/pricing"
-              className="w-full sm:w-auto px-8 py-4 rounded-lg border-2 border-white/20 bg-white/5 text-base font-semibold text-white hover:bg-white/10 hover:border-white/30 transition-all backdrop-blur-sm"
+              className="px-8 py-4 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-500 transition-all shadow-lg hover:shadow-emerald-500/50 text-center"
             >
-              See Pricing
+              Start at $49/Month
             </Link>
+
             <Link
               href="/sample-analysis"
-              className="w-full sm:w-auto px-8 py-4 rounded-lg border-2 border-white/10 bg-white/3 text-base font-semibold text-white/80 hover:bg-white/5 hover:border-white/20 transition-all backdrop-blur-sm"
+              className="px-8 py-4 bg-white/10 text-white rounded-xl font-bold text-lg hover:bg-white/20 transition-all border border-white/20 text-center"
             >
               See Sample Analysis
             </Link>
           </div>
+
+          <p className="text-center text-sm text-gray-400 mt-6">
+            Self-funded or traditional • Early bird pricing available
+          </p>
         </div>
       </div>
     </section>

@@ -23,6 +23,33 @@ import { JargonTooltip } from '@/components/ui/JargonTooltip';
 import { GutCheck } from '@/components/deal/GutCheck';
 import type { MarginRow } from '@/app/deals/[id]/lib/types';
 
+/** Derive QoE red flags from CIM criteria_match.qoe (addbacks, addback_quality_summary) when ai_financials_json.qoe_red_flags is missing. */
+function deriveQoeRedFlagsFromCimQoe(qoe: unknown): Array<{ type: string; severity: 'low' | 'medium' | 'high'; description: string }> {
+  if (!qoe || typeof qoe !== 'object') return [];
+  const q = qoe as {
+    addbacks?: Array<{ label?: string; amount?: string | null; category?: string; reason?: string | null }>;
+    addback_quality_summary?: string | null;
+  };
+  const addbacks = Array.isArray(q.addbacks) ? q.addbacks : [];
+  const out: Array<{ type: string; severity: 'low' | 'medium' | 'high'; description: string }> = [];
+  for (const a of addbacks) {
+    const cat = (a.category || '').toLowerCase();
+    if (cat !== 'maybe' && cat !== 'aggressive') continue;
+    const severity = cat === 'aggressive' ? 'high' : 'medium';
+    const label = a.label || 'Addback';
+    const amount = a.amount ? ` (${a.amount})` : '';
+    const reason = a.reason || 'No justification provided.';
+    out.push({ type: 'addbacks', severity, description: `${label}${amount}: ${reason}` });
+  }
+  const summary = (q.addback_quality_summary || '').trim();
+  if (summary && out.length === 0) {
+    const lower = summary.toLowerCase();
+    const severity = lower.includes('aggressive') || lower.includes('unreliable') ? 'high' : 'medium';
+    out.push({ type: 'addbacks', severity, description: summary });
+  }
+  return out;
+}
+
 interface AnalysisTabProps {
   deal: Deal;
   dealId: string;
@@ -82,7 +109,7 @@ export function AnalysisTab({
   
   const qoeRedFlags = sourceType === 'financials' && financialAnalysis
     ? (financialAnalysis.qoe_red_flags || [])
-    : (fin.qoe_red_flags || []);
+    : (fin.qoe_red_flags?.length ? fin.qoe_red_flags : (sourceType === 'cim_pdf' ? deriveQoeRedFlagsFromCimQoe((deal.criteria_match_json as { qoe?: unknown })?.qoe) : [])) || [];
   
   const ownerQuestions = sourceType === 'financials' && financialAnalysis
     ? (financialAnalysis.extracted_metrics?.owner_interview_questions || [])
@@ -205,11 +232,11 @@ export function AnalysisTab({
       {/* Gut Check */}
       <GutCheck deal={deal} dealId={dealId} />
 
-      {/* QoE Red Flags */}
-      <QoeRedFlagsPanel qoeRedFlags={qoeRedFlags} />
-
-      {/* Red Flags */}
+      {/* Red Flags (general) */}
       <RedFlagsPanel redFlags={redFlags} />
+
+      {/* QoE Red Flags — after Red Flags, before Strengths */}
+      <QoeRedFlagsPanel qoeRedFlags={qoeRedFlags} />
 
       {/* Strengths */}
       <div className="rounded-lg border border-emerald-200 bg-emerald-50 border-l-4 border-l-emerald-500 p-6">

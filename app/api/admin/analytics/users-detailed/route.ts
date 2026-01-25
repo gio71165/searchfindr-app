@@ -23,8 +23,8 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
     const searchEmail = url.searchParams.get('search');
 
-    // Get all profiles
-    let profilesQuery = adminSupabase.from('profiles').select('id, workspace_id, created_at');
+    // Get all profiles with subscription info
+    let profilesQuery = adminSupabase.from('profiles').select('id, workspace_id, created_at, subscription_tier, subscription_plan, subscription_status, billing_cycle');
 
     if (searchEmail) {
       // Search by email requires joining with auth.users
@@ -110,6 +110,16 @@ export async function GET(req: NextRequest) {
         : null;
       const isInactive = daysSinceActive !== null && daysSinceActive > 7;
 
+      // Format subscription plan
+      let planLabel = 'None';
+      if (profile.subscription_status && profile.subscription_status !== 'inactive') {
+        const tier = profile.subscription_tier === 'self_funded' ? 'Self-Funded' : 'Search Fund';
+        const plan = profile.subscription_plan === 'early_bird' ? 'Early Bird' : '';
+        const cycle = profile.billing_cycle === 'yearly' ? ' (Annual)' : '';
+        const status = profile.subscription_status === 'trialing' ? ' (Trial)' : '';
+        planLabel = `${tier} ${plan}${cycle}${status}`.trim();
+      }
+
       return {
         id: profile.id,
         email: userEmails[profile.id] || 'Unknown',
@@ -121,7 +131,7 @@ export async function GET(req: NextRequest) {
         financialsAnalyzed: financialsCount,
         deals: dealsCount,
         stageBreakdown: stageCounts,
-        plan: 'Active', // Everyone has unlimited access
+        plan: planLabel,
       };
     });
 

@@ -133,7 +133,9 @@ export async function getDDProgress(
     .order('order_index');
   
   if (error) {
-    console.error('Error fetching DD progress:', error);
+    const e = error as { message?: string; code?: string; details?: string; hint?: string };
+    const errMsg = e.message ?? ([e.code, e.details, e.hint].filter(Boolean).join(' | ') || 'Unknown error');
+    console.error('Error fetching DD progress:', errMsg);
     return null;
   }
   

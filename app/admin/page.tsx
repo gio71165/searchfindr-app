@@ -28,6 +28,9 @@ import {
   ArrowUpDown,
   ChevronDown,
   ChevronUp,
+  CreditCard,
+  DollarSign,
+  Zap,
 } from 'lucide-react';
 
 interface OverviewStats {
@@ -43,6 +46,10 @@ interface OverviewStats {
   activeDeals: number;
   churnRiskPercent: number;
   inactiveUsers7d: number;
+  activeSubscriptions: number;
+  trialingSubscriptions: number;
+  monthlyRecurringRevenue: number;
+  trialConversions: number;
 }
 
 interface TrendDataPoint {
@@ -254,45 +261,70 @@ export default function AdminDashboard() {
 
         {/* Metric Cards - Top Row */}
         {overviewStats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
-            <MetricCard
-              icon={<Users className="h-5 w-5" />}
-              title="Total Users"
-              value={overviewStats.totalUsers}
-              subtitle={`${overviewStats.newUsersThisWeek} new this week`}
-            />
-            <MetricCard
-              icon={<Activity className="h-5 w-5" />}
-              title="Active Users (7d)"
-              value={overviewStats.activeUsers7d}
-              subtitle={`${overviewStats.activeUsersPercent}% of total`}
-            />
-            <MetricCard
-              icon={<FileText className="h-5 w-5" />}
-              title="CIMs Analyzed"
-              value={overviewStats.totalCims}
-              subtitle={`${overviewStats.cimsThisWeek} this week`}
-            />
-            <MetricCard
-              icon={<TrendingUp className="h-5 w-5" />}
-              title="Financials Analyzed"
-              value={overviewStats.totalFinancials}
-              subtitle={`${overviewStats.financialsThisWeek} this week`}
-            />
-            <MetricCard
-              icon={<Briefcase className="h-5 w-5" />}
-              title="Total Deals"
-              value={overviewStats.totalDeals}
-              subtitle={`${overviewStats.activeDeals} active`}
-            />
-            <MetricCard
-              icon={<AlertTriangle className="h-5 w-5" />}
-              title="Churn Risk"
-              value={`${overviewStats.churnRiskPercent}%`}
-              subtitle={`${overviewStats.inactiveUsers7d} inactive 7+ days`}
-              isWarning={overviewStats.churnRiskPercent > 20}
-            />
-          </div>
+          <>
+            {/* Subscription Metrics Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <MetricCard
+                icon={<CreditCard className="h-5 w-5" />}
+                title="Active Subscriptions"
+                value={overviewStats.activeSubscriptions}
+                subtitle={`${overviewStats.trialingSubscriptions} in trial`}
+              />
+              <MetricCard
+                icon={<DollarSign className="h-5 w-5" />}
+                title="Monthly Recurring Revenue"
+                value={`$${overviewStats.monthlyRecurringRevenue.toLocaleString()}`}
+                subtitle="MRR"
+              />
+              <MetricCard
+                icon={<Zap className="h-5 w-5" />}
+                title="Trial Conversions"
+                value={overviewStats.trialConversions}
+                subtitle="Trials converted to paid"
+              />
+              <MetricCard
+                icon={<Users className="h-5 w-5" />}
+                title="Total Users"
+                value={overviewStats.totalUsers}
+                subtitle={`${overviewStats.newUsersThisWeek} new this week`}
+              />
+            </div>
+
+            {/* Activity Metrics Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-8">
+              <MetricCard
+                icon={<Activity className="h-5 w-5" />}
+                title="Active Users (7d)"
+                value={overviewStats.activeUsers7d}
+                subtitle={`${overviewStats.activeUsersPercent}% of total`}
+              />
+              <MetricCard
+                icon={<FileText className="h-5 w-5" />}
+                title="CIMs Analyzed"
+                value={overviewStats.totalCims}
+                subtitle={`${overviewStats.cimsThisWeek} this week`}
+              />
+              <MetricCard
+                icon={<TrendingUp className="h-5 w-5" />}
+                title="Financials Analyzed"
+                value={overviewStats.totalFinancials}
+                subtitle={`${overviewStats.financialsThisWeek} this week`}
+              />
+              <MetricCard
+                icon={<Briefcase className="h-5 w-5" />}
+                title="Total Deals"
+                value={overviewStats.totalDeals}
+                subtitle={`${overviewStats.activeDeals} active`}
+              />
+              <MetricCard
+                icon={<AlertTriangle className="h-5 w-5" />}
+                title="Churn Risk"
+                value={`${overviewStats.churnRiskPercent}%`}
+                subtitle={`${overviewStats.inactiveUsers7d} inactive 7+ days`}
+                isWarning={overviewStats.churnRiskPercent > 20}
+              />
+            </div>
+          </>
         )}
 
         {/* Charts Section */}

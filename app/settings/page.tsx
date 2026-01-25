@@ -12,6 +12,7 @@ import { ComplianceSettings } from '@/components/settings/ComplianceSettings';
 import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { SearchCriteriaSettings } from '@/components/settings/SearchCriteriaSettings';
 import { ApiKeysSettings } from '@/components/settings/ApiKeysSettings';
+import { SubscriptionCard } from '@/components/settings/SubscriptionCard';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -87,6 +88,9 @@ export default function SettingsPage() {
           <p className="text-slate-600 mb-8">Manage your account preferences and settings.</p>
 
           <div className="space-y-6">
+            {/* Subscription */}
+            <SubscriptionCard />
+
             {/* Profile Information */}
             <ProfileSettings />
 

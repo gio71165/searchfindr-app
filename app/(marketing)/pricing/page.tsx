@@ -1,279 +1,604 @@
-import { Rocket } from 'lucide-react';
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Check, X, Zap, Users, Infinity, FileText, BarChart, Calculator, Chrome, Mail, MessageSquare, Palette, Headphones, Database, Crown, Video } from 'lucide-react';
 import Link from 'next/link';
-import { PricingCard } from '@/components/marketing/PricingCard';
-
-const STRIPE_PAYMENT_URL = 'https://buy.stripe.com/dRm4gz1ReaTxct01lKawo00';
-const CALENDLY_URL = 'https://calendly.com/gio-searchfindr/15min';
-
-const faqs = [
-  {
-    question: 'What happens after I purchase?',
-    answer: 'You\'ll receive an email with login credentials within 24 hours. You can start analyzing deals immediately.',
-  },
-  {
-    question: 'Can I cancel anytime?',
-    answer: 'Yes, you can cancel your subscription at any time. Your access will continue until the end of your billing period.',
-  },
-  {
-    question: 'Is there a free trial?',
-    answer: 'We offer a 30-day money-back guarantee. If you\'re not satisfied, we\'ll refund your payment. No free trial period is currently available.',
-  },
-  {
-    question: 'What if I need more than the limits?',
-    answer: 'The Unlimited plan is designed for high-volume users. Most searchers find the Pro plan sufficient.',
-  },
-  {
-    question: 'Do you offer discounts for students?',
-    answer: 'Yes! Students enrolled in MBA programs can get 20% off. Email us with your student email for a discount code.',
-  },
-  {
-    question: 'Can I upgrade or downgrade later?',
-    answer: 'Absolutely. You can change your plan at any time. Upgrades take effect immediately, downgrades at the end of your billing cycle.',
-  },
-  {
-    question: 'What payment methods do you accept?',
-    answer: 'We accept all major credit cards through Stripe. Enterprise customers can arrange invoicing.',
-  },
-  {
-    question: 'Is my deal data secure?',
-    answer: 'Yes. All data is encrypted in transit and at rest. We use industry-standard security practices and never share your deal information.',
-  },
-];
+import { supabase } from '@/app/supabaseClient';
 
 export default function PricingPage() {
+  const router = useRouter();
+  const [searcherType, setSearcherType] = useState<'traditional' | 'self_funded'>('self_funded');
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function handleCheckout(
+    tier: 'self_funded' | 'search_fund',
+    plan: 'early_bird',
+    billingCycle: 'monthly' | 'yearly'
+  ) {
+    setIsLoading(true);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        router.push(`/signup?tier=${tier}&plan=${plan}&billing=${billingCycle}`);
+        return;
+      }
+      
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tier,
+          plan,
+          billingCycle,
+          userId: user.id,
+          email: user.email,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.error) {
+        alert(data.error);
+        return;
+      }
+      
+      window.location.href = data.url;
+      
+    } catch (error) {
+      console.error('Checkout error:', error);
+      alert('Failed to start checkout. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
-    <div className="pt-32 pb-20 lg:pt-40 lg:pb-32 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Hero */}
-        <div className="text-center mb-16">
-          <div className="flex justify-center mb-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-300 backdrop-blur-sm">
-              <Rocket className="h-4 w-4" />
-              <span>Limited Early Bird Spots Remaining</span>
-            </div>
-          </div>
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight tracking-tight">
-            Lock in{' '}
-            <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-              $149/month
-            </span>{' '}
-            before it's gone
+    <div className="min-h-screen bg-[#0b0f17]">
+      {/* Hero Section */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-12">
+        <div className="text-center mb-12">
+          <h1 className="text-5xl font-bold text-white mb-4">
+            Simple, Transparent Pricing
           </h1>
-          <p className="text-xl text-white/60 max-w-2xl mx-auto">
-            Lock in early bird pricing before public launch. After early bird ends, pricing will be $249/month.
+          <p className="text-xl text-gray-400">
+            Choose the plan that fits your search journey
           </p>
         </div>
-
-        {/* Live Counter */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-3 rounded-full border border-red-500/30 bg-red-500/10 px-6 py-3 backdrop-blur-sm">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 bg-red-500 rounded-full animate-pulse" />
-              <span className="text-red-300 font-semibold">21/50 spots filled</span>
-            </div>
-            <div className="h-4 w-px bg-red-500/30" />
-            <span className="text-red-300">Early bird closes Feb 28</span>
+        
+        {/* Tab Switcher */}
+        <div className="flex items-center justify-center mb-16">
+          <div className="inline-flex rounded-xl border border-gray-700 p-1.5 bg-gray-900 w-full sm:w-auto">
+            <button
+              onClick={() => setSearcherType('self_funded')}
+              className={`px-4 sm:px-8 py-4 rounded-lg text-base font-semibold transition-all flex-1 sm:flex-none ${
+                searcherType === 'self_funded'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <span className="block">Self-Funded Searcher</span>
+              <span className="block text-xs font-normal mt-1 opacity-80">
+                Bootstrapping your search
+              </span>
+            </button>
+            
+            <button
+              onClick={() => setSearcherType('traditional')}
+              className={`px-4 sm:px-8 py-4 rounded-lg text-base font-semibold transition-all flex-1 sm:flex-none ${
+                searcherType === 'traditional'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              <span className="block">Traditional Search Fund</span>
+              <span className="block text-xs font-normal mt-1 opacity-80">
+                Raised capital from investors
+              </span>
+            </button>
           </div>
         </div>
+        
+        {/* Pricing Cards */}
+        {searcherType === 'self_funded' ? (
+          <SelfFundedPricingCards />
+        ) : (
+          <TraditionalSearchFundPricingCards />
+        )}
+      </div>
+      
+      {/* FAQ Section */}
+      <FAQSection />
+      
+      {/* Final CTA Section */}
+      <FinalCTA />
+    </div>
+  );
+}
 
-        {/* Primary CTA - Book Demo */}
-        <div className="text-center mb-12">
-          <div className="inline-flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/demo"
-              className="w-full sm:w-auto px-8 py-4 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-base font-semibold text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-105"
-            >
-              Book Demo
-            </Link>
-            <p className="text-sm text-white/60">
-              See SearchFindr in action before committing
+// Feature Component
+function Feature({ 
+  icon, 
+  text, 
+  highlight = false,
+  muted = false 
+}: {
+  icon: React.ReactNode;
+  text: string;
+  highlight?: boolean;
+  muted?: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className={`flex-shrink-0 mt-0.5 ${muted ? 'text-gray-500' : highlight ? 'text-emerald-400' : 'text-emerald-500'}`}>
+        {icon}
+      </div>
+      <p className={`text-sm ${muted ? 'text-gray-500' : highlight ? 'text-emerald-400 font-semibold' : 'text-gray-300'}`}>
+        {text}
+      </p>
+    </div>
+  );
+}
+
+// NotIncluded Component
+function NotIncluded({ text }: { text: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <X className="w-4 h-4 text-gray-600 flex-shrink-0" />
+      <span className="text-xs text-gray-500">{text}</span>
+    </div>
+  );
+}
+
+// Self-Funded Pricing Cards
+function SelfFundedPricingCards() {
+  return (
+    <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+      {/* Early Bird Card - HIGHLIGHTED */}
+      <div className="relative">
+        {/* "Best Value" Badge */}
+        <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
+          <span className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-full text-sm font-bold shadow-lg">
+            <Zap className="w-4 h-4" />
+            Best Value - Lock In Now
+          </span>
+        </div>
+        
+        <div className="bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl shadow-2xl border-2 border-emerald-500 p-6 sm:p-8 pt-12 h-full">
+          <div className="text-center mb-8">
+            <h3 className="text-2xl font-bold text-white mb-2">
+              Early Bird Pricing
+            </h3>
+            <p className="text-gray-400 text-sm">
+              Limited spots available
             </p>
           </div>
-        </div>
-
-        {/* Pricing Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-20">
-          {/* Early Bird */}
-          <PricingCard
-            name="Early Bird"
-            price="$149"
-            period="/month"
-            description="Locked forever"
-            badge="Limited Time"
-            highlight={true}
-            features={[
-              'Unlimited CIM analyses',
-              'Unlimited financial screenings',
-              'Unlimited off-market searches',
-              'Unlimited saved deals',
-              'Priority support',
-              '30-day money-back guarantee',
-              '1-on-1 access to founder',
-              'Direct input on product development',
-              'Changes implemented based on your feedback',
-              'Founders access (you\'re a founder too)',
-            ]}
-            ctaText="Lock in $149/mo Forever"
-            ctaHref={STRIPE_PAYMENT_URL}
-          />
-
-          {/* Pro */}
-          <PricingCard
-            name="Pro"
-            price="$249"
-            period="/month"
-            description="After early bird"
-            features={[
-              '15 CIM analyses/month',
-              '10 financial screenings/month',
-              '30 off-market searches/month',
-              '100 saved deals',
-              'Email support',
-              '30-day money-back guarantee',
-            ]}
-            ctaText="Coming Soon"
-            ctaHref="#"
-          />
-
-          {/* Unlimited */}
-          <PricingCard
-            name="Unlimited"
-            price="$399"
-            period="/month"
-            description="For high-volume users"
-            features={[
-              'Unlimited CIM analyses',
-              'Unlimited financial screenings',
-              'Unlimited off-market searches',
-              'Unlimited saved deals',
-              'Priority support',
-              'Custom integrations',
-              '30-day money-back guarantee',
-            ]}
-            ctaText="Coming Soon"
-            ctaHref="#"
-          />
-        </div>
-
-        {/* Comparison Table */}
-        <div className="mb-20">
-          <h2 className="text-3xl font-bold text-white text-center mb-12">
-            Compare Plans
-          </h2>
-          <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-white/10">
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-white">Feature</th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-emerald-400">Early Bird</th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-white">Pro</th>
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-white">Unlimited</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/10">
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-white/80">CIM Analyses</td>
-                    <td className="px-6 py-4 text-center text-sm text-emerald-400 font-medium">Unlimited</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">15/month</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">Unlimited</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-white/80">Financial Screenings</td>
-                    <td className="px-6 py-4 text-center text-sm text-emerald-400 font-medium">Unlimited</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">10/month</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">Unlimited</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-white/80">Off-Market Searches</td>
-                    <td className="px-6 py-4 text-center text-sm text-emerald-400 font-medium">Unlimited</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">30/month</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">Unlimited</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-white/80">Saved Deals</td>
-                    <td className="px-6 py-4 text-center text-sm text-emerald-400 font-medium">Unlimited</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">100</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">Unlimited</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-white/80">Support</td>
-                    <td className="px-6 py-4 text-center text-sm text-emerald-400 font-medium">Priority</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">Email</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">Priority</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-white/80">1-on-1 Founder Access</td>
-                    <td className="px-6 py-4 text-center text-sm text-emerald-400 font-medium">✓</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">—</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">—</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-white/80">Direct Product Input</td>
-                    <td className="px-6 py-4 text-center text-sm text-emerald-400 font-medium">✓</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">—</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">—</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-white/80">Founders Access</td>
-                    <td className="px-6 py-4 text-center text-sm text-emerald-400 font-medium">✓</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">—</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">—</td>
-                  </tr>
-                  <tr>
-                    <td className="px-6 py-4 text-sm text-white/80">Price</td>
-                    <td className="px-6 py-4 text-center text-sm text-emerald-400 font-bold">$149/mo</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">$249/mo</td>
-                    <td className="px-6 py-4 text-center text-sm text-white/60">$399/mo</td>
-                  </tr>
-                </tbody>
-              </table>
+          
+          {/* Pricing */}
+          <div className="text-center mb-8">
+            <div className="flex items-baseline justify-center gap-2 mb-2">
+              <span className="text-5xl sm:text-6xl font-bold text-white">$49</span>
+              <span className="text-xl text-gray-400">/month</span>
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 text-emerald-400 rounded-full text-sm font-semibold mt-2">
+              <Zap className="w-3 h-3" />
+              Locked in forever
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Regular price: $79/month
+            </p>
+          </div>
+          
+          {/* Features */}
+          <div className="space-y-3 mb-8">
+            <Feature icon={<FileText className="w-5 h-5" />} text="20 CIM analyses/month" />
+            <Feature icon={<BarChart className="w-5 h-5" />} text="Unlimited pipeline tracking" />
+            <Feature icon={<FileText className="w-5 h-5" />} text="5 IOI generations/month" />
+            <Feature icon={<FileText className="w-5 h-5" />} text="2 LOI generations/month" />
+            <Feature icon={<Calculator className="w-5 h-5" />} text="SBA 7(a) calculator" />
+            <Feature icon={<Chrome className="w-5 h-5" />} text="Chrome extension" />
+            <Feature icon={<Users className="w-5 h-5" />} text="1 user seat" />
+            <Feature icon={<Mail className="w-5 h-5" />} text="Email support (24-48hr)" />
+          </div>
+          
+          {/* What's Not Included */}
+          <div className="border-t border-gray-700 pt-6 mb-8">
+            <p className="text-xs text-gray-500 mb-3 font-semibold">Not included:</p>
+            <div className="space-y-2">
+              <NotIncluded text="Unlimited CIM analyses" />
+              <NotIncluded text="Team collaboration" />
+              <NotIncluded text="Investor dashboard" />
+              <NotIncluded text="Custom branding" />
             </div>
           </div>
+          
+          {/* CTA */}
+          <button
+            onClick={() => handleCheckout('self_funded', 'early_bird', 'monthly')}
+            disabled={isLoading}
+            className="w-full py-4 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-500 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? 'Starting checkout...' : 'Lock In $49/Month Forever'}
+          </button>
+          
+          <p className="text-center text-sm text-gray-400 mt-4">
+            <span className="font-semibold text-emerald-400">7-day free trial</span> • No commitment • Cancel anytime
+          </p>
         </div>
+      </div>
+      
+      {/* Post-Launch Card */}
+      <div className="bg-gray-800 rounded-2xl shadow-xl border border-gray-700 p-6 sm:p-8 h-full opacity-90">
+        <div className="text-center mb-8">
+          <h3 className="text-2xl font-bold text-white mb-2">
+            Post-Launch Pricing
+          </h3>
+          <p className="text-gray-400 text-sm">
+            After early access ends
+          </p>
+        </div>
+        
+        {/* Pricing */}
+        <div className="text-center mb-8">
+          <div className="flex items-baseline justify-center gap-2 mb-2">
+            <span className="text-5xl sm:text-6xl font-bold text-gray-300">$79</span>
+            <span className="text-xl text-gray-400">/month</span>
+          </div>
+          <p className="text-sm text-gray-500 mt-2">
+            Same features as early bird
+          </p>
+        </div>
+        
+        {/* Features (Same as Early Bird) */}
+        <div className="space-y-3 mb-8">
+          <Feature icon={<FileText className="w-5 h-5" />} text="20 CIM analyses/month" muted />
+          <Feature icon={<BarChart className="w-5 h-5" />} text="Unlimited pipeline tracking" muted />
+          <Feature icon={<FileText className="w-5 h-5" />} text="5 IOI generations/month" muted />
+          <Feature icon={<FileText className="w-5 h-5" />} text="2 LOI generations/month" muted />
+          <Feature icon={<Calculator className="w-5 h-5" />} text="SBA 7(a) calculator" muted />
+          <Feature icon={<Chrome className="w-5 h-5" />} text="Chrome extension" muted />
+          <Feature icon={<Users className="w-5 h-5" />} text="1 user seat" muted />
+          <Feature icon={<Mail className="w-5 h-5" />} text="Email support (24-48hr)" muted />
+        </div>
+        
+        {/* What's Not Included */}
+        <div className="border-t border-gray-700 pt-6 mb-8">
+          <p className="text-xs text-gray-500 mb-3 font-semibold">Not included:</p>
+          <div className="space-y-2">
+            <NotIncluded text="Unlimited CIM analyses" />
+            <NotIncluded text="Team collaboration" />
+            <NotIncluded text="Investor dashboard" />
+            <NotIncluded text="Custom branding" />
+          </div>
+        </div>
+        
+        {/* CTA (Disabled/Muted) */}
+        <button
+          disabled
+          className="w-full py-4 bg-gray-700 text-gray-400 rounded-xl font-bold text-lg cursor-not-allowed"
+        >
+          Available After Launch
+        </button>
+        
+        <p className="text-center text-xs text-gray-500 mt-4">
+          Lock in $49/mo by signing up now →
+        </p>
+      </div>
+    </div>
+  );
+}
 
-        {/* FAQ */}
-        <div className="mb-12">
-          <h2 className="text-3xl font-bold text-white text-center mb-12">
-            Frequently Asked Questions
-          </h2>
-          <div className="max-w-3xl mx-auto space-y-4">
-            {faqs.map((faq, index) => (
-              <div
-                key={index}
-                className="p-6 rounded-xl border border-white/10 bg-white/5 hover:bg-white/8 transition-colors"
-              >
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  {faq.question}
+// Traditional Search Fund Pricing Cards
+function TraditionalSearchFundPricingCards() {
+  return (
+    <>
+      {/* Early Bird Section */}
+      <div className="mb-16">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-white mb-2">Early Bird Access</h2>
+          <p className="text-gray-400">Founder-level benefits for early supporters</p>
+        </div>
+        
+        <div className="max-w-3xl mx-auto">
+          {/* Single Early Bird Card - Full Width, Highlighted */}
+          <div className="relative">
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 z-10">
+              <span className="inline-flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-full text-sm font-bold shadow-lg">
+                <Crown className="w-4 h-4" />
+                Founder Priority Access
+              </span>
+            </div>
+            
+            <div className="bg-gradient-to-br from-emerald-900/20 to-gray-900 rounded-2xl shadow-2xl border-2 border-emerald-500 p-8 sm:p-10 pt-14">
+              <div className="text-center mb-8">
+                <h3 className="text-2xl sm:text-3xl font-bold text-white mb-2">
+                  Early Bird - Unlimited
                 </h3>
-                <p className="text-white/60 leading-relaxed">
-                  {faq.answer}
+                <p className="text-emerald-400 text-sm font-semibold">
+                  Limited to first 50 search funds
                 </p>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Final CTA */}
-        <div className="text-center">
-          <div className="inline-block p-8 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 backdrop-blur-sm">
-            <h3 className="text-2xl font-bold text-white mb-4">
-              Ready to get started?
-            </h3>
-            <p className="text-white/60 mb-6">
-              Lock in early bird pricing before spots fill up.
-            </p>
-            <a
-              href={STRIPE_PAYMENT_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-block px-8 py-4 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-base font-semibold text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-105"
-            >
-              Lock in $149/mo Forever
-            </a>
+              
+              {/* Pricing */}
+              <div className="text-center mb-10">
+                <div className="flex items-baseline justify-center gap-2 mb-3">
+                  <span className="text-6xl sm:text-7xl font-bold text-white">$149</span>
+                  <span className="text-2xl text-gray-400">/month</span>
+                </div>
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-full text-base font-semibold">
+                  <Zap className="w-4 h-4" />
+                  Locked in forever
+                </div>
+                <p className="text-sm text-gray-500 mt-3">
+                  vs. $369/month post-launch for same features
+                </p>
+              </div>
+              
+              {/* Two Column Features */}
+              <div className="grid md:grid-cols-2 gap-x-8 gap-y-4 mb-10">
+                <Feature icon={<Infinity className="w-5 h-5" />} text="UNLIMITED CIM analyses" highlight />
+                <Feature icon={<Infinity className="w-5 h-5" />} text="UNLIMITED IOI/LOI generation" highlight />
+                <Feature icon={<Users className="w-5 h-5" />} text="3 user seats" highlight />
+                <Feature icon={<BarChart className="w-5 h-5" />} text="Investor dashboard (1 LP portal)" highlight />
+                <Feature icon={<MessageSquare className="w-5 h-5" />} text="Team collaboration" highlight />
+                <Feature icon={<Palette className="w-5 h-5" />} text="Custom branding" highlight />
+                <Feature icon={<Headphones className="w-5 h-5" />} text="Priority support" highlight />
+                <Feature icon={<Database className="w-5 h-5" />} text="500 document storage" highlight />
+              </div>
+              
+              {/* Founder Benefits */}
+              <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-6 mb-8">
+                <h4 className="text-lg font-bold text-emerald-400 mb-4 flex items-center gap-2">
+                  <Crown className="w-5 h-5" />
+                  Exclusive Founder Benefits:
+                </h4>
+                <div className="space-y-3">
+                  <Feature 
+                    icon={<Video className="w-5 h-5" />} 
+                    text="Monthly 1-on-1 calls with founder (Gio)" 
+                    highlight 
+                  />
+                  <Feature 
+                    icon={<Zap className="w-5 h-5" />} 
+                    text="Priority feature requests" 
+                    highlight 
+                  />
+                  <Feature 
+                    icon={<Users className="w-5 h-5" />} 
+                    text="Private founder community access" 
+                    highlight 
+                  />
+                  <Feature 
+                    icon={<Crown className="w-5 h-5" />} 
+                    text="Lifetime grandfathered pricing" 
+                    highlight 
+                  />
+                </div>
+              </div>
+              
+              {/* CTA */}
+              <button
+                onClick={() => handleCheckout('search_fund', 'early_bird', 'monthly')}
+                disabled={isLoading}
+                className="w-full py-5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl font-bold text-xl hover:from-emerald-600 hover:to-emerald-700 transition-all shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Starting checkout...' : 'Lock In $149/Month + Founder Access'}
+              </button>
+              
+              <p className="text-center text-sm text-gray-400 mt-4">
+                <span className="font-semibold text-emerald-400">7-day free trial</span> • No commitment • Cancel anytime
+              </p>
+            </div>
           </div>
         </div>
       </div>
+      
+      {/* Post-Launch Section */}
+      <div>
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-white mb-2">Post-Launch Pricing</h2>
+          <p className="text-gray-400">Available after early access ends</p>
+        </div>
+        
+        <div className="grid md:grid-cols-2 gap-8 max-w-6xl mx-auto">
+          {/* Standard Tier */}
+          <div className="bg-gray-800 rounded-2xl shadow-xl border border-gray-700 p-6 sm:p-8 opacity-90">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-white mb-2">
+                Standard
+              </h3>
+              <p className="text-gray-400 text-sm">
+                For active search funds
+              </p>
+            </div>
+            
+            {/* Pricing */}
+            <div className="text-center mb-8">
+              <div className="flex items-baseline justify-center gap-2 mb-2">
+                <span className="text-5xl sm:text-6xl font-bold text-gray-300">$249</span>
+                <span className="text-xl text-gray-400">/month</span>
+              </div>
+              <p className="text-sm text-gray-500 mt-2">
+                With monthly limits
+              </p>
+            </div>
+            
+            {/* Features */}
+            <div className="space-y-3 mb-8">
+              <Feature icon={<FileText className="w-5 h-5" />} text="50 CIM analyses/month" muted />
+              <Feature icon={<FileText className="w-5 h-5" />} text="15 IOI generations/month" muted />
+              <Feature icon={<FileText className="w-5 h-5" />} text="5 LOI generations/month" muted />
+              <Feature icon={<Users className="w-5 h-5" />} text="3 user seats" muted />
+              <Feature icon={<BarChart className="w-5 h-5" />} text="Investor dashboard" muted />
+              <Feature icon={<MessageSquare className="w-5 h-5" />} text="Team collaboration" muted />
+              <Feature icon={<Palette className="w-5 h-5" />} text="Custom branding" muted />
+              <Feature icon={<Headphones className="w-5 h-5" />} text="Priority support" muted />
+            </div>
+            
+            {/* What's Not Included */}
+            <div className="border-t border-gray-700 pt-6 mb-8">
+              <p className="text-xs text-gray-500 mb-3 font-semibold">Not included:</p>
+              <div className="space-y-2">
+                <NotIncluded text="Unlimited analyses" />
+                <NotIncluded text="Founder 1-on-1 calls" />
+                <NotIncluded text="Founder community" />
+              </div>
+            </div>
+            
+            {/* CTA */}
+            <button
+              disabled
+              className="w-full py-4 bg-gray-700 text-gray-400 rounded-xl font-bold text-lg cursor-not-allowed"
+            >
+              Available After Launch
+            </button>
+          </div>
+          
+          {/* Unlimited Tier */}
+          <div className="bg-gray-800 rounded-2xl shadow-xl border border-gray-700 p-6 sm:p-8 opacity-90">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-white mb-2">
+                Unlimited
+              </h3>
+              <p className="text-gray-400 text-sm">
+                No limits on usage
+              </p>
+            </div>
+            
+            {/* Pricing */}
+            <div className="text-center mb-8">
+              <div className="flex items-baseline justify-center gap-2 mb-2">
+                <span className="text-5xl sm:text-6xl font-bold text-gray-300">$369</span>
+                <span className="text-xl text-gray-400">/month</span>
+              </div>
+              <p className="text-sm text-emerald-400 font-semibold mt-2">
+                Save $220/mo with early bird →
+              </p>
+            </div>
+            
+            {/* Features */}
+            <div className="space-y-3 mb-8">
+              <Feature icon={<Infinity className="w-5 h-5" />} text="UNLIMITED CIM analyses" muted />
+              <Feature icon={<Infinity className="w-5 h-5" />} text="UNLIMITED IOI/LOI generation" muted />
+              <Feature icon={<Users className="w-5 h-5" />} text="3 user seats" muted />
+              <Feature icon={<BarChart className="w-5 h-5" />} text="Investor dashboard" muted />
+              <Feature icon={<MessageSquare className="w-5 h-5" />} text="Team collaboration" muted />
+              <Feature icon={<Palette className="w-5 h-5" />} text="Custom branding" muted />
+              <Feature icon={<Headphones className="w-5 h-5" />} text="Priority support" muted />
+              <Feature icon={<Database className="w-5 h-5" />} text="Unlimited storage" muted />
+            </div>
+            
+            {/* What's Not Included */}
+            <div className="border-t border-gray-700 pt-6 mb-8">
+              <p className="text-xs text-gray-500 mb-3 font-semibold">Not included:</p>
+              <div className="space-y-2">
+                <NotIncluded text="Founder 1-on-1 calls" />
+                <NotIncluded text="Founder community access" />
+                <NotIncluded text="Lifetime price lock" />
+              </div>
+            </div>
+            
+            {/* CTA */}
+            <button
+              disabled
+              className="w-full py-4 bg-gray-700 text-gray-400 rounded-xl font-bold text-lg cursor-not-allowed"
+            >
+              Available After Launch
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// FAQ Section
+function FAQSection() {
+  const faqs = [
+    {
+      q: "Why should I sign up for early bird pricing?",
+      a: "Early bird pricing locks in forever—you'll pay $49/month (self-funded) or $149/month (search fund) for life, even as prices increase for new customers. Traditional search fund early birds also get monthly 1-on-1 calls with Gio and access to the private founder community."
+    },
+    {
+      q: "What's the difference between Self-Funded and Traditional Search Fund?",
+      a: "Self-Funded is for solo searchers bootstrapping without investor capital (20 CIMs/month, 1 user). Traditional Search Fund is for searchers who raised capital (unlimited CIMs, 3 users, investor dashboard, team features)."
+    },
+    {
+      q: "Can I upgrade from Self-Funded to Traditional later?",
+      a: "Yes! Upgrade anytime and pay the prorated difference. If you're on early bird self-funded ($49) and upgrade to traditional, you'll get the early bird traditional rate ($149) if spots are still available."
+    },
+    {
+      q: "What are the 'Founder Benefits' for early bird traditional search funds?",
+      a: "You get monthly 1-on-1 strategy calls with Gio (the founder), priority on feature requests, access to a private community of other early search funds, and lifetime price lock at $149/month."
+    },
+    {
+      q: "How many early bird spots are available?",
+      a: "We're limiting early bird traditional search fund pricing to 50 spots to ensure we can deliver on the 1-on-1 founder calls. Self-funded early bird has more availability but pricing will increase to $79/month after launch."
+    },
+    {
+      q: "What happens if I hit my monthly limits on Self-Funded tier?",
+      a: "You can purchase additional analyses ($5/CIM) or upgrade to Traditional Search Fund for unlimited. We'll email you when you're at 15/20 CIMs so you're never surprised."
+    },
+    {
+      q: "Do you offer annual pricing?",
+      a: "Yes! Annual pricing saves 17%: Self-Funded Early Bird = $490/year ($49×10), Traditional Early Bird = $1,490/year ($149×10). Pay for 10 months, get 12."
+    },
+    {
+      q: "Can I cancel anytime?",
+      a: "Yes, cancel anytime from settings. No questions, no hassle. Your access continues until the end of your billing period."
+    }
+  ];
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-20 border-t border-gray-800">
+      <h2 className="text-4xl font-bold text-white text-center mb-12">
+        Frequently Asked Questions
+      </h2>
+      <div className="space-y-6">
+        {faqs.map((faq, idx) => (
+          <div key={idx} className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+            <h3 className="text-lg font-semibold text-white mb-2">
+              {faq.q}
+            </h3>
+            <p className="text-gray-400 text-sm leading-relaxed">
+              {faq.a}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Final CTA Section
+function FinalCTA() {
+  return (
+    <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+      <h2 className="text-4xl font-bold text-white mb-4">
+        Ready to review deals 10x faster?
+      </h2>
+      <p className="text-xl text-gray-400 mb-8">
+        Join the search fund operators who are saving 40+ hours per month
+      </p>
+      <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <Link
+          href="/signup?tier=self_funded&pricing=early_bird"
+          className="px-8 py-4 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-500 transition-all shadow-lg hover:shadow-emerald-500/50"
+        >
+          Start at $49/Month
+        </Link>
+        <Link
+          href="/sample-analysis"
+          className="px-8 py-4 bg-gray-800 text-white rounded-xl font-bold text-lg hover:bg-gray-700 transition-all border border-gray-700"
+        >
+          See Sample Analysis
+        </Link>
+      </div>
+      <p className="text-sm text-gray-500 mt-6">
+        7-day free trial • No credit card required • Early bird pricing ends soon
+      </p>
     </div>
   );
 }

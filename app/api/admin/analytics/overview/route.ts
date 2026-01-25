@@ -36,6 +36,10 @@ export async function GET(req: NextRequest) {
       financialsThisWeek,
       allUsers,
       activeUsers7d,
+      activeSubscriptions,
+      trialingSubscriptions,
+      subscriptionRevenue,
+      trialConversions,
     ] = await Promise.all([
       // Total users
       adminSupabase.from('profiles').select('id', { count: 'exact', head: true }),
@@ -91,6 +95,30 @@ export async function GET(req: NextRequest) {
         .select('user_id')
         .gte('created_at', sevenDaysAgo.toISOString())
         .not('user_id', 'is', null),
+
+      // Active subscriptions
+      adminSupabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('subscription_status', 'active'),
+
+      // Trialing subscriptions
+      adminSupabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('subscription_status', 'trialing'),
+
+      // Calculate MRR (Monthly Recurring Revenue)
+      adminSupabase
+        .from('profiles')
+        .select('subscription_tier, subscription_plan, billing_cycle')
+        .in('subscription_status', ['active', 'trialing']),
+
+      // Trial conversions (trials that converted to paid)
+      adminSupabase
+        .from('trial_history')
+        .select('id', { count: 'exact', head: true })
+        .eq('converted_to_paid', true),
     ]);
 
     // Calculate active users (users with any activity in last 7 days)
@@ -126,6 +154,18 @@ export async function GET(req: NextRequest) {
     const churnRiskPercent =
       totalUsersCount > 0 ? Math.round((inactiveUsers / totalUsersCount) * 100) : 0;
 
+    // Calculate MRR
+    const subscriptionData = subscriptionRevenue.data || [];
+    let mrr = 0;
+    subscriptionData.forEach((sub) => {
+      if (sub.subscription_tier === 'self_funded' && sub.subscription_plan === 'early_bird') {
+        mrr += sub.billing_cycle === 'yearly' ? 4900 / 12 : 4900;
+      } else if (sub.subscription_tier === 'search_fund' && sub.subscription_plan === 'early_bird') {
+        mrr += sub.billing_cycle === 'yearly' ? 14900 / 12 : 14900;
+      }
+    });
+    mrr = mrr / 100; // Convert cents to dollars
+
     return NextResponse.json({
       success: true,
       stats: {
@@ -141,6 +181,10 @@ export async function GET(req: NextRequest) {
         activeDeals: activeDeals.count || 0,
         churnRiskPercent,
         inactiveUsers7d: inactiveUsers,
+        activeSubscriptions: activeSubscriptions.count || 0,
+        trialingSubscriptions: trialingSubscriptions.count || 0,
+        monthlyRecurringRevenue: Math.round(mrr),
+        trialConversions: trialConversions.count || 0,
       },
     });
   } catch (err) {

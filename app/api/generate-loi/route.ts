@@ -3,6 +3,7 @@ import { authenticateRequest, AuthError } from '@/lib/api/auth';
 import { getCorsHeaders } from '@/lib/api/security';
 import { generateLOI } from '@/lib/utils/deal-templates';
 import { LOIData } from '@/lib/types/deal-templates';
+import { canGenerateLOI, incrementLOIUsage, getCurrentUsage } from '@/lib/usage/usage-tracker';
 
 export const runtime = 'nodejs';
 
@@ -14,7 +15,21 @@ export async function OPTIONS() {
 
 export async function POST(req: NextRequest) {
   try {
-    await authenticateRequest(req);
+    const { user } = await authenticateRequest(req);
+    
+    // Check subscription usage limits
+    const { allowed, reason } = await canGenerateLOI(user.id);
+    if (!allowed) {
+      const usage = await getCurrentUsage(user.id);
+      return NextResponse.json(
+        { 
+          error: 'Usage limit reached',
+          message: reason,
+          usage
+        },
+        { status: 429, headers: corsHeaders }
+      );
+    }
     
     const data = await req.json() as LOIData;
     
@@ -34,6 +49,14 @@ export async function POST(req: NextRequest) {
     }
     
     const loiText = generateLOI(data);
+    
+    // Increment usage after successful generation
+    try {
+      await incrementLOIUsage(user.id);
+    } catch (usageError) {
+      console.error('Failed to increment LOI usage:', usageError);
+      // Don't fail the request, just log the error
+    }
     
     return NextResponse.json({ template: loiText }, { status: 200, headers: corsHeaders });
   } catch (err: any) {

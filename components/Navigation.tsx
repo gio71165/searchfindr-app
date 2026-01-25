@@ -50,14 +50,12 @@ export function Navigation() {
               >
                 Help
               </Link>
-              <a
-                href={STRIPE_PAYMENT_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-slate-300 hover:text-indigo-300 transition-colors"
+              <Link
+                href="/pricing"
+                className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-500 transition-all text-sm"
               >
-                Need access?
-              </a>
+                From $49/mo
+              </Link>
             </div>
           </div>
         </div>

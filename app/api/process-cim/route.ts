@@ -14,6 +14,7 @@ import { logger } from '@/lib/utils/logger';
 import { withRetry } from '@/lib/utils/retry';
 import type { CriteriaMatch, ConfidenceJson } from '@/lib/types/deal';
 import { extractText, getDocumentProxy } from 'unpdf';
+import { canAnalyzeCIM, incrementCIMUsage, getCurrentUsage } from '@/lib/usage/usage-tracker';
 
 export const runtime = 'nodejs';
 
@@ -481,6 +482,21 @@ export async function POST(req: NextRequest) {
     logger.info('process-cim: received request');
 
     const { supabase: supabaseUser, user, workspace } = await authenticateRequest(req);
+    
+    // Check subscription usage limits
+    const { allowed, reason } = await canAnalyzeCIM(user.id);
+    if (!allowed) {
+      const usage = await getCurrentUsage(user.id);
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Usage limit reached',
+          message: reason,
+          usage
+        },
+        { status: 429 }
+      );
+    }
     
     // Rate limiting (optimized: in-memory first, database only for audit logs)
     const config = getRateLimitConfig('process-cim');
@@ -969,6 +985,14 @@ export async function POST(req: NextRequest) {
     }
 
     statusCode = 200;
+    
+    // Increment usage after successful processing
+    try {
+      await incrementCIMUsage(user.id);
+    } catch (usageError) {
+      logger.error('Failed to increment CIM usage:', usageError);
+      // Don't fail the request, just log the error
+    }
     
     // Revalidate deal page and dashboard
     if (companyId) {
