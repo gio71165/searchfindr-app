@@ -28,14 +28,14 @@ export function PricingTeaser() {
               
               <div className="mb-6">
                 <div className="flex items-baseline justify-center gap-2">
-                  <span className="text-5xl lg:text-6xl font-bold text-white">$149</span>
+                  <span className="text-5xl lg:text-6xl font-bold text-white">$79</span>
                   <span className="text-xl text-white/60">/month</span>
                 </div>
                 <p className="text-lg text-emerald-300 font-medium mt-2">
                   Locked forever
                 </p>
                 <p className="text-sm text-white/60 mt-2">
-                  After early bird: $249/mo
+                  After early bird: $149/mo
                 </p>
               </div>
 
@@ -46,7 +46,7 @@ export function PricingTeaser() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <span className="text-white/80">Unlimited CIM analyses</span>
+                  <span className="text-white/80">20 CIM analyses per month</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -54,7 +54,7 @@ export function PricingTeaser() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <span className="text-white/80">Unlimited financial screenings</span>
+                  <span className="text-white/80">10 Financial models per month</span>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -113,7 +113,7 @@ export function PricingTeaser() {
                   href="/pricing"
                   className="w-full sm:w-auto px-8 py-4 rounded-lg border-2 border-white/20 bg-white/5 text-base font-semibold text-white hover:bg-white/10 hover:border-white/30 transition-all"
                 >
-                  Lock in $149/mo Forever
+                  Lock in $79/mo Forever
                 </Link>
               </div>
               <p className="text-center text-sm text-gray-400 mt-4">

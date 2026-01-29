@@ -15,7 +15,7 @@ const comparisonData = [
   },
   {
     feature: 'Pricing',
-    searchfindr: '$99-$149/mo self-serve',
+    searchfindr: '$79-$179/mo self-serve',
     dealsage: 'Enterprise pricing (contact sales)',
   },
   {

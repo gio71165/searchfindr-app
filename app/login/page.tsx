@@ -69,7 +69,7 @@ function LoginPageContent() {
                 href="/pricing"
                 className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-500 transition-all text-sm"
               >
-                From $49/mo
+                From $79/mo
               </Link>
             </div>
           </div>

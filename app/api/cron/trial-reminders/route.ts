@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
 
         const planName = profile.subscription_tier === 'search_fund' 
           ? 'Traditional Search Fund ($149/mo)'
-          : 'Self-Funded Searcher ($49/mo)';
+          : 'Self-Funded Searcher ($79/mo)';
 
         const emailHtml = formatTrialEmail(1, userName, planName);
         
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
 
         const planName = profile.subscription_tier === 'search_fund' 
           ? 'Traditional Search Fund ($149/mo)'
-          : 'Self-Funded Searcher ($49/mo)';
+          : 'Self-Funded Searcher ($79/mo)';
 
         const emailHtml = formatTrialEmail(4, userName, planName);
         
@@ -175,7 +175,7 @@ export async function GET(request: NextRequest) {
 
         const planName = profile.subscription_tier === 'search_fund' 
           ? 'Traditional Search Fund ($149/mo)'
-          : 'Self-Funded Searcher ($49/mo)';
+          : 'Self-Funded Searcher ($79/mo)';
 
         const emailHtml = formatTrialEmail(6, userName, planName);
         

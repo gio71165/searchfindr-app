@@ -40,7 +40,7 @@ export function SelfFundedPricing() {
             🔒 Lock in this price forever
           </p>
           <p className="text-xs text-white/50 mt-1">
-            Regular price: $99/month (after early access)
+            Regular price: $149/month (after early access)
           </p>
         </div>
 
