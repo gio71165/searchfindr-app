@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { SearcherMetrics } from '@/lib/data-access/investor-analytics';
-import { Eye, TrendingUp, Edit2, Check, X } from 'lucide-react';
+import { Eye, TrendingUp, Edit2, Check, X, Users } from 'lucide-react';
 import { supabase } from '@/app/supabaseClient';
 import { showToast } from '@/components/ui/Toast';
 import { AsyncButton } from '@/components/ui/AsyncButton';
@@ -11,9 +11,10 @@ import { AsyncButton } from '@/components/ui/AsyncButton';
 interface SearcherPerformanceProps {
   searchers: SearcherMetrics[];
   onSearcherUpdate?: () => void; // Callback to refresh dashboard data
+  onLinkSearcher?: () => void; // Callback to open link searcher modal
 }
 
-export default function SearcherPerformance({ searchers, onSearcherUpdate }: SearcherPerformanceProps) {
+export default function SearcherPerformance({ searchers, onSearcherUpdate, onLinkSearcher }: SearcherPerformanceProps) {
   const router = useRouter();
   const [expandedSearcher, setExpandedSearcher] = useState<string | null>(null);
   const [editingSearcher, setEditingSearcher] = useState<string | null>(null);
@@ -40,7 +41,9 @@ export default function SearcherPerformance({ searchers, onSearcherUpdate }: Sea
   };
 
   const handleViewDetails = (searcher: SearcherMetrics) => {
-    router.push(`/investor/searchers/${searcher.searcherId}?workspace=${searcher.workspaceId}`);
+    // Open in new tab to avoid navigation/auth issues
+    const url = `/investor/searchers/${searcher.searcherId}?workspace=${searcher.workspaceId}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
   const handleStartEdit = (searcher: SearcherMetrics) => {
@@ -106,8 +109,36 @@ export default function SearcherPerformance({ searchers, onSearcherUpdate }: Sea
 
   if (searchers.length === 0) {
     return (
-      <div className="bg-white rounded-lg border border-slate-200 p-8 text-center">
-        <p className="text-slate-600">No searchers linked to your account yet.</p>
+      <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
+        <div className="max-w-md mx-auto">
+          <div className="mb-4">
+            <Users className="h-12 w-12 text-slate-400 mx-auto" />
+          </div>
+          <h3 className="text-lg font-semibold text-slate-900 mb-2">No searchers linked yet</h3>
+          <p className="text-slate-600 mb-6">
+            Link searchers to your account to start monitoring their progress, pipeline, and performance metrics.
+          </p>
+          {onLinkSearcher ? (
+            <button
+              onClick={onLinkSearcher}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            >
+              Link Your First Searcher
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                // Trigger link modal from parent via event
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('investor:open-link-modal'));
+                }
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            >
+              Link Your First Searcher
+            </button>
+          )}
+        </div>
       </div>
     );
   }

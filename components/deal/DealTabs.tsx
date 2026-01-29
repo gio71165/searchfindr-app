@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useMemo, useEffect, useState, useRef } from 'react';
 import type { Deal } from '@/lib/types/deal';
 
-export type TabId = 'analysis' | 'modeling' | 'ioi' | 'loi' | 'diligence' | 'documents' | 'deal_management' | 'activity';
+export type TabId = 'analysis' | 'modeling' | 'ioi' | 'loi' | 'diligence' | 'deal_management' | 'activity';
 
 interface Tab {
   id: TabId;
@@ -54,11 +54,7 @@ export function DealTabs({ deal, children }: DealTabsProps) {
         label: 'Diligence',
         visible: stage === 'dd' || stage === 'loi', // Show when in DD or LOI stage
       },
-      {
-        id: 'documents',
-        label: 'Documents',
-        visible: ['ioi_sent', 'loi', 'dd', 'passed'].includes(stage),
-      },
+      // Documents removed - now a persistent sidebar
       {
         id: 'deal_management',
         label: 'Deal Management',

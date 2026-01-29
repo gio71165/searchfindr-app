@@ -22,9 +22,9 @@ export function Sidebar() {
       section: 'SOURCES',
       items: [
         { icon: '🏪', label: 'On-Market', href: '/on-market' },
-        { icon: '🔍', label: 'Off-Market', href: '/off-market' },
         { icon: '📄', label: 'CIMs', href: '/cims' },
-        { icon: '💰', label: 'Financials', href: '/financials' }
+        { icon: '💰', label: 'Financials', href: '/financials' },
+        { icon: '📎', label: 'Documents', href: '/documents' }
       ]
     },
     {

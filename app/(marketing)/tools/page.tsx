@@ -82,10 +82,10 @@ export default function ToolsPage() {
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="/sample-analysis"
+              href="/demo"
               className="inline-flex items-center gap-2 px-6 py-3 border border-white/20 bg-white/5 text-white rounded-lg font-semibold hover:bg-white/10 transition-colors"
             >
-              Try It Free
+              Book Demo
             </Link>
           </div>
         </div>

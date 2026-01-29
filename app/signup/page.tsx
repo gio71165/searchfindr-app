@@ -19,8 +19,8 @@ function SignupPageContent() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Get subscription params from URL
-  const tier = searchParams.get('tier') as 'self_funded' | 'search_fund' | null;
-  const plan = searchParams.get('plan') as 'early_bird' | null;
+  const tier = searchParams.get('tier') as 'starter' | 'pro' | 'investor' | 'self_funded' | 'search_fund' | null;
+  const plan = searchParams.get('plan') as 'founding_member' | 'standard' | 'early_bird' | null;
   const billing = searchParams.get('billing') as 'monthly' | 'yearly' | null;
 
   // Check if already authenticated and redirect (non-blocking)
@@ -87,7 +87,13 @@ function SignupPageContent() {
     }
   };
 
-  const planName = tier === 'self_funded' ? 'Self-Funded Searcher' : tier === 'search_fund' ? 'Traditional Search Fund' : null;
+  const planName = tier === 'starter' || tier === 'self_funded' 
+    ? 'Starter' 
+    : tier === 'pro' || tier === 'search_fund' 
+      ? 'Pro' 
+      : tier === 'investor'
+        ? 'Investor Portfolio'
+        : null;
 
   return (
     <>
@@ -139,7 +145,7 @@ function SignupPageContent() {
               <div className="mt-6 space-y-3 text-sm text-slate-200">
                 <div className="flex items-start gap-3">
                   <div className="mt-1 h-2 w-2 rounded-full bg-emerald-400" />
-                  <p>7-day free trial - no credit card required until trial ends</p>
+                  <p>7-day free trial - card required to start trial</p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="mt-1 h-2 w-2 rounded-full bg-emerald-400" />

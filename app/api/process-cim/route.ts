@@ -809,10 +809,50 @@ export async function POST(req: NextRequest) {
     }
 
     // 4) System instructions: strict, buyer-protective, ETA/search & capital-advisor focused
-    const instructions = CIM_ANALYSIS_INSTRUCTIONS.template;
+    let instructions = CIM_ANALYSIS_INSTRUCTIONS.template;
+    
+    // Add broker pattern detection if broker_id exists
+    let brokerPatternNote = '';
+    const deal = await deals.getById(companyId);
+    if (deal.broker_id) {
+      // Fetch broker and look for historical patterns
+      const { data: broker } = await supabaseAdmin
+        .from('brokers')
+        .select('name, notes')
+        .eq('id', deal.broker_id)
+        .eq('workspace_id', workspace.id)
+        .single();
+      
+      if (broker) {
+        // Check broker interactions for patterns
+        const { data: interactions } = await supabaseAdmin
+          .from('broker_interactions')
+          .select('type, notes')
+          .eq('broker_id', deal.broker_id)
+          .eq('workspace_id', workspace.id)
+          .limit(10);
+        
+        // Build pattern note from broker notes and interaction history
+        const patterns: string[] = [];
+        if (broker.notes) patterns.push(broker.notes);
+        if (interactions && interactions.length > 0) {
+          const passReasons = interactions
+            .filter(i => i.type === 'pass' && i.notes)
+            .map(i => i.notes)
+            .slice(0, 3);
+          if (passReasons.length > 0) {
+            patterns.push(`Historical pass reasons: ${passReasons.join('; ')}`);
+          }
+        }
+        
+        if (patterns.length > 0) {
+          brokerPatternNote = `\n\nBROKER PATTERN NOTE:\nThis CIM is from ${broker.name || 'a broker'}. Historical patterns: ${patterns.join('. ')}. Use this context to guide your scrutiny - verify claims that contradict these patterns.\n`;
+        }
+      }
+    }
 
     const userText = buildCimAnalysisUserText(companyName);
-    const fullUserContent = `${userText}\n\nCIM Content:\n${extractedText}`;
+    const fullUserContent = `${userText}${brokerPatternNote}\n\nCIM Content:\n${extractedText}`;
 
     // 5) Call OpenAI Chat Completions API with extracted text (with retry and exponential backoff)
     const chatRes = await withRetry(

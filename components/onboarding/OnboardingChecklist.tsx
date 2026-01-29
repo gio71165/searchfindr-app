@@ -24,7 +24,6 @@ const CHECKLIST_ITEMS: Omit<ChecklistItem, 'completed'>[] = [
   { id: 'proceed-deal', label: 'Mark a deal as Proceed', eventName: 'onboarding:deal-proceeded' },
   { id: 'financials-tab', label: 'View Financials tab', eventName: 'onboarding:financials-tab-viewed' },
   { id: 'on-market', label: 'Browse On-Market deals', eventName: 'onboarding:on-market-viewed' },
-  { id: 'off-market', label: 'Browse Off-Market deals', eventName: 'onboarding:off-market-viewed' },
   { id: 'today', label: 'View Today page', eventName: 'onboarding:today-viewed' },
   { id: 'brokers', label: 'View Brokers page', eventName: 'onboarding:brokers-viewed' },
 ];
@@ -224,8 +223,6 @@ export function OnboardingChecklist() {
       window.dispatchEvent(new CustomEvent('onboarding:financials-tab-viewed'));
     } else if (pathname.includes('/on-market')) {
       window.dispatchEvent(new CustomEvent('onboarding:on-market-viewed'));
-    } else if (pathname.includes('/off-market')) {
-      window.dispatchEvent(new CustomEvent('onboarding:off-market-viewed'));
     } else if (pathname.includes('/today')) {
       window.dispatchEvent(new CustomEvent('onboarding:today-viewed'));
     } else if (pathname.includes('/brokers')) {
@@ -247,8 +244,6 @@ export function OnboardingChecklist() {
     '/help',
     '/privacy',
     '/terms',
-    '/sample-analysis',
-    '/sample-output',
   ];
   const isMarketingPage = pathname && marketingPages.includes(pathname);
   const isLoginPage = pathname === '/login';

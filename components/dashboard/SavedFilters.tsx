@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Bookmark, BookmarkCheck, X, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/app/supabaseClient';
+import { useAuth } from '@/lib/auth-context';
 import { showToast } from '@/components/ui/Toast';
 
 interface SavedFilter {
@@ -27,20 +28,22 @@ interface SavedFiltersProps {
 }
 
 export function SavedFilters({ onLoadFilter, currentFilters }: SavedFiltersProps) {
+  const { session, loading: authLoading } = useAuth();
   const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [filterName, setFilterName] = useState('');
 
   useEffect(() => {
+    if (authLoading || !session) return;
     loadSavedFilters();
-  }, []);
+  }, [authLoading, session]);
 
   const loadSavedFilters = async () => {
+    if (!session?.access_token) return;
+    
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) return;
+      const token = session.access_token;
 
       const response = await fetch('/api/filter-presets', {
         headers: {
@@ -51,11 +54,18 @@ export function SavedFilters({ onLoadFilter, currentFilters }: SavedFiltersProps
       if (response.ok) {
         const data = await response.json();
         setSavedFilters(data.presets || []);
+      } else if (response.status === 401) {
+        // Auth not ready yet, will retry when session is available
+        return;
       }
     } catch (error) {
+      // Silently fail during initial load - auth might not be ready
+      if (authLoading) return;
       console.error('Error loading saved filters:', error);
     } finally {
-      setLoading(false);
+      if (!authLoading) {
+        setLoading(false);
+      }
     }
   };
 
@@ -65,13 +75,13 @@ export function SavedFilters({ onLoadFilter, currentFilters }: SavedFiltersProps
       return;
     }
 
+    if (!session?.access_token) {
+      showToast('Please log in to save filters', 'error');
+      return;
+    }
+
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) {
-        showToast('Please log in to save filters', 'error');
-        return;
-      }
+      const token = session.access_token;
 
       const response = await fetch('/api/filter-presets', {
         method: 'POST',
@@ -103,10 +113,10 @@ export function SavedFilters({ onLoadFilter, currentFilters }: SavedFiltersProps
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this saved filter?')) return;
 
+    if (!session?.access_token) return;
+
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) return;
+      const token = session.access_token;
 
       const response = await fetch(`/api/filter-presets/${id}`, {
         method: 'DELETE',

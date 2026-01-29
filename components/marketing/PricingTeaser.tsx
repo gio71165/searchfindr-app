@@ -117,7 +117,7 @@ export function PricingTeaser() {
                 </Link>
               </div>
               <p className="text-center text-sm text-gray-400 mt-4">
-                <span className="font-semibold text-emerald-400">7-day free trial</span> • $0 due today • Cancel anytime with one click
+                <span className="font-semibold text-emerald-400">7-day free trial</span> • Credit card required • Cancel anytime with one click
               </p>
             </div>
           </div>

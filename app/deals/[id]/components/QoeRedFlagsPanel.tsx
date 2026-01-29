@@ -7,6 +7,8 @@ type QoeRedFlag = {
   type: string;
   severity: 'low' | 'medium' | 'high';
   description: string;
+  why_it_matters?: string;
+  next_action?: string;
 };
 
 export function QoeRedFlagsPanel({ qoeRedFlags }: { qoeRedFlags: QoeRedFlag[] }) {
@@ -73,7 +75,19 @@ export function QoeRedFlagsPanel({ qoeRedFlags }: { qoeRedFlags: QoeRedFlag[] })
                   {flag.type.replace(/_/g, ' ')}
                 </span>
               </div>
-              <p className="text-sm text-slate-700">{flag.description}</p>
+              <p className="text-sm text-slate-700 mb-2">{flag.description}</p>
+              {flag.why_it_matters && (
+                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
+                  <p className="font-medium text-blue-900 mb-1">Why This Matters:</p>
+                  <p className="text-blue-800">{flag.why_it_matters}</p>
+                </div>
+              )}
+              {flag.next_action && (
+                <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded text-sm">
+                  <p className="font-medium text-emerald-900 mb-1">Next Action:</p>
+                  <p className="text-emerald-800">{flag.next_action}</p>
+                </div>
+              )}
             </div>
           </li>
         ))}

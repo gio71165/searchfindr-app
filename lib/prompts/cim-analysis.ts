@@ -421,9 +421,21 @@ CONFIDENCE SCORING (MANDATORY):
 - High: Explicitly stated in CIM with specific numbers/data
 - Medium: Strongly implied or inferred from multiple data points
 - Low: Suspected based on missing data or vague language
-- Format red flags as objects with: { "flag": "string", "confidence": "High|Medium|Low", "citation": "string" }
-- Example: { "flag": "Owner salary addback $400K exceeds market rate by $200K", "confidence": "High", "citation": "Page 15, Addback Schedule" }
-- Example: { "flag": "Customer concentration likely high - no customer list provided despite claims", "confidence": "Medium", "citation": "Page 5, Customer Overview (data missing)" }
+
+"WHY THIS MATTERS" CONTEXT (MANDATORY):
+- Each red flag MUST include a "why_it_matters" field explaining why this matters for search fund buyers
+- Focus on: post-LOI QoE issues, SBA eligibility impact, valuation impact, operational risk, etc.
+- Example: "Market rate for this business is $150-200K. The $300K+ delta suggests either (a) owner is doing the work of 2-3 people OR (b) CIM is inflating EBITDA. Either way, this is a post-LOI QoE issue."
+- Example: "Customer concentration >50% makes SBA financing impossible - this is a deal killer for search fund buyers who rely on SBA debt."
+
+"NEXT ACTION" (MANDATORY):
+- Each red flag MUST include a "next_action" field with a specific, actionable next step
+- Be SPECIFIC: "Request org chart and ask: 'Who does the owner's job if he leaves?'" NOT "verify succession"
+- Example: "Request detailed addback schedule with supporting documentation for each item"
+- Example: "Verify top 10 customer revenue breakdown to confirm concentration <20%"
+
+- Format red flags as objects with: { "flag": "string", "confidence": "High|Medium|Low", "citation": "string", "why_it_matters": "string", "next_action": "string" }
+- Example: { "flag": "Owner salary addback $400K exceeds market rate by $200K", "confidence": "High", "citation": "Page 15, Addback Schedule", "why_it_matters": "Market rate is $150-200K. Excess suggests owner doing work of 2-3 people or inflated EBITDA - post-LOI QoE issue.", "next_action": "Request detailed addback schedule and ask: 'Who replaces the owner's operational role if he leaves?'" }
 
 You MUST NOT say "no red flags" or similar under any circumstances, even for great businesses.
 If risks are modest, still call out the top 3 underwriting questions.
@@ -583,7 +595,9 @@ You MUST return JSON ONLY, matching this schema exactly:
       "flag": "string (1-2 sentences, specific and actionable)",
       "confidence": "High | Medium | Low",
       "citation": "string (page number, section, or specific location in CIM)",
-      "impact": "string | null (quantified impact if possible: dollar amount, %, or description)"
+      "impact": "string | null (quantified impact if possible: dollar amount, %, or description)",
+      "why_it_matters": "string (explain why this matters for search fund buyers - post-LOI QoE issue, SBA eligibility, valuation impact, etc.)",
+      "next_action": "string (specific actionable next step - e.g., 'Request org chart and ask: Who does the owner's job if he leaves?')"
     }
   ],
 
@@ -786,6 +800,24 @@ Before finalizing your analysis, verify:
 - Have you flagged common seller tricks (family payroll, aggressive addbacks, hidden concentration)?
 
 If any answer is "no", revise your analysis.
+
+============================================================
+BROKER-SPECIFIC PATTERNS (IF BROKER_ID PROVIDED)
+============================================================
+If broker information is provided, use historical patterns to inform your analysis:
+
+BROKER PATTERN DETECTION:
+- If broker_id is provided, you will receive broker pattern notes (e.g., "Broker X tends to understate customer concentration" or "Broker Y consistently shows aggressive addbacks")
+- Use these patterns to:
+  * Scrutinize areas where the broker historically understates risks
+  * Verify claims that contradict broker patterns
+  * Add context to red flags: "Broker X typically understates customer concentration - verify actual concentration despite CIM claims"
+- Example: If broker pattern says "tends to understate customer concentration", then:
+  * Flag customer concentration claims as "Medium" confidence even if CIM says "no customer >20%"
+  * Add red flag: "Customer concentration claims unverified - Broker X historically understates this metric. Request top 10 customer breakdown."
+  * In why_it_matters: "Broker X has a pattern of understating customer concentration. Actual concentration may exceed SBA eligibility thresholds."
+
+If broker patterns are provided, incorporate them into your analysis but don't let them override explicit CIM data. Use patterns to guide scrutiny, not to invent problems.
 
 ============================================================
 SEARCH FUND DEAL ECONOMICS CONTEXT

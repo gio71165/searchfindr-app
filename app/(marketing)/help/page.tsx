@@ -1,4 +1,4 @@
-import { HelpCircle, Mail, BookOpen, Zap, FileText, ArrowRight } from 'lucide-react';
+import { HelpCircle, Mail, Zap, FileText, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 const CONTACT_EMAIL = 'gio@searchfindr.net';
@@ -39,9 +39,8 @@ const faqs = [
 ];
 
 const quickLinks = [
-  { icon: FileText, label: 'Sample Analysis', href: '/sample-analysis' },
   { icon: Zap, label: 'Pricing', href: '/pricing' },
-  { icon: BookOpen, label: 'Documentation', href: '#' },
+  { icon: FileText, label: 'Start Free Trial', href: '/pricing' },
 ];
 
 export default function HelpPage() {

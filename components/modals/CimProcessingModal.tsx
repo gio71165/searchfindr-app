@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { IconButton } from '@/components/ui/IconButton';
+import { LoadingSteps, type LoadingStep } from '@/components/ui/LoadingSteps';
 
 type ProcessingStage = 'uploading' | 'extracting' | 'analyzing' | 'generating' | 'finalizing' | 'complete' | 'error';
 
@@ -56,11 +57,50 @@ export function CimProcessingModal({
 }: CimProcessingModalProps) {
   const [progress, setProgress] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
+  const [stepDurations, setStepDurations] = useState<Record<string, number>>({});
+  const [stepStartTimes, setStepStartTimes] = useState<Record<string, number>>({});
+
+  // Track step durations
+  useEffect(() => {
+    if (!isOpen) return;
+    
+    const currentTime = Date.now();
+    setStepStartTimes(prev => {
+      if (!prev[stage]) {
+        return { ...prev, [stage]: currentTime };
+      }
+      return prev;
+    });
+
+    // When stage completes, record duration
+    if (stage === 'extracting' && stepStartTimes['uploading']) {
+      const duration = Math.round((currentTime - stepStartTimes['uploading']) / 1000);
+      setStepDurations(prev => ({ ...prev, uploading: duration }));
+    }
+    if (stage === 'analyzing' && stepStartTimes['extracting']) {
+      const duration = Math.round((currentTime - stepStartTimes['extracting']) / 1000);
+      setStepDurations(prev => ({ ...prev, extracting: duration }));
+    }
+    if (stage === 'generating' && stepStartTimes['analyzing']) {
+      const duration = Math.round((currentTime - stepStartTimes['analyzing']) / 1000);
+      setStepDurations(prev => ({ ...prev, analyzing: duration }));
+    }
+    if (stage === 'finalizing' && stepStartTimes['generating']) {
+      const duration = Math.round((currentTime - stepStartTimes['generating']) / 1000);
+      setStepDurations(prev => ({ ...prev, generating: duration }));
+    }
+    if (stage === 'complete' && stepStartTimes['finalizing']) {
+      const duration = Math.round((currentTime - stepStartTimes['finalizing']) / 1000);
+      setStepDurations(prev => ({ ...prev, finalizing: duration }));
+    }
+  }, [stage, isOpen, stepStartTimes]);
 
   useEffect(() => {
     if (!isOpen) {
       setProgress(0);
       setTimeElapsed(0);
+      setStepDurations({});
+      setStepStartTimes({});
       return;
     }
 
@@ -95,6 +135,34 @@ export function CimProcessingModal({
   const isProcessing = stage !== 'complete' && stage !== 'error';
   const showCancel = isProcessing && onCancel;
 
+  // Build loading steps
+  const loadingSteps: LoadingStep[] = [
+    {
+      id: 'extracting',
+      label: 'Extracting text from PDF...',
+      status: stage === 'extracting' ? 'in-progress' : ['uploading'].includes(stage) ? 'pending' : 'completed',
+      duration: stepDurations.extracting,
+    },
+    {
+      id: 'analyzing',
+      label: 'Analyzing financials...',
+      status: stage === 'analyzing' ? 'in-progress' : ['uploading', 'extracting'].includes(stage) ? 'pending' : 'completed',
+      duration: stepDurations.analyzing,
+    },
+    {
+      id: 'generating',
+      label: 'Detecting red flags...',
+      status: stage === 'generating' ? 'in-progress' : ['uploading', 'extracting', 'analyzing'].includes(stage) ? 'pending' : 'completed',
+      duration: stepDurations.generating,
+    },
+    {
+      id: 'finalizing',
+      label: 'Generating summary...',
+      status: stage === 'finalizing' ? 'in-progress' : ['uploading', 'extracting', 'analyzing', 'generating'].includes(stage) ? 'pending' : 'completed',
+      duration: stepDurations.finalizing,
+    },
+  ];
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 relative">
@@ -118,40 +186,24 @@ export function CimProcessingModal({
           </p>
         </div>
 
-        {/* Progress bar */}
+        {/* Loading Steps */}
         {isProcessing && (
           <div className="mb-6">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-slate-700">Progress</span>
-              <span className="text-xs font-medium text-slate-700">{Math.round(progress)}%</span>
-            </div>
-            <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden mb-2">
-              <div
-                className="bg-emerald-500 h-full rounded-full transition-all duration-300 ease-out"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            <div className="flex items-center justify-between">
+            <LoadingSteps steps={loadingSteps} currentStepId={stage} />
+            <div className="mt-4 flex items-center justify-between text-xs text-slate-600">
               {estimatedTimeRemaining !== undefined && estimatedTimeRemaining > 0 ? (
-                <p className="text-xs text-slate-600">
+                <span>
                   Estimated time remaining: <span className="font-medium text-emerald-600">{Math.round(estimatedTimeRemaining)}s</span>
-                </p>
+                </span>
               ) : (
-                <p className="text-xs text-slate-600">
+                <span>
                   Elapsed: <span className="font-medium">{timeElapsed}s</span>
-                </p>
+                </span>
               )}
-              <p className="text-xs font-medium text-slate-700">
+              <span className="font-medium text-slate-700">
                 Expected: 30-60 seconds
-              </p>
+              </span>
             </div>
-          </div>
-        )}
-
-        {/* Loading spinner */}
-        {isProcessing && (
-          <div className="flex items-center justify-center mb-6">
-            <LoadingSpinner size="lg" />
           </div>
         )}
 

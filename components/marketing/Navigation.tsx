@@ -23,7 +23,6 @@ export function MarketingNavigation() {
 
   const navLinks = [
     { href: '/#features', label: 'Features', scroll: true },
-    { href: '/sample-analysis', label: 'Try It' },
     { href: '/blog', label: 'Blog' },
     { href: '/tools', label: 'Tools' },
     { href: '/mission', label: 'About' },

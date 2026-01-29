@@ -76,10 +76,10 @@ export function VisualDemo() {
         {/* CTA */}
         <div className="text-center mt-12">
           <Link
-            href="/sample-output"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border-2 border-white/20 bg-white/5 text-base font-semibold text-white hover:bg-white/10 hover:border-white/30 transition-all group"
+            href="/pricing"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-base font-semibold text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 group"
           >
-            View Sample Output
+            Start 7-Day Free Trial
             <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
           </Link>
         </div>

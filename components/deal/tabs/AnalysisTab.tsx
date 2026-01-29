@@ -217,6 +217,28 @@ export function AnalysisTab({
         </div>
       )}
 
+      {/* Last Updated Timestamp */}
+      {deal?.updated_at && (
+        <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+          <p className="text-sm text-slate-600">
+            Analysis generated on{' '}
+            <span className="font-medium text-slate-900">
+              {new Date(deal.updated_at).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}{' '}
+              at{' '}
+              {new Date(deal.updated_at).toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true,
+              })}
+            </span>
+          </p>
+        </div>
+      )}
+
       {/* Executive Summary Card */}
       <ExecutiveSummaryCard
         deal={deal}

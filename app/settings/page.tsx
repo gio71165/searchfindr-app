@@ -8,6 +8,7 @@ import { supabase } from '@/app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
 import { OnboardingRepository } from '@/lib/data-access/onboarding';
 import { showToast } from '@/components/ui/Toast';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ComplianceSettings } from '@/components/settings/ComplianceSettings';
 import { ProfileSettings } from '@/components/settings/ProfileSettings';
 import { SearchCriteriaSettings } from '@/components/settings/SearchCriteriaSettings';
@@ -198,13 +199,18 @@ export default function SettingsPage() {
                 <div>
                   <h2 className="text-xl font-semibold text-slate-900 mb-6">Onboarding</h2>
                   <div className="p-6 bg-slate-50 rounded-lg border border-slate-200">
-                    <p className="text-sm text-slate-600 mb-4">
-                      {onboardingCompleted === false
-                        ? "Complete the onboarding tutorial to learn how to use SearchFindr."
-                        : onboardingCompleted === true
-                        ? "You've completed the onboarding tutorial. You can view it again anytime."
-                        : "Loading..."}
-                    </p>
+                    {onboardingCompleted === null ? (
+                      <div className="flex items-center justify-center py-4">
+                        <LoadingSpinner size="md" className="mr-2" />
+                        <p className="text-sm text-slate-600">Loading...</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-600 mb-4">
+                        {onboardingCompleted === false
+                          ? "Complete the onboarding tutorial to learn how to use SearchFindr."
+                          : "You've completed the onboarding tutorial. You can view it again anytime."}
+                      </p>
+                    )}
                     <button
                       onClick={handleShowOnboarding}
                       disabled={!user || onboardingCompleted === null}

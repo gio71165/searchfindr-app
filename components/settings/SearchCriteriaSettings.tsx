@@ -2,29 +2,30 @@
 
 import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
-import { supabase } from '@/app/supabaseClient';
+import { useAuth } from '@/lib/auth-context';
 import { showToast } from '@/components/ui/Toast';
 import { SearchCriteriaModal } from '@/components/dashboard/SearchCriteriaModal';
 import type { SearchCriteria } from '@/lib/types/search-criteria';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export function SearchCriteriaSettings() {
+  const { session, loading: authLoading } = useAuth();
   const [criteriaList, setCriteriaList] = useState<SearchCriteria[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCriteria, setEditingCriteria] = useState<SearchCriteria | null>(null);
 
   useEffect(() => {
+    if (authLoading || !session) return;
     loadCriteria();
-  }, []);
+  }, [authLoading, session]);
 
   const loadCriteria = async () => {
+    if (!session?.access_token) return;
+    
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      
-      if (!token) return;
+      const token = session.access_token;
 
       const res = await fetch('/api/search-criteria', {
         headers: {
@@ -35,11 +36,18 @@ export function SearchCriteriaSettings() {
       if (res.ok) {
         const data = await res.json();
         setCriteriaList(data.criteria || []);
+      } else if (res.status === 401) {
+        // Auth not ready yet, will retry when session is available
+        return;
       }
     } catch (error) {
+      // Silently fail during initial load - auth might not be ready
+      if (authLoading) return;
       console.error('Error loading search criteria:', error);
     } finally {
-      setLoading(false);
+      if (!authLoading) {
+        setLoading(false);
+      }
     }
   };
 

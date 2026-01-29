@@ -105,6 +105,13 @@ For each QoE red flag, provide:
 - description: Specific, factual description with numbers and % impact if available
   * Example: "Customer concentration: Top 3 customers = 55% of revenue (HIGH severity - SBA ineligible threshold)"
   * Example: "Addbacks: Owner salary addback $400K exceeds market rate by $200K (MEDIUM severity - reduces normalized EBITDA by ~17%)"
+- why_it_matters: Explain why this matters for search fund buyers (post-LOI QoE issue, SBA eligibility, valuation impact, etc.)
+  * Example: "Market rate for this business is $150-200K. The $300K+ delta suggests either (a) owner is doing the work of 2-3 people OR (b) financials are inflating EBITDA. Either way, this is a post-LOI QoE issue."
+  * Example: "Customer concentration >50% makes SBA financing impossible - this is a deal killer for search fund buyers who rely on SBA debt."
+- next_action: Specific, actionable next step
+  * Example: "Request org chart and ask: 'Who does the owner's job if he leaves?'"
+  * Example: "Request detailed addback schedule with supporting documentation for each item"
+  * Example: "Verify top 10 customer revenue breakdown to confirm concentration <20%"
 
 ============================================================
 WORKING CAPITAL ANALYSIS (REQUIRED)

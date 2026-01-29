@@ -10,7 +10,6 @@ import { DealTabs, type TabId } from '@/components/deal/DealTabs';
 import { StickyDealHeader } from '../components/StickyDealHeader';
 import { AnalysisTab } from '@/components/deal/tabs/AnalysisTab';
 import { ModelingTab } from '@/components/deal/tabs/ModelingTab';
-import { DocumentsTab } from '@/components/deal/tabs/DocumentsTab';
 import { DiligenceTab } from '@/components/deal/tabs/DiligenceTab';
 import { ActivityTab } from '@/components/deal/tabs/ActivityTab';
 import { DealManagementTab } from '@/components/deal/tabs/DealManagementTab';
@@ -156,12 +155,8 @@ export function OnMarketDealView({
         return <IOIGenerator deal={deal} />;
       case 'loi':
         return <LOIGenerator deal={deal} />;
-      case 'documents':
-        return <DocumentsTab deal={deal} dealId={dealId} />;
       case 'diligence':
         return <DiligenceTab deal={deal} dealId={dealId} sourceType="on_market" />;
-      case 'documents':
-        return <DocumentsTab deal={deal} dealId={dealId} />;
       case 'deal_management':
         return <DealManagementTab deal={deal} dealId={dealId} onRefresh={onRefresh} />;
       case 'activity':

@@ -36,11 +36,6 @@ const features = [
     description: 'Capture deals directly from broker sites. One click to save a listing and start analysis.',
   },
   {
-    icon: Search,
-    title: 'Off-Market Search',
-    description: 'Find companies by industry, location, revenue range, and more. Discover opportunities others haven\'t seen.',
-  },
-  {
     icon: Download,
     title: 'Investor-Ready Memos in 1-Click',
     description: 'Export professional deal analysis reports to share with advisors, partners, or investors. Includes executive summary, financials, red flags, and verdict.',

@@ -149,8 +149,8 @@ export function ExitIntentPopup() {
 
           {/* Subheadline */}
           <p className="text-lg text-white/80 mb-6">
-            Traditional Search Fund early bird: Lock in $149/mo forever. 
-            Price increases to $249/mo on March 1. Self-Funded plans are $99/mo.
+            Founding Member pricing: Lock in $79 (Starter) or $179 (Pro) per month forever. 
+            Standard pricing is $149 and $299 respectively. Offer expires March 1, 2026.
           </p>
 
           {/* Benefits */}

@@ -64,8 +64,8 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
       return [
         { text: "🚩 Red flags?", icon: "🚩" },
         { text: "💰 Financials?", icon: "💰" },
-        { text: "📊 Worth it?", icon: "📊" },
-        { text: "❓ Ask seller?", icon: "❓" },
+        { text: "📊 Should I proceed?", icon: "📊" },
+        { text: "⚡ What's my next step?", icon: "⚡" },
       ];
     }
     
@@ -74,7 +74,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
         { text: "📊 Analyze the numbers", icon: "📊" },
         { text: "⚠️ What's the QoE risk?", icon: "⚠️" },
         { text: "❓ What's missing?", icon: "❓" },
-        { text: "✅ What looks good?", icon: "✅" },
+        { text: "⚡ What's my next step?", icon: "⚡" },
       ];
     }
     
@@ -82,8 +82,8 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
     return [
       { text: "🚩 Red flags?", icon: "🚩" },
       { text: "💰 Financials?", icon: "💰" },
-      { text: "📊 Worth it?", icon: "📊" },
-      { text: "❓ Ask seller?", icon: "❓" },
+      { text: "📊 Should I proceed?", icon: "📊" },
+      { text: "⚡ What's my next step?", icon: "⚡" },
     ];
   }, [deal?.source_type]);
 

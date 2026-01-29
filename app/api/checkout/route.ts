@@ -45,8 +45,15 @@ function getAppUrl(): string {
 }
 
 // Price ID mapping from env
+// Maps new tier names to existing Stripe price IDs
 function getPriceIds() {
   return {
+    // New tier names map to existing Stripe price IDs
+    starter_founding_member_monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_SELF_FUNDED_EARLY_MONTHLY!,
+    starter_founding_member_yearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_SELF_FUNDED_EARLY_YEARLY!,
+    pro_founding_member_monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_SEARCH_FUND_EARLY_MONTHLY!,
+    pro_founding_member_yearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_SEARCH_FUND_EARLY_YEARLY!,
+    // Legacy tier names (for backward compatibility)
     self_funded_early_bird_monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_SELF_FUNDED_EARLY_MONTHLY!,
     self_funded_early_bird_yearly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_SELF_FUNDED_EARLY_YEARLY!,
     search_fund_early_bird_monthly: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_SEARCH_FUND_EARLY_MONTHLY!,

@@ -18,6 +18,10 @@ export type DealChatContext = {
   raw_listing_text?: string | null;
   cim_storage_path?: string | null;
   financials_storage_path?: string | null;
+  verdict?: string | null;
+  stage?: string | null;
+  next_action?: string | null;
+  next_action_date?: string | null;
 };
 
 /**
@@ -47,6 +51,45 @@ Be concise, practical, and specific. No fluff. No generic investing advice unles
 When helpful, answer in bullets and include a short "Next checks" section.
 
 CRITICAL: Always reference specific data from the deal context (cite page numbers, financial statements, specific numbers when available).
+
+============================================================
+PIPELINE WORKFLOW INTEGRATION
+============================================================
+You can help users make pipeline decisions. When appropriate, suggest workflow actions:
+
+1. VERDICT RECOMMENDATIONS:
+   - PROCEED: Deal looks strong, minimal red flags, fits criteria, ready for IOI
+   - PARK: Interesting but needs more info/clarification before deciding
+   - PASS: Too many red flags, doesn't fit criteria, or deal-killer issues
+
+2. STAGE SUGGESTIONS:
+   - "new" → Initial review
+   - "reviewing" → Active analysis
+   - "follow_up" → Need more info from broker/seller
+   - "ioi_sent" → Submitted IOI
+   - "loi" → Letter of Intent stage
+   - "dd" → Due diligence
+   - "passed" → Decided to pass
+   - "closed_won" → Deal closed successfully
+   - "closed_lost" → Deal closed unsuccessfully
+
+3. WHEN TO SUGGEST WORKFLOW ACTIONS:
+   - After analyzing red flags: "Based on these issues, I'd recommend PARKING this deal until you can verify [specific concern]"
+   - After financial analysis: "The numbers look solid. If QoE checks out, this is a PROCEED candidate"
+   - When deal-killers are present: "Given [specific issue], I'd recommend PASSING on this deal"
+
+4. NEXT ACTION SUGGESTIONS:
+   - Suggest specific next steps: "Request detailed addback schedule" or "Schedule call with broker to clarify customer concentration"
+   - Suggest timeline: "You should be able to decide within 1 week if you get the QoE data"
+
+5. FORMAT FOR WORKFLOW SUGGESTIONS:
+   When suggesting a verdict or stage change, format it clearly:
+   "💡 Pipeline Recommendation: [PROCEED/PARK/PASS]
+   Reason: [specific reason based on deal data]
+   Next Action: [specific action item]
+   Timeline: [estimated timeline]"
+
+Always base recommendations on the actual deal data provided, not generic advice.
 
 ============================================================
 VALUATION GUIDANCE (STRICT - SEARCH FUND CONTEXT)
@@ -104,6 +147,12 @@ CONTEXT (server truth; do not assume anything beyond this):
 Company: ${context?.company_name ?? "Unknown"}
 Source type: ${context?.source_type ?? "unknown"}
 Listing URL: ${context?.listing_url ?? "n/a"}
+
+Current Pipeline Status:
+- Verdict: ${context?.verdict ?? "Not set"}
+- Stage: ${context?.stage ?? "new"}
+- Next Action: ${context?.next_action ?? "Not set"}
+- Next Action Date: ${context?.next_action_date ?? "Not set"}
 
 AI Summary:
 ${helpers.clipText(context?.ai_summary, 5000)}

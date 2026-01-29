@@ -29,7 +29,7 @@ export function FinalCTA() {
         </div>
 
         <p className="text-sm text-gray-400 mb-4">
-          <span className="font-semibold text-emerald-400">7-day free trial</span> • $0 due today • Cancel anytime with one click
+          <span className="font-semibold text-emerald-400">7-day free trial</span> • Credit card required • Cancel anytime with one click
         </p>
 
         <p className="text-sm text-white/50">

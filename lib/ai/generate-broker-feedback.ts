@@ -116,11 +116,45 @@ async function getBrokerName(
 }
 
 /**
- * Generates a personalized broker feedback note
+ * Gets template for specific pass reason types
+ */
+function getPassReasonTemplate(passReason: string): string | null {
+  const lowerReason = passReason.toLowerCase();
+  
+  // Too expensive / valuation
+  if (lowerReason.includes('expensive') || lowerReason.includes('valuation') || lowerReason.includes('price') || lowerReason.includes('multiple')) {
+    return 'too_expensive';
+  }
+  
+  // Geography
+  if (lowerReason.includes('geography') || lowerReason.includes('location') || lowerReason.includes('relocation')) {
+    return 'geography';
+  }
+  
+  // Customer concentration
+  if (lowerReason.includes('customer concentration') || lowerReason.includes('concentration') || lowerReason.includes('single customer')) {
+    return 'customer_concentration';
+  }
+  
+  // Deal size
+  if (lowerReason.includes('too small') || lowerReason.includes('too large') || lowerReason.includes('deal size')) {
+    return 'deal_size';
+  }
+  
+  // Industry fit
+  if (lowerReason.includes('industry') || lowerReason.includes('sector')) {
+    return 'industry_fit';
+  }
+  
+  return null;
+}
+
+/**
+ * Generates a personalized broker feedback note with templates
  * @param deal - The deal being passed
  * @param passReason - The reason for passing (optional, will be extracted from deal if not provided)
  * @param brokerName - The broker's name (optional, will be fetched if not provided)
- * @returns A 3-paragraph professional feedback note
+ * @returns A professional feedback note
  */
 export async function generateBrokerFeedback(
   deal: Deal,
@@ -132,9 +166,44 @@ export async function generateBrokerFeedback(
   const companyName = deal.company_name || 'this opportunity';
   const industry = deal.industry || 'this industry';
   const broker = brokerName || '[Broker Name]';
+  
+  const templateType = passReason ? getPassReasonTemplate(passReason) : null;
+  
+  // Use template if available, otherwise use generic
+  let note = '';
+  
+  if (templateType === 'too_expensive') {
+    note = `Hi ${broker},
 
-  // Build the feedback note
-  const note = `Hi ${broker},
+Thanks for sending over ${companyName}. After careful review, we're passing primarily due to valuation - the asking price doesn't align with our investment criteria for businesses of this profile.
+
+We're focused on deals where we can achieve our target returns while maintaining appropriate risk-adjusted multiples. If you come across similar opportunities in ${industry} with more attractive valuations (typically 3-4x normalized EBITDA for this sector), I'd love to see them first.
+
+Best,
+[Your Name]`;
+  } else if (templateType === 'geography') {
+    const geographyReason = primaryRedFlag.includes('location') ? primaryRedFlag : 'the location does not fit our target markets';
+    note = `Hi ${broker},
+
+Thanks for sending over ${companyName}. After review, we're passing primarily due to geography - ${geographyReason}.
+
+We're focused on opportunities in our core geographic markets. If you come across similar businesses in ${industry} located in [Your Target Markets], I'd love to see them first.
+
+Best,
+[Your Name]`;
+  } else if (templateType === 'customer_concentration') {
+    const concentrationReason = primaryRedFlag.includes('customer') ? primaryRedFlag : 'the customer concentration exceeds our risk tolerance';
+    note = `Hi ${broker},
+
+Thanks for sending over ${companyName}. After review, we're passing primarily due to customer concentration - ${concentrationReason}.
+
+For search fund buyers relying on SBA financing, customer concentration >50% makes deals ineligible. We're looking for businesses with diversified customer bases (no single customer >20%, top 3 customers <50%). If you come across opportunities in ${industry} with ${oppositeCharacteristic}, I'd love to see them first.
+
+Best,
+[Your Name]`;
+  } else {
+    // Generic template
+    note = `Hi ${broker},
 
 Thanks for sending over ${companyName}. After review, we're passing primarily due to ${primaryRedFlag}.
 
@@ -142,6 +211,7 @@ If you come across deals in ${industry} with ${oppositeCharacteristic}, I'd love
 
 Best,
 [Your Name]`;
+  }
 
   return note;
 }
@@ -160,8 +230,44 @@ export function generateBrokerFeedbackSync(
   const companyName = deal.company_name || 'this opportunity';
   const industry = deal.industry || 'this industry';
   const broker = brokerName || '[Broker Name]';
+  
+  const templateType = passReason ? getPassReasonTemplate(passReason) : null;
+  
+  // Use template if available, otherwise use generic
+  let note = '';
+  
+  if (templateType === 'too_expensive') {
+    note = `Hi ${broker},
 
-  const note = `Hi ${broker},
+Thanks for sending over ${companyName}. After careful review, we're passing primarily due to valuation - the asking price doesn't align with our investment criteria for businesses of this profile.
+
+We're focused on deals where we can achieve our target returns while maintaining appropriate risk-adjusted multiples. If you come across similar opportunities in ${industry} with more attractive valuations (typically 3-4x normalized EBITDA for this sector), I'd love to see them first.
+
+Best,
+[Your Name]`;
+  } else if (templateType === 'geography') {
+    const geographyReason = primaryRedFlag.includes('location') ? primaryRedFlag : 'the location does not fit our target markets';
+    note = `Hi ${broker},
+
+Thanks for sending over ${companyName}. After review, we're passing primarily due to geography - ${geographyReason}.
+
+We're focused on opportunities in our core geographic markets. If you come across similar businesses in ${industry} located in [Your Target Markets], I'd love to see them first.
+
+Best,
+[Your Name]`;
+  } else if (templateType === 'customer_concentration') {
+    const concentrationReason = primaryRedFlag.includes('customer') ? primaryRedFlag : 'the customer concentration exceeds our risk tolerance';
+    note = `Hi ${broker},
+
+Thanks for sending over ${companyName}. After review, we're passing primarily due to customer concentration - ${concentrationReason}.
+
+For search fund buyers relying on SBA financing, customer concentration >50% makes deals ineligible. We're looking for businesses with diversified customer bases (no single customer >20%, top 3 customers <50%). If you come across opportunities in ${industry} with ${oppositeCharacteristic}, I'd love to see them first.
+
+Best,
+[Your Name]`;
+  } else {
+    // Generic template
+    note = `Hi ${broker},
 
 Thanks for sending over ${companyName}. After review, we're passing primarily due to ${primaryRedFlag}.
 
@@ -169,6 +275,7 @@ If you come across deals in ${industry} with ${oppositeCharacteristic}, I'd love
 
 Best,
 [Your Name]`;
+  }
 
   return note;
 }

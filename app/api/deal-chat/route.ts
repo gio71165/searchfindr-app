@@ -119,6 +119,10 @@ export async function POST(req: NextRequest) {
       cim_storage_path: deal.cim_storage_path,
       financials_storage_path: deal.financials_storage_path,
       listing_url: sanitizeShortText(deal.listing_url ?? ""),
+      verdict: deal.verdict ?? null,
+      stage: deal.stage ?? null,
+      next_action: deal.next_action ?? null,
+      next_action_date: deal.next_action_date ?? null,
     };
 
     // 9) Clean history

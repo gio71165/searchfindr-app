@@ -12,9 +12,15 @@ function CheckoutPageContent() {
 
   useEffect(() => {
     async function startCheckout() {
-      const tier = searchParams.get('tier') as 'self_funded' | 'search_fund' | null;
-      const plan = searchParams.get('plan') as 'early_bird' | null;
+      const tier = searchParams.get('tier') as 'starter' | 'pro' | 'investor' | 'self_funded' | 'search_fund' | null;
+      const plan = searchParams.get('plan') as 'founding_member' | 'standard' | 'early_bird' | null;
       const billing = searchParams.get('billing') as 'monthly' | 'yearly' | null;
+
+      // Handle investor portfolio (redirects to demo)
+      if (tier === 'investor') {
+        router.push('/demo');
+        return;
+      }
 
       if (!tier || !plan || !billing) {
         setError('Missing subscription parameters');

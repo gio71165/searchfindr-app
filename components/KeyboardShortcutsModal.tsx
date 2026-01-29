@@ -79,6 +79,16 @@ const SHORTCUTS: Shortcut[] = [
     description: 'Upload new CIM',
     context: ['dashboard'],
   },
+  {
+    key: 'N',
+    description: 'New deal (upload CIM)',
+    context: ['dashboard'],
+  },
+  {
+    key: 'P',
+    description: 'Pass current deal',
+    context: ['dashboard'],
+  },
 ];
 
 function formatKey(key: string, shift?: boolean, ctrl?: boolean, alt?: boolean, meta?: boolean): string {

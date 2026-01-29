@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Filter, X, Plus, AlertCircle } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
-import { supabase } from '@/app/supabaseClient';
+import { useAuth } from '@/lib/auth-context';
 import { showToast } from '@/components/ui/Toast';
 import { dealMatchesCriteria, filterDealsByCriteria } from '@/lib/utils/criteria-matcher';
 import type { SearchCriteria } from '@/lib/types/search-criteria';
@@ -16,6 +16,7 @@ interface ApplyCriteriaFilterProps {
 }
 
 export function ApplyCriteriaFilter({ deals, onFilterChange }: ApplyCriteriaFilterProps) {
+  const { session, loading: authLoading } = useAuth();
   const [criteriaList, setCriteriaList] = useState<SearchCriteria[]>([]);
   const [selectedCriteria, setSelectedCriteria] = useState<SearchCriteria | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,8 +24,9 @@ export function ApplyCriteriaFilter({ deals, onFilterChange }: ApplyCriteriaFilt
   const [editingCriteria, setEditingCriteria] = useState<SearchCriteria | null>(null);
 
   useEffect(() => {
+    if (authLoading || !session) return;
     loadCriteria();
-  }, []);
+  }, [authLoading, session]);
 
   useEffect(() => {
     if (selectedCriteria) {
@@ -35,12 +37,11 @@ export function ApplyCriteriaFilter({ deals, onFilterChange }: ApplyCriteriaFilt
   }, [deals, selectedCriteria]);
 
   const loadCriteria = async () => {
+    if (!session?.access_token) return;
+    
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      
-      if (!token) return;
+      const token = session.access_token;
 
       const res = await fetch('/api/search-criteria', {
         headers: {
@@ -51,11 +52,18 @@ export function ApplyCriteriaFilter({ deals, onFilterChange }: ApplyCriteriaFilt
       if (res.ok) {
         const data = await res.json();
         setCriteriaList(data.criteria || []);
+      } else if (res.status === 401) {
+        // Auth not ready yet, will retry when session is available
+        return;
       }
     } catch (error) {
+      // Silently fail during initial load - auth might not be ready
+      if (authLoading) return;
       console.error('Error loading search criteria:', error);
     } finally {
-      setLoading(false);
+      if (!authLoading) {
+        setLoading(false);
+      }
     }
   };
 

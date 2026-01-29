@@ -26,7 +26,7 @@ export function TrialTerms() {
           <div>
             <p className="font-semibold text-gray-900 mb-1">The Charge</p>
             <p className="text-gray-600">
-              After 7 days, the selected plan ($99/month for Self-Funded or $149/month for Traditional Search Fund) will be billed to the card on file. 
+              After 7 days, the selected plan ($79/month for Starter or $179/month for Pro) will be billed to the card on file. 
               <span className="font-semibold text-gray-900"> You won't be charged until Day 8.</span>
             </p>
           </div>

@@ -621,7 +621,14 @@ function DashboardPageContent() {
       createShortcut('N', () => {
         handleCimButtonClick();
         showToast('Opening CIM upload', 'info', 1500);
-      }, 'Upload new CIM', ['dashboard'], { shift: true }),
+      }, 'Upload new CIM', ['dashboard']),
+      createShortcut('P', () => {
+        if (selectedDealIndex !== null && filteredDeals[selectedDealIndex]) {
+          const deal = filteredDeals[selectedDealIndex];
+          router.push(`/deals/${deal.id}?action=pass`);
+          showToast('Opening deal to pass', 'info', 1500);
+        }
+      }, 'Pass selected deal', ['dashboard']),
     ],
     true
   );
@@ -941,6 +948,7 @@ function DashboardPageContent() {
             )}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {/* Mobile: Stack vertically, Desktop: Grid */}
             {filteredDeals.map((deal, index) => (
               <div
                 key={deal.id}

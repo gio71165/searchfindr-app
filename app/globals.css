@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Mobile touch targets - minimum 44x44px for iOS accessibility */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
 /* =========================
    Global Theme (Option B+)
    Techy blue-gray, consistent light/dark

@@ -36,7 +36,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     id: 'search-criteria',
     target: '[data-onboarding="search-criteria"]',
     title: 'Set Your Search Criteria',
-    content: "This is where you set your search preferences. Click 'New Criteria' to define what you're looking for: industries, geography, deal size, revenue, and EBITDA ranges. This helps us match you with the right deals.\n\nYou can try it now or skip to continue the tour.",
+    content: "This is where you set your search preferences. Click 'New Criteria' to define what you're looking for: industries, geography, deal size, revenue, and EBITDA ranges. This helps us match you with the right deals.\n\nYou can set this up now or skip to continue the tour.",
     placement: 'bottom',
     action: 'highlight',
     skipValidation: true,

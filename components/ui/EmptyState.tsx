@@ -28,14 +28,14 @@ export function EmptyState({
       <div className="flex flex-wrap items-center gap-3 justify-center">
         <button
           onClick={onAction}
-          className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all hover:shadow-lg hover:scale-105 active:scale-95"
+          className="px-6 py-3 min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all hover:shadow-lg hover:scale-105 active:scale-95 touch-target"
         >
           {actionLabel}
         </button>
         {secondaryActionLabel && onSecondaryAction && (
           <button
             onClick={onSecondaryAction}
-            className="px-6 py-3 border-2 border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-white hover:border-slate-400 transition-all hover:shadow-md"
+            className="px-6 py-3 min-h-[44px] border-2 border-slate-300 text-slate-700 font-semibold rounded-lg hover:bg-white hover:border-slate-400 transition-all hover:shadow-md touch-target"
           >
             {secondaryActionLabel}
           </button>

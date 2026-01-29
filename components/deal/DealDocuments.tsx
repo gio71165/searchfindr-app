@@ -40,6 +40,8 @@ interface UnattachedDocument {
 
 interface DealDocumentsProps {
   dealId: string;
+  onDocumentSelect?: (docId: string) => void;
+  selectedDocuments?: Set<string>;
 }
 
 const DOCUMENT_TYPE_LABELS = {
@@ -68,7 +70,7 @@ const COMMON_TAGS = [
   'Important',
 ];
 
-export function DealDocuments({ dealId }: DealDocumentsProps) {
+export function DealDocuments({ dealId, onDocumentSelect, selectedDocuments }: DealDocumentsProps) {
   const [documents, setDocuments] = useState<DealDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -79,7 +81,7 @@ export function DealDocuments({ dealId }: DealDocumentsProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [attaching, setAttaching] = useState<string | null>(null);
-  const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
+  const [selectedDocs, setSelectedDocs] = useState<Set<string>>(selectedDocuments || new Set());
   const [unattachedDocs, setUnattachedDocs] = useState<{
     cims: UnattachedDocument[];
     financials: UnattachedDocument[];
@@ -600,9 +602,20 @@ export function DealDocuments({ dealId }: DealDocumentsProps) {
       } else {
         newSet.add(docId);
       }
+      // Notify parent component if callback provided
+      if (onDocumentSelect) {
+        onDocumentSelect(docId);
+      }
       return newSet;
     });
   };
+
+  // Sync with external selectedDocuments prop
+  useEffect(() => {
+    if (selectedDocuments) {
+      setSelectedDocs(selectedDocuments);
+    }
+  }, [selectedDocuments]);
 
   const toggleSelectAll = () => {
     if (selectedDocs.size === documents.length) {
