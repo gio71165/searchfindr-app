@@ -40,7 +40,7 @@ const faqs = [
 
 const quickLinks = [
   { icon: Zap, label: 'Pricing', href: '/pricing' },
-  { icon: FileText, label: 'Start Free Trial', href: '/pricing' },
+  { icon: FileText, label: 'Start Free Trial', href: '/signup' },
 ];
 
 export default function HelpPage() {

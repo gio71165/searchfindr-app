@@ -78,15 +78,15 @@ export function CompareDealModal({
             <h2 className="text-xl font-semibold">
               Compare: {companyName}
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-slate-600 mt-1">
               Compare this deal against your recent deals
             </p>
           </div>
           <IconButton
             onClick={onClose}
-            icon={<X className="h-5 w-5 text-gray-500" />}
+            icon={<X className="h-5 w-5 text-slate-500" />}
             label="Close modal"
-            className="p-2 hover:bg-gray-100"
+            className="p-2 hover:bg-slate-100"
           />
         </div>
 
@@ -95,12 +95,12 @@ export function CompareDealModal({
           {loading ? (
             <div className="flex items-center justify-center py-12 gap-3">
               <LoadingSpinner size="lg" />
-              <span className="text-gray-600">Loading comparison data...</span>
+              <span className="text-slate-600">Loading comparison data...</span>
             </div>
           ) : error ? (
             <div className="text-center py-12">
               <div className="text-red-600 mb-2">Error loading comparison data</div>
-              <div className="text-sm text-gray-600">{error}</div>
+              <div className="text-sm text-slate-600">{error}</div>
             </div>
           ) : currentDeal ? (
             <ComparisonTable
@@ -110,7 +110,7 @@ export function CompareDealModal({
               onSelectionChange={setSelectedDealIds}
             />
           ) : (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-slate-500">
               No comparison data available
             </div>
           )}
@@ -120,7 +120,7 @@ export function CompareDealModal({
         <div className="border-t p-4 flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+            className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
           >
             Close
           </button>

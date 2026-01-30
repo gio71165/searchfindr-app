@@ -8,9 +8,7 @@ import { DealTabs, type TabId } from '@/components/deal/DealTabs';
 import { StickyDealHeader } from '../components/StickyDealHeader';
 import { AnalysisTab } from '@/components/deal/tabs/AnalysisTab';
 import { ModelingTab } from '@/components/deal/tabs/ModelingTab';
-import { DiligenceTab } from '@/components/deal/tabs/DiligenceTab';
 import { ActivityTab } from '@/components/deal/tabs/ActivityTab';
-import { DealManagementTab } from '@/components/deal/tabs/DealManagementTab';
 import { IOIGenerator } from '../components/IOIGenerator';
 import { LOIGenerator } from '../components/LOIGenerator';
 import type { Deal } from '@/lib/types/deal';
@@ -158,10 +156,6 @@ export function CimDealView({
         return <IOIGenerator deal={deal} />;
       case 'loi':
         return <LOIGenerator deal={deal} />;
-      case 'diligence':
-        return <DiligenceTab deal={deal} dealId={dealId} sourceType="cim_pdf" />;
-      case 'deal_management':
-        return <DealManagementTab deal={deal} dealId={dealId} onRefresh={onRefresh} />;
       case 'activity':
         return <ActivityTab dealId={dealId} />;
       default:

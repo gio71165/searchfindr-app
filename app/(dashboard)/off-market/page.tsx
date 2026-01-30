@@ -262,11 +262,13 @@ export default function OffMarketPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="p-8 max-w-7xl mx-auto">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-center">
-            <LoadingSpinner size="lg" className="mb-4" />
-            <p className="text-sm text-slate-600">Loading off-market deals...</p>
+      <div className="min-h-screen bg-slate-50">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <LoadingSpinner size="lg" className="mb-4" />
+              <p className="text-sm text-slate-600">Loading off-market deals...</p>
+            </div>
           </div>
         </div>
       </div>
@@ -274,7 +276,8 @@ export default function OffMarketPage() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-6 py-8">
       <ContentHeader
         title="Off-Market Discovery"
         description="Find owner-operated businesses that aren't listed for sale"
@@ -283,13 +286,13 @@ export default function OffMarketPage() {
       {/* Search Form */}
       <div className="bg-white rounded-xl shadow-sm border p-6 mb-8">
         <h2 className="text-xl font-semibold mb-4">Search Parameters</h2>
-        <p className="text-sm text-gray-600 mb-6">
+        <p className="text-sm text-slate-600 mb-6">
           Add industries + enter city/state + radius. Results appear in Off-market as leads.
         </p>
 
         {/* Industries */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Industries</label>
+          <label className="block text-sm font-medium text-slate-700 mb-2">Industries</label>
           <div className="flex gap-2 mb-2">
             <select
               className="flex-1 border rounded-lg px-4 py-2"
@@ -305,7 +308,7 @@ export default function OffMarketPage() {
             <button
               onClick={addIndustry}
               disabled={industries.includes(industryToAdd)}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Add
             </button>
@@ -337,7 +340,7 @@ export default function OffMarketPage() {
         {/* Location */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">City</label>
             <input
               type="text"
               value={city}
@@ -347,7 +350,7 @@ export default function OffMarketPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">State</label>
             <select
               value={state}
               onChange={(e) => setState(e.target.value)}
@@ -361,7 +364,7 @@ export default function OffMarketPage() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Radius (miles)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Radius (miles)</label>
             <select
               value={radius}
               onChange={(e) => setRadius(Number(e.target.value))}
@@ -395,7 +398,7 @@ export default function OffMarketPage() {
           isLoading={searching}
           loadingText="Searching..."
           disabled={industries.length === 0 || !city.trim()}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+          className="w-full bg-emerald-600 text-white py-3 rounded-lg font-medium hover:bg-emerald-500 transition-colors shadow-sm hover:shadow-md"
         >
           Search
         </AsyncButton>
@@ -426,21 +429,21 @@ export default function OffMarketPage() {
         />
 
         {/* Results */}
-        <div className="mb-4 text-sm text-gray-600">
+        <div className="mb-4 text-sm text-slate-600">
           Showing {filteredDeals.length} of {deals.length} deals
         </div>
 
         {filteredDeals.length === 0 ? (
-          <div className="text-center py-16 bg-gray-50 rounded-xl">
+          <div className="text-center py-16 bg-slate-50 rounded-xl">
             <div className="text-6xl mb-4">🔍</div>
-            <h3 className="text-xl font-semibold mb-2 text-gray-900">Find owner-operated businesses</h3>
-            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+            <h3 className="text-xl font-semibold mb-2 text-slate-900">Find owner-operated businesses</h3>
+            <p className="text-slate-600 mb-6 max-w-md mx-auto">
               Use the search above to discover local SMBs by industry and location. We'll pull business info and generate
               initial analysis.
             </p>
             <button
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors"
+              className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 font-medium transition-colors shadow-sm hover:shadow-md"
             >
               Start Searching
             </button>
@@ -458,6 +461,7 @@ export default function OffMarketPage() {
       {errorMsg && (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">{errorMsg}</div>
       )}
+      </div>
     </div>
   );
 }

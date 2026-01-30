@@ -41,10 +41,10 @@ export function UndoToast({
   };
   
   return (
-    <div className="fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[320px] z-50 animate-slide-up">
+    <div className="fixed bottom-4 right-4 bg-slate-900 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 min-w-[320px] z-50 animate-slide-up">
       <div className="flex-1">
         <p className="text-sm font-medium">{message}</p>
-        <div className="mt-2 h-1 bg-gray-700 rounded-full overflow-hidden">
+        <div className="mt-2 h-1 bg-slate-700 rounded-full overflow-hidden">
           <div 
             className="h-full bg-emerald-500 transition-all duration-100"
             style={{ width: `${(timeLeft / duration) * 100}%` }}
@@ -53,7 +53,7 @@ export function UndoToast({
       </div>
       <button
         onClick={handleUndo}
-        className="px-3 py-1 bg-white text-gray-900 rounded font-medium text-sm hover:bg-gray-100 transition-colors"
+        className="px-3 py-1 bg-white text-slate-900 rounded font-medium text-sm hover:bg-slate-100 transition-colors"
       >
         Undo
       </button>

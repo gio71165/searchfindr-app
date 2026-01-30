@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: 'The Mission | SearchFindr',
-  description: 'Why we built SearchFindr: From a single spreadsheet to a searcher\'s secret weapon.',
+  description: 'Why we built SearchFindr: From a single spreadsheet to a searcher\'s essential tool.',
 };
 
 const roadmapItems = [
@@ -44,7 +44,7 @@ export default function MissionPage() {
           <div className="space-y-8 text-white/90 leading-relaxed">
             {/* Opening */}
             <p className="text-2xl sm:text-3xl font-light text-white/80 leading-relaxed border-l-4 border-emerald-500 pl-6 mb-8">
-              From a single spreadsheet to a searcher's secret weapon.
+              From a single spreadsheet to a searcher's essential tool.
             </p>
 
             {/* First Paragraph */}
@@ -68,7 +68,7 @@ export default function MissionPage() {
                 The SearchFindr Philosophy
               </h2>
               <p className="text-lg sm:text-xl leading-relaxed mb-4">
-                I am a serial entrepreneur obsessed with one thing: <strong className="text-white font-semibold">Time</strong>. In the M&A world, time is your only non-renewable resource. You are competing with private equity firms and other searchers. If it takes you three days to vet a deal that your competitor vetted in three minutes, you've already lost.
+                I am a serial entrepreneur obsessed with one thing: <strong className="text-white font-semibold">Time</strong>. In the M&A world, time is your only non-renewable resource. Searchers are competing with private equity firms and other buyers. If it takes you three days to vet a deal that your competitor vetted in three minutes, you've already lost.
               </p>
               <p className="text-lg sm:text-xl leading-relaxed">
                 SearchFindr is here to ensure you never lose on speed. We've built the <strong className="text-white font-semibold">"AI Associate"</strong> I wish my friend had from day one.
@@ -112,7 +112,7 @@ export default function MissionPage() {
               Ready to stop grinding and start searching?
             </h2>
             <Link
-              href="/pricing"
+              href="/signup"
               className="inline-flex items-center gap-2 px-8 py-4 bg-emerald-600 text-white rounded-xl font-semibold text-lg hover:bg-emerald-500 transition-all shadow-lg hover:shadow-emerald-500/50 hover:scale-105"
             >
               Start Your Free Trial

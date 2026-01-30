@@ -72,7 +72,7 @@ export function OldWayVsNewWay() {
                 The Old Way
               </span>
             </div>
-            <div className="pt-8 pb-8 px-8 rounded-2xl border-2 border-red-500/30 bg-gradient-to-br from-red-900/20 to-gray-900/40 backdrop-blur-sm">
+            <div className="pt-8 pb-8 px-8 rounded-2xl border-2 border-red-500/30 bg-gradient-to-br from-red-900/20 to-slate-900/40 backdrop-blur-sm">
               <div className="space-y-4">
                 {oldWayItems.map((item, index) => {
                   const Icon = item.icon;
@@ -106,7 +106,7 @@ export function OldWayVsNewWay() {
                 The SearchFindr Way
               </span>
             </div>
-            <div className="pt-8 pb-8 px-8 rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-900/20 to-gray-900/40 backdrop-blur-sm shadow-lg shadow-emerald-500/10">
+            <div className="pt-8 pb-8 px-8 rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-br from-emerald-900/20 to-slate-900/40 backdrop-blur-sm shadow-lg shadow-emerald-500/10">
               <div className="space-y-4">
                 {newWayItems.map((item, index) => {
                   const Icon = item.icon;

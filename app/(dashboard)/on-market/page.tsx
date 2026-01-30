@@ -102,11 +102,12 @@ export default function OnMarketPage() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
-      <ContentHeader
-        title="On-Market Deals"
-        description="Deals from BizBuySell, brokers, and other marketplaces"
-      />
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <ContentHeader
+          title="On-Market Deals"
+          description="Deals from BizBuySell, brokers, and other marketplaces"
+        />
 
       {/* Search */}
       <input
@@ -135,28 +136,28 @@ export default function OnMarketPage() {
       <div className="mb-6">
         <button
           onClick={() => window.open('/settings', '_blank', 'noopener,noreferrer')}
-          className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 font-medium shadow-sm hover:shadow-md transition-all"
         >
           Get Extension API Key
         </button>
       </div>
 
       {/* Results */}
-      <div className="mb-4 text-sm text-gray-600">
+      <div className="mb-4 text-sm text-slate-600">
         Showing {filteredDeals.length} of {deals.length} deals
       </div>
 
       {/* Deal Cards */}
       {filteredDeals.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-300">
+        <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-slate-300">
           <div className="text-6xl mb-4">🏪</div>
           <h3 className="text-xl font-semibold mb-2">No on-market deals yet</h3>
-          <p className="text-gray-600 mb-6">
+          <p className="text-slate-600 mb-6">
             Use the extension to capture deals from BizBuySell and other listing sites
           </p>
           <button
             onClick={() => window.open('/settings', '_blank', 'noopener,noreferrer')}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 font-medium shadow-sm hover:shadow-md transition-all"
           >
             Get Extension API Key
           </button>
@@ -168,6 +169,7 @@ export default function OnMarketPage() {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }

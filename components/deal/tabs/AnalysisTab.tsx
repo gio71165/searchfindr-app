@@ -181,8 +181,8 @@ export function AnalysisTab({
       {sourceType === 'cim_pdf' && onRunCim && (
         <div className={`rounded-lg border-2 p-6 ${
           hasCimAnalysis 
-            ? 'border-slate-200 bg-slate-50' 
-            : 'border-blue-300 bg-blue-50'
+            ? 'border-slate-200 bg-white' 
+            : 'border-blue-200 bg-blue-50'
         }`}>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
@@ -207,8 +207,8 @@ export function AnalysisTab({
               loadingText="Processing…"
               className={`px-6 py-3 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
                 hasCimAnalysis
-                  ? 'border border-slate-300 bg-white hover:bg-slate-50'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
+                  ? 'border border-slate-300 bg-white hover:bg-slate-50 text-slate-700'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-500'
               }`}
             >
               {hasCimAnalysis ? 'Re-run Analysis' : 'Run AI Analysis'}
@@ -260,19 +260,7 @@ export function AnalysisTab({
       {/* QoE Red Flags — after Red Flags, before Strengths */}
       <QoeRedFlagsPanel qoeRedFlags={qoeRedFlags} />
 
-      {/* Strengths */}
-      <div className="rounded-lg border border-emerald-200 bg-emerald-50 border-l-4 border-l-emerald-500 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-          <h3 className="text-xl font-semibold text-slate-900">
-            {sourceType === 'financials' ? 'Strengths (Green Flags)' : 'Strengths'}
-          </h3>
-          {sourceType === 'financials' && greenFlags.length > 0 && (
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-              {greenFlags.length}
-            </span>
-          )}
-        </div>
+      {/* Strengths - Already handled by StrengthsPanel component */}
         {sourceType === 'financials' && greenFlags.length > 0 ? (
           hasAnyAnalysis ? (
             <ul className="space-y-2">
@@ -289,16 +277,16 @@ export function AnalysisTab({
         ) : (
           <StrengthsPanel deal={deal} />
         )}
-      </div>
 
       {/* Data Confidence */}
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 shadow-sm">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30">
-            <FileCheck className="w-6 h-6 text-white" />
+      <div className="bg-white border-2 border-blue-200 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="p-2 bg-blue-50 rounded-lg">
+            <FileCheck className="w-5 h-5 text-blue-600" />
           </div>
-          <div className="flex-1">
-            <h3 className="font-bold text-blue-900 text-lg mb-3">Data Confidence & Read Quality</h3>
+          <h3 className="text-lg font-semibold text-slate-900">Data Confidence & Read Quality</h3>
+        </div>
+        <div className="flex-1">
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <ConfidencePill
                 icon={confidence.icon}
@@ -315,16 +303,15 @@ export function AnalysisTab({
             </div>
             {confidence.analyzed ? (
               signals.length === 0 ? (
-                <p className="text-sm text-blue-700">No confidence signals returned.</p>
+                <p className="text-sm text-slate-600">No confidence signals returned.</p>
               ) : (
                 <SignalsGrid signals={signals} />
               )
             ) : (
-              <p className="text-sm text-blue-700">Run AI analysis to generate read-quality signals.</p>
+              <p className="text-sm text-slate-600">Run AI analysis to generate read-quality signals.</p>
             )}
           </div>
         </div>
-      </div>
 
       {/* AI Investment Memo */}
       <AIInvestmentMemo
@@ -398,13 +385,12 @@ export function AnalysisTab({
 
       {/* Scoring Breakdown - Not for financials */}
       {sourceType !== 'financials' && (
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30">
-              <BarChart3 className="w-6 h-6 text-white" />
+        <div className="bg-white border-2 border-blue-200 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-blue-50 rounded-lg">
+              <BarChart3 className="w-5 h-5 text-blue-600" />
             </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-blue-900 text-lg mb-3">
+            <h3 className="text-lg font-semibold text-slate-900">
                 {sourceType === 'cim_pdf' ? (
                   <>
                     <JargonTooltip term="CIM">CIM</JargonTooltip> Quality & Risk Signals
@@ -412,8 +398,10 @@ export function AnalysisTab({
                 ) : (
                   'Scoring Breakdown'
                 )}
-              </h3>
-              <RiskSignalsCard
+            </h3>
+          </div>
+          <div className="flex-1">
+            <RiskSignalsCard
                 scoring={scoring}
                 title=""
                 subtitle={
@@ -422,7 +410,6 @@ export function AnalysisTab({
                     : 'Prioritization signals (not a recommendation). Risk signals: High = more risk. Fit/quality signals: High = stronger alignment/quality.'
                 }
               />
-            </div>
           </div>
         </div>
       )}
@@ -503,15 +490,15 @@ export function AnalysisTab({
 
       {/* Searcher Fit Analysis - TODO: Evaluate if still useful, may remove if no value */}
       {sourceType !== 'financials' && (
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-6 shadow-sm">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-500/30">
-              <TrendingUp className="w-6 h-6 text-white" />
+        <div className="bg-white border-2 border-blue-200 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-2 bg-blue-50 rounded-lg">
+              <TrendingUp className="w-5 h-5 text-blue-600" />
             </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-blue-900 text-lg mb-3">Searcher Fit Analysis</h3>
-              <SearcherSnapshot criteria={criteria} />
-            </div>
+            <h3 className="text-lg font-semibold text-slate-900">Searcher Fit Analysis</h3>
+          </div>
+          <div className="flex-1">
+            <SearcherSnapshot criteria={criteria} />
           </div>
         </div>
       )}

@@ -22,9 +22,9 @@ type IngestResult = {
 };
 
 /**
- * V1 hard lock
+ * V1 supported industries
  */
-const V1_ALLOWED_INDUSTRIES: readonly V1IndustryTag[] = ["HVAC", "Plumbing", "Electrical"] as const;
+const V1_ALLOWED_INDUSTRIES: readonly V1IndustryTag[] = ["HVAC", "Plumbing", "Electrical", "Landscaping", "Pest Control", "Commercial Cleaning", "Auto Repair", "Home Health", "IT Services", "Staffing"] as const;
 
 export async function runOnMarketIngestion(args: {
   supabaseAdmin: SupabaseAdmin;

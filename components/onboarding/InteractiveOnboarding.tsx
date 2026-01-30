@@ -420,7 +420,7 @@ export function InteractiveOnboarding({
           </button>
         </div>
 
-        <div className="text-gray-700 mb-6 whitespace-pre-line">
+        <div className="text-slate-700 mb-6 whitespace-pre-line">
           {currentStepData.content}
         </div>
 
@@ -430,7 +430,7 @@ export function InteractiveOnboarding({
             <div
               key={i}
               className={`w-2 h-2 rounded-full transition-colors ${
-                i === currentStep ? 'bg-emerald-500' : i < currentStep ? 'bg-emerald-300' : 'bg-gray-300'
+                i === currentStep ? 'bg-emerald-500' : i < currentStep ? 'bg-emerald-300' : 'bg-slate-300'
               }`}
             />
           ))}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { DealChatPanel } from '../components/DealChatPanel';
+import { MessageSquare, X } from 'lucide-react';
 import { BrokerSelector } from '@/components/deal/BrokerSelector';
 import { DealDocuments } from '@/components/deal/DealDocuments';
 import { BackButton } from '../components/BackButton';
@@ -10,9 +11,7 @@ import { DealTabs, type TabId } from '@/components/deal/DealTabs';
 import { StickyDealHeader } from '../components/StickyDealHeader';
 import { AnalysisTab } from '@/components/deal/tabs/AnalysisTab';
 import { ModelingTab } from '@/components/deal/tabs/ModelingTab';
-import { DiligenceTab } from '@/components/deal/tabs/DiligenceTab';
 import { ActivityTab } from '@/components/deal/tabs/ActivityTab';
-import { DealManagementTab } from '@/components/deal/tabs/DealManagementTab';
 import { IOIGenerator } from '../components/IOIGenerator';
 import { LOIGenerator } from '../components/LOIGenerator';
 import type { Deal } from '@/lib/types/deal';
@@ -45,6 +44,7 @@ export function OnMarketDealView({
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [settingVerdict, setSettingVerdict] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const handlePassSuccess = () => {
     setShowPassModal(false);
@@ -155,10 +155,6 @@ export function OnMarketDealView({
         return <IOIGenerator deal={deal} />;
       case 'loi':
         return <LOIGenerator deal={deal} />;
-      case 'diligence':
-        return <DiligenceTab deal={deal} dealId={dealId} sourceType="on_market" />;
-      case 'deal_management':
-        return <DealManagementTab deal={deal} dealId={dealId} onRefresh={onRefresh} />;
       case 'activity':
         return <ActivityTab dealId={dealId} />;
       default:
@@ -208,9 +204,39 @@ export function OnMarketDealView({
 
           </div>
 
-          {/* Chat Sidebar */}
-          <DealChatPanel dealId={dealId} deal={deal} />
+          {/* Chat Sidebar - Desktop visible, Mobile hidden by default */}
+          <div className="hidden lg:block lg:w-80 flex-shrink-0">
+            <DealChatPanel dealId={dealId} deal={deal} />
+          </div>
         </div>
+
+        {/* Mobile Chat FAB */}
+        <button
+          onClick={() => setIsChatOpen(true)}
+          className="lg:hidden fixed bottom-4 right-4 z-40 w-14 h-14 bg-emerald-600 text-white rounded-full shadow-lg hover:bg-emerald-700 transition-all flex items-center justify-center"
+          aria-label="Open chat"
+        >
+          <MessageSquare className="h-6 w-6" />
+        </button>
+
+        {/* Mobile Chat Overlay */}
+        {isChatOpen && (
+          <div className="lg:hidden fixed inset-0 bg-white z-50 flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <h2 className="text-lg font-semibold text-slate-900">Chat</h2>
+              <button
+                onClick={() => setIsChatOpen(false)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                aria-label="Close chat"
+              >
+                <X className="h-5 w-5 text-slate-600" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <DealChatPanel dealId={dealId} deal={deal} />
+            </div>
+          </div>
+        )}
       </div>
       
       {showPassModal && (

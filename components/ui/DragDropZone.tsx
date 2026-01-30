@@ -170,8 +170,8 @@ export function DragDropZone({
         onClick={handleClick}
         className={`
           relative border-2 border-dashed rounded-xl p-8 transition-all cursor-pointer
-          ${isDragging ? 'border-blue-500 bg-blue-50 scale-[1.02]' : 'border-gray-300 bg-white'}
-          ${disabled || isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-400 hover:bg-gray-50'}
+          ${isDragging ? 'border-blue-500 bg-blue-50 scale-[1.02]' : 'border-slate-300 bg-white'}
+          ${disabled || isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-400 hover:bg-slate-50'}
           ${hasError ? 'border-red-300 bg-red-50' : ''}
           ${isUploaded ? 'border-emerald-300 bg-emerald-50' : ''}
         `}
@@ -197,16 +197,16 @@ export function DragDropZone({
             ) : icon ? (
               <div className="text-blue-500">{icon}</div>
             ) : (
-              <Upload className="h-12 w-12 text-gray-400" />
+              <Upload className="h-12 w-12 text-slate-400" />
             )}
           </div>
 
           {/* Label and Description */}
           {!previewFile && (
             <>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">{label}</h3>
-              <p className="text-sm text-gray-600 mb-4">{description}</p>
-              <p className="text-xs text-gray-500">
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">{label}</h3>
+              <p className="text-sm text-slate-600 mb-4">{description}</p>
+              <p className="text-xs text-slate-500">
                 {allowedFileTypes && allowedFileTypes.length > 0 && (
                   <>Accepted: {allowedFileTypes.join(', ')} • </>
                 )}
@@ -221,7 +221,7 @@ export function DragDropZone({
               <div className={`flex items-center gap-3 p-4 rounded-lg border ${
                 hasError 
                   ? 'bg-red-50 border-red-200' 
-                  : 'bg-gray-50 border-gray-200'
+                  : 'bg-slate-50 border-slate-200'
               }`}>
                 {hasError ? (
                   <AlertCircle className="h-8 w-8 text-red-500 flex-shrink-0" />
@@ -230,12 +230,12 @@ export function DragDropZone({
                 )}
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium truncate ${
-                    hasError ? 'text-red-900' : 'text-gray-900'
+                    hasError ? 'text-red-900' : 'text-slate-900'
                   }`}>
                     {previewFile.name}
                   </p>
                   <p className={`text-xs ${
-                    hasError ? 'text-red-600' : 'text-gray-500'
+                    hasError ? 'text-red-600' : 'text-slate-500'
                   }`}>
                     {formatFileSize(previewFile.size)}
                   </p>
@@ -243,10 +243,10 @@ export function DragDropZone({
                 {!disabled && (
                   <button
                     onClick={handleRemovePreview}
-                    className="p-1 hover:bg-gray-200 rounded transition-colors"
+                    className="p-1 hover:bg-slate-200 rounded transition-colors"
                     type="button"
                   >
-                    <X className="h-4 w-4 text-gray-500" />
+                    <X className="h-4 w-4 text-slate-500" />
                   </button>
                 )}
               </div>
@@ -259,7 +259,7 @@ export function DragDropZone({
               <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <LoadingSpinner size="sm" className="flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{previewFile.name}</p>
+                  <p className="text-sm font-medium text-slate-900 truncate">{previewFile.name}</p>
                   <div className="mt-2">
                     <div className="w-full bg-slate-200 rounded-full h-2">
                       <div
@@ -267,7 +267,7 @@ export function DragDropZone({
                         style={{ width: `${uploadProgress || 0}%` }}
                       />
                     </div>
-                    <p className="text-xs text-gray-600 mt-1">
+                    <p className="text-xs text-slate-600 mt-1">
                       {uploadProgress !== undefined ? `${Math.round(uploadProgress)}%` : 'Uploading...'}
                     </p>
                   </div>
@@ -299,7 +299,7 @@ export function DragDropZone({
       </div>
 
       {/* Mobile Fallback Hint */}
-      <p className="text-xs text-gray-500 text-center mt-2">
+      <p className="text-xs text-slate-500 text-center mt-2">
         Tap above to select a file from your device
       </p>
     </div>

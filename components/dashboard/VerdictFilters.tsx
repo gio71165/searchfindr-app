@@ -15,7 +15,7 @@ export function VerdictFilters(props: VerdictFiltersProps) {
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-sm font-medium text-gray-600">Verdict:</span>
+      <span className="text-sm font-medium text-slate-600">Verdict:</span>
 
       <button
         onClick={() => setSelectedVerdict('proceed')}
@@ -67,8 +67,8 @@ export function VerdictFilters(props: VerdictFiltersProps) {
         className={`
           px-3 py-1.5 rounded-lg text-sm font-medium transition-all
           ${selectedVerdict === 'all'
-            ? 'bg-gray-700 text-white shadow-md'
-            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            ? 'bg-slate-700 text-white shadow-md'
+            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
           }
         `}
       >

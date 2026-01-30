@@ -441,7 +441,8 @@ export default function CimsPage() {
   );
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-6 py-8">
       <ContentHeader
         title="CIMs"
         description="Confidential Information Memorandums uploaded for analysis"
@@ -518,16 +519,16 @@ export default function CimsPage() {
       </div>
 
       {/* Results */}
-      <div className="mb-4 text-sm text-gray-600">
+      <div className="mb-4 text-sm text-slate-600">
         Showing {filteredDeals.length} of {deals.length} deals
       </div>
 
       {/* Deal Cards */}
       {filteredDeals.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-300">
+        <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-slate-300">
           <div className="text-6xl mb-4">📄</div>
           <h3 className="text-xl font-semibold mb-2">No CIMs uploaded yet</h3>
-          <p className="text-gray-600">Use the upload zone above to upload your first CIM</p>
+          <p className="text-slate-600">Use the upload zone above to upload your first CIM</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -548,6 +549,7 @@ export default function CimsPage() {
           />
         </div>
       )}
+      </div>
     </div>
   );
 }

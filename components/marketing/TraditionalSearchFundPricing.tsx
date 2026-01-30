@@ -92,7 +92,7 @@ export function TraditionalSearchFundPricing() {
         {/* CTA Button */}
         <Link
           href="/pricing"
-          className="block w-full py-4 bg-gray-900 text-white rounded-lg font-semibold text-lg hover:bg-gray-800 transition-colors shadow-lg hover:shadow-xl text-center"
+          className="block w-full py-4 bg-slate-900 text-white rounded-lg font-semibold text-lg hover:bg-slate-800 transition-colors shadow-lg hover:shadow-xl text-center"
         >
           Start Free Trial
         </Link>

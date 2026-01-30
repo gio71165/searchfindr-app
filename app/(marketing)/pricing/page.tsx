@@ -87,20 +87,20 @@ export default function PricingPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
             Simple, Transparent Pricing
           </h1>
-          <p className="text-sm sm:text-base text-gray-400 mb-4">
-            Start your <span className="text-emerald-400 font-semibold">7-day free trial</span> • Credit card required • Cancel anytime with one click
+          <p className="text-sm sm:text-base text-slate-400 mb-4">
+            Start your <span className="text-emerald-400 font-semibold">7-day free trial</span> • Cancel anytime with one click
           </p>
         </div>
         
         {/* Billing Cycle Toggle */}
         <div className="flex justify-center mb-8">
-          <div className="inline-flex rounded-xl border border-gray-700 p-1.5 bg-gray-900">
+          <div className="inline-flex rounded-xl border border-slate-700 p-1.5 bg-slate-900">
             <button
               onClick={() => setBillingCycle('monthly')}
               className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${
                 billingCycle === 'monthly'
                   ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
-                  : 'text-gray-400 hover:text-white'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               Monthly
@@ -110,7 +110,7 @@ export default function PricingPage() {
               className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${
                 billingCycle === 'yearly'
                   ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-500/20'
-                  : 'text-gray-400 hover:text-white'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
               Yearly
@@ -216,7 +216,7 @@ export default function PricingPage() {
       <FAQSection />
       
       {/* Trial Terms Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-900/50">
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-slate-900/50">
         <div className="max-w-4xl mx-auto">
           <TrialTerms />
         </div>
@@ -299,8 +299,8 @@ function PricingCard({
         </div>
       )}
 
-      <div className={`bg-gradient-to-br ${highlighted ? 'from-emerald-900/30 to-gray-900' : 'from-gray-800 to-gray-900'} rounded-xl shadow-2xl border-2 ${highlighted ? 'border-emerald-500' : 'border-gray-700'} p-6 ${highlighted ? 'pt-12' : 'pt-6'} transition-all ${
-        hoveredCard === cardId ? highlighted ? 'shadow-emerald-500/50 ring-4 ring-emerald-500/30' : 'shadow-gray-500/50' : ''
+      <div className={`bg-gradient-to-br ${highlighted ? 'from-emerald-900/30 to-slate-900' : 'from-slate-800 to-slate-900'} rounded-xl shadow-2xl border-2 ${highlighted ? 'border-emerald-500' : 'border-slate-700'} p-6 ${highlighted ? 'pt-12' : 'pt-6'} transition-all ${
+        hoveredCard === cardId ? highlighted ? 'shadow-emerald-500/50 ring-4 ring-emerald-500/30' : 'shadow-slate-500/50' : ''
       }`}>
         {highlighted && (
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 via-cyan-500/10 to-emerald-500/20 rounded-xl blur-xl opacity-60 -z-10" />
@@ -322,20 +322,20 @@ function PricingCard({
           {customPricing ? (
             <div className="mb-2">
               <span className="text-4xl font-bold text-white">Custom</span>
-              <span className="text-lg text-gray-400 ml-2">Pricing</span>
+              <span className="text-lg text-slate-400 ml-2">Pricing</span>
             </div>
           ) : (
             <>
               <div className="flex items-baseline justify-center gap-2 mb-2">
                 {originalPrice && (
-                  <span className="text-xl text-gray-500 line-through">
+                  <span className="text-xl text-slate-500 line-through">
                     ${originalPrice}
                   </span>
                 )}
                 <span className="text-5xl font-bold text-white">
                   ${displayPrice}
                 </span>
-                <span className="text-lg text-gray-400">/{displayPeriod}</span>
+                <span className="text-lg text-slate-400">/{displayPeriod}</span>
               </div>
               {billingCycle === 'yearly' && monthlyEquivalent && (
                 <p className="text-sm text-emerald-400 mb-2">
@@ -357,7 +357,7 @@ function PricingCard({
           {features.map((feature, idx) => (
             <div key={idx} className="flex items-start gap-2">
               <Check className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
-              <span className="text-sm text-gray-300">{feature}</span>
+              <span className="text-sm text-slate-300">{feature}</span>
             </div>
           ))}
         </div>
@@ -384,7 +384,7 @@ function PricingCard({
             >
               {isLoading ? 'Starting...' : 'Start 7-Day Free Trial'}
             </button>
-            <p className="text-center text-xs text-gray-400">
+            <p className="text-center text-xs text-slate-400">
               Credit card required • Cancel anytime
             </p>
           </>
@@ -515,16 +515,16 @@ function FAQSection() {
   ];
 
   return (
-    <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-900/50">
+    <section className="py-16 px-4 sm:px-6 lg:px-8 bg-slate-900/50">
       <div className="max-w-3xl mx-auto">
         <h2 className="text-3xl font-bold text-white text-center mb-8">
           Frequently Asked Questions
         </h2>
         <div className="space-y-4">
           {faqs.map((faq, idx) => (
-            <div key={idx} className="bg-gray-800 rounded-lg p-6 border border-gray-700">
+            <div key={idx} className="bg-slate-800 rounded-lg p-6 border border-slate-700">
               <h3 className="text-lg font-semibold text-white mb-2">{faq.q}</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">{faq.a}</p>
+              <p className="text-slate-400 text-sm leading-relaxed">{faq.a}</p>
             </div>
           ))}
         </div>
@@ -541,14 +541,14 @@ function KeyFeaturesSection() {
         <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
           Included in All Plans
         </h2>
-        <p className="text-gray-400">
+        <p className="text-slate-400">
           Powerful features to help you manage your deal pipeline
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* AI Chat Feature */}
-        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+        <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
           <div className="flex items-start gap-4">
             <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex-shrink-0">
               <MessageSquare className="h-6 w-6 text-emerald-400" />
@@ -557,7 +557,7 @@ function KeyFeaturesSection() {
               <h3 className="text-lg font-semibold text-white mb-2">
                 AI Chat on Every Deal
               </h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
+              <p className="text-slate-400 text-sm leading-relaxed">
                 Ask questions about any deal and get instant answers. AI understands your deal context, suggests pipeline actions (proceed/park/pass), and helps you dig deeper into opportunities.
               </p>
             </div>
@@ -565,7 +565,7 @@ function KeyFeaturesSection() {
         </div>
 
         {/* Pipeline Workflow Feature */}
-        <div className="bg-gray-800/50 rounded-xl p-6 border border-gray-700">
+        <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700">
           <div className="flex items-start gap-4">
             <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex-shrink-0">
               <Workflow className="h-6 w-6 text-emerald-400" />
@@ -574,7 +574,7 @@ function KeyFeaturesSection() {
               <h3 className="text-lg font-semibold text-white mb-2">
                 Pipeline Workflow Management
               </h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
+              <p className="text-slate-400 text-sm leading-relaxed">
                 Track deals through stages (new → reviewing → IOI → LOI → DD), set verdicts, manage next actions, and never miss a follow-up. AI suggests workflow actions based on deal analysis.
               </p>
             </div>
@@ -593,12 +593,12 @@ function FinalCTA() {
         <h2 className="text-3xl sm:text-4xl font-bold text-white mb-4">
           Ready to start your search smarter?
         </h2>
-        <p className="text-lg text-gray-400 mb-8">
+        <p className="text-lg text-slate-400 mb-8">
           Join our early adopter program and lock in lifetime pricing
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
-            href="/pricing"
+            href="/signup"
             className="px-8 py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-lg font-bold text-lg hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg"
           >
             Start Your Free Trial

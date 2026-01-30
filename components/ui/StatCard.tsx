@@ -9,6 +9,8 @@ export function StatCard({
   onClick,
   isActive = false,
   delay = 0,
+  change,
+  trend,
 }: {
   icon: LucideIcon;
   value: number | string;
@@ -17,6 +19,8 @@ export function StatCard({
   onClick?: () => void;
   isActive?: boolean;
   delay?: number;
+  change?: string;
+  trend?: 'up' | 'down' | 'neutral';
 }) {
   const [mounted, setMounted] = useState(false);
 
@@ -24,57 +28,34 @@ export function StatCard({
     setMounted(true);
   }, []);
 
-  const colorClasses = {
-    blue: {
-      bg: 'bg-blue-50',
-      border: 'border-blue-200',
-      text: 'text-blue-700',
-      icon: 'text-blue-600',
-      hover: 'hover:bg-blue-100 hover:border-blue-300',
-      shadow: 'shadow-blue-200',
-    },
-    green: {
-      bg: 'bg-emerald-50',
-      border: 'border-emerald-200',
-      text: 'text-emerald-700',
-      icon: 'text-emerald-600',
-      hover: 'hover:bg-emerald-100 hover:border-emerald-300',
-      shadow: 'shadow-emerald-200',
-    },
-    yellow: {
-      bg: 'bg-amber-50',
-      border: 'border-amber-200',
-      text: 'text-amber-700',
-      icon: 'text-amber-600',
-      hover: 'hover:bg-amber-100 hover:border-amber-300',
-      shadow: 'shadow-amber-200',
-    },
-    red: {
-      bg: 'bg-red-50',
-      border: 'border-red-200',
-      text: 'text-red-700',
-      icon: 'text-red-600',
-      hover: 'hover:bg-red-100 hover:border-red-300',
-      shadow: 'shadow-red-200',
-    },
-    purple: {
-      bg: 'bg-purple-50',
-      border: 'border-purple-200',
-      text: 'text-purple-700',
-      icon: 'text-purple-600',
-      hover: 'hover:bg-purple-100 hover:border-purple-300',
-      shadow: 'shadow-purple-200',
-    },
+  const iconColorClasses = {
+    blue: 'text-blue-600',
+    green: 'text-emerald-600',
+    yellow: 'text-amber-600',
+    red: 'text-red-600',
+    purple: 'text-violet-600',
   };
 
-  const colors = colorClasses[color];
+  const iconBgClasses = {
+    blue: 'bg-blue-50',
+    green: 'bg-emerald-50',
+    yellow: 'bg-amber-50',
+    red: 'bg-red-50',
+    purple: 'bg-violet-50',
+  };
+
+  const iconColor = iconColorClasses[color];
+  const iconBg = iconBgClasses[color];
+
   const baseClasses = `
-    rounded-xl border-2 p-6 transition-all duration-200
-    ${colors.bg} ${colors.border} ${colors.text}
-    ${onClick ? `cursor-pointer ${colors.hover} hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]` : ''}
-    ${isActive ? `ring-2 ring-offset-2 ring-${color}-600 shadow-lg ${colors.shadow}` : ''}
+    group bg-white border border-slate-200 rounded-xl p-6
+    hover:shadow-lg hover:border-slate-300 transition-all duration-200
+    ${onClick ? 'cursor-pointer' : ''}
+    ${isActive ? 'ring-2 ring-offset-2 ring-emerald-500 shadow-md' : ''}
     ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}
   `;
+
+  const trendColor = trend === 'up' ? 'text-emerald-600' : trend === 'down' ? 'text-red-600' : 'text-slate-600';
 
   return (
     <div
@@ -84,14 +65,22 @@ export function StatCard({
         transitionDelay: `${delay}ms`,
       }}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex-1">
-          <p className="text-3xl font-bold mb-1">{value}</p>
-          <p className="text-sm font-semibold opacity-90">{label}</p>
+      {/* Header with Icon and Change */}
+      <div className="flex items-center justify-between mb-4">
+        <div className={`p-2 ${iconBg} rounded-lg`}>
+          <Icon className={`w-5 h-5 ${iconColor}`} />
         </div>
-        <div className={`opacity-70 ${colors.icon}`}>
-          <Icon className="h-10 w-10" />
-        </div>
+        {change && (
+          <span className={`text-sm font-medium ${trendColor}`}>
+            {change}
+          </span>
+        )}
+      </div>
+
+      {/* Metric */}
+      <div className="space-y-1">
+        <p className="text-3xl font-bold font-mono text-slate-900">{value}</p>
+        <p className="text-sm text-slate-600">{label}</p>
       </div>
     </div>
   );

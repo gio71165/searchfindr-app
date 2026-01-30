@@ -225,19 +225,19 @@ export function PassDealModal({
             Pass {companyName}?
           </h2>
           
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-slate-600 mb-4">
             Document why you're passing to avoid re-evaluating this deal later.
           </p>
 
           {/* Reason Dropdown */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               Why are you passing? <span className="text-red-500">*</span>
             </label>
             <select
               value={passReason}
               onChange={(e) => setPassReason(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation"
+              className="w-full border border-slate-300 rounded-lg px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation"
               required
             >
               <option value="">Select a reason...</option>
@@ -257,9 +257,9 @@ export function PassDealModal({
                   type="checkbox"
                   checked={generateFeedback}
                   onChange={(e) => setGenerateFeedback(e.target.checked)}
-                  className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="mt-1 h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                 />
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium text-slate-700">
                   Generate broker feedback note
                 </span>
               </label>
@@ -270,7 +270,7 @@ export function PassDealModal({
           {generateFeedback && brokerFeedback && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700">
+                <label className="block text-sm font-medium text-slate-700">
                   Feedback Note Preview
                 </label>
                 <button
@@ -284,14 +284,14 @@ export function PassDealModal({
                 value={brokerFeedback}
                 readOnly
                 rows={6}
-                className="w-full border border-blue-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-800 resize-none focus:outline-none"
+                className="w-full border border-blue-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-800 resize-none focus:outline-none"
               />
             </div>
           )}
 
           {/* Additional Notes */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               Additional notes (optional)
             </label>
             <textarea
@@ -299,7 +299,7 @@ export function PassDealModal({
               onChange={(e) => setPassNotes(e.target.value)}
               placeholder="Any other details to remember..."
               rows={3}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
             />
           </div>
 
@@ -308,7 +308,7 @@ export function PassDealModal({
             <button
               onClick={onClose}
               disabled={passing}
-              className="flex-1 px-4 py-3 min-h-[44px] border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 touch-manipulation font-medium"
+              className="flex-1 px-4 py-3 min-h-[44px] border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 touch-manipulation font-medium"
             >
               Cancel
             </button>

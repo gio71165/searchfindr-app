@@ -64,18 +64,18 @@ export function StagePlaybook({ stage, dealId }: StagePlaybookProps) {
         aria-expanded={!isCollapsed}
       >
         <div className="flex-1 min-w-0">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-1">
+          <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-1">
             {playbook.title}
           </h3>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-slate-600">
             {playbook.description}
           </p>
         </div>
         <div className="ml-4 flex-shrink-0">
           {isCollapsed ? (
-            <ChevronDown className="w-5 h-5 text-gray-500" />
+            <ChevronDown className="w-5 h-5 text-slate-500" />
           ) : (
-            <ChevronUp className="w-5 h-5 text-gray-500" />
+            <ChevronUp className="w-5 h-5 text-slate-500" />
           )}
         </div>
       </button>
@@ -86,7 +86,7 @@ export function StagePlaybook({ stage, dealId }: StagePlaybookProps) {
           {/* Tasks */}
           {playbook.tasks.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
                 Next Steps
               </h4>
@@ -116,13 +116,13 @@ export function StagePlaybook({ stage, dealId }: StagePlaybookProps) {
           {/* Tips */}
           {playbook.tips.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
                 Pro Tips
               </h4>
               <ul className="space-y-2">
                 {playbook.tips.map((tip, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
+                  <li key={index} className="flex items-start gap-2 text-sm text-slate-700">
                     <span className="text-indigo-600 mt-0.5">•</span>
                     <span>{tip}</span>
                   </li>
@@ -133,7 +133,7 @@ export function StagePlaybook({ stage, dealId }: StagePlaybookProps) {
 
           {/* Empty state for stages with no tasks */}
           {playbook.tasks.length === 0 && playbook.tips.length === 0 && (
-            <p className="text-sm text-gray-600 italic">
+            <p className="text-sm text-slate-600 italic">
               No specific actions needed at this stage.
             </p>
           )}

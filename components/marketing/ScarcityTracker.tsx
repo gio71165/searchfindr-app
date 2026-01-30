@@ -71,7 +71,7 @@ export function ScarcityTracker({
         <span className="text-emerald-300 font-semibold">
           First {totalSpots} customers lock in pricing
         </span>
-        <span className="text-gray-400">•</span>
+        <span className="text-slate-400">•</span>
         <span className="text-emerald-300">Ends {deadline}</span>
       </span>
     );

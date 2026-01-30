@@ -11,10 +11,9 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY as string;
 
 /**
- * V1: HARD LOCK
- * Only these industries are allowed anywhere in global promoted inventory.
+ * V1: Supported industries for on-market listings.
  */
-const V1_ALLOWED_INDUSTRIES = ["HVAC", "Plumbing", "Electrical"] as const;
+const V1_ALLOWED_INDUSTRIES = ["HVAC", "Plumbing", "Electrical", "Landscaping", "Pest Control", "Commercial Cleaning", "Auto Repair", "Home Health", "IT Services", "Staffing"] as const;
 type V1Industry = (typeof V1_ALLOWED_INDUSTRIES)[number];
 
 function isV1Industry(x: unknown): x is V1Industry {

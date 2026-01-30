@@ -71,17 +71,17 @@ export class ErrorBoundary extends Component<Props, State> {
 
       // Default error UI
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
           <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-6">
             <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-red-100 rounded-full">
               <AlertCircle className="w-6 h-6 text-red-600" />
             </div>
             
-            <h1 className="text-xl font-semibold text-gray-900 text-center mb-2">
+            <h1 className="text-xl font-semibold text-slate-900 text-center mb-2">
               Something went wrong
             </h1>
             
-            <p className="text-gray-600 text-center mb-6">
+            <p className="text-slate-600 text-center mb-6">
               We encountered an unexpected error. Please try reloading the page or contact support if the problem persists.
             </p>
 
@@ -106,7 +106,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <div className="flex gap-3">
               <button
                 onClick={this.handleReset}
-                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 rounded-md hover:bg-slate-200 transition-colors"
               >
                 Try again
               </button>

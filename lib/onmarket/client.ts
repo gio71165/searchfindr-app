@@ -1,6 +1,6 @@
 // lib/onmarket/client.ts
 
-export type V1IndustryTag = "HVAC" | "Plumbing" | "Electrical";
+export type V1IndustryTag = "HVAC" | "Plumbing" | "Electrical" | "Landscaping" | "Pest Control" | "Commercial Cleaning" | "Auto Repair" | "Home Health" | "IT Services" | "Staffing";
 
 export type OnMarketDeal = {
   id: string;
@@ -69,7 +69,7 @@ export type DealNote = {
   created_at: string;
 };
 
-const V1_ALLOWED: readonly V1IndustryTag[] = ["HVAC", "Plumbing", "Electrical"] as const;
+const V1_ALLOWED: readonly V1IndustryTag[] = ["HVAC", "Plumbing", "Electrical", "Landscaping", "Pest Control", "Commercial Cleaning", "Auto Repair", "Home Health", "IT Services", "Staffing"] as const;
 
 function sanitizeIndustries(input?: string[]): V1IndustryTag[] | undefined {
   if (!input?.length) return undefined;

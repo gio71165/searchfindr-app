@@ -225,7 +225,7 @@ export function DDTracker({ dealId }: { dealId: string }) {
 
   const getStatusBadge = (status: DDItem['status']) => {
     const badges = {
-      not_started: { icon: Clock, color: 'bg-gray-100 text-gray-700', label: 'Not Started' },
+      not_started: { icon: Clock, color: 'bg-slate-100 text-slate-700', label: 'Not Started' },
       requested: { icon: FileText, color: 'bg-blue-100 text-blue-700', label: 'Requested' },
       received: { icon: FileCheck, color: 'bg-yellow-100 text-yellow-700', label: 'Received' },
       reviewed: { icon: CheckCircle2, color: 'bg-emerald-100 text-emerald-700', label: 'Reviewed' },

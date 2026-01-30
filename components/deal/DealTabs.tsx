@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useMemo, useEffect, useState, useRef } from 'react';
 import type { Deal } from '@/lib/types/deal';
 
-export type TabId = 'analysis' | 'modeling' | 'ioi' | 'loi' | 'diligence' | 'deal_management' | 'activity';
+export type TabId = 'analysis' | 'modeling' | 'ioi' | 'loi' | 'activity';
 
 interface Tab {
   id: TabId;
@@ -48,17 +48,6 @@ export function DealTabs({ deal, children }: DealTabsProps) {
         id: 'loi',
         label: 'LOI',
         visible: true, // Always visible - part of search fund workflow
-      },
-      {
-        id: 'diligence',
-        label: 'Diligence',
-        visible: stage === 'dd' || stage === 'loi', // Show when in DD or LOI stage
-      },
-      // Documents removed - now a persistent sidebar
-      {
-        id: 'deal_management',
-        label: 'Deal Management',
-        visible: true, // Always visible - but less prominent (last before activity)
       },
       {
         id: 'activity',
@@ -118,7 +107,7 @@ export function DealTabs({ deal, children }: DealTabsProps) {
   return (
     <div className="w-full">
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200 bg-gray-50/50 px-4 mb-6 relative">
+      <div className="border-b border-slate-200 bg-slate-50/50 px-4 mb-6 relative">
         {/* Scrollable tabs */}
         <nav 
           ref={scrollContainerRef}
@@ -138,7 +127,7 @@ export function DealTabs({ deal, children }: DealTabsProps) {
                   min-h-[44px] snap-start flex-shrink-0
                   ${isActive
                     ? 'bg-white text-emerald-600 border-t-2 border-t-emerald-500 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }
                 `}
                 aria-current={isActive ? 'page' : undefined}
@@ -151,7 +140,7 @@ export function DealTabs({ deal, children }: DealTabsProps) {
         
         {/* Scroll hint (shows first time only, mobile only) */}
         {showScrollHint && (
-          <div className="absolute -bottom-4 right-4 text-xs text-gray-500 animate-pulse md:hidden">
+          <div className="absolute -bottom-4 right-4 text-xs text-slate-500 animate-pulse md:hidden">
             Swipe to see more →
           </div>
         )}

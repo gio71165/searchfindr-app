@@ -927,6 +927,8 @@ export async function POST(req: NextRequest) {
 
     let parsed: {
       deal_verdict?: string;
+      location?: string | null;
+      industry?: string | null;
       ai_summary?: string;
       ai_red_flags?: string | string[] | null;
       financials?: Record<string, unknown>;
@@ -952,6 +954,23 @@ export async function POST(req: NextRequest) {
 
     try {
       parsed = JSON.parse(contentText);
+      
+      // Debug: Log AI response structure to help diagnose extraction issues
+      if (process.env.NODE_ENV === 'development') {
+        logger.info('CIM Analysis Response Keys:', Object.keys(parsed));
+        logger.info('Location fields:', {
+          location: parsed.location,
+          location_city: (parsed as any).location_city,
+          location_state: (parsed as any).location_state,
+          deal_location: (parsed as any).deal_economics?.location,
+          criteria_location: (parsed.criteria_match as any)?.location,
+        });
+        logger.info('Industry fields:', {
+          industry: parsed.industry,
+          business_model: (parsed.criteria_match as any)?.business_model,
+          criteria_industry: (parsed.criteria_match as any)?.industry,
+        });
+      }
     } catch (jsonErr) {
       logger.error('Failed to parse OpenAI JSON:', jsonErr, contentText);
       return NextResponse.json(
@@ -982,6 +1001,53 @@ export async function POST(req: NextRequest) {
     const sbaEligible = parsed.deal_economics?.sba_eligible?.assessment === 'YES' ? true : 
                        parsed.deal_economics?.sba_eligible?.assessment === 'NO' ? false : null;
     const dealSizeBand = parsed.deal_economics?.deal_size_band || null;
+    
+    // Extract location and industry from parsed result
+    // Priority: top-level fields first, then fallback to nested fields
+    const locationStr = parsed.location || 
+                       (parsed.criteria_match as any)?.location || 
+                       (parsed as any).deal_economics?.location || 
+                       null;
+    
+    let locationCity: string | null = null;
+    let locationState: string | null = null;
+    if (typeof locationStr === 'string' && locationStr.trim()) {
+      // Parse "City, State" format (e.g., "Austin, TX" or "Austin, Texas")
+      const parts = locationStr.split(',').map(s => s.trim());
+      if (parts.length >= 2) {
+        locationCity = parts[0] || null;
+        // Handle state abbreviations (e.g., "TX" or "Texas")
+        const statePart = parts[1] || null;
+        if (statePart) {
+          // If state is full name, try to extract abbreviation (basic mapping)
+          const stateMap: Record<string, string> = {
+            'texas': 'TX', 'california': 'CA', 'florida': 'FL', 'new york': 'NY',
+            'illinois': 'IL', 'pennsylvania': 'PA', 'ohio': 'OH', 'georgia': 'GA',
+            'north carolina': 'NC', 'michigan': 'MI', 'new jersey': 'NJ', 'virginia': 'VA',
+            'washington': 'WA', 'arizona': 'AZ', 'massachusetts': 'MA', 'tennessee': 'TN',
+            'indiana': 'IN', 'missouri': 'MO', 'maryland': 'MD', 'wisconsin': 'WI',
+            'colorado': 'CO', 'minnesota': 'MN', 'south carolina': 'SC', 'alabama': 'AL',
+            'louisiana': 'LA', 'kentucky': 'KY', 'oregon': 'OR', 'oklahoma': 'OK',
+            'connecticut': 'CT', 'utah': 'UT', 'iowa': 'IA', 'nevada': 'NV',
+            'arkansas': 'AR', 'mississippi': 'MS', 'kansas': 'KS', 'new mexico': 'NM',
+            'nebraska': 'NE', 'west virginia': 'WV', 'idaho': 'ID', 'hawaii': 'HI',
+            'new hampshire': 'NH', 'maine': 'ME', 'montana': 'MT', 'rhode island': 'RI',
+            'delaware': 'DE', 'south dakota': 'SD', 'north dakota': 'ND', 'alaska': 'AK',
+            'vermont': 'VT', 'wyoming': 'WY', 'district of columbia': 'DC'
+          };
+          const stateLower = statePart.toLowerCase();
+          locationState = stateMap[stateLower] || statePart.toUpperCase();
+        }
+      } else if (parts.length === 1) {
+        locationCity = parts[0] || null;
+      }
+    }
+    
+    // Extract industry - priority: top-level field, then business_model from criteria_match
+    const industry = parsed.industry || 
+                    (parsed.criteria_match as any)?.business_model?.split(' - ')[0] || // Extract from "Industry - Description"
+                    (parsed.criteria_match as any)?.industry || 
+                    null;
 
     // ✅ WRITE RESULTS TO DB
     try {
@@ -998,21 +1064,28 @@ export async function POST(req: NextRequest) {
       });
 
       // Update analysis outputs (fields not in updateAnalysis method)
+      const updateData: any = {
+        verdict: verdict === 'proceed' || verdict === 'park' || verdict === 'pass' ? verdict : null,
+        verdict_reason: verdictReason,
+        verdict_confidence: verdictConfidence === 'high' || verdictConfidence === 'medium' || verdictConfidence === 'low' ? verdictConfidence : null,
+        next_action: nextAction,
+        asking_price_extracted: askingPrice,
+        revenue_ttm_extracted: revenueTTM,
+        ebitda_ttm_extracted: ebitdaTTM,
+        sba_eligible: sbaEligible,
+        deal_size_band: dealSizeBand,
+        stage: 'reviewing', // Auto-advance from 'new' to 'reviewing'
+        last_action_at: new Date().toISOString(),
+      };
+      
+      // Only update location/industry if they were extracted (don't overwrite existing values with null)
+      if (locationCity) updateData.location_city = locationCity;
+      if (locationState) updateData.location_state = locationState;
+      if (industry) updateData.industry = industry;
+      
       const { error: updateError } = await supabaseUser
         .from('companies')
-        .update({
-          verdict: verdict === 'proceed' || verdict === 'park' || verdict === 'pass' ? verdict : null,
-          verdict_reason: verdictReason,
-          verdict_confidence: verdictConfidence === 'high' || verdictConfidence === 'medium' || verdictConfidence === 'low' ? verdictConfidence : null,
-          next_action: nextAction,
-          asking_price_extracted: askingPrice,
-          revenue_ttm_extracted: revenueTTM,
-          ebitda_ttm_extracted: ebitdaTTM,
-          sba_eligible: sbaEligible,
-          deal_size_band: dealSizeBand,
-          stage: 'reviewing', // Auto-advance from 'new' to 'reviewing'
-          last_action_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq('id', companyId)
         .eq('workspace_id', workspace.id);
 

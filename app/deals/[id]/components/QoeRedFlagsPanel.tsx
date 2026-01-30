@@ -47,20 +47,22 @@ export function QoeRedFlagsPanel({ qoeRedFlags }: { qoeRedFlags: QoeRedFlag[] })
   };
 
   return (
-    <div className="rounded-lg border border-orange-200 bg-orange-50 border-l-4 border-l-orange-500 p-6">
-      <div className="flex items-start gap-3 mb-4">
-        <AlertTriangle className="h-6 w-6 text-orange-600 flex-shrink-0" />
-        <div>
-          <h3 className="text-xl font-semibold text-slate-900">
+    <div className="bg-white border-2 border-amber-200 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 bg-amber-50 rounded-lg">
+          <AlertTriangle className="w-5 h-5 text-amber-600" />
+        </div>
+        <div className="flex-1">
+          <h3 className="text-lg font-semibold text-slate-900">
             Quality of <JargonTooltip term="QoE">Earnings</JargonTooltip> Red Flags
           </h3>
           <p className="text-sm text-slate-600 mt-1">
             Earnings quality issues that may overstate EBITDA or indicate accounting concerns
           </p>
-          <span className="inline-block mt-2 px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-            {qoeRedFlags.length}
-          </span>
         </div>
+        <span className="px-2.5 py-0.5 rounded-md text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+          {qoeRedFlags.length}
+        </span>
       </div>
       <ul className="space-y-3">
         {qoeRedFlags.map((flag, idx) => (

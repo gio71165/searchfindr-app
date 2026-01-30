@@ -23,8 +23,8 @@ function VerdictBadge({ verdict }: { verdict: string | null }) {
   
   const config = {
     proceed: { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Proceed' },
-    park: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Parked' },
-    pass: { bg: 'bg-gray-100', text: 'text-gray-800', label: 'Passed' }
+    park: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Parked' },
+    pass: { bg: 'bg-slate-100', text: 'text-slate-800', label: 'Passed' }
   };
   
   const normalizedVerdict = verdict.toLowerCase();
@@ -265,15 +265,15 @@ export function DealHeader({
 
       {/* Verdict Details Section */}
       {verdict && (verdictConfidence || verdictReason || nextAction) && (
-        <div className="mb-4 p-4 rounded-lg bg-gray-50 mt-4">
+        <div className="mb-4 p-4 rounded-lg bg-slate-50 mt-4">
           <div className="flex items-center justify-between">
             <div>
               {(verdictConfidence || verdictReason) && (
                 <>
-                  <div className="text-sm text-gray-500">Decision Details</div>
+                  <div className="text-sm text-slate-500">Decision Details</div>
                   <div className="flex items-center gap-2 mt-1">
                     {verdictConfidence && (
-                      <span className="text-sm text-gray-600">{verdictConfidence} confidence</span>
+                      <span className="text-sm text-slate-600">{verdictConfidence} confidence</span>
                     )}
                   </div>
                   {verdictReason && (
@@ -284,7 +284,7 @@ export function DealHeader({
             </div>
             {nextAction && (
               <div>
-                <div className="text-sm text-gray-500">Next Action</div>
+                <div className="text-sm text-slate-500">Next Action</div>
                 <div className="text-sm font-medium mt-1">{nextAction}</div>
               </div>
             )}
@@ -296,13 +296,13 @@ export function DealHeader({
       {(askingPrice || ebitda || sbaEligible !== null) && (
         <div className="grid grid-cols-3 gap-4 mb-4 mt-4">
           <div className="p-3 border rounded">
-            <div className="text-sm text-gray-500">Asking Price</div>
+            <div className="text-sm text-slate-500">Asking Price</div>
             <div className="text-lg font-semibold">
-              {askingPrice || 'Not stated'}
+              {askingPrice || 'Unknown'}
             </div>
           </div>
           <div className="p-3 border rounded">
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-slate-500">
               <JargonTooltip term="EBITDA">EBITDA</JargonTooltip>
             </div>
             <div className="text-lg font-semibold">
@@ -310,7 +310,7 @@ export function DealHeader({
             </div>
           </div>
           <div className="p-3 border rounded">
-            <div className="text-sm text-gray-500">
+            <div className="text-sm text-slate-500">
               <JargonTooltip term="SBA">SBA</JargonTooltip> Eligible
             </div>
             <div className="text-lg font-semibold">
@@ -322,12 +322,12 @@ export function DealHeader({
 
       {/* Stage Selector */}
       <div className="mb-4 mt-4">
-        <label className="text-sm text-gray-500">Stage</label>
+        <label className="text-sm text-slate-500">Stage</label>
         <select 
           value={stage}
           onChange={handleStageChange}
           disabled={updatingStage}
-          className="mt-1 block w-full rounded border-gray-300 px-3 py-2 border bg-white"
+          className="mt-1 block w-full rounded border-slate-300 px-3 py-2 border bg-white"
         >
           <option value="new">New</option>
           <option value="reviewing">Reviewing</option>

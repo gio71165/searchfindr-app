@@ -359,7 +359,7 @@ export function DealExportPDF({ deal, financialAnalysis }: DealExportPDFProps) {
                 <Text style={[
                   styles.badge,
                   verdict.toLowerCase() === 'proceed' ? styles.badgeGreen :
-                  verdict.toLowerCase() === 'park' ? styles.badgeYellow :
+                  verdict.toLowerCase() === 'park' ? styles.badgeBlue :
                   styles.badgeRed
                 ]}>
                   {verdict}

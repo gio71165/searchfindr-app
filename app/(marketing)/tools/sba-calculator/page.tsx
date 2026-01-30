@@ -64,12 +64,12 @@ export default function SBACalculatorPage() {
                   Purchase Price
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
                   <input
                     type="number"
                     value={purchasePrice}
                     onChange={(e) => setPurchasePrice(Number(e.target.value))}
-                    className="w-full pl-8 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full pl-8 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     min="0"
                     step="10000"
                   />
@@ -81,17 +81,17 @@ export default function SBACalculatorPage() {
                   Normalized EBITDA
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
                   <input
                     type="number"
                     value={normalizedEBITDA}
                     onChange={(e) => setNormalizedEBITDA(Number(e.target.value))}
-                    className="w-full pl-8 pr-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full pl-8 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     min="0"
                     step="10000"
                   />
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-slate-400 mt-1">
                   After QoE adjustments (addbacks, one-time items, etc.)
                 </p>
               </div>
@@ -112,7 +112,7 @@ export default function SBACalculatorPage() {
                   />
                   <span className="text-white font-semibold w-16 text-right">{loanPercentage}%</span>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-slate-400 mt-1">
                   Typical: 70-80% for search fund deals
                 </p>
               </div>
@@ -125,12 +125,12 @@ export default function SBACalculatorPage() {
                   type="number"
                   value={interestRate}
                   onChange={(e) => setInterestRate(Number(e.target.value))}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   min="0"
                   max="15"
                   step="0.25"
                 />
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-slate-400 mt-1">
                   Typical: 8-10% (Prime + 2.25-2.75%)
                 </p>
               </div>
@@ -142,7 +142,7 @@ export default function SBACalculatorPage() {
                 <select
                   value={loanTerm}
                   onChange={(e) => setLoanTerm(Number(e.target.value))}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <option value={7}>7 years</option>
                   <option value={10}>10 years</option>
@@ -168,7 +168,7 @@ export default function SBACalculatorPage() {
                   />
                   <span className="text-white font-semibold w-16 text-right">{customerConcentration}%</span>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-slate-400 mt-1">
                   &gt;50% = SBA ineligible
                 </p>
               </div>
@@ -270,7 +270,7 @@ export default function SBACalculatorPage() {
                 QoE red flags, and search fund fit automatically.
               </p>
               <Link
-                href="/pricing"
+                href="/signup"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-500 transition-colors text-sm"
               >
                 Start Your Free Trial

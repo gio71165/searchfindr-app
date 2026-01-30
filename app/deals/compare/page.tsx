@@ -50,8 +50,13 @@ function ComparePageContent() {
         }
 
         const ids = dealIdsParam.split(',').map(id => id.trim()).filter(Boolean);
-        if (ids.length < 2 || ids.length > 3) {
-          setError('Must provide 2-3 deal IDs');
+        if (ids.length < 2) {
+          setError('Must select at least 2 deals to compare');
+          setLoading(false);
+          return;
+        }
+        if (ids.length > 3) {
+          setError('Maximum 3 deals can be compared at once. Please select fewer deals.');
           setLoading(false);
           return;
         }
@@ -120,19 +125,133 @@ function ComparePageContent() {
     return `${num.toFixed(1)}%`;
   };
 
+  // Helper to extract revenue TTM from multiple sources
+  const getRevenueTTM = (deal: ComparisonDeal): string | number | null => {
+    // Priority 1: Extracted field
+    if ((deal as any).revenue_ttm_extracted) {
+      return (deal as any).revenue_ttm_extracted;
+    }
+    // Priority 2: AI financials JSON
+    const fin = deal.ai_financials_json || {};
+    const finAny = fin as Record<string, unknown>;
+    if (finAny.revenue_ttm) {
+      return finAny.revenue_ttm as string | number;
+    }
+    // Priority 3: AI analysis financials
+    const analysis = (deal as any).ai_analysis || {};
+    if (analysis.financials?.revenue_ttm) {
+      return analysis.financials.revenue_ttm;
+    }
+    // Priority 4: Legacy array format
+    if (Array.isArray(fin.revenue) && fin.revenue.length > 0) {
+      return fin.revenue[0]?.value || fin.revenue[0]?.note;
+    }
+    if (typeof fin.revenue === 'string') {
+      return fin.revenue;
+    }
+    return null;
+  };
+
+  // Helper to extract EBITDA TTM from multiple sources
+  const getEBITDATTM = (deal: ComparisonDeal): string | number | null => {
+    // Priority 1: Extracted field
+    if ((deal as any).ebitda_ttm_extracted) {
+      return (deal as any).ebitda_ttm_extracted;
+    }
+    // Priority 2: AI financials JSON
+    const fin = deal.ai_financials_json || {};
+    const finAny = fin as Record<string, unknown>;
+    if (finAny.ebitda_ttm) {
+      return finAny.ebitda_ttm as string | number;
+    }
+    // Priority 3: AI analysis financials
+    const analysis = (deal as any).ai_analysis || {};
+    if (analysis.financials?.ebitda_ttm) {
+      return analysis.financials.ebitda_ttm;
+    }
+    // Priority 4: Legacy array format
+    if (Array.isArray(fin.ebitda) && fin.ebitda.length > 0) {
+      return fin.ebitda[0]?.value || fin.ebitda[0]?.note;
+    }
+    if (typeof fin.ebitda === 'string') {
+      return fin.ebitda;
+    }
+    return null;
+  };
+
+  // Helper to calculate EBITDA Margin
+  const getEBITDAMargin = (deal: ComparisonDeal): string | null => {
+    // Priority 1: Extracted margin
+    if ((deal as any).ebitda_margin_ttm) {
+      return (deal as any).ebitda_margin_ttm;
+    }
+    // Priority 2: Calculate from revenue and EBITDA
+    const revenue = getRevenueTTM(deal);
+    const ebitda = getEBITDATTM(deal);
+    if (revenue && ebitda) {
+      const revNum = extractNumericValue(revenue);
+      const ebitdaNum = extractNumericValue(ebitda);
+      if (revNum !== null && ebitdaNum !== null && revNum > 0) {
+        return `${((ebitdaNum / revNum) * 100).toFixed(1)}%`;
+      }
+    }
+    // Priority 3: From AI financials
+    const fin = deal.ai_financials_json || {};
+    if (typeof fin.margin === 'string') {
+      return fin.margin;
+    }
+    return null;
+  };
+
+  // Helper to calculate Implied Multiple
+  const getImpliedMultiple = (deal: ComparisonDeal): string | null => {
+    // Priority 1: Extracted multiple
+    if ((deal as any).implied_multiple) {
+      return (deal as any).implied_multiple;
+    }
+    // Priority 2: Calculate from asking price and EBITDA
+    const askingPrice = (deal as any).asking_price_extracted || 
+                       deal.criteria_match_json?.asking_price ||
+                       ((deal as any).ai_analysis?.deal_economics?.asking_price);
+    const ebitda = getEBITDATTM(deal);
+    if (askingPrice && ebitda) {
+      const priceNum = extractNumericValue(askingPrice);
+      const ebitdaNum = extractNumericValue(ebitda);
+      if (priceNum !== null && ebitdaNum !== null && ebitdaNum > 0) {
+        return `${(priceNum / ebitdaNum).toFixed(1)}x`;
+      }
+    }
+    // Priority 3: From AI analysis
+    const analysis = (deal as any).ai_analysis || {};
+    if (analysis.deal_economics?.implied_multiple) {
+      return analysis.deal_economics.implied_multiple;
+    }
+    // Priority 4: From AI financials
+    const fin = deal.ai_financials_json || {};
+    if ((fin as any).implied_multiple) {
+      return (fin as any).implied_multiple;
+    }
+    return null;
+  };
+
+  // Helper to format asking price consistently
+  const formatAskingPrice = (value: any): string => {
+    if (!value) return '—';
+    // If already formatted (e.g., "$2.85M"), return as-is
+    if (typeof value === 'string' && (value.includes('M') || value.includes('K'))) {
+      return value;
+    }
+    // Format number to millions/thousands
+    return formatMoney(value);
+  };
+
   // Define comparison metrics
   const comparisonMetrics: ComparisonMetric[] = useMemo(() => [
     // Financial Metrics
     {
       label: 'Revenue (TTM)',
       category: 'financial',
-      getValue: (deal) => {
-        const fin = deal.ai_financials_json || {};
-        if (Array.isArray(fin.revenue) && fin.revenue.length > 0) {
-          return fin.revenue[0]?.value || fin.revenue[0]?.note;
-        }
-        return typeof fin.revenue === 'string' ? fin.revenue : null;
-      },
+      getValue: getRevenueTTM,
       formatValue: formatMoney,
       betterWhen: 'higher',
       isNumeric: true,
@@ -140,13 +259,7 @@ function ComparePageContent() {
     {
       label: 'EBITDA (TTM)',
       category: 'financial',
-      getValue: (deal) => {
-        const fin = deal.ai_financials_json || {};
-        if (Array.isArray(fin.ebitda) && fin.ebitda.length > 0) {
-          return fin.ebitda[0]?.value || fin.ebitda[0]?.note;
-        }
-        return typeof fin.ebitda === 'string' ? fin.ebitda : null;
-      },
+      getValue: getEBITDATTM,
       formatValue: formatMoney,
       betterWhen: 'higher',
       isNumeric: true,
@@ -154,11 +267,8 @@ function ComparePageContent() {
     {
       label: 'EBITDA Margin %',
       category: 'financial',
-      getValue: (deal) => {
-        const fin = deal.ai_financials_json || {};
-        return typeof fin.margin === 'string' ? fin.margin : null;
-      },
-      formatValue: formatPercent,
+      getValue: getEBITDAMargin,
+      formatValue: (val) => val || '—',
       betterWhen: 'higher',
       isNumeric: true,
     },
@@ -166,19 +276,20 @@ function ComparePageContent() {
       label: 'Asking Price',
       category: 'financial',
       getValue: (deal) => {
-        return (deal as any).asking_price_extracted || deal.criteria_match_json?.asking_price || null;
+        return (deal as any).asking_price_extracted || 
+               deal.criteria_match_json?.asking_price || 
+               ((deal as any).ai_analysis?.deal_economics?.asking_price) ||
+               null;
       },
-      formatValue: formatMoney,
+      formatValue: formatAskingPrice,
       betterWhen: 'lower',
       isNumeric: true,
     },
     {
       label: 'Implied Multiple',
       category: 'financial',
-      getValue: (deal) => {
-        const fin = deal.ai_financials_json || {};
-        return (fin as any).implied_multiple || null;
-      },
+      getValue: getImpliedMultiple,
+      formatValue: (val) => val || '—',
       betterWhen: 'lower',
       isNumeric: true,
     },
@@ -240,6 +351,16 @@ function ComparePageContent() {
       label: 'QoE Red Flags',
       category: 'risk',
       getValue: (deal) => {
+        // Priority 1: Extracted count
+        if ((deal as any).qoe_red_flags_count !== undefined) {
+          return (deal as any).qoe_red_flags_count;
+        }
+        // Priority 2: From AI analysis
+        const analysis = (deal as any).ai_analysis || {};
+        if (analysis.qoe?.addbacks && Array.isArray(analysis.qoe.addbacks)) {
+          return analysis.qoe.addbacks.length;
+        }
+        // Priority 3: From AI financials
         const fin = deal.ai_financials_json || {};
         const qoeFlags = fin.qoe_red_flags || [];
         return qoeFlags.length;
@@ -252,7 +373,21 @@ function ComparePageContent() {
       label: 'SBA Eligible',
       category: 'other',
       getValue: (deal) => {
-        return deal.criteria_match_json?.sba_eligible ? 'Yes' : deal.criteria_match_json?.sba_eligible === false ? 'No' : null;
+        // Priority 1: Direct field
+        if ((deal as any).sba_eligible === true) return 'Yes';
+        if ((deal as any).sba_eligible === false) return 'No';
+        // Priority 2: From criteria match
+        if (deal.criteria_match_json?.sba_eligible === true) return 'Yes';
+        if (deal.criteria_match_json?.sba_eligible === false) return 'No';
+        // Priority 3: From AI analysis
+        const analysis = (deal as any).ai_analysis || {};
+        const sbaAssessment = analysis.deal_economics?.sba_eligible?.assessment;
+        if (sbaAssessment) {
+          if (sbaAssessment === 'YES' || sbaAssessment === 'LIKELY') return 'Yes';
+          if (sbaAssessment === 'NO') return 'No';
+          return sbaAssessment; // Return "UNKNOWN" as-is
+        }
+        return null;
       },
       betterWhen: 'higher',
     },
@@ -427,7 +562,9 @@ function ComparePageContent() {
                   {deal.company_name || 'Untitled Company'}
                 </h2>
                 <p className="text-xs text-slate-600 truncate">
-                  {[deal.location_city, deal.location_state].filter(Boolean).join(', ') || 'Location not specified'}
+                  {deal.location_city && deal.location_state 
+                    ? `${deal.location_city}, ${deal.location_state}`
+                    : deal.location_city || deal.location_state || '—'}
                 </p>
                 {deal.industry && (
                   <p className="text-xs text-slate-500 mt-1">{deal.industry}</p>

@@ -249,7 +249,7 @@ export default function DealScreeningChecklistPage() {
                 with QoE red flags, SBA eligibility, and search fund fit analysis.
               </p>
               <Link
-                href="/pricing"
+                href="/signup"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-500 transition-colors"
               >
                 Start Your Free Trial

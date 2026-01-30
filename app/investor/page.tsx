@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../supabaseClient';
 import { Navigation } from '@/components/Navigation';
 import InvestorOverview from './components/InvestorOverview';
 import SearcherPerformance from './components/SearcherPerformance';
 import PipelineVisibility from './components/PipelineVisibility';
-import GenerateMonthlyUpdateButton from './components/GenerateMonthlyUpdateButton';
+import { GenerateReportButton } from './components/GenerateReportButton';
 import { LinkSearcherModal } from './components/LinkSearcherModal';
 import { useInvestorRealtime } from './hooks/useInvestorRealtime';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -20,6 +20,7 @@ export default function InvestorDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
+  const loadingRef = useRef(false);
 
   // Listen for link modal open event from SearcherPerformance
   useEffect(() => {
@@ -31,7 +32,13 @@ export default function InvestorDashboardPage() {
   }, []);
 
   const loadDashboard = useCallback(async (isRefresh = false) => {
+    // Prevent multiple simultaneous calls
+    if (loadingRef.current && !isRefresh) {
+      return;
+    }
+    
     try {
+      loadingRef.current = true;
       if (isRefresh) {
         setRefreshing(true);
       } else {
@@ -94,14 +101,20 @@ export default function InvestorDashboardPage() {
       setError(errorMessage);
       
       // If we have partial data, don't clear it - just show the error
-      if (!dashboardData && !isRefresh) {
-        // Only clear data if this is initial load and we have no data
-      }
+      // Use functional update to avoid dependency on dashboardData
+      setDashboardData((prevData: any) => {
+        if (!prevData && !isRefresh) {
+          // Only clear data if this is initial load and we have no data
+          return null;
+        }
+        return prevData; // Keep existing data
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
+      loadingRef.current = false;
     }
-  }, [router, dashboardData]);
+  }, [router]);
 
   // Extract workspace IDs from dashboard data for realtime subscriptions
   const workspaceIds = useMemo(() => {
@@ -126,7 +139,7 @@ export default function InvestorDashboardPage() {
     return (
       <>
         <Navigation />
-        <main className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+        <main className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {/* Header Skeleton */}
             <div className="mb-8">
@@ -202,7 +215,7 @@ export default function InvestorDashboardPage() {
     return (
       <>
         <Navigation />
-        <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
           <div className="max-w-md w-full text-center">
             <div className="mb-6">
               <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -239,7 +252,7 @@ export default function InvestorDashboardPage() {
   return (
     <>
       <Navigation />
-      <main className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+      <main className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
             <div>
@@ -262,7 +275,8 @@ export default function InvestorDashboardPage() {
               >
                 Link Searcher
               </button>
-              <GenerateMonthlyUpdateButton />
+              <GenerateReportButton type="weekly" bulk={true} />
+              <GenerateReportButton type="monthly" bulk={true} />
             </div>
           </div>
           

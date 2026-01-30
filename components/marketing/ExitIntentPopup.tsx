@@ -123,7 +123,7 @@ export function ExitIntentPopup() {
       />
       
       {/* Modal */}
-      <div className="relative w-full max-w-lg rounded-2xl border border-white/20 bg-gradient-to-br from-gray-900 to-gray-800 p-8 shadow-2xl transform transition-all duration-200 scale-100 opacity-100">
+      <div className="relative w-full max-w-lg rounded-2xl border border-white/20 bg-gradient-to-br from-slate-900 to-slate-800 p-8 shadow-2xl transform transition-all duration-200 scale-100 opacity-100">
         {/* Close button */}
         <button
           onClick={handleClose}

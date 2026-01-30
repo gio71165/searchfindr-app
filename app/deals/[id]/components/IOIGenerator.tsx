@@ -207,7 +207,7 @@ export function IOIGenerator({ deal }: { deal: Deal | null }) {
           {/* Company Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Company Name *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Company Name *</label>
               <input
                 type="text"
                 value={formData.companyName}
@@ -216,7 +216,7 @@ export function IOIGenerator({ deal }: { deal: Deal | null }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Industry</label>
               <input
                 type="text"
                 value={formData.industry}
@@ -225,7 +225,7 @@ export function IOIGenerator({ deal }: { deal: Deal | null }) {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
               <input
                 type="text"
                 value={formData.location}
@@ -238,7 +238,7 @@ export function IOIGenerator({ deal }: { deal: Deal | null }) {
           {/* Purchase Price Range */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Min Price ($)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Min Price ($)</label>
               <input
                 type="number"
                 value={formData.purchasePriceRange.min || ''}
@@ -250,7 +250,7 @@ export function IOIGenerator({ deal }: { deal: Deal | null }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Max Price ($)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Max Price ($)</label>
               <input
                 type="number"
                 value={formData.purchasePriceRange.max || ''}
@@ -266,7 +266,7 @@ export function IOIGenerator({ deal }: { deal: Deal | null }) {
           {/* Structure & Financing */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Structure Type</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Structure Type</label>
               <select
                 value={formData.structureType}
                 onChange={(e) => handleInputChange('structureType', e.target.value as 'asset' | 'stock' | 'tbd')}
@@ -278,7 +278,7 @@ export function IOIGenerator({ deal }: { deal: Deal | null }) {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Financing Type</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Financing Type</label>
               <select
                 value={formData.financingType}
                 onChange={(e) => handleInputChange('financingType', e.target.value as IOIData['financingType'])}
@@ -295,7 +295,7 @@ export function IOIGenerator({ deal }: { deal: Deal | null }) {
           {/* Timeline */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Due Diligence Period (days)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Due Diligence Period (days)</label>
               <input
                 type="number"
                 value={formData.dueDiligencePeriod}
@@ -304,7 +304,7 @@ export function IOIGenerator({ deal }: { deal: Deal | null }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Target Close Date</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Target Close Date</label>
               <input
                 type="date"
                 value={formData.targetCloseDate}
@@ -316,7 +316,7 @@ export function IOIGenerator({ deal }: { deal: Deal | null }) {
 
           {/* Key Conditions */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Due Diligence Conditions</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Due Diligence Conditions</label>
             {formData.keyConditions.map((condition, index) => (
               <div key={index} className="flex gap-2 mb-2">
                 <input
@@ -350,7 +350,7 @@ export function IOIGenerator({ deal }: { deal: Deal | null }) {
               onChange={(e) => handleInputChange('exclusivityRequested', e.target.checked)}
               className="rounded"
             />
-            <label className="text-sm font-medium text-gray-700">Request Exclusivity</label>
+            <label className="text-sm font-medium text-slate-700">Request Exclusivity</label>
             {formData.exclusivityRequested && (
               <input
                 type="number"
@@ -364,10 +364,10 @@ export function IOIGenerator({ deal }: { deal: Deal | null }) {
 
           {/* Buyer Info */}
           <div className="border-t pt-4">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">Buyer Information</h4>
+            <h4 className="text-sm font-semibold text-slate-700 mb-3">Buyer Information</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Name *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Buyer Name *</label>
                 <input
                   type="text"
                   value={formData.buyerName}
@@ -376,7 +376,7 @@ export function IOIGenerator({ deal }: { deal: Deal | null }) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Entity</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Buyer Entity</label>
                 <input
                   type="text"
                   value={formData.buyerEntity}
@@ -386,7 +386,7 @@ export function IOIGenerator({ deal }: { deal: Deal | null }) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Email *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Buyer Email *</label>
                 <input
                   type="email"
                   value={formData.buyerEmail}
@@ -395,7 +395,7 @@ export function IOIGenerator({ deal }: { deal: Deal | null }) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Phone</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Buyer Phone</label>
                 <input
                   type="tel"
                   value={formData.buyerPhone}

@@ -236,7 +236,8 @@ export function OnboardingChecklist() {
   const shouldHide = onboardingCompleted && isComplete && hasChecklistData;
   
   // Define marketing and public pages where checklist should not show
-  const marketingPages = [
+  // Check if pathname starts with any marketing route to catch nested routes
+  const marketingRoutes = [
     '/',
     '/pricing',
     '/compare',
@@ -244,8 +245,16 @@ export function OnboardingChecklist() {
     '/help',
     '/privacy',
     '/terms',
+    '/mission',
+    '/blog',
+    '/tools',
+    '/signup',
+    '/reset-password',
   ];
-  const isMarketingPage = pathname && marketingPages.includes(pathname);
+  const isMarketingPage = pathname && (
+    marketingRoutes.includes(pathname) || 
+    marketingRoutes.some(route => pathname.startsWith(route + '/'))
+  );
   const isLoginPage = pathname === '/login';
   const isPublicPage = isMarketingPage || isLoginPage;
   

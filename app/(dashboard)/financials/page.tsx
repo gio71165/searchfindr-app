@@ -242,7 +242,8 @@ export default function FinancialsPage() {
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-6 py-8">
       <ContentHeader
         title="Financials"
         description="Financial statements uploaded for analysis"
@@ -288,16 +289,16 @@ export default function FinancialsPage() {
       </div>
 
       {/* Results */}
-      <div className="mb-4 text-sm text-gray-600">
+      <div className="mb-4 text-sm text-slate-600">
         Showing {filteredDeals.length} of {deals.length} deals
       </div>
 
       {/* Deal Cards */}
       {filteredDeals.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-gray-300">
+        <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-slate-300">
           <div className="text-6xl mb-4">💰</div>
           <h3 className="text-xl font-semibold mb-2">No financials uploaded yet</h3>
-          <p className="text-gray-600 mb-6">
+          <p className="text-slate-600 mb-6">
             Upload financial statements to get <JargonTooltip term="QoE">QoE</JargonTooltip>-level analysis
           </p>
           <button
@@ -321,6 +322,7 @@ export default function FinancialsPage() {
           {errorMsg}
         </div>
       )}
+      </div>
     </div>
   );
 }

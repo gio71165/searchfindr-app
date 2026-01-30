@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { SearcherMetrics } from '@/lib/data-access/investor-analytics';
 import { Eye, TrendingUp, Edit2, Check, X, Users } from 'lucide-react';
 import { supabase } from '@/app/supabaseClient';
@@ -15,7 +15,6 @@ interface SearcherPerformanceProps {
 }
 
 export default function SearcherPerformance({ searchers, onSearcherUpdate, onLinkSearcher }: SearcherPerformanceProps) {
-  const router = useRouter();
   const [expandedSearcher, setExpandedSearcher] = useState<string | null>(null);
   const [editingSearcher, setEditingSearcher] = useState<string | null>(null);
   const [editName, setEditName] = useState<string>('');
@@ -40,11 +39,6 @@ export default function SearcherPerformance({ searchers, onSearcherUpdate, onLin
     });
   };
 
-  const handleViewDetails = (searcher: SearcherMetrics) => {
-    // Open in new tab to avoid navigation/auth issues
-    const url = `/investor/searchers/${searcher.searcherId}?workspace=${searcher.workspaceId}`;
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
 
   const handleStartEdit = (searcher: SearcherMetrics) => {
     setEditingSearcher(searcher.linkId);
@@ -264,13 +258,17 @@ export default function SearcherPerformance({ searchers, onSearcherUpdate, onLin
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <button
-                    onClick={() => handleViewDetails(searcher)}
-                    className="inline-flex items-center gap-2 px-3 py-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
-                  >
-                    <Eye className="h-4 w-4" />
-                    View Details
-                  </button>
+                  {searcher.searcherId && searcher.workspaceId ? (
+                    <Link
+                      href={`/investor/searchers/${searcher.searcherId}?workspace=${searcher.workspaceId}`}
+                      className="inline-flex items-center gap-2 px-3 py-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      <Eye className="h-4 w-4" />
+                      View Details
+                    </Link>
+                  ) : (
+                    <span className="text-slate-400 text-xs">N/A</span>
+                  )}
                 </td>
               </tr>
             ))}

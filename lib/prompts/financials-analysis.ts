@@ -64,6 +64,92 @@ Balance Sheets:
 - Check for related-party transactions
 - Verify asset valuations (especially inventory, fixed assets)
 
+============================================================
+FINANCIAL DATA EXTRACTION - COMPREHENSIVE SCANNING (CRITICAL)
+============================================================
+
+REVENUE EXTRACTION (REQUIRED):
+You MUST extract revenue data regardless of document format.
+
+Search patterns by document type:
+
+Tax Returns:
+- Form 1120 (Corporate): Line 1a "Gross receipts or sales"
+- Schedule C (Sole Proprietor): Line 1 "Gross receipts or sales"
+- Form 1065 (Partnership): Line 1a "Gross receipts or sales"
+- Look for: "Total revenue", "Gross receipts", "Sales"
+
+P&L Statements:
+- Top line item (usually first row after headers)
+- Account names: "Revenue", "Sales", "Total Revenue", "Net Sales", "Gross Revenue"
+- May be subtotal after returns/allowances
+
+Trial Balances:
+- Account codes 4000-4999 (typical revenue account range)
+- Account names containing: "Revenue", "Sales", "Income"
+- Sum all revenue accounts if multiple
+
+EBITDA EXTRACTION/CALCULATION (REQUIRED):
+Priority order:
+1. If "EBITDA" line exists: extract directly
+2. If "Adjusted EBITDA" exists: extract and note as adjusted
+3. If neither exists: Calculate from components
+
+EBITDA Calculation Formula:
+EBITDA = Net Income + Interest + Taxes + Depreciation + Amortization
+
+Component locations:
+- Net Income: Bottom line of P&L, or "Net profit", "Net income (loss)"
+- Interest: "Interest expense", "Finance charges"
+- Taxes: "Income tax expense", "Provision for taxes"
+- Depreciation: "Depreciation", "D&A", "Depreciation and amortization"
+- Amortization: May be combined with depreciation or separate line
+
+Tax Returns (special handling):
+- Start with "Taxable income" or "Net income" line
+- Add back: Depreciation (Form 4562), Interest (Schedule A), Taxes paid
+- Note: "Calculated from tax return; may understate true earnings"
+
+WORKING CAPITAL COMPONENTS:
+Extract from Balance Sheet if available:
+
+Current Assets:
+- Cash, Accounts Receivable, Inventory, Prepaid expenses
+- Sum for total current assets
+
+Current Liabilities:
+- Accounts Payable, Accrued expenses, Short-term debt, Current portion of long-term debt
+- Sum for total current liabilities
+
+Calculate:
+- Current Ratio = Current Assets / Current Liabilities
+- Working Capital = Current Assets - Current Liabilities
+
+AR/AP Days Calculation (if revenue/COGS available):
+- AR Days = (Accounts Receivable / Revenue) * 365
+- AP Days = (Accounts Payable / COGS) * 365
+
+MULTI-YEAR EXTRACTION:
+If document shows multiple years:
+- Extract ALL years available (typically 2-3 years)
+- Calculate year-over-year changes (% growth/decline)
+- Flag any >20% changes as significant
+
+Format consistency:
+- Convert all values to same unit (e.g., thousands: $1,234 → "1234" with unit="thousands")
+- Note if values are in different units across years
+
+MISSING DATA HANDLING:
+If metric genuinely not found after comprehensive scan:
+- Set value to null
+- Add to missing_items array: "Revenue not found in document"
+- In diligence_notes, note: "Unable to extract revenue - verify document completeness"
+
+DO NOT:
+- Invent or estimate numbers
+- Assume standard percentages (e.g., "assume 10% EBITDA margin")
+- Return "Not stated" or similar text - use null
+
 QUALITY OF EARNINGS (QoE) ANALYSIS (SEARCH FUND FOCUS):
 You MUST analyze and flag quality of earnings issues including:
 - Customer concentration: Calculate % of revenue from top 3 customers if data available
@@ -103,15 +189,21 @@ For each QoE red flag, provide:
 - type: One of "customer_concentration", "revenue_spike", "revenue_drop", "one_time_revenue", "working_capital", "addbacks", "inventory", "revenue_recognition", "related_party"
 - severity: "low", "medium", "high"
 - description: Specific, factual description with numbers and % impact if available
-  * Example: "Customer concentration: Top 3 customers = 55% of revenue (HIGH severity - SBA ineligible threshold)"
-  * Example: "Addbacks: Owner salary addback $400K exceeds market rate by $200K (MEDIUM severity - reduces normalized EBITDA by ~17%)"
+  * GOOD Example: "Owner salary addback $400K exceeds market rate by $200K (market rate $150-200K for $4M revenue business)"
+  * BAD Example: "Owner salary appears high" (too vague)
+- impact: Quantified dollar/percentage impact (null if cannot be quantified)
+  * GOOD Example: "$200K (reduces normalized EBITDA by 17%)"
+  * GOOD Example: "20% reduction in purchase price multiple"
+  * BAD Example: null (when impact can be calculated)
 - why_it_matters: Explain why this matters for search fund buyers (post-LOI QoE issue, SBA eligibility, valuation impact, etc.)
-  * Example: "Market rate for this business is $150-200K. The $300K+ delta suggests either (a) owner is doing the work of 2-3 people OR (b) financials are inflating EBITDA. Either way, this is a post-LOI QoE issue."
-  * Example: "Customer concentration >50% makes SBA financing impossible - this is a deal killer for search fund buyers who rely on SBA debt."
+  * GOOD Example: "Market rate for this role is $150-200K. The $200K+ delta suggests either (a) owner is doing the work of 2-3 people OR (b) financials are inflating EBITDA. Either way, this is a post-LOI QoE issue that will reduce valuation."
+  * GOOD Example: "Customer concentration >50% makes SBA financing impossible - this is a deal killer for search fund buyers who rely on SBA debt."
+  * BAD Example: "May reduce EBITDA" (too vague)
 - next_action: Specific, actionable next step
-  * Example: "Request org chart and ask: 'Who does the owner's job if he leaves?'"
-  * Example: "Request detailed addback schedule with supporting documentation for each item"
-  * Example: "Verify top 10 customer revenue breakdown to confirm concentration <20%"
+  * GOOD Example: "Request org chart and ask: 'Who does the owner's job if he leaves? What is their current compensation?'"
+  * GOOD Example: "Request detailed addback schedule with supporting documentation for each item"
+  * GOOD Example: "Verify top 10 customer revenue breakdown to confirm concentration <20%"
+  * BAD Example: "Verify addbacks" (too generic)
 
 ============================================================
 WORKING CAPITAL ANALYSIS (REQUIRED)
@@ -303,9 +395,12 @@ export const FINANCIALS_SCHEMA: PromptTemplate = {
   "diligence_notes": [string],
   "qoe_red_flags": [
     {
-      "type": "customer_concentration" | "revenue_spike" | "revenue_drop" | "one_time_revenue" | "working_capital" | "addbacks" | "inventory",
+      "type": "customer_concentration" | "revenue_spike" | "revenue_drop" | "one_time_revenue" | "working_capital" | "addbacks" | "inventory" | "revenue_recognition" | "related_party",
       "severity": "low" | "medium" | "high",
-      "description": string
+      "description": string,
+      "impact": string | null,
+      "why_it_matters": string,
+      "next_action": string
     }
   ],
   "proceed_recommendation": "string",

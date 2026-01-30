@@ -58,12 +58,23 @@ export function ExecutiveSummaryCard({
   const verdict = getDealVerdict(deal, redFlags, confidence);
   
   const fin = deal.ai_financials_json || {};
-  const revenue = (typeof fin.revenue === 'string' ? fin.revenue : null) || 'Not stated';
-  const ebitda = (typeof fin.ebitda === 'string' ? fin.ebitda : null) || 'Not stated';
-  const margin = (typeof fin.margin === 'string' ? fin.margin : null) || 'Not stated';
+  const finAny = fin as Record<string, unknown>;
+  // Try multiple sources for revenue: extracted field, financials JSON, or legacy field
+  const revenue = (deal as any).revenue_ttm_extracted ||
+                  (typeof finAny.revenue_ttm === 'string' ? finAny.revenue_ttm : null) ||
+                  (typeof fin.revenue === 'string' ? fin.revenue : null) ||
+                  'Unknown';
+  // Try multiple sources for EBITDA: extracted field, financials JSON, or legacy field
+  const ebitda = (deal as any).ebitda_ttm_extracted ||
+                 (typeof finAny.ebitda_ttm === 'string' ? finAny.ebitda_ttm : null) ||
+                 (typeof fin.ebitda === 'string' ? fin.ebitda : null) ||
+                 'Unknown';
+  const margin = (typeof finAny.ebitda_margin_ttm === 'string' ? finAny.ebitda_margin_ttm : null) ||
+                 (typeof fin.margin === 'string' ? fin.margin : null) ||
+                 null;
   
-  const location = [deal.location_city, deal.location_state].filter(Boolean).join(', ') || 'Location not specified';
-  const industry = deal.industry || 'Industry not specified';
+  const location = [deal.location_city, deal.location_state].filter(Boolean).join(', ') || 'Unknown';
+  const industry = deal.industry || 'Unknown';
   
   // Extract asking price
   const askingPrice = (deal as any).asking_price_extracted || deal.criteria_match_json?.asking_price || null;
@@ -84,9 +95,9 @@ export function ExecutiveSummaryCard({
       icon: AlertTriangle,
       label: 'Proceed with Caution',
       color: 'yellow',
-      bgColor: 'bg-yellow-50',
-      borderColor: 'border-yellow-200',
-      textColor: 'text-yellow-700',
+      bgColor: 'bg-blue-50',
+      borderColor: 'border-blue-200',
+      textColor: 'text-blue-700',
     },
     pass: {
       icon: XCircle,
@@ -114,107 +125,99 @@ export function ExecutiveSummaryCard({
   
   // User verdict badge config
   const userVerdictConfig = {
-    proceed: { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300', label: 'Proceed' },
-    park: { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-300', label: 'Parked' },
-    pass: { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-300', label: 'Passed' }
+    proceed: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Proceed' },
+    park: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', label: 'Parked' },
+    pass: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', label: 'Passed' }
   };
   
   const userVerdictNormalized = userVerdict ? userVerdict.toLowerCase() : null;
   const userVerdictStyle = userVerdictNormalized ? userVerdictConfig[userVerdictNormalized as keyof typeof userVerdictConfig] : null;
   
   return (
-    <div className="rounded-xl border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm overflow-hidden mb-6">
-      {/* AI Gradient Header */}
-      <div className="bg-gradient-to-r from-blue-500 to-indigo-600 px-6 py-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
-            <Sparkles className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h3 className="text-white font-semibold">AI Analysis</h3>
-            <p className="text-blue-100 text-xs">Deal evaluation complete</p>
-          </div>
+    <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all mb-6">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-2 bg-slate-100 rounded-lg">
+          <Sparkles className="w-5 h-5 text-slate-600" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-slate-900">AI Analysis</h3>
+          <p className="text-sm text-slate-600">Deal evaluation complete</p>
         </div>
       </div>
       
       {/* Card content */}
-      <div className={`p-8 ${config.bgColor} rounded-b-xl`}>
-        {/* User Verdict Badge - Prominently displayed at top */}
+      <div className="space-y-6">
+        {/* User Verdict Badge - Subtle */}
         {userVerdictStyle && (
-          <div className="mb-4 flex justify-end">
-            <span className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 ${userVerdictStyle.bg} ${userVerdictStyle.text} ${userVerdictStyle.border}`}>
-              Status: {userVerdictStyle.label}
+          <div className="mb-6 flex justify-end">
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${userVerdictStyle.bg} ${userVerdictStyle.text} ${userVerdictStyle.border}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${
+                userVerdict === 'proceed' ? 'bg-emerald-500' :
+                userVerdict === 'park' ? 'bg-blue-500' :
+                'bg-slate-400'
+              }`} />
+              {userVerdictStyle.label}
             </span>
           </div>
         )}
         
         {/* AI Recommendation Badge */}
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-3">
-          <div className={`rounded-full p-2 ${config.bgColor} ${config.borderColor} border`}>
-            <VerdictIcon className={`h-6 w-6 ${config.textColor}`} />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className={`p-2 rounded-lg ${config.bgColor} border ${config.borderColor}`}>
+              <VerdictIcon className={`h-5 w-5 ${config.textColor}`} />
+            </div>
+            <div>
+              <h2 className={`text-xl font-semibold ${config.textColor}`}>{config.label}</h2>
+              <p className="text-sm text-slate-600 mt-1">
+                Based on confidence level and risk assessment
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className={`text-2xl font-bold ${config.textColor}`}>{config.label}</h2>
-            <p className="text-sm text-slate-600 mt-1">
-              Based on confidence level and risk assessment
-            </p>
-          </div>
+          
+          <ConfidenceBadge level={confidence.level || null} analyzed={confidence.analyzed} />
         </div>
-        
-        <ConfidenceBadge level={confidence.level || null} analyzed={confidence.analyzed} />
-      </div>
       
       {/* Key Metrics Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-3 gap-6 pb-6 border-b border-slate-100">
         {askingPrice && (
           <div>
-            <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
-              <DollarSign className="h-4 w-4" />
-              <span>Asking Price</span>
-            </div>
-            <p className="text-3xl font-bold text-slate-900">
+            <p className="text-xs text-slate-500 mb-1">Asking Price</p>
+            <p className="text-2xl font-bold font-mono text-slate-900">
               {askingPrice}
             </p>
           </div>
         )}
         <div>
-          <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
-            <DollarSign className="h-4 w-4" />
-            <span>Revenue</span>
-          </div>
-          <p className="text-3xl font-bold text-slate-900">
+          <p className="text-xs text-slate-500 mb-1">Revenue (TTM)</p>
+          <p className="text-2xl font-bold font-mono text-slate-900">
             {typeof revenue === 'string' ? revenue : formatMoney(revenue)}
           </p>
         </div>
-        
         <div>
-          <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
-            <TrendingUp className="h-4 w-4" />
-            <span>EBITDA</span>
-          </div>
-          <p className="text-3xl font-bold text-slate-900">
+          <p className="text-xs text-slate-500 mb-1">EBITDA (TTM)</p>
+          <p className="text-2xl font-bold font-mono text-slate-900">
             {typeof ebitda === 'string' ? ebitda : formatMoney(ebitda)}
           </p>
-          {margin && margin !== 'Not stated' && (
-            <p className="text-sm text-slate-600 mt-1">Margin: {margin}</p>
-          )}
         </div>
-        
-        <div>
-          <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
-            <MapPin className="h-4 w-4" />
-            <span>Location</span>
-          </div>
-          <p className="text-lg font-semibold text-slate-900">{location}</p>
+      </div>
+      
+      {margin && margin !== 'Not stated' && (
+        <div className="flex items-center justify-between text-sm pb-6 border-b border-slate-100">
+          <span className="text-slate-600">EBITDA Margin</span>
+          <span className="font-semibold font-mono text-slate-900">{margin}</span>
         </div>
-        
+      )}
+      
+      <div className="grid grid-cols-2 gap-6">
         <div>
-          <div className="flex items-center gap-2 text-sm text-slate-600 mb-1">
-            <Building2 className="h-4 w-4" />
-            <span>Industry</span>
-          </div>
-          <p className="text-lg font-semibold text-slate-900">{industry}</p>
+          <p className="text-xs text-slate-500 mb-1">Location</p>
+          <p className="text-base font-semibold text-slate-900">{location}</p>
+        </div>
+        <div>
+          <p className="text-xs text-slate-500 mb-1">Industry</p>
+          <p className="text-base font-semibold text-slate-900">{industry}</p>
         </div>
       </div>
       
@@ -245,29 +248,41 @@ export function ExecutiveSummaryCard({
       
       {/* Primary Actions - Verdict Buttons */}
       {!hideVerdictButtons && (
-        <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-slate-200">
+        <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-slate-200">
           <AsyncButton
             onClick={onProceed}
             isLoading={settingVerdict}
             loadingText="Setting…"
-            className="px-6 py-3 font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-all shadow-lg hover:shadow-xl"
+            className={`px-4 py-2 rounded-lg font-medium text-sm border-2 transition-all ${
+              userVerdict === 'proceed'
+                ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+            }`}
           >
-            Proceed
+            ✓ Proceed
           </AsyncButton>
           <AsyncButton
             onClick={onPark}
             isLoading={settingVerdict}
             loadingText="Setting…"
-            className="px-6 py-3 font-semibold rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white transition-all shadow-lg hover:shadow-xl"
+            className={`px-4 py-2 rounded-lg font-medium text-sm border-2 transition-all ${
+              userVerdict === 'park'
+                ? 'border-blue-500 bg-blue-50 text-blue-700'
+                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+            }`}
           >
-            Park
+            ⏸ Park
           </AsyncButton>
           <AsyncButton
             onClick={onPass}
             isLoading={settingVerdict}
-            className="px-6 py-3 font-semibold rounded-lg border-2 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 transition-all shadow-sm hover:shadow-md"
+            className={`px-4 py-2 rounded-lg font-medium text-sm border-2 transition-all ${
+              userVerdict === 'pass'
+                ? 'border-slate-400 bg-slate-50 text-slate-700'
+                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+            }`}
           >
-            Pass
+            ✕ Pass
           </AsyncButton>
         </div>
       )}

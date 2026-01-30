@@ -7,7 +7,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 function LoadingScreen() {
   return (
-    <div className="flex h-screen items-center justify-center bg-[#F9FAFB]">
+    <div className="flex h-screen items-center justify-center bg-slate-50">
       <div className="text-center">
         <LoadingSpinner size="lg" className="mx-auto mb-4" />
         <p className="text-slate-600">Loading SearchFindr...</p>
@@ -37,7 +37,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Navigation />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main id="main-content" className="flex-1 overflow-y-auto bg-[#F9FAFB] lg:ml-0">
+        <main id="main-content" className="flex-1 overflow-y-auto bg-slate-50 lg:ml-0">
           {children}
         </main>
       </div>

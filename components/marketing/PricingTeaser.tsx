@@ -101,22 +101,16 @@ export function PricingTeaser() {
                 </div>
               </div>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <div className="flex justify-center">
                 <Link
-                  href="/pricing"
+                  href="/signup"
                   className="w-full sm:w-auto px-8 py-4 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-base font-semibold text-white hover:from-emerald-400 hover:to-emerald-500 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-105 flex items-center justify-center gap-2"
                 >
                   Start Your Free Trial
                   <ArrowRight className="h-5 w-5" />
                 </Link>
-                <Link
-                  href="/pricing"
-                  className="w-full sm:w-auto px-8 py-4 rounded-lg border-2 border-white/20 bg-white/5 text-base font-semibold text-white hover:bg-white/10 hover:border-white/30 transition-all"
-                >
-                  Lock in $79/mo Forever
-                </Link>
               </div>
-              <p className="text-center text-sm text-gray-400 mt-4">
+              <p className="text-center text-sm text-slate-400 mt-4">
                 <span className="font-semibold text-emerald-400">7-day free trial</span> • Credit card required • Cancel anytime with one click
               </p>
             </div>

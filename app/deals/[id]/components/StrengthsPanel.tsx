@@ -78,31 +78,29 @@ export function StrengthsPanel({ deal, financialAnalysis }: { deal: Deal; financ
   
   if (uniqueStrengths.length === 0) {
     return (
-      <div className="bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-xl p-6 shadow-sm">
-        <div className="text-sm text-emerald-700">
+      <div className="bg-white border-2 border-emerald-200 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
+        <div className="text-sm text-slate-600">
           No specific strengths identified yet. Run analysis to generate strengths.
         </div>
       </div>
     );
   }
-  
+
   return (
-    <div className="bg-gradient-to-br from-emerald-50 to-green-50 border-2 border-emerald-200 rounded-xl p-6 shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-emerald-500/30">
-          <CheckCircle2 className="w-6 h-6 text-white" />
+    <div className="bg-white border-2 border-emerald-200 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 bg-emerald-50 rounded-lg">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600" />
         </div>
-        <div className="flex-1">
-          <h3 className="font-bold text-emerald-900 text-lg mb-3">Key Strengths</h3>
-          <div className="space-y-2">
-            {uniqueStrengths.map((strength, idx) => (
-              <div key={idx} className="flex items-start gap-2 bg-white/60 rounded-lg p-3 border border-emerald-200 hover:bg-white/80 transition-colors">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 flex-shrink-0" />
-                <p className="text-emerald-900 text-sm leading-relaxed">{strength}</p>
-              </div>
-            ))}
+        <h3 className="text-lg font-semibold text-slate-900">Key Strengths</h3>
+      </div>
+      <div className="space-y-2">
+        {uniqueStrengths.map((strength, idx) => (
+          <div key={idx} className="flex items-start gap-2 bg-slate-50 rounded-lg p-3 border border-emerald-200 hover:bg-slate-100 transition-colors">
+            <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 flex-shrink-0" />
+            <p className="text-slate-900 text-sm leading-relaxed">{strength}</p>
           </div>
-        </div>
+        ))}
       </div>
     </div>
   );

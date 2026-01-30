@@ -2,10 +2,10 @@
 import type { ExtractedFields, ListingStub } from "./parsers/types";
 
 /**
- * V1: HARD LOCK — ONLY these industries are allowed.
+ * V1: Supported industries for on-market listings.
  * Everything else must end up NULL.
  */
-export type V1IndustryTag = "HVAC" | "Plumbing" | "Electrical";
+export type V1IndustryTag = "HVAC" | "Plumbing" | "Electrical" | "Landscaping" | "Pest Control" | "Commercial Cleaning" | "Auto Repair" | "Home Health" | "IT Services" | "Staffing";
 
 export type NormalizedDeal = {
   company_name: string | null;
@@ -212,10 +212,17 @@ type IndustryTag = V1IndustryTag;
 function industryFromSourceName(sourceName: string): { tag: IndustryTag | null; confidence: number } {
   const s = (sourceName ?? "").toLowerCase();
 
-  // If you add “broker - hvac” etc, these will force tag with high confidence:
+  // If you add "broker - hvac" etc, these will force tag with high confidence:
   if (s.includes(" - hvac")) return { tag: "HVAC", confidence: 95 };
   if (s.includes(" - electrical")) return { tag: "Electrical", confidence: 95 };
   if (s.includes(" - plumbing")) return { tag: "Plumbing", confidence: 95 };
+  if (s.includes(" - landscaping")) return { tag: "Landscaping", confidence: 95 };
+  if (s.includes(" - pest control")) return { tag: "Pest Control", confidence: 95 };
+  if (s.includes(" - commercial cleaning")) return { tag: "Commercial Cleaning", confidence: 95 };
+  if (s.includes(" - auto repair")) return { tag: "Auto Repair", confidence: 95 };
+  if (s.includes(" - home health")) return { tag: "Home Health", confidence: 95 };
+  if (s.includes(" - it services") || s.includes(" - msp")) return { tag: "IT Services", confidence: 95 };
+  if (s.includes(" - staffing")) return { tag: "Staffing", confidence: 95 };
 
   return { tag: null, confidence: 0 };
 }
@@ -278,6 +285,48 @@ function mapIndustry(terms: string[]): { tag: IndustryTag | null; confidence: nu
       strong: ["electrical contractor", "electrician", "electrical", "panel upgrade", "rewire", "generator", "low voltage", "low-voltage"],
       weak: ["lighting retrofit", "ev charger", "alarm", "security system", "smart home"],
       exclude: ["electronics manufacturing", "semiconductor"],
+    },
+    {
+      tag: "Landscaping",
+      strong: ["landscaping", "landscape", "lawn care", "lawn maintenance", "irrigation", "hardscaping", "tree service", "arborist"],
+      weak: ["mowing", "snow removal", "mulching", "fertilization", "sprinkler", "outdoor lighting"],
+      exclude: ["agriculture", "farming", "nursery wholesale"],
+    },
+    {
+      tag: "Pest Control",
+      strong: ["pest control", "exterminator", "pest management", "termite", "bed bug", "rodent control"],
+      weak: ["insect", "wildlife removal", "fumigation", "inspection"],
+      exclude: ["agriculture", "veterinary"],
+    },
+    {
+      tag: "Commercial Cleaning",
+      strong: ["commercial cleaning", "janitorial", "office cleaning", "building maintenance", "custodial"],
+      weak: ["carpet cleaning", "window cleaning", "floor care", "sanitization", "disinfection"],
+      exclude: ["residential cleaning only", "maid service"],
+    },
+    {
+      tag: "Auto Repair",
+      strong: ["auto repair", "automotive repair", "car repair", "auto service", "mechanic", "auto shop"],
+      weak: ["tire", "brake", "transmission", "engine repair", "oil change", "auto body"],
+      exclude: ["car dealership", "new car sales", "auto parts wholesale"],
+    },
+    {
+      tag: "Home Health",
+      strong: ["home health", "home care", "home healthcare", "home health agency", "home nursing"],
+      weak: ["elder care", "personal care", "companion care", "skilled nursing", "hospice"],
+      exclude: ["hospital", "nursing home", "assisted living facility"],
+    },
+    {
+      tag: "IT Services",
+      strong: ["it services", "managed services", "msp", "managed service provider", "it support", "computer services"],
+      weak: ["network", "cloud", "cybersecurity", "help desk", "it consulting", "software support"],
+      exclude: ["software development", "saas", "software product"],
+    },
+    {
+      tag: "Staffing",
+      strong: ["staffing", "temporary staffing", "employment agency", "recruiting", "placement"],
+      weak: ["temp", "contractor", "workforce", "hiring", "recruitment"],
+      exclude: ["executive search", "headhunter", "professional services"],
     },
   ];
 

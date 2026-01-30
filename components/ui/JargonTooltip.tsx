@@ -87,7 +87,7 @@ export function JargonTooltip({ term, children, className = '' }: JargonTooltipP
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onClick={handleClick}
-        className="cursor-help underline decoration-dotted decoration-gray-400 underline-offset-2 hover:decoration-gray-600"
+        className="cursor-help underline decoration-dotted decoration-slate-400 underline-offset-2 hover:decoration-slate-600"
       >
         {displayText}
       </span>
@@ -97,18 +97,18 @@ export function JargonTooltip({ term, children, className = '' }: JargonTooltipP
           ref={tooltipRef}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
-          className={`absolute z-50 w-64 p-3 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg shadow-lg pointer-events-auto ${
+          className={`absolute z-50 w-64 p-3 text-sm text-slate-700 bg-white border border-slate-200 rounded-lg shadow-lg pointer-events-auto ${
             position === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
           } left-1/2 -translate-x-1/2`}
           role="tooltip"
         >
-          <div className="font-semibold text-gray-900 mb-1">{term}</div>
-          <div className="text-gray-600 leading-relaxed">{definition}</div>
+          <div className="font-semibold text-slate-900 mb-1">{term}</div>
+          <div className="text-slate-600 leading-relaxed">{definition}</div>
           <div
             className={`absolute w-0 h-0 border-4 border-transparent ${
               position === 'top'
-                ? 'top-full left-1/2 -translate-x-1/2 border-t-gray-200'
-                : 'bottom-full left-1/2 -translate-x-1/2 border-b-gray-200'
+                ? 'top-full left-1/2 -translate-x-1/2 border-t-slate-200'
+                : 'bottom-full left-1/2 -translate-x-1/2 border-b-slate-200'
             }`}
           />
         </div>

@@ -12,7 +12,7 @@ import { BulkActionsBar } from '@/components/dashboard/BulkActionsBar';
 import { SavedFilters } from '@/components/dashboard/SavedFilters';
 import { ApplyCriteriaFilter } from '@/components/dashboard/ApplyCriteriaFilter';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { Search as SearchIcon, FileText, TrendingUp } from 'lucide-react';
+import { Search as SearchIcon, FileText, TrendingUp, Target, ChevronDown, XCircle, Upload, SlidersHorizontal } from 'lucide-react';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { ErrorState } from '@/components/ui/ErrorState';
@@ -111,6 +111,7 @@ function DashboardPageContent() {
   const [selectedStage, setSelectedStage] = useState<Stage>('all');
   const [selectedVerdict, setSelectedVerdict] = useState<Verdict>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   // Upload state
   const [cimFile, setCimFile] = useState<File | null>(null);
@@ -135,6 +136,25 @@ function DashboardPageContent() {
 
   const [selectedDealIds, setSelectedDealIds] = useState<Set<string>>(new Set());
 
+  // Handle URL filter params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const filter = params.get('filter');
+    if (filter === 'new') {
+      setSelectedStage('new');
+      setSelectedVerdict('all');
+    } else if (filter === 'reviewing') {
+      setSelectedVerdict('proceed');
+      setSelectedStage('all');
+    } else if (filter === 'pipeline') {
+      setSelectedStage('follow_up');
+      setSelectedVerdict('all');
+    } else if (filter === 'passed') {
+      setSelectedStage('passed');
+      setSelectedVerdict('all');
+    }
+  }, []);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -153,6 +173,36 @@ function DashboardPageContent() {
     });
     return () => { ok = false; };
   }, [authLoading, user, workspaceId, router]);
+
+  // Listen for upload triggers from navigation
+  useEffect(() => {
+    const handleCimUpload = () => {
+      handleCimButtonClick();
+    };
+    const handleFinancialsUpload = () => {
+      handleFinancialsButtonClick();
+    };
+
+    window.addEventListener('trigger-cim-upload', handleCimUpload);
+    window.addEventListener('trigger-financials-upload', handleFinancialsUpload);
+
+    // Also check URL params
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('upload') === 'cim') {
+      handleCimButtonClick();
+      // Clean up URL
+      router.replace('/dashboard', { scroll: false });
+    } else if (params.get('upload') === 'financials') {
+      handleFinancialsButtonClick();
+      // Clean up URL
+      router.replace('/dashboard', { scroll: false });
+    }
+
+    return () => {
+      window.removeEventListener('trigger-cim-upload', handleCimUpload);
+      window.removeEventListener('trigger-financials-upload', handleFinancialsUpload);
+    };
+  }, [router]);
 
   function errMsg(e: unknown): string {
     if (!e) return 'Unknown error';
@@ -647,174 +697,291 @@ function DashboardPageContent() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto overflow-x-hidden">
-      <div className="mb-6 sm:mb-8" data-onboarding="dashboard-main">
-        <ContentHeader
-          title={`Welcome${user?.email ? `, ${user.email.split('@')[0]}` : ''}`}
-          description="Quickly evaluate deals and find the good ones"
-        />
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-6 py-8">
+      {/* Page Header */}
+      <div className="mb-8" data-onboarding="dashboard-main">
+        <h1 className="text-2xl font-bold text-slate-900 mb-2">Dashboard</h1>
+        <p className="text-slate-600">Track and analyze your deal pipeline</p>
       </div>
 
-      {/* Search */}
-      <div className="mb-6 sm:mb-8">
-        <input
-          ref={searchInputRef}
-          type="text"
-          placeholder="Search deals by company name..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full px-4 py-3 text-base border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm hover:shadow-md"
-          aria-label="Search deals"
-        />
-      </div>
-
-      {/* Gradient Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        {/* New Deals - Emerald */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-emerald-500 to-emerald-600 text-white rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer hover:scale-[1.02]">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
+      {/* Simplified Filter Bar - Single Row */}
+      <div className="flex items-center gap-3 mb-8 flex-wrap">
+        {/* Search */}
+        <div className="flex-1 min-w-[200px] max-w-md">
           <div className="relative">
-            <div className="text-sm font-medium opacity-90 mb-1">New Deals</div>
-            <div className="text-3xl font-bold">{stageCounts.new || 0}</div>
-            {stageCounts.new > 0 && (
-              <div className="text-xs opacity-80 mt-2">Review these first</div>
-            )}
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search deals..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              aria-label="Search deals"
+            />
           </div>
         </div>
 
-        {/* Reviewing - Blue */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer hover:scale-[1.02]">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
-          <div className="relative">
-            <div className="text-sm font-medium opacity-90 mb-1">Reviewing</div>
-            <div className="text-3xl font-bold">{stageCounts.reviewing || 0}</div>
-            {stageCounts.reviewing > 0 && (
-              <div className="text-xs opacity-80 mt-2">In analysis</div>
-            )}
-          </div>
+        {/* Quick Verdict Filters - Pills */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setSelectedVerdict('all')}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              selectedVerdict === 'all'
+                ? 'bg-slate-900 text-white'
+                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            All Deals
+          </button>
+          <button
+            onClick={() => setSelectedVerdict('proceed')}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              selectedVerdict === 'proceed'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            Proceed
+          </button>
+          <button
+            onClick={() => setSelectedVerdict('park')}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              selectedVerdict === 'park'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            Park
+          </button>
         </div>
 
-        {/* Active Pipeline - Purple */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer hover:scale-[1.02]">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
-          <div className="relative">
-            <div className="text-sm font-medium opacity-90 mb-1">In Pipeline</div>
-            <div className="text-3xl font-bold">
-              {(stageCounts.follow_up || 0) + (stageCounts.ioi_sent || 0) + (stageCounts.loi || 0) + (stageCounts.dd || 0)}
-            </div>
-            <div className="text-xs opacity-80 mt-2">Active deals</div>
-          </div>
-        </div>
+        {/* Advanced Filters Dropdown */}
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className={`px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition flex items-center gap-2 ${
+            showFilters || selectedStage !== 'all' || selectedSource !== null
+              ? 'border-emerald-300 bg-emerald-50'
+              : ''
+          }`}
+        >
+          <SlidersHorizontal className="w-4 h-4" />
+          More Filters
+          {((selectedStage !== 'all') || (selectedSource !== null)) && (
+            <span className="ml-1 text-emerald-600 font-semibold">
+              ({[selectedStage !== 'all' ? 1 : 0, selectedSource !== null ? 1 : 0].reduce((a, b) => a + b, 0)})
+            </span>
+          )}
+        </button>
 
-        {/* Passed - Slate */}
-        <div className="relative overflow-hidden bg-gradient-to-br from-slate-500 to-slate-600 text-white rounded-xl p-5 shadow-lg hover:shadow-xl transition-all duration-200 cursor-pointer hover:scale-[1.02]">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16" />
-          <div className="relative">
-            <div className="text-sm font-medium opacity-90 mb-1">Passed</div>
-            <div className="text-3xl font-bold">{stageCounts.passed || 0}</div>
-            <div className="text-xs opacity-80 mt-2">Declined</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Saved Filters */}
-      <ApplyCriteriaFilter
-        deals={deals as any}
-        onFilterChange={handleCriteriaFilterChange}
-      />
-      
-      <SavedFilters
-        onLoadFilter={(filters) => {
-          if (filters.source !== undefined) setSelectedSource(filters.source as SourceType);
-          if (filters.stage !== undefined) setSelectedStage(filters.stage as Stage);
-          if (filters.verdict !== undefined) setSelectedVerdict(filters.verdict as Verdict);
-          if (filters.search !== undefined) setSearchQuery(filters.search);
-        }}
-        currentFilters={{
-          source: selectedSource,
-          stage: selectedStage,
-          verdict: selectedVerdict,
-          search: searchQuery,
-        }}
-      />
-
-      {/* Compact Filter Bar */}
-      <div className="bg-white rounded-lg border border-slate-200 p-4 mb-6 space-y-3" data-onboarding="filter-buttons">
-        {/* Verdict filters */}
-        <VerdictFilters
-          selectedVerdict={selectedVerdict}
-          setSelectedVerdict={(verdict: string) => setSelectedVerdict(verdict as Verdict)}
-        />
-
-        {/* Stage filters */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium text-gray-600">Stage:</span>
-          {[
-            { label: 'All', value: 'all' as const },
-            { label: 'Follow-up', value: 'follow_up' as const },
-            { label: 'IOI Sent', value: 'ioi_sent' as const },
-            { label: 'LOI', value: 'loi' as const },
-            { label: 'DD', value: 'dd' as const },
-          ].map((stage) => (
-            <button
-              key={stage.value}
-              onClick={() => setSelectedStage(stage.value as Stage)}
-              className={`
-                px-3 py-1.5 rounded-lg text-sm font-medium transition-all
-                ${selectedStage === stage.value
-                  ? 'bg-purple-500 text-white shadow-md'
-                  : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                }
-              `}
-            >
-              {stage.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Source filters */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium text-gray-600">Source:</span>
-          {[
-            { label: 'All', value: null as SourceType },
-            { label: 'CIM', value: 'cim_pdf' as const },
-            { label: 'Financials', value: 'financials' as const },
-            { label: 'On-Market', value: 'on_market' as const },
-            { label: 'Off-Market', value: 'off_market' as const },
-          ].map((source) => (
-            <button
-              key={source.value ?? 'all'}
-              onClick={() => setSelectedSource(source.value)}
-              className={`
-                px-3 py-1.5 rounded-lg text-sm font-medium transition-all
-                ${selectedSource === source.value
-                  ? 'bg-indigo-500 text-white shadow-md'
-                  : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                }
-              `}
-            >
-              {source.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Quick Actions - Enhanced styling */}
-      <div className="flex flex-wrap gap-3 mb-6 sm:mb-8">
+        {/* Upload CIM Button */}
         <button
           onClick={handleCimButtonClick}
-          className="inline-flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-lg transition-all border-2 border-slate-300 hover:border-slate-400 hover:shadow-md touch-manipulation"
+          className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-500 transition flex items-center gap-2"
         >
-          <FileText className="h-4 w-4 flex-shrink-0" />
-          <span>Upload CIM</span>
+          <Upload className="w-4 h-4" />
+          Upload CIM
         </button>
+      </div>
+
+      {/* Advanced Filters Panel (Collapsible) */}
+      {showFilters && (
+        <div className="mb-6 p-4 bg-white border border-slate-200 rounded-lg">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Stage filters */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Stage</label>
+              <div className="flex items-center gap-2 flex-wrap">
+                {[
+                  { label: 'All', value: 'all' as const },
+                  { label: 'Follow-up', value: 'follow_up' as const },
+                  { label: 'IOI Sent', value: 'ioi_sent' as const },
+                  { label: 'LOI', value: 'loi' as const },
+                  { label: 'DD', value: 'dd' as const },
+                ].map((stage) => (
+                  <button
+                    key={stage.value}
+                    onClick={() => setSelectedStage(stage.value as Stage)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      selectedStage === stage.value
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {stage.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Source filters */}
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Source</label>
+              <div className="flex items-center gap-2 flex-wrap">
+                {[
+                  { label: 'All', value: null as SourceType },
+                  { label: 'CIM', value: 'cim_pdf' as const },
+                  { label: 'Financials', value: 'financials' as const },
+                  { label: 'On-Market', value: 'on_market' as const },
+                  { label: 'Off-Market', value: 'off_market' as const },
+                ].map((source) => (
+                  <button
+                    key={source.value ?? 'all'}
+                    onClick={() => setSelectedSource(source.value)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                      selectedSource === source.value
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    {source.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stat Cards - Clean White Cards with Subtle Accents */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {/* New Deals - Emerald accent */}
         <button
-          onClick={handleFinancialsButtonClick}
-          className="inline-flex items-center justify-center gap-2 px-4 py-3 min-h-[44px] text-sm font-semibold text-slate-700 bg-white hover:bg-slate-50 rounded-lg transition-all border-2 border-slate-300 hover:border-slate-400 hover:shadow-md touch-manipulation"
+          onClick={() => {
+            setSelectedStage('new');
+            setSelectedVerdict('all');
+            router.push('/dashboard?filter=new', { scroll: false });
+          }}
+          className={`bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg hover:border-slate-300 transition-all duration-200 cursor-pointer group text-left ${
+            selectedStage === 'new' ? 'ring-2 ring-emerald-500 ring-offset-2' : ''
+          }`}
         >
-          <TrendingUp className="h-4 w-4 flex-shrink-0" />
-          <span>Upload Financials</span>
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2.5 bg-emerald-50 rounded-lg">
+              <TrendingUp className="w-5 h-5 text-emerald-600" />
+            </div>
+            {stageCounts.new > 0 && (
+              <span className="text-sm font-medium text-emerald-600">Review these first</span>
+            )}
+          </div>
+          <div className="space-y-1">
+            <p className="text-3xl font-bold font-mono text-slate-900">{stageCounts.new || 0}</p>
+            <p className="text-sm text-slate-600">New Deals</p>
+          </div>
+          <div className="mt-4 text-xs text-slate-500 opacity-0 group-hover:opacity-100 transition">
+            Click to filter →
+          </div>
         </button>
+
+        {/* Reviewing - Blue accent */}
+        <button
+          onClick={() => {
+            setSelectedVerdict('proceed');
+            setSelectedStage('all');
+            router.push('/dashboard?filter=reviewing', { scroll: false });
+          }}
+          className={`bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg hover:border-slate-300 transition-all duration-200 cursor-pointer group text-left ${
+            selectedVerdict === 'proceed' ? 'ring-2 ring-blue-500 ring-offset-2' : ''
+          }`}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2.5 bg-blue-50 rounded-lg">
+              <Target className="w-5 h-5 text-blue-600" />
+            </div>
+            {stageCounts.reviewing > 0 && (
+              <span className="text-sm font-medium text-blue-600">In analysis</span>
+            )}
+          </div>
+          <div className="space-y-1">
+            <p className="text-3xl font-bold font-mono text-slate-900">{stageCounts.reviewing || 0}</p>
+            <p className="text-sm text-slate-600">Reviewing</p>
+          </div>
+          <div className="mt-4 text-xs text-slate-500 opacity-0 group-hover:opacity-100 transition">
+            Click to filter →
+          </div>
+        </button>
+
+        {/* In Pipeline - Amber accent */}
+        <button
+          onClick={() => {
+            setSelectedStage('follow_up');
+            setSelectedVerdict('all');
+            router.push('/dashboard?filter=pipeline', { scroll: false });
+          }}
+          className={`bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg hover:border-slate-300 transition-all duration-200 cursor-pointer group text-left ${
+            selectedStage === 'follow_up' || selectedStage === 'ioi_sent' || selectedStage === 'loi' || selectedStage === 'dd' ? 'ring-2 ring-amber-500 ring-offset-2' : ''
+          }`}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2.5 bg-amber-50 rounded-lg">
+              <TrendingUp className="w-5 h-5 text-amber-600" />
+            </div>
+            {(stageCounts.follow_up || 0) + (stageCounts.ioi_sent || 0) + (stageCounts.loi || 0) + (stageCounts.dd || 0) > 0 && (
+              <span className="text-sm font-medium text-amber-600">Active deals</span>
+            )}
+          </div>
+          <div className="space-y-1">
+            <p className="text-3xl font-bold font-mono text-slate-900">
+              {(stageCounts.follow_up || 0) + (stageCounts.ioi_sent || 0) + (stageCounts.loi || 0) + (stageCounts.dd || 0)}
+            </p>
+            <p className="text-sm text-slate-600">In Pipeline</p>
+          </div>
+          <div className="mt-4 text-xs text-slate-500 opacity-0 group-hover:opacity-100 transition">
+            Click to filter →
+          </div>
+        </button>
+
+        {/* Passed - Slate accent */}
+        <button
+          onClick={() => {
+            setSelectedStage('passed');
+            setSelectedVerdict('all');
+            router.push('/dashboard?filter=passed', { scroll: false });
+          }}
+          className={`bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg hover:border-slate-300 transition-all duration-200 cursor-pointer group text-left ${
+            selectedStage === 'passed' ? 'ring-2 ring-slate-500 ring-offset-2' : ''
+          }`}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-2.5 bg-slate-50 rounded-lg">
+              <XCircle className="w-5 h-5 text-slate-600" />
+            </div>
+            {stageCounts.passed > 0 && (
+              <span className="text-sm font-medium text-slate-600">This month</span>
+            )}
+          </div>
+          <div className="space-y-1">
+            <p className="text-3xl font-bold font-mono text-slate-900">{stageCounts.passed || 0}</p>
+            <p className="text-sm text-slate-600">Passed</p>
+          </div>
+          <div className="mt-4 text-xs text-slate-500 opacity-0 group-hover:opacity-100 transition">
+            Click to filter →
+          </div>
+        </button>
+      </div>
+
+      {/* Saved Filters & Criteria Filter (keep for functionality) */}
+      <div className="mb-6">
+        <ApplyCriteriaFilter
+          deals={deals as any}
+          onFilterChange={handleCriteriaFilterChange}
+        />
+        
+        <SavedFilters
+          onLoadFilter={(filters) => {
+            if (filters.source !== undefined) setSelectedSource(filters.source as SourceType);
+            if (filters.stage !== undefined) setSelectedStage(filters.stage as Stage);
+            if (filters.verdict !== undefined) setSelectedVerdict(filters.verdict as Verdict);
+            if (filters.search !== undefined) setSearchQuery(filters.search);
+          }}
+          currentFilters={{
+            source: selectedSource,
+            stage: selectedStage,
+            verdict: selectedVerdict,
+            search: searchQuery,
+          }}
+        />
       </div>
 
       {/* Hidden file inputs */}
@@ -913,13 +1080,41 @@ function DashboardPageContent() {
       {/* DEAL CARDS */}
       {deals.length === 0 ? (
         <EmptyState
-          icon={FileText}
-          title="No deals yet!"
-          description="Upload your first CIM to get started. SearchFindr will analyze it and help you identify the best opportunities."
-          actionLabel="Upload CIM"
+          icon={Target}
+          title="Let's analyze your first deal"
+          description="SearchFindr will extract key metrics, identify red flags, and help you decide in 60 seconds."
+          actionLabel="📤 Upload Your First CIM"
           onAction={handleCimButtonClick}
-          secondaryActionLabel="Upload Financials"
-          onSecondaryAction={handleFinancialsButtonClick}
+          showSampleOption={true}
+          onSampleAction={async () => {
+            try {
+              // Fetch the sample CIM from public folder
+              const response = await fetch('/sample-cim.pdf');
+              if (!response.ok) throw new Error('Failed to fetch sample CIM');
+              const blob = await response.blob();
+              const file = new File([blob], 'sample-cim.pdf', { type: 'application/pdf' });
+              
+              // Trigger the CIM upload handler with the sample file
+              const dataTransfer = new DataTransfer();
+              dataTransfer.items.add(file);
+              const input = document.createElement('input');
+              input.type = 'file';
+              input.files = dataTransfer.files;
+              
+              // Simulate file selection
+              if (cimInputRef.current) {
+                Object.defineProperty(cimInputRef.current, 'files', {
+                  value: dataTransfer.files,
+                  writable: false,
+                });
+                const event = new Event('change', { bubbles: true });
+                cimInputRef.current.dispatchEvent(event);
+              }
+            } catch (error) {
+              console.error('Error loading sample CIM:', error);
+              alert('Failed to load sample CIM. Please try uploading your own CIM.');
+            }
+          }}
         />
       ) : filteredDeals.length === 0 ? (
         <EmptyState
@@ -947,7 +1142,7 @@ function DashboardPageContent() {
               </span>
             )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Mobile: Stack vertically, Desktop: Grid */}
             {filteredDeals.map((deal, index) => (
               <div
@@ -1034,7 +1229,7 @@ function DashboardPageContent() {
           Press <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded text-xs">?</kbd> for shortcuts
         </button>
       </div>
-
+      </div>
     </div>
   );
 }

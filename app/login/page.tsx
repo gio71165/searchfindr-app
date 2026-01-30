@@ -170,9 +170,17 @@ function LoginPageContent() {
                       {showPw ? 'Hide' : 'Show'}
                     </button>
                   </div>
-                  <p className="mt-2 text-xs text-slate-400">
-                    If you forgot your password, contact support. Access is provided after purchase.
-                  </p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <p className="text-xs text-slate-400">
+                      Access is provided after purchase.
+                    </p>
+                    <Link
+                      href="/reset-password"
+                      className="text-xs text-blue-600 hover:text-blue-500 transition-colors"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
                 </div>
 
                 <AsyncButton

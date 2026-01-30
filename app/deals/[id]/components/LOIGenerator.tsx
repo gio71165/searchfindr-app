@@ -242,7 +242,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
           {/* Company Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Company Name *</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Company Name *</label>
               <input
                 type="text"
                 value={formData.companyName}
@@ -251,7 +251,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Industry</label>
               <input
                 type="text"
                 value={formData.industry}
@@ -260,7 +260,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
               <input
                 type="text"
                 value={formData.location}
@@ -272,7 +272,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
 
           {/* Purchase Price */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Purchase Price ($) *</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Purchase Price ($) *</label>
             <input
               type="number"
               value={formData.purchasePrice || ''}
@@ -284,7 +284,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
           {/* Structure & Financing */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Structure Type</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Structure Type</label>
               <select
                 value={formData.structureType}
                 onChange={(e) => handleInputChange('structureType', e.target.value as 'asset' | 'stock' | 'tbd')}
@@ -296,8 +296,8 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Financing Type <JargonTooltip term="SBA 7(a)"><span className="text-gray-400 cursor-help align-middle" title="Learn about financing types">ⓘ</span></JargonTooltip>
+              <label className="block text-sm font-medium text-slate-700 mb-1">
+                Financing Type <JargonTooltip term="SBA 7(a)"><span className="text-slate-400 cursor-help align-middle" title="Learn about financing types">ⓘ</span></JargonTooltip>
               </label>
               <select
                 value={formData.financingType}
@@ -314,7 +314,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
 
           {/* Working Capital */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Working Capital Mechanism</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Working Capital Mechanism</label>
             <textarea
               value={formData.workingCapitalMechanism}
               onChange={(e) => handleInputChange('workingCapitalMechanism', e.target.value)}
@@ -326,7 +326,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
           {/* Seller Note & Earnout */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 <JargonTooltip term="Seller Note">Seller Note</JargonTooltip> Amount ($)
               </label>
               <input
@@ -337,7 +337,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 <JargonTooltip term="Seller Note">Seller Note</JargonTooltip> Terms
               </label>
               <input
@@ -349,7 +349,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Earnout Amount ($)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Earnout Amount ($)</label>
               <input
                 type="number"
                 value={formData.earnoutAmount || ''}
@@ -358,7 +358,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 <JargonTooltip term="Earnout">Earnout</JargonTooltip> Triggers
               </label>
               <input
@@ -374,7 +374,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
           {/* Timeline */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Due Diligence Period (days)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Due Diligence Period (days)</label>
               <input
                 type="number"
                 value={formData.dueDiligencePeriod}
@@ -383,7 +383,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Target Close Date</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Target Close Date</label>
               <input
                 type="date"
                 value={formData.targetCloseDate}
@@ -395,7 +395,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
 
           {/* Key Conditions */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Due Diligence Conditions</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Due Diligence Conditions</label>
             {formData.keyConditions.map((condition, index) => (
               <div key={index} className="flex gap-2 mb-2">
                 <input
@@ -422,7 +422,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
 
           {/* Reps & Warranties */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Representations & Warranties</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Representations & Warranties</label>
             {formData.repAndWarrantyExpectations.map((rep, index) => (
               <div key={index} className="flex gap-2 mb-2">
                 <input
@@ -450,7 +450,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
           {/* Non-Compete */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Non-Compete Period (years)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Non-Compete Period (years)</label>
               <input
                 type="number"
                 value={formData.nonCompetePeriod}
@@ -459,7 +459,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Non-Compete Radius (miles)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Non-Compete Radius (miles)</label>
               <input
                 type="number"
                 value={formData.nonCompeteRadius}
@@ -468,7 +468,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Transition Period (months)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Transition Period (months)</label>
               <input
                 type="number"
                 value={formData.transitionPeriod}
@@ -480,7 +480,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
 
           {/* Employee Retention */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Key Employees to Retain</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Key Employees to Retain</label>
             {formData.employeeRetention.map((employee, index) => (
               <div key={index} className="flex gap-2 mb-2">
                 <input
@@ -508,7 +508,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
 
           {/* Contingencies */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Conditions to Closing</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Conditions to Closing</label>
             {formData.contingencies.map((contingency, index) => (
               <div key={index} className="flex gap-2 mb-2">
                 <input
@@ -541,7 +541,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
               onChange={(e) => handleInputChange('exclusivityRequested', e.target.checked)}
               className="rounded"
             />
-            <label className="text-sm font-medium text-gray-700">Request Exclusivity</label>
+            <label className="text-sm font-medium text-slate-700">Request Exclusivity</label>
             {formData.exclusivityRequested && (
               <input
                 type="number"
@@ -555,10 +555,10 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
 
           {/* Buyer Info */}
           <div className="border-t pt-4">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">Buyer Information</h4>
+            <h4 className="text-sm font-semibold text-slate-700 mb-3">Buyer Information</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Name *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Buyer Name *</label>
                 <input
                   type="text"
                   value={formData.buyerName}
@@ -567,7 +567,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Entity</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Buyer Entity</label>
                 <input
                   type="text"
                   value={formData.buyerEntity}
@@ -577,7 +577,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Email *</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Buyer Email *</label>
                 <input
                   type="email"
                   value={formData.buyerEmail}
@@ -586,7 +586,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Buyer Phone</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Buyer Phone</label>
                 <input
                   type="tel"
                   value={formData.buyerPhone}

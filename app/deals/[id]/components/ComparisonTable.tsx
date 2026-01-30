@@ -51,9 +51,9 @@ export function ComparisonTable({
     <div className="space-y-4">
       {/* Deal Selection */}
       {comparisonDeals.length > 0 && (
-        <div className="border rounded-lg p-4 bg-gray-50">
+        <div className="border rounded-lg p-4 bg-slate-50">
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-semibold text-gray-900">Select deals to compare</h4>
+            <h4 className="text-sm font-semibold text-slate-900">Select deals to compare</h4>
             <button
               onClick={handleSelectAll}
               className="text-xs text-blue-600 hover:text-blue-800"
@@ -65,13 +65,13 @@ export function ComparisonTable({
             {comparisonDeals.map((deal) => (
               <label
                 key={deal.id}
-                className="flex items-center gap-2 p-2 rounded border bg-white hover:bg-gray-50 cursor-pointer"
+                className="flex items-center gap-2 p-2 rounded border bg-white hover:bg-slate-50 cursor-pointer"
               >
                 <input
                   type="checkbox"
                   checked={selectedDealIds.includes(deal.id)}
                   onChange={() => handleToggleDeal(deal.id)}
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-300"
                 />
                 <span className="text-sm truncate flex-1">{deal.company_name}</span>
               </label>

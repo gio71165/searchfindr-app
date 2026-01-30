@@ -3,10 +3,8 @@
 import React, { useState, memo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { MapPin, Building2, Calendar, DollarSign, TrendingUp, StickyNote, Plus, Tag, Clock, ChevronRight } from 'lucide-react';
-import { ConfidenceBadge } from './ConfidenceBadge';
 import { SourceBadge } from './SourceBadge';
 import { Skeleton } from './Skeleton';
-import { DealScoreBadge } from './DealScoreBadge';
 import { MoreActionsMenu } from '@/components/deal/MoreActionsMenu';
 import { TierBadge } from '@/app/deals/[id]/components/TierBadge';
 import { supabase } from '@/app/supabaseClient';
@@ -50,21 +48,24 @@ type Deal = {
   } | null;
 };
 
-function VerdictBadge({ verdict }: { verdict: string | null }) {
+function VerdictBadge({ verdict, size = 'default' }: { verdict: string | null; size?: 'sm' | 'default' }) {
   if (!verdict) return null;
   
   const config = {
-    proceed: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Proceed' },
-    park: { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', label: 'Parked' },
-    pass: { bg: 'bg-slate-100', text: 'text-slate-700', border: 'border-slate-200', label: 'Passed' }
+    proceed: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500', label: 'Proceed' },
+    park: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500', label: 'Parked' },
+    pass: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', dot: 'bg-slate-400', label: 'Passed' }
   };
   
   const normalizedVerdict = verdict.toLowerCase();
   const c = config[normalizedVerdict as keyof typeof config];
   if (!c) return null;
   
+  const sizeClasses = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-xs';
+  
   return (
-    <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-xs font-semibold ${c.bg} ${c.text} ${c.border}`}>
+    <span className={`inline-flex items-center gap-1.5 ${sizeClasses} rounded-md font-medium border ${c.bg} ${c.text} ${c.border}`}>
+      <div className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
       {c.label}
     </span>
   );
@@ -290,24 +291,14 @@ function DealCardComponent({
           className="block group focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded-xl cursor-pointer"
           aria-label={`View details for ${deal.company_name || 'deal'}`}
         >
-          <div className={`relative group rounded-xl border bg-white p-6 transition-all duration-200 hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] group-hover:border-emerald-300 ${
+          <div className={`relative group rounded-xl border bg-white p-6 transition-all duration-200 hover:shadow-lg hover:border-slate-300 ${
             isSelected 
               ? 'border-blue-500 border-2 bg-blue-50/30' 
               : 'border-slate-200'
           }`}>
-            {/* Colored top border based on verdict */}
-            <div className={`absolute top-0 left-0 right-0 h-1 rounded-t-xl transition-all ${
-              verdict === 'proceed' 
-                ? 'bg-gradient-to-r from-emerald-400 to-emerald-600' 
-                : verdict === 'park' 
-                ? 'bg-gradient-to-r from-blue-400 to-blue-600' 
-                : verdict === 'pass' 
-                ? 'bg-gradient-to-r from-red-400 to-red-600' 
-                : 'bg-gradient-to-r from-gray-300 to-gray-400'
-            }`} />
-      {/* Comparison Checkbox */}
+      {/* Comparison Checkbox - Only visible on hover */}
       {onToggleSelect && (
-        <div className="flex items-center justify-end mb-3" data-no-navigate onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-end mb-3 opacity-0 group-hover:opacity-100 transition-opacity" data-no-navigate onClick={(e) => e.stopPropagation()}>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -323,289 +314,93 @@ function DealCardComponent({
               onClick={(e) => e.stopPropagation()}
             />
             <span className="text-xs text-slate-600 font-medium">
-              {isSelected ? 'Selected' : 'Select for comparison'}
+              {isSelected ? 'Selected' : 'Select'}
             </span>
           </label>
         </div>
       )}
 
-      {/* Verdict and SBA Badges */}
-      <div className="flex items-center justify-between mb-4">
-        <VerdictBadge verdict={verdict} />
-        {sbaEligible && (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-blue-200 bg-blue-50 text-blue-700 text-xs font-semibold">
-            <TrendingUp className="h-3 w-3" />
-            <JargonTooltip term="SBA">SBA</JargonTooltip> Eligible
-          </span>
-        )}
-      </div>
-
-      {/* Company Name - Most Prominent */}
-      <div className="flex items-start justify-between gap-4 mb-4">
+      {/* Header: Company Name + Verdict */}
+      <div className="flex items-start justify-between mb-4">
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div className="flex-1 min-w-0">
-              <h3 className="text-xl font-bold text-slate-900 group-hover:text-emerald-600 transition-colors duration-200 leading-tight">
-                {deal.company_name || 'Untitled Deal'}
-              </h3>
-            </div>
-            <div data-no-navigate onClick={(e) => e.stopPropagation()}>
-              <MoreActionsMenu
-                dealId={deal.id}
-                isArchived={isArchived}
-                onArchive={handleArchive}
-                onDelete={handleDelete}
-              />
-            </div>
-          </div>
-
-          {/* Badges Row */}
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            <SourceBadge source={deal.source_type} />
-            {(deal.source_type === 'on_market' || deal.source_type === 'off_market') && deal.final_tier && (
-              <TierBadge tier={deal.final_tier} />
-            )}
-            <ConfidenceBadge level={confidenceLevel} analyzed={analyzed} />
-            {deal.final_tier && (deal.final_tier === 'A' || deal.final_tier === 'B' || deal.final_tier === 'C') && (
-              <DealScoreBadge 
-                tier={deal.final_tier as 'A' | 'B' | 'C'} 
-                score={deal.score || undefined}
-                breakdown={deal.score_components || undefined}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Key Metrics with Icons */}
-      <div className="space-y-2.5 mb-4">
-        {location && (
-          <div className="flex items-center gap-2.5 text-sm text-slate-700">
-            <div className="flex-shrink-0 w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center">
-              <MapPin className="h-3.5 w-3.5 text-slate-600" />
-            </div>
-            <span className="font-medium">{location}</span>
-          </div>
-        )}
-
-        {deal.industry && (
-          <div className="flex items-center gap-2.5 text-sm text-slate-700">
-            <div className="flex-shrink-0 w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center">
-              <Building2 className="h-3.5 w-3.5 text-slate-600" />
-            </div>
-            <span className="font-medium">{deal.industry}</span>
-          </div>
-        )}
-
-        {deal.created_at && (
-          <div className="flex items-center gap-2.5 text-sm text-slate-500">
-            <div className="flex-shrink-0 w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center">
-              <Calendar className="h-3.5 w-3.5 text-slate-500" />
-            </div>
-            <span>{new Date(deal.created_at).toLocaleDateString()}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Deal Economics - Enhanced with Icons */}
-      {(askingPrice || ebitda) && (
-        <div className="mb-4 p-3 rounded-lg bg-slate-50 border border-slate-200">
-          <div className="flex flex-wrap items-center gap-3">
-            {askingPrice && (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-emerald-200 rounded-lg">
-                <DollarSign className="h-4 w-4 text-emerald-600 flex-shrink-0" />
-                <div className="flex flex-col">
-                  <span className="text-xs text-slate-500 font-medium">Asking Price</span>
-                  <span className="text-sm font-bold text-emerald-700">{askingPrice}</span>
-                </div>
-              </div>
-            )}
-            {ebitda && (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-blue-200 rounded-lg">
-                <TrendingUp className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                <div className="flex flex-col">
-                  <span className="text-xs text-slate-500 font-medium">
-                    <JargonTooltip term="EBITDA">EBITDA</JargonTooltip>
-                  </span>
-                  <span className="text-sm font-bold text-blue-700">{ebitda}</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Stage */}
-      {deal.stage && (
-        <div className="mb-4 pb-4 border-b border-slate-200">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Stage</div>
-          <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full ${
-            deal.stage === 'new' 
-              ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-500/20'
-              : deal.stage === 'reviewing'
-              ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-500/20'
-              : deal.stage === 'follow_up'
-              ? 'bg-purple-100 text-purple-700 ring-1 ring-purple-500/20'
-              : deal.stage === 'ioi_sent'
-              ? 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-500/20'
-              : deal.stage === 'loi'
-              ? 'bg-violet-100 text-violet-700 ring-1 ring-violet-500/20'
-              : deal.stage === 'dd'
-              ? 'bg-orange-100 text-orange-700 ring-1 ring-orange-500/20'
-              : deal.stage === 'passed'
-              ? 'bg-gray-100 text-gray-700 ring-1 ring-gray-500/20'
-              : 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-500/20'
-          }`}>
-            {deal.stage.replace('_', ' ').toUpperCase()}
-          </span>
-        </div>
-      )}
-
-      {/* Next Action */}
-      {(nextAction || deal.next_action_date) && (
-        <div className="mb-4 pb-4 border-b border-slate-200">
-          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Next Action</div>
-          <div className="text-sm text-slate-900">
-            <span className="font-medium">{nextAction || deal.next_action}</span>
-            {deal.next_action_date && (
-              <span className="text-slate-500 ml-2">
-                ({new Date(deal.next_action_date).toLocaleDateString()})
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
-
-      {/* Summary Preview */}
-      <p className="text-sm text-slate-600 mb-4 line-clamp-2 leading-relaxed">{preview}</p>
-
-      {/* User Notes Preview */}
-      {(deal.user_notes || showNoteInput) && (
-        <div className="mb-4 pb-4 border-b border-slate-200">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <div className="flex items-center gap-1.5">
-              <StickyNote className="h-3.5 w-3.5 text-slate-500" />
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Your Notes</span>
-            </div>
-            {!showNoteInput && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setNoteInput(deal.user_notes || '');
-                  setShowNoteInput(true);
-                }}
-                className="text-xs text-blue-600 hover:text-blue-700 font-medium min-h-[44px] px-2 py-1"
-                data-no-navigate
-              >
-                Edit
-              </button>
-            )}
-          </div>
+          <h3 className="text-lg font-semibold text-slate-900 mb-1 group-hover:text-emerald-600 transition">
+            {deal.company_name || 'Untitled Deal'}
+          </h3>
           
-          {showNoteInput ? (
-              <div className="space-y-2" data-no-navigate onClick={(e) => e.stopPropagation()}>
-              <textarea
-                value={noteInput}
-                onChange={(e) => setNoteInput(e.target.value)}
-                placeholder="Add a note about this deal..."
-                className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                rows={3}
-                maxLength={1000}
-                onClick={(e) => e.stopPropagation()}
-              />
-              <div className="flex items-center gap-2">
-                <AsyncButton
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    setIsSavingNote(true);
-                    try {
-                      if (!session) {
-                        alert('Please log in to save notes');
-                        return;
-                      }
+          {/* Location + Industry */}
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            {location && (
+              <>
+                <MapPin className="w-4 h-4" />
+                <span>{location}</span>
+              </>
+            )}
+            {deal.industry && location && <span>·</span>}
+            {deal.industry && <span>{deal.industry}</span>}
+          </div>
+        </div>
 
-                      const response = await fetch(`/api/deals/${deal.id}/notes`, {
-                        method: 'POST',
-                        headers: {
-                          'Authorization': `Bearer ${session.access_token}`,
-                          'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ notes: noteInput.trim() || null }),
-                      });
+        {/* Verdict Badge (subtle) */}
+        <div className="flex items-center gap-2">
+          <VerdictBadge verdict={verdict} size="sm" />
+          <div data-no-navigate onClick={(e) => e.stopPropagation()}>
+            <MoreActionsMenu
+              dealId={deal.id}
+              isArchived={isArchived}
+              onArchive={handleArchive}
+              onDelete={handleDelete}
+            />
+          </div>
+        </div>
+      </div>
 
-                      if (!response.ok) {
-                        const error = await response.json();
-                        throw new Error(error.error || 'Failed to save note');
-                      }
-
-                      setShowNoteInput(false);
-                      onNoteUpdate?.();
-                    } catch (error) {
-                      logger.error('Error saving note:', error);
-                      alert(error instanceof Error ? error.message : 'Failed to save note');
-                    } finally {
-                      setIsSavingNote(false);
-                    }
-                  }}
-                  isLoading={isSavingNote}
-                  loadingText="Saving..."
-                  className="px-3 py-2.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors min-h-[44px]"
-                >
-                  Save
-                </AsyncButton>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setNoteInput(deal.user_notes || '');
-                    setShowNoteInput(false);
-                  }}
-                  disabled={isSavingNote}
-                  className="px-3 py-2.5 text-xs font-medium text-slate-600 hover:text-slate-900 transition-colors disabled:opacity-50 min-h-[44px]"
-                  data-no-navigate
-                >
-                  Cancel
-                </button>
-              </div>
+      {/* Key Metrics Grid */}
+      {(askingPrice || ebitda) && (
+        <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-slate-100">
+          {askingPrice && (
+            <div>
+              <p className="text-xs text-slate-500 mb-1">Asking Price</p>
+              <p className="text-base font-semibold font-mono text-slate-900">{askingPrice}</p>
             </div>
-          ) : (
-            <p className="text-sm text-slate-700 line-clamp-2 leading-relaxed">
-              {deal.user_notes || 'No notes yet'}
-            </p>
+          )}
+          {ebitda && (
+            <div>
+              <p className="text-xs text-slate-500 mb-1">
+                <JargonTooltip term="EBITDA">EBITDA</JargonTooltip>
+              </p>
+              <p className="text-base font-semibold font-mono text-slate-900">{ebitda}</p>
+            </div>
           )}
         </div>
       )}
 
-      {/* Quick Add Note Button */}
-      {!deal.user_notes && !showNoteInput && (
-        <div className="mb-4" data-no-navigate onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setNoteInput('');
-              setShowNoteInput(true);
-            }}
-            className="w-full flex items-center justify-center gap-2 px-3 py-3 text-xs font-medium text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors min-h-[44px]"
-            data-no-navigate
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Add Note
-          </button>
+      {/* Next Action (if exists) */}
+      {(nextAction || deal.next_action_date) && (
+        <div className="flex items-center gap-2 text-sm text-slate-600 mb-4">
+          <Clock className="w-4 h-4" />
+          <span>{nextAction || deal.next_action}</span>
+          {deal.next_action_date && (
+            <span className="text-slate-500">
+              ({new Date(deal.next_action_date).toLocaleDateString()})
+            </span>
+          )}
         </div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex items-center gap-3 pt-4 border-t border-slate-200" data-no-navigate onClick={(e) => e.stopPropagation()}>
-        <div className="flex-1 text-center px-4 py-3 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-all duration-200 hover:shadow-md hover:shadow-blue-200 pointer-events-none min-h-[44px] flex items-center justify-center">
+
+
+      {/* Hover Actions */}
+      <div className="mt-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition">
+        <button className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">
           View Details
-        </div>
+        </button>
         {onSaveToggle && (
           <button
             onClick={(e) => {
               e.stopPropagation();
               onSaveToggle(deal.id);
             }}
-            className="px-4 py-3 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:border-slate-400 rounded-lg transition-all duration-200 min-h-[44px]"
+            className="text-sm text-slate-600 hover:text-slate-700"
             data-no-navigate
           >
             {deal.is_saved ? 'Unsave' : 'Save'}
@@ -631,7 +426,7 @@ function DealCardComponent({
           className="block focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded-lg cursor-pointer"
           aria-label={`View details for ${deal.company_name || 'deal'}`}
         >
-          <div className={`bg-white rounded-lg p-4 border border-gray-200 active:bg-gray-50 relative ${
+          <div className={`bg-white rounded-lg p-4 border border-slate-200 active:bg-slate-50 relative ${
             isSelected 
               ? 'border-blue-500 border-2 bg-blue-50/30' 
               : ''
@@ -663,11 +458,11 @@ function DealCardComponent({
             {/* Header: Name + Tier */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1 min-w-0 pr-2">
-                <h3 className="font-semibold text-base truncate text-gray-900 mb-1">
+                <h3 className="font-semibold text-base truncate text-slate-900 mb-1">
                   {deal.company_name || 'Untitled Deal'}
                 </h3>
                 {deal.industry && (
-                  <p className="text-sm text-gray-600 truncate">
+                  <p className="text-sm text-slate-600 truncate">
                     {deal.industry}
                   </p>
                 )}
@@ -684,16 +479,16 @@ function DealCardComponent({
               <div className="grid grid-cols-2 gap-3 mb-3">
                 {askingPrice && (
                   <div>
-                    <p className="text-xs text-gray-500">Asking Price</p>
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p className="text-xs text-slate-500">Asking Price</p>
+                    <p className="text-sm font-semibold text-slate-900">
                       {formatCurrency(askingPrice)}
                     </p>
                   </div>
                 )}
                 {ebitda && (
                   <div>
-                    <p className="text-xs text-gray-500">EBITDA</p>
-                    <p className="text-sm font-semibold text-gray-900">
+                    <p className="text-xs text-slate-500">EBITDA</p>
+                    <p className="text-sm font-semibold text-slate-900">
                       {formatCurrency(ebitda)}
                     </p>
                   </div>
@@ -712,21 +507,18 @@ function DealCardComponent({
                 <VerdictBadge verdict={verdict} />
               )}
               <SourceBadge source={deal.source_type} />
-              {confidenceLevel && (
-                <ConfidenceBadge level={confidenceLevel} analyzed={analyzed} />
-              )}
             </div>
             
             {/* Next action - condensed */}
             {nextAction && (
-              <div className="flex items-center gap-2 text-xs text-gray-600">
+              <div className="flex items-center gap-2 text-xs text-slate-600">
                 <Clock className="w-3 h-3 flex-shrink-0" />
                 <span className="truncate">{nextAction}</span>
               </div>
             )}
             
             {/* Chevron indicator */}
-            <ChevronRight className="absolute right-4 top-4 w-5 h-5 text-gray-400 pointer-events-none" />
+            <ChevronRight className="absolute right-4 top-4 w-5 h-5 text-slate-400 pointer-events-none" />
           </div>
         </div>
       </div>

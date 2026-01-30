@@ -21,6 +21,13 @@ export function useInvestorRealtime({
   enabled = true,
 }: UseInvestorRealtimeOptions) {
   const channelsRef = useRef<RealtimeChannel[]>([]);
+  const onUpdateRef = useRef(onUpdate);
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Keep the callback ref up to date
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
 
   useEffect(() => {
     if (!enabled || workspaceIds.length === 0) {
@@ -32,6 +39,12 @@ export function useInvestorRealtime({
       supabase.removeChannel(channel);
     });
     channelsRef.current = [];
+
+    // Clear any pending debounce timeouts
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
+    }
 
     // Create a channel for each workspace to listen for deal changes
     workspaceIds.forEach((workspaceId) => {
@@ -52,10 +65,14 @@ export function useInvestorRealtime({
               workspaceId,
               dealId,
             });
-            // Debounce: wait a bit before refreshing to avoid too many updates
-            setTimeout(() => {
-              onUpdate();
-            }, 500);
+            // Debounce: clear existing timeout and set a new one
+            if (debounceTimeoutRef.current) {
+              clearTimeout(debounceTimeoutRef.current);
+            }
+            debounceTimeoutRef.current = setTimeout(() => {
+              onUpdateRef.current();
+              debounceTimeoutRef.current = null;
+            }, 1000); // Increased debounce to 1 second
           }
         )
         .on(
@@ -71,10 +88,14 @@ export function useInvestorRealtime({
               event: payload.eventType,
               workspaceId,
             });
-            // Refresh dashboard when activities change (affects last activity)
-            setTimeout(() => {
-              onUpdate();
-            }, 500);
+            // Debounce: clear existing timeout and set a new one
+            if (debounceTimeoutRef.current) {
+              clearTimeout(debounceTimeoutRef.current);
+            }
+            debounceTimeoutRef.current = setTimeout(() => {
+              onUpdateRef.current();
+              debounceTimeoutRef.current = null;
+            }, 1000); // Increased debounce to 1 second
           }
         )
         .subscribe((status) => {
@@ -94,8 +115,13 @@ export function useInvestorRealtime({
         supabase.removeChannel(channel);
       });
       channelsRef.current = [];
+      // Clear debounce timeout on cleanup
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+        debounceTimeoutRef.current = null;
+      }
     };
-  }, [workspaceIds, onUpdate, enabled]);
+  }, [workspaceIds, enabled]);
 
   return {
     isSubscribed: channelsRef.current.length > 0,
