@@ -11,6 +11,7 @@ import { normalizeRedFlags, normalizeStringArray, normalizeMetricRows, normalize
 import { formatMoney, formatPct, sortYearsLikeHuman } from '@/app/deals/[id]/lib/formatters';
 import type { Deal, FinancialMetrics, FinancialAnalysis } from '@/lib/types/deal';
 import { BarChart3, TrendingUp, AlertTriangle, User } from 'lucide-react';
+import { NextStepsChecklist } from '@/components/deal/NextStepsChecklist';
 import { ConfidenceBadge } from '@/components/ui/ConfidenceBadge';
 import { AsyncButton } from '@/components/ui/AsyncButton';
 import { GutCheck } from '@/components/deal/GutCheck';
@@ -197,6 +198,9 @@ export function AnalysisTab({
         </div>
       )}
 
+      {/* Next Steps Checklist - Prominent, source-type-aware */}
+      <NextStepsChecklist dealId={dealId} sourceType={sourceType} />
+
       {/* Last Updated Timestamp */}
       {deal?.updated_at && (
         <div className="mb-4 p-3 bg-slate-800/50 border border-slate-700 rounded-lg">
@@ -246,17 +250,39 @@ export function AnalysisTab({
       {/* Gut Check */}
       <GutCheck deal={deal} dealId={dealId} />
 
+      {/* On-Market: Platform source badge (listing-specific context) */}
+      {sourceType === 'on_market' && (deal.external_source || deal.listing_url) && (
+        <div className="rounded-lg border border-slate-700 bg-slate-800 p-4">
+          <h4 className="text-sm font-semibold text-slate-400 mb-2">Listing Source</h4>
+          <p className="text-sm text-slate-300">
+            {deal.external_source ||
+              (typeof deal.listing_url === 'string'
+                ? (() => { try { return new URL(deal.listing_url).hostname; } catch { return '—'; } })()
+                : '—')}
+          </p>
+        </div>
+      )}
+
       {/* Red Flags & QoE — single merged section */}
       <div className="bg-slate-800 border-2 border-red-500/30 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-red-500/10 rounded-lg">
             <AlertTriangle className="w-5 h-5 text-red-400" />
           </div>
-          <h3 className="text-lg font-semibold text-slate-50">Red Flags & QoE</h3>
+          <h3 className="text-lg font-semibold text-slate-50">
+            {sourceType === 'financials' ? 'Quantitative Risk & QoE' : 'Red Flags & QoE'}
+          </h3>
         </div>
         <div className="space-y-8">
-          <RedFlagsPanel redFlags={redFlags} embedded />
-          <QoeRedFlagsPanel qoeRedFlags={qoeRedFlags} embedded />
+          <RedFlagsPanel
+            redFlags={redFlags}
+            embedded
+            showCimCitationHint={sourceType === 'cim_pdf'}
+          />
+          {/* QoE: Hide for on-market (listing text rarely has structured QoE/addback data) */}
+          {sourceType !== 'on_market' && (
+            <QoeRedFlagsPanel qoeRedFlags={qoeRedFlags} embedded />
+          )}
         </div>
       </div>
 

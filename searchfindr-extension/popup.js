@@ -106,6 +106,12 @@ const apiKeySection = document.getElementById("apiKeySection");
 const debugRow = document.getElementById("debugRow"); // optional container
 const debugIdText = document.getElementById("debugIdText"); // optional span
 const copyDebugBtn = document.getElementById("copyDebugButton"); // optional button
+const quickCalcEl = document.getElementById("quickCalc");
+const qcPrice = document.getElementById("qcPrice");
+const qcEbitda = document.getElementById("qcEbitda");
+const qcDownPct = document.getElementById("qcDownPct");
+const qcResult = document.getElementById("qcResult");
+const quickCalcLink = document.getElementById("quickCalcLink");
 
 // ---- State ----
 /**
@@ -163,6 +169,48 @@ function setButtons({ primaryText, primaryDisabled, secondaryText, secondaryHidd
   }
 }
 
+// Quick DSCR calculator (client-side, no API)
+function calculateQuickDSCR() {
+  if (!qcPrice || !qcEbitda || !qcResult) return;
+  const price = parseFloat(qcPrice.value) || 0;
+  const ebitda = parseFloat(qcEbitda.value) || 0;
+  const downPct = parseFloat(qcDownPct?.value) || 10;
+  if (price <= 0 || ebitda <= 0) {
+    qcResult.style.display = "none";
+    return;
+  }
+  const loanAmount = price * (1 - downPct / 100);
+  const annualRate = 10.25; // typical SBA 7(a)
+  const years = 10;
+  const monthlyRate = annualRate / 100 / 12;
+  const numPayments = years * 12;
+  const monthlyPayment =
+    monthlyRate === 0
+      ? loanAmount / numPayments
+      : loanAmount *
+        ((monthlyRate * Math.pow(1 + monthlyRate, numPayments)) /
+          (Math.pow(1 + monthlyRate, numPayments) - 1));
+  const annualDebtService = monthlyPayment * 12;
+  const dscr = annualDebtService > 0 ? ebitda / annualDebtService : 0;
+  qcResult.style.display = "block";
+  qcResult.textContent = `DSCR: ${dscr.toFixed(2)}x (min 1.25x for SBA)`;
+  qcResult.className = "result";
+  if (dscr >= 1.25) qcResult.classList.add("high");
+  else if (dscr < 1) qcResult.classList.add("low");
+}
+
+function updateQuickCalcVisibility() {
+  if (!quickCalcEl) return;
+  const show =
+    uiState === "ready" && window._currentTabIsDealPage;
+  quickCalcEl.classList.toggle("hidden", !show);
+  if (show && quickCalcLink && lastDealUrl) {
+    quickCalcLink.href = lastDealUrl.includes("?") ? lastDealUrl + "&tab=modeling" : lastDealUrl + "?tab=modeling";
+  } else if (show && quickCalcLink) {
+    quickCalcLink.href = APP_HOME_URL;
+  }
+}
+
 function render() {
   if (uiState !== "error") setDebug(null);
 
@@ -170,6 +218,8 @@ function render() {
   if (apiKeySection) {
     apiKeySection.classList.toggle("hidden", uiState !== "logged_out" && uiState !== "expired");
   }
+
+  updateQuickCalcVisibility();
 
   switch (uiState) {
     case "logged_out":
@@ -840,3 +890,14 @@ function startPeriodicCheck() {
 
 // Start checking after initial render
 setTimeout(startPeriodicCheck, 200);
+
+// Quick DSCR calculator - bind inputs
+function bindQuickCalc() {
+  if (qcPrice)
+    qcPrice.addEventListener("input", calculateQuickDSCR);
+  if (qcEbitda)
+    qcEbitda.addEventListener("input", calculateQuickDSCR);
+  if (qcDownPct)
+    qcDownPct.addEventListener("input", calculateQuickDSCR);
+}
+bindQuickCalc();

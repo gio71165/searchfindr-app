@@ -20,7 +20,16 @@ type NormalizedRedFlag = {
   next_action?: string;
 };
 
-export function RedFlagsPanel({ redFlags, embedded }: { redFlags: RedFlag[]; embedded?: boolean }) {
+export function RedFlagsPanel({
+  redFlags,
+  embedded,
+  showCimCitationHint = true,
+}: {
+  redFlags: RedFlag[];
+  embedded?: boolean;
+  /** When false, hides "use View CIM PDF in the header" text (e.g. for on-market deals without CIM) */
+  showCimCitationHint?: boolean;
+}) {
   const getConfidenceBadge = (confidence?: 'High' | 'Medium' | 'Low') => {
     if (!confidence) return null;
 
@@ -142,13 +151,17 @@ export function RedFlagsPanel({ redFlags, embedded }: { redFlags: RedFlag[]; emb
     </div>
   );
 
+  const citationHint = showCimCitationHint ? (
+    <p className="text-xs text-slate-400">
+      Citations (e.g. page numbers) are shown in italics — use <strong className="text-slate-300">View CIM PDF</strong> in the header to verify.
+    </p>
+  ) : null;
+
   if (embedded) {
     return (
       <div className="space-y-3">
         <h4 className="text-sm font-semibold text-slate-300">Red Flags</h4>
-        <p className="text-xs text-slate-400">
-          Citations (e.g. page numbers) are shown in italics — use <strong className="text-slate-300">View CIM PDF</strong> in the header to verify.
-        </p>
+        {citationHint}
         {content}
       </div>
     );
@@ -164,9 +177,11 @@ export function RedFlagsPanel({ redFlags, embedded }: { redFlags: RedFlag[]; emb
           <h3 className="text-lg font-semibold text-slate-50">
             Red Flags Detected
           </h3>
-          <p className="text-xs text-slate-400 mt-0.5">
-            Citations (e.g. page numbers) are shown in italics — use <strong className="text-slate-300">View CIM PDF</strong> in the header to open the source and verify.
-          </p>
+          {showCimCitationHint && (
+            <p className="text-xs text-slate-400 mt-0.5">
+              Citations (e.g. page numbers) are shown in italics — use <strong className="text-slate-300">View CIM PDF</strong> in the header to open the source and verify.
+            </p>
+          )}
         </div>
       </div>
       {content}

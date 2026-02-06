@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type { Deal } from '@/lib/types/deal';
 import { AsyncButton } from '@/components/ui/AsyncButton';
-import { FileText } from 'lucide-react';
+import { FileText, ExternalLink, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '@/app/supabaseClient';
 
 interface StickyDealHeaderProps {
@@ -14,6 +14,25 @@ interface StickyDealHeaderProps {
   settingVerdict: boolean;
 }
 
+type SourceActionType = 'visit_listing' | 'view_cim' | 'open_financials' | null;
+
+function getSourceAction(deal: Deal): { type: SourceActionType; label: string; url?: string } | null {
+  if (!deal) return null;
+  if (deal.source_type === 'on_market' && deal.listing_url) {
+    return { type: 'visit_listing', label: 'Visit Listing Website', url: deal.listing_url };
+  }
+  if (deal.source_type === 'off_market' && deal.website) {
+    return { type: 'visit_listing', label: 'Visit Website', url: deal.website };
+  }
+  if (deal.source_type === 'cim_pdf' && (deal as { cim_storage_path?: string }).cim_storage_path) {
+    return { type: 'view_cim', label: 'View CIM PDF' };
+  }
+  if (deal.source_type === 'financials' && (deal as { financials_storage_path?: string }).financials_storage_path) {
+    return { type: 'open_financials', label: 'Open Source Excel/Data' };
+  }
+  return null;
+}
+
 export function StickyDealHeader({
   deal,
   onProceed,
@@ -21,32 +40,69 @@ export function StickyDealHeader({
   onPass,
   settingVerdict,
 }: StickyDealHeaderProps) {
-  const [loadingCimPreview, setLoadingCimPreview] = useState(false);
-  const showViewCimPdf = deal?.source_type === 'cim_pdf' && !!(deal as any).cim_storage_path;
+  const [loadingSourceAction, setLoadingSourceAction] = useState(false);
+  const sourceAction = getSourceAction(deal);
 
-  const handleViewCimPdf = async () => {
-    if (!showViewCimPdf || loadingCimPreview) return;
-    setLoadingCimPreview(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        alert('Please log in to view the CIM.');
-        return;
+  const handleSourceAction = async () => {
+    if (!sourceAction || loadingSourceAction) return;
+
+    // Direct URL (on-market / off-market)
+    if (sourceAction.type === 'visit_listing' && sourceAction.url) {
+      window.open(sourceAction.url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // CIM PDF - fetch signed URL
+    if (sourceAction.type === 'view_cim') {
+      setLoadingSourceAction(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          alert('Please log in to view the CIM.');
+          return;
+        }
+        const res = await fetch(`/api/deals/${deal.id}/cim-preview`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Failed to open CIM');
+        }
+        const { preview_url } = await res.json();
+        if (preview_url) window.open(preview_url, '_blank', 'noopener,noreferrer');
+      } catch (e) {
+        console.error('View CIM PDF error:', e);
+        alert(e instanceof Error ? e.message : 'Failed to open CIM PDF.');
+      } finally {
+        setLoadingSourceAction(false);
       }
-      const res = await fetch(`/api/deals/${deal.id}/cim-preview`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'Failed to open CIM');
+      return;
+    }
+
+    // Financials - fetch signed URL
+    if (sourceAction.type === 'open_financials') {
+      setLoadingSourceAction(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          alert('Please log in to open the financials file.');
+          return;
+        }
+        const res = await fetch(`/api/deals/${deal.id}/financials-preview`, {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Failed to open financials');
+        }
+        const { preview_url } = await res.json();
+        if (preview_url) window.open(preview_url, '_blank', 'noopener,noreferrer');
+      } catch (e) {
+        console.error('Open financials error:', e);
+        alert(e instanceof Error ? e.message : 'Failed to open financials file.');
+      } finally {
+        setLoadingSourceAction(false);
       }
-      const { preview_url } = await res.json();
-      if (preview_url) window.open(preview_url, '_blank', 'noopener,noreferrer');
-    } catch (e) {
-      console.error('View CIM PDF error:', e);
-      alert(e instanceof Error ? e.message : 'Failed to open CIM PDF.');
-    } finally {
-      setLoadingCimPreview(false);
     }
   };
 
@@ -93,16 +149,29 @@ export function StickyDealHeader({
           )}
           
           <div className="flex items-center gap-2">
-            {showViewCimPdf && (
+            {/* Primary Source Action - dynamic per deal type */}
+            {sourceAction && (
               <AsyncButton
-                onClick={handleViewCimPdf}
-                isLoading={loadingCimPreview}
+                onClick={handleSourceAction}
+                isLoading={loadingSourceAction}
                 loadingText="Opening…"
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-200 bg-slate-700/50 border border-slate-600 rounded-lg hover:bg-slate-700 transition-colors"
-                title="Open CIM PDF to verify citations (e.g. page numbers)"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-emerald-300 bg-emerald-500/20 border border-emerald-500/40 rounded-lg hover:bg-emerald-500/30 transition-colors"
+                title={
+                  sourceAction.type === 'visit_listing'
+                    ? 'Open the original listing in a new tab'
+                    : sourceAction.type === 'view_cim'
+                    ? 'Open CIM PDF to verify citations (e.g. page numbers)'
+                    : 'Download or preview the uploaded financials file'
+                }
               >
-                <FileText className="h-4 w-4" />
-                View CIM PDF
+                {sourceAction.type === 'visit_listing' ? (
+                  <ExternalLink className="h-4 w-4" />
+                ) : sourceAction.type === 'view_cim' ? (
+                  <FileText className="h-4 w-4" />
+                ) : (
+                  <FileSpreadsheet className="h-4 w-4" />
+                )}
+                {sourceAction.label}
               </AsyncButton>
             )}
             <AsyncButton
