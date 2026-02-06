@@ -59,16 +59,15 @@ export function ExecutiveSummaryCard({
   
   const fin = deal.ai_financials_json || {};
   const finAny = fin as Record<string, unknown>;
-  // Try multiple sources for revenue: extracted field, financials JSON, or legacy field
-  const revenue = (deal as any).revenue_ttm_extracted ||
-                  (typeof finAny.revenue_ttm === 'string' ? finAny.revenue_ttm : null) ||
-                  (typeof fin.revenue === 'string' ? fin.revenue : null) ||
-                  'Unknown';
-  // Try multiple sources for EBITDA: extracted field, financials JSON, or legacy field
-  const ebitda = (deal as any).ebitda_ttm_extracted ||
-                 (typeof finAny.ebitda_ttm === 'string' ? finAny.ebitda_ttm : null) ||
-                 (typeof fin.ebitda === 'string' ? fin.ebitda : null) ||
-                 'Unknown';
+  // CIM/deal-level first so all deal page sections match
+  const revenue = deal.revenue_ttm_extracted
+    ?? (typeof finAny.revenue_ttm === 'string' ? finAny.revenue_ttm : null)
+    ?? (typeof fin.revenue === 'string' ? fin.revenue : null)
+    ?? '—';
+  const ebitda = deal.ebitda_ttm_extracted
+    ?? (typeof finAny.ebitda_ttm === 'string' ? finAny.ebitda_ttm : null)
+    ?? (typeof fin.ebitda === 'string' ? fin.ebitda : null)
+    ?? '—';
   const margin = (typeof finAny.ebitda_margin_ttm === 'string' ? finAny.ebitda_margin_ttm : null) ||
                  (typeof fin.margin === 'string' ? fin.margin : null) ||
                  null;

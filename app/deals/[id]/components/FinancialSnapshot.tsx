@@ -9,14 +9,15 @@ export function FinancialSnapshot({
   fin: FinancialMetrics | null; 
   deal?: Deal | null;
 }) {
-  const revenueRaw = fin?.revenue || deal?.ai_financials_json?.revenue;
-  const revenue = typeof revenueRaw === 'string' 
-    ? revenueRaw 
+  // Prefer CIM/deal-level so display matches Executive Summary and Scenario Analysis
+  const revenueRaw = deal?.revenue_ttm_extracted ?? fin?.revenue ?? (deal?.ai_financials_json as Record<string, unknown>)?.revenue;
+  const revenue = typeof revenueRaw === 'string'
+    ? revenueRaw
     : Array.isArray(revenueRaw) && revenueRaw.length > 0
       ? revenueRaw[0]?.value ? `${revenueRaw[0].value} ${revenueRaw[0].unit || ''}`.trim() : 'Unknown'
       : 'Unknown';
-  
-  const ebitdaRaw = fin?.ebitda || deal?.ai_financials_json?.ebitda;
+
+  const ebitdaRaw = deal?.ebitda_ttm_extracted ?? fin?.ebitda ?? (deal?.ai_financials_json as Record<string, unknown>)?.ebitda;
   const ebitda = typeof ebitdaRaw === 'string'
     ? ebitdaRaw
     : Array.isArray(ebitdaRaw) && ebitdaRaw.length > 0

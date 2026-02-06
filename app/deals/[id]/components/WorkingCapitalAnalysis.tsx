@@ -26,16 +26,16 @@ export function WorkingCapitalAnalysis({ deal }: { deal: Deal | null }) {
     industry: deal?.industry || '',
   });
 
-  // Try to extract revenue from deal data
+  // Prefer CIM/deal-level revenue so it matches Executive Summary and Scenario Analysis
   const fin = deal?.ai_financials_json || {};
   const finAny = fin as Record<string, unknown>;
-  const revenueValue = fin.revenue || finAny.ttm_revenue || finAny.revenue_ttm || finAny.latest_revenue;
-  const estimatedRevenue = Array.isArray(revenueValue) && revenueValue.length > 0
-    ? parseFloat(String(revenueValue[revenueValue.length - 1]?.value || 0).replace(/[^0-9.]/g, ''))
-    : typeof revenueValue === 'number' 
-      ? revenueValue 
-      : typeof revenueValue === 'string'
-        ? parseFloat(revenueValue.replace(/[^0-9.]/g, '')) || 0
+  const revenueRaw = deal?.revenue_ttm_extracted ?? fin.revenue ?? finAny.revenue_ttm ?? finAny.ttm_revenue ?? finAny.latest_revenue;
+  const estimatedRevenue = typeof revenueRaw === 'string'
+    ? parseFloat(revenueRaw.replace(/[^0-9.]/g, '')) || 0
+    : Array.isArray(revenueRaw) && revenueRaw.length > 0
+      ? parseFloat(String(revenueRaw[revenueRaw.length - 1]?.value || 0).replace(/[^0-9.]/g, ''))
+      : typeof revenueRaw === 'number'
+        ? revenueRaw
         : 0;
 
   const handleCalculate = async () => {

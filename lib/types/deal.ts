@@ -257,8 +257,9 @@ export interface Deal {
   verdict_confidence?: string | null;
   verdict_reason?: string | null;
   next_action?: string | null;
-  // Deal economics
+  // Deal economics (from CIM / deal source — single source of truth for scenario & display)
   asking_price_extracted?: string | null;
+  revenue_ttm_extracted?: string | null;
   ebitda_ttm_extracted?: string | null;
   sba_eligible?: boolean | null;
   // Stage tracking
