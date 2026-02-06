@@ -7,6 +7,7 @@ import type { Deal } from '@/lib/types/deal';
 import type { SBA7aInputs } from '@/lib/types/sba';
 import { buildScenarios, type Scenario } from '@/lib/utils/scenario-analysis';
 import { calculateSBA7a } from '@/lib/utils/sba-calculator';
+import { parseCurrencyToNumber, formatCurrencyDisplay } from '@/app/deals/[id]/lib/formatters';
 
 export function ScenarioComparison({ deal }: { deal: Deal | null }) {
   const [loading, setLoading] = useState(false);
@@ -27,20 +28,26 @@ export function ScenarioComparison({ deal }: { deal: Deal | null }) {
   const ebitdaRaw = deal?.ebitda_ttm_extracted ?? fin.ebitda ?? finAny.ttm_ebitda ?? finAny.ebitda_ttm ?? finAny.latest_ebitda;
 
   const estimatedRevenue = typeof revenueRaw === 'string'
-    ? parseFloat(revenueRaw.replace(/[^0-9.]/g, '')) || 0
+    ? parseCurrencyToNumber(revenueRaw)
     : Array.isArray(revenueRaw) && revenueRaw.length > 0
-      ? parseFloat(String(revenueRaw[revenueRaw.length - 1]?.value || 0).replace(/[^0-9.]/g, ''))
+      ? parseCurrencyToNumber((revenueRaw[revenueRaw.length - 1] as { value?: string | number })?.value)
       : typeof revenueRaw === 'number'
         ? revenueRaw
         : 0;
 
   const estimatedEBITDA = typeof ebitdaRaw === 'string'
-    ? parseFloat(ebitdaRaw.replace(/[^0-9.]/g, '')) || 0
+    ? parseCurrencyToNumber(ebitdaRaw)
     : Array.isArray(ebitdaRaw) && ebitdaRaw.length > 0
-      ? parseFloat(String(ebitdaRaw[ebitdaRaw.length - 1]?.value || 0).replace(/[^0-9.]/g, ''))
+      ? parseCurrencyToNumber((ebitdaRaw[ebitdaRaw.length - 1] as { value?: string | number })?.value)
       : typeof ebitdaRaw === 'number'
         ? ebitdaRaw
         : 0;
+
+  const dealPurchasePrice = parseCurrencyToNumber(
+    deal?.asking_price_extracted ??
+    (finAny.estimated_purchase_price as string | number | undefined) ??
+    (finAny.purchase_price as string | number | undefined)
+  );
 
   const handleCalculate = async () => {
     if (!estimatedRevenue || estimatedRevenue <= 0) {
@@ -57,14 +64,11 @@ export function ScenarioComparison({ deal }: { deal: Deal | null }) {
     setError(null);
 
     try {
-      // Build base SBA inputs
-      // Estimate purchase price as 3-5x EBITDA (typical for SBA deals)
-      const estimatedPurchasePrice = estimatedEBITDA * 4; // 4x EBITDA estimate
-      
+      const purchasePrice = dealPurchasePrice > 0 ? dealPurchasePrice : estimatedEBITDA * 4;
       const baseInputs: SBA7aInputs = {
-        purchasePrice: estimatedPurchasePrice,
+        purchasePrice,
         workingCapital: estimatedRevenue * 0.15, // Estimate 15% of revenue
-        closingCosts: estimatedPurchasePrice * 0.03, // 3% of purchase
+        closingCosts: purchasePrice * 0.03, // 3% of purchase
         sbaGuaranteeFee: 0, // calculated automatically
         packagingFee: 3500,
         interestRate: 10.25,
@@ -97,11 +101,7 @@ export function ScenarioComparison({ deal }: { deal: Deal | null }) {
     }
   }, [estimatedRevenue, estimatedEBITDA]);
 
-  const formatCurrency = (value: number) => {
-    if (value >= 1000000) return `$${(value / 1000000).toFixed(2)}M`;
-    if (value >= 1000) return `$${(value / 1000).toFixed(0)}k`;
-    return `$${value.toFixed(0)}`;
-  };
+  const formatCurrency = formatCurrencyDisplay;
 
   const getDSCRColor = (dscr: number) => {
     if (dscr >= 1.25) return 'text-emerald-600';

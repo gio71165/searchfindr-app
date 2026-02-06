@@ -37,36 +37,53 @@ export function getSecurityHeaders(): Record<string, string> {
  */
 export function validateOrigin(req: NextRequest): boolean {
   const origin = req.headers.get("origin");
-  const referer = req.headers.get("referer");
-  
-  // Allow same-origin requests (no origin header)
+
+  // No origin header (same-origin or some clients)
   if (!origin) {
     return true;
   }
 
-  // Get allowed origins from environment
-  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map(o => o.trim()) || [];
-  
-  // Add default production origin
-  if (process.env.NODE_ENV === "production") {
-    allowedOrigins.push("https://searchfindr-app.vercel.app");
-  } else {
-    // Development: allow localhost
-    allowedOrigins.push("http://localhost:3000");
+  // Some browsers send the literal string "null" for opaque/cross-origin contexts
+  if (origin === "null") {
+    return true;
   }
 
-  // Check if origin is allowed
-  const isAllowed = allowedOrigins.some(allowed => {
-    try {
-      const originUrl = new URL(origin);
-      const allowedUrl = new URL(allowed);
-      return originUrl.origin === allowedUrl.origin;
-    } catch {
-      return false;
-    }
-  });
+  // Chrome extension (SearchFindr extension for capture-deal / verify-key)
+  if (origin.startsWith("chrome-extension://")) {
+    return true;
+  }
 
-  return isAllowed;
+  // In development, allow localhost on any port so extension + local API work
+  if (process.env.NODE_ENV !== "production") {
+    try {
+      const u = new URL(origin);
+      if (u.hostname === "localhost" || u.hostname === "127.0.0.1") {
+        return true;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",").map(o => o.trim()) || [];
+  if (process.env.NODE_ENV === "production") {
+    allowedOrigins.push("https://searchfindr-app.vercel.app", "https://searchfindr.net");
+  } else {
+    allowedOrigins.push("http://localhost:3000", "http://127.0.0.1:3000");
+  }
+
+  try {
+    const originUrl = new URL(origin);
+    return allowedOrigins.some(allowed => {
+      try {
+        return originUrl.origin === new URL(allowed).origin;
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -90,16 +107,23 @@ export function withSecurityHeaders(
     // Execute handler
     const response = await handler(req);
 
-    // Add security headers to response
     const headers = new Headers(response.headers);
     Object.entries(getSecurityHeaders()).forEach(([key, value]) => {
       headers.set(key, value);
     });
 
-    // Add CORS headers
-    Object.entries(getCorsHeaders()).forEach(([key, value]) => {
-      headers.set(key, value);
-    });
+    const corsHeaders = getCorsHeaders();
+    const origin = req.headers.get("origin");
+    const isExtension = origin?.startsWith("chrome-extension://");
+    const isLocalhost = origin && (origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:"));
+    if (isExtension || (process.env.NODE_ENV !== "production" && isLocalhost)) {
+      headers.set("Access-Control-Allow-Origin", origin!);
+      headers.set("Access-Control-Allow-Methods", corsHeaders["Access-Control-Allow-Methods"] ?? "GET, POST, PUT, DELETE, OPTIONS");
+      headers.set("Access-Control-Allow-Headers", corsHeaders["Access-Control-Allow-Headers"] ?? "Content-Type, Authorization");
+      headers.set("Access-Control-Max-Age", corsHeaders["Access-Control-Max-Age"] ?? "86400");
+    } else {
+      Object.entries(corsHeaders).forEach(([key, value]) => headers.set(key, value));
+    }
 
     return new NextResponse(response.body, {
       status: response.status,

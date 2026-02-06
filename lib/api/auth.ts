@@ -66,7 +66,7 @@ async function authenticateWithApiKey(
     throw new AuthError("API key has expired", 401);
   }
 
-  // Get workspace_id
+  // Get workspace_id (required to scope deals; every user with Settings access should have one)
   const { data: profile } = await supabaseAdmin
     .from("profiles")
     .select("workspace_id")
@@ -74,7 +74,10 @@ async function authenticateWithApiKey(
     .single();
 
   if (!profile?.workspace_id) {
-    throw new AuthError("Profile/workspace not found", 403);
+    throw new AuthError(
+      "Account setup incomplete. Please open Settings in the app and try again, or contact support.",
+      500
+    );
   }
 
   // Update last_used_at

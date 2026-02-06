@@ -187,29 +187,47 @@ export function ApiKeysSettings() {
   }
 
   async function copyToClipboard(text: string) {
+    if (!text || typeof text !== 'string') {
+      showToast('Nothing to copy', 'error', 2000);
+      return;
+    }
+    const value = text; // Use key exactly as from our system — no trim or modification
+
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(value);
       setCopied(true);
       showToast('Copied!', 'success', 2000);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      textArea.style.position = 'fixed';
-      textArea.style.opacity = '0';
-      document.body.appendChild(textArea);
-      textArea.select();
-      try {
-        document.execCommand('copy');
+      return;
+    } catch {
+      // Fallback: textarea select + execCommand (works when clipboard API is restricted)
+    }
+
+    const textArea = document.createElement('textarea');
+    textArea.value = value;
+    textArea.setAttribute('readonly', '');
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    textArea.style.top = '0';
+    textArea.style.opacity = '0';
+    textArea.style.pointerEvents = 'none';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    textArea.setSelectionRange(0, value.length);
+    try {
+      const ok = document.execCommand('copy');
+      if (ok) {
         setCopied(true);
         showToast('Copied!', 'success', 2000);
         setTimeout(() => setCopied(false), 2000);
-      } catch (fallbackErr) {
-        showToast('Failed to copy', 'error', 2000);
+      } else {
+        showToast('Copy failed. Select and copy the key manually.', 'error', 4000);
       }
-      document.body.removeChild(textArea);
+    } catch {
+      showToast('Copy failed. Select and copy the key manually.', 'error', 4000);
     }
+    document.body.removeChild(textArea);
   }
 
   function formatDate(dateString: string | null) {

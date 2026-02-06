@@ -26,23 +26,22 @@ function json(resBody: any, status = 200) {
  */
 export async function POST(req: NextRequest) {
   try {
-    const { apiKey } = await req.json();
+    const body = await req.json();
+    const rawKey = body?.apiKey ?? body?.api_key ?? null;
+    const apiKey = typeof rawKey === "string" ? rawKey.trim().replace(/\s+/g, "") : null;
 
-    // Validate format
-    if (!apiKey || typeof apiKey !== "string") {
+    if (!apiKey) {
       return json({ error: "API key is required" }, 400);
     }
 
     if (!validateApiKeyFormat(apiKey)) {
       return json(
-        { error: "Invalid API key format. Must start with sf_live_ or sf_test_" },
+        { error: "Invalid API key format. Must start with sf_live_ or sf_test_ and be 40 characters." },
         401
       );
     }
 
     // Look up all keys for this prefix (we'll verify the hash)
-    // Since bcrypt hashes are salted, we can't query by hash directly
-    // Instead, we query by prefix and verify each one
     const keyPrefix = apiKey.substring(0, 12);
     
     const { data: keyRecords, error } = await supabaseAdmin

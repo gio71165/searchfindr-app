@@ -48,7 +48,8 @@ async function clearApiKey() {
   await STORAGE.remove(API_KEY_STORAGE_KEY);
 }
 
-// Verify API key with server
+// Verify API key with server.
+// Returns { valid, error?, isUnauthorized? }. Only isUnauthorized (401) should trigger clearing the stored key.
 async function verifyApiKey(apiKey) {
   try {
     const response = await fetch(`${BASE_URL}/api/extension/verify-key`, {
@@ -59,16 +60,17 @@ async function verifyApiKey(apiKey) {
       body: JSON.stringify({ apiKey }),
     });
 
+    const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const { error } = await response.json();
-      return { valid: false, error: error || "Invalid API key" };
+      const error = data.error || "Invalid API key";
+      const isUnauthorized = response.status === 401;
+      return { valid: false, error, isUnauthorized };
     }
 
-    const data = await response.json();
     return { valid: true, user_id: data.user_id, workspace_id: data.workspace_id };
   } catch (error) {
     console.error("[SearchFindr] API key verification error:", error);
-    return { valid: false, error: "Network error. Please check your connection." };
+    return { valid: false, error: "Network error. Please check your connection.", isUnauthorized: false };
   }
 }
 
@@ -390,10 +392,15 @@ async function apiCaptureDeal(payload, apiKey) {
       console.log("Response body (text):", bodyText?.substring(0, 200));
     }
 
-    if (res.status === 401 || res.status === 403) {
-      console.warn("⚠️ Authentication error (401/403)");
+    if (res.status === 401) {
+      console.warn("⚠️ API key invalid or expired (401)");
       console.groupEnd();
       return { kind: "expired", debugId };
+    }
+    if (res.status === 403) {
+      console.warn("⚠️ Forbidden (403) — often origin/CORS; do not clear key");
+      console.groupEnd();
+      return { kind: "forbidden", debugId, error: json?.error || "Request forbidden" };
     }
     if (res.status === 400 || res.status === 422) {
       console.error("❌ Bad request (400/422)");
@@ -460,17 +467,26 @@ async function ensureStateFromApiKey() {
       return;
     }
     
-    // Verify API key with server
+    // Verify API key with server (only clear stored key on explicit 401; keep key on 429/500/network errors)
     console.log("Verifying API key with server...");
     const verification = await verifyApiKey(apiKey);
     
     if (!verification.valid) {
-      console.warn("⚠️ API key verification failed:", verification.error);
-      await clearApiKey();
-      if (uiState !== "expired") {
-        console.log(`State changed: ${uiState} -> expired`);
-        uiState = "expired";
-        render();
+      console.warn("⚠️ API key verification failed:", verification.error, "isUnauthorized:", verification.isUnauthorized);
+      if (verification.isUnauthorized) {
+        await clearApiKey();
+        if (uiState !== "expired") {
+          console.log(`State changed: ${uiState} -> expired`);
+          uiState = "expired";
+          render();
+        }
+      } else {
+        // Transient failure (429, 500, network): keep key and stay ready so capture still works
+        console.log("Keeping key; transient failure, not clearing.");
+        if (uiState !== "ready") {
+          uiState = "ready";
+          render();
+        }
       }
       console.groupEnd();
       return;
@@ -506,7 +522,7 @@ async function doCapture() {
 
   const apiKey = await getApiKey();
   if (!apiKey) {
-    console.warn("⚠️ No API key found, switching to logged_out state");
+    console.warn("⚠️ No API key found in storage, switching to logged_out state. Check chrome.storage.local in DevTools.");
     uiState = "logged_out";
     render();
     console.groupEnd();
@@ -571,9 +587,18 @@ async function doCapture() {
   }
 
   if (result.kind === "expired") {
-    console.warn("⚠️ API Response: API key invalid or expired (401/403)");
+    console.warn("⚠️ API key invalid or expired (401)");
     await clearApiKey();
     uiState = "expired";
+    render();
+    console.groupEnd();
+    return;
+  }
+
+  if (result.kind === "forbidden") {
+    uiState = "error";
+    setDebug(result.debugId);
+    setStatus(result.error || "Request was forbidden. Try again or check your connection.", true);
     render();
     console.groupEnd();
     return;
@@ -604,16 +629,22 @@ async function doDisconnect() {
   render();
 }
 
+function normalizeApiKey(input) {
+  if (!input || typeof input !== "string") return "";
+  return input.trim().replace(/\s+/g, "");
+}
+
 async function doSaveApiKey() {
-  const apiKey = apiKeyInput?.value?.trim() || "";
-  
+  const rawInput = apiKeyInput?.value ?? "";
+  const apiKey = normalizeApiKey(rawInput);
+
   if (!apiKey) {
     setStatus("Please enter an API key", true);
     return;
   }
 
   if (!validateApiKeyFormat(apiKey)) {
-    setStatus("Invalid API key format. Must start with sf_live_ or sf_test_", true);
+    setStatus("Invalid format. Use the full key from Settings (40 chars, starts with sf_live_ or sf_test_).", true);
     return;
   }
 
@@ -629,7 +660,8 @@ async function doSaveApiKey() {
   if (!verification.valid) {
     console.error("❌ API key verification failed:", verification.error);
     uiState = "expired";
-    setStatus(verification.error || "Invalid API key. Please check and try again.", true);
+    const hint = " Copy the full key from Settings (show key once after generating); no extra spaces.";
+    setStatus((verification.error || "Invalid API key.") + hint, true);
     render();
     console.groupEnd();
     return;
@@ -639,9 +671,11 @@ async function doSaveApiKey() {
   console.log("User ID:", verification.user_id);
   console.groupEnd();
 
-  // Save API key
+  // Save API key (persists in chrome.storage.local)
   await saveApiKey(apiKey);
-  
+  const readBack = await getApiKey();
+  console.log("API key after save - present:", !!readBack, "length:", readBack ? readBack.length : 0);
+
   // Clear input
   if (apiKeyInput) {
     apiKeyInput.value = "";
@@ -749,13 +783,27 @@ initState().catch(err => {
 
 console.groupEnd();
 
-// Listen for storage changes (when API key is saved) — only react to local so we don't double-run
+// Listen for storage changes (when API key is saved or removed)
+// When key is *set* we just go to ready without re-verifying (avoids double-verify and clearing on 429/network).
+// When key is *removed* we go to logged_out.
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "local" || !changes[API_KEY_STORAGE_KEY]) return;
-  console.log("💾 API key storage changed in local, refreshing state...");
-  initState().catch(err => {
-    console.error("❌ API key state refresh failed:", err);
-  });
+  const change = changes[API_KEY_STORAGE_KEY];
+  const newVal = change.newValue;
+  console.log("💾 API key storage changed in local. Key present:", !!newVal);
+  if (newVal && typeof newVal === "string" && newVal.trim()) {
+    // Key was saved/updated — trust it and show ready (no re-verify here to avoid clearing on transient failures)
+    if (validateApiKeyFormat(newVal)) {
+      uiState = "ready";
+      render();
+    } else {
+      ensureStateFromApiKey().catch(err => console.error("❌ API key state refresh failed:", err));
+    }
+  } else {
+    // Key was removed
+    uiState = "logged_out";
+    render();
+  }
 });
 
 // Periodic check when popup is open (in case storage listener misses it)

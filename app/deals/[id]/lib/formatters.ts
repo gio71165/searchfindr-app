@@ -11,6 +11,32 @@ export function formatMoney(v: number | null | undefined) {
   }
 }
 
+/**
+ * Parse a currency string from CIM/deal (e.g. "$495k", "8M", "412,000") to a number in full dollars.
+ */
+export function parseCurrencyToNumber(
+  v: string | number | null | undefined
+): number {
+  if (v == null) return 0;
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  const s = String(v).trim().toLowerCase();
+  const numPart = s.replace(/[^0-9.]/g, '');
+  const num = parseFloat(numPart) || 0;
+  if (s.endsWith('m') || s.includes('million')) return num * 1_000_000;
+  if (s.endsWith('k') || s.includes('thousand')) return num * 1_000;
+  return num;
+}
+
+/**
+ * Format a number as currency for scenario/modeling: show actual magnitude (e.g. $495,000 or $495k or $1.25M).
+ */
+export function formatCurrencyDisplay(value: number): string {
+  if (!Number.isFinite(value)) return '—';
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
+  if (value >= 1_000) return `$${Math.round(value).toLocaleString()}`;
+  return `$${Math.round(value).toLocaleString()}`;
+}
+
 export function formatPct(v: number | null | undefined) {
   if (typeof v !== 'number' || !Number.isFinite(v)) return '—';
   return `${v.toFixed(1)}%`;

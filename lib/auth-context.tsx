@@ -93,12 +93,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
 
         // Use Promise.race to add a timeout for the session check
-        const sessionPromise = supabase.auth.getSession();
-        
-        const { data: { session: s } } = await Promise.race([
-          sessionPromise,
-          timeoutPromise,
-        ]);
+        let sessionResult: { data: { session: Session | null } };
+        try {
+          const sessionPromise = supabase.auth.getSession();
+          sessionResult = await Promise.race([
+            sessionPromise,
+            timeoutPromise,
+          ]) as { data: { session: Session | null } };
+        } catch (networkErr) {
+          const msg = networkErr instanceof TypeError && networkErr.message === 'Failed to fetch'
+            ? 'Network error. Check your connection or try again.'
+            : networkErr instanceof Error ? networkErr.message : 'Auth error';
+          if (mounted) {
+            setError(msg);
+            setLoading(false);
+          }
+          return;
+        }
+        const { data: { session: s } } = sessionResult;
 
         // Clear timeout if session promise won
         if (timeoutId) {
@@ -141,7 +153,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (e) {
         if (mounted) {
-          setError(e instanceof Error ? e.message : 'Auth error');
+          const msg = e instanceof TypeError && e.message === 'Failed to fetch'
+            ? 'Network error. Check your connection or try again.'
+            : e instanceof Error ? e.message : 'Auth error';
+          setError(msg);
           if (timeoutId) clearTimeout(timeoutId);
           setLoading(false);
         }
