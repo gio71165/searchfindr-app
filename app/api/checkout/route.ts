@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY?.trim().replace(/^["']|["']$/g, '');
@@ -12,7 +13,7 @@ function getStripe() {
   });
 }
 
-function getSupabase() {
+function getSupabaseAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -63,13 +64,22 @@ function getPriceIds() {
 
 export async function POST(req: NextRequest) {
   try {
+    const serverSupabase = await createServerClient();
+    const { data: { user }, error: authError } = await serverSupabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const userId = user.id;
+    const email = user.email ?? '';
+
     const stripe = getStripe();
-    const supabase = getSupabase();
+    const supabase = getSupabaseAdmin();
     const PRICE_IDS = getPriceIds();
     const appUrl = getAppUrl();
-    const { tier, plan, billingCycle, userId, email } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { tier, plan, billingCycle } = body;
 
-    if (!tier || !plan || !billingCycle || !userId || !email) {
+    if (!tier || !plan || !billingCycle) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -169,8 +179,8 @@ export async function POST(req: NextRequest) {
       isTrialEligible,
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Checkout error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Checkout failed' }, { status: 500 });
   }
 }

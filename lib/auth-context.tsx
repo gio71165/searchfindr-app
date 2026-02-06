@@ -17,6 +17,8 @@ type AuthState = {
   session: Session | null;
   workspaceId: string | null;
   isAdmin: boolean;
+  isCoalitionLeader: boolean;
+  isCoalitionMember: boolean;
   role: string | null;
   loading: boolean;
   error: string | null;
@@ -27,6 +29,8 @@ const defaultState: AuthState = {
   session: null,
   workspaceId: null,
   isAdmin: false,
+  isCoalitionLeader: false,
+  isCoalitionMember: false,
   role: null,
   loading: true,
   error: null,
@@ -39,6 +43,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isCoalitionLeader, setIsCoalitionLeader] = useState(false);
+  const [isCoalitionMember, setIsCoalitionMember] = useState(false);
   const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await Promise.race([
         supabase
           .from('profiles')
-          .select('workspace_id, is_admin, onboarding_completed, role')
+          .select('workspace_id, is_admin, is_coalition_leader, is_coalition_member, onboarding_completed, role')
           .eq('id', uid)
           .single(),
         timeoutPromise
@@ -64,6 +70,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setWorkspaceId(result.data?.workspace_id ?? null);
       setIsAdmin(result.data?.is_admin === true);
+      setIsCoalitionLeader(result.data?.is_coalition_leader === true || result.data?.is_admin === true);
+      setIsCoalitionMember(result.data?.is_coalition_member === true);
       setRole(result.data?.role ?? null);
     } catch (e) {
       console.error('Profile fetch failed:', e);
@@ -106,6 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
           setWorkspaceId(null);
           setIsAdmin(false);
+          setIsCoalitionLeader(false);
+          setIsCoalitionMember(false);
           setRole(null);
           if (mounted) {
             if (timeoutId) clearTimeout(timeoutId);
@@ -155,6 +165,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setWorkspaceId(null);
           setIsAdmin(false);
+          setIsCoalitionLeader(false);
+          setIsCoalitionMember(false);
           setRole(null);
         }
         
@@ -176,11 +188,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       workspaceId,
       isAdmin,
+      isCoalitionLeader,
+      isCoalitionMember,
       role,
       loading,
       error,
     }),
-    [user, session, workspaceId, isAdmin, role, loading, error]
+    [user, session, workspaceId, isAdmin, isCoalitionLeader, isCoalitionMember, role, loading, error]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

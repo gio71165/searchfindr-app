@@ -27,7 +27,7 @@ export default function TodayPage() {
 
   if (authLoading || loading || (!user && !authLoading)) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto overflow-x-hidden">
+      <div className="min-h-full bg-slate-900 p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto overflow-x-hidden">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-32 w-full" />
@@ -41,14 +41,14 @@ export default function TodayPage() {
     proceedWithoutAction.length;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-6 sm:space-y-8">
+    <div className="min-h-full bg-slate-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
       {/* Hero Section */}
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">
+        <h1 className="text-2xl sm:text-3xl font-bold text-slate-50">
           {totalAttentionNeeded === 0 ? '✅ All caught up!' : `${totalAttentionNeeded} deals need attention`}
         </h1>
-        <p className="text-sm sm:text-base text-slate-600 mt-1">
+        <p className="text-sm sm:text-base text-slate-400 mt-1">
           {new Date().toLocaleDateString('en-US', { 
             weekday: 'long', 
             year: 'numeric', 
@@ -68,13 +68,13 @@ export default function TodayPage() {
         >
           <div className="space-y-3">
             {followUpsNeeded.map(deal => (
-              <div key={deal.id} className="border border-slate-200 rounded-lg p-4 bg-white">
+              <div key={deal.id} className="border border-slate-700 rounded-lg p-4 bg-slate-800">
                 <DealCard deal={deal} />
-                <div className="mt-2 text-sm text-amber-600 font-medium">
+                <div className="mt-2 text-sm text-amber-400 font-medium">
                   ⏰ Due {deal.days_overdue && deal.days_overdue > 0 ? `${deal.days_overdue} days ago` : 'today'}
                 </div>
                 {deal.next_action && (
-                  <div className="mt-1 text-sm text-slate-600">
+                  <div className="mt-1 text-sm text-slate-400">
                     Next: {deal.next_action}
                   </div>
                 )}
@@ -94,12 +94,12 @@ export default function TodayPage() {
         >
           <div className="space-y-3">
             {stuckDeals.map(deal => (
-              <div key={deal.id} className="border border-slate-200 rounded-lg p-4 bg-white">
+              <div key={deal.id} className="border border-slate-700 rounded-lg p-4 bg-slate-800">
                 <DealCard deal={deal} />
-                <div className="mt-2 text-sm text-amber-600 font-medium">
+                <div className="mt-2 text-sm text-amber-400 font-medium">
                   📅 {deal.days_in_stage} days in reviewing
                 </div>
-                <div className="mt-1 text-sm text-slate-600">
+                <div className="mt-1 text-sm text-slate-400">
                   Make a decision: Proceed or Pass?
                 </div>
               </div>
@@ -118,15 +118,15 @@ export default function TodayPage() {
         >
           <div className="space-y-3">
             {proceedWithoutAction.map(deal => (
-              <div key={deal.id} className="border border-slate-200 rounded-lg p-4 bg-white">
+              <div key={deal.id} className="border border-slate-700 rounded-lg p-4 bg-slate-800">
                 <DealCard deal={deal} />
-                <div className="mt-2 text-sm text-blue-600 font-medium">
+                <div className="mt-2 text-sm text-blue-400 font-medium">
                   Verdict: PROCEED • No next action set
                 </div>
                 <div className="mt-1">
                   <Link 
                     href={`/deals/${deal.id}`}
-                    className="inline-block text-sm text-blue-600 hover:underline min-h-[44px] py-2 touch-manipulation"
+                    className="inline-block text-sm text-emerald-400 hover:text-emerald-300 min-h-[44px] py-2 touch-manipulation"
                   >
                     Set next action →
                   </Link>
@@ -141,11 +141,11 @@ export default function TodayPage() {
       {totalAttentionNeeded === 0 && (
         <div className="text-center py-12">
           <div className="text-6xl mb-4">🎉</div>
-          <h2 className="text-2xl font-semibold text-slate-900">You're all caught up!</h2>
-          <p className="text-slate-600 mt-2">No deals need immediate attention.</p>
+          <h2 className="text-2xl font-semibold text-slate-50">You're all caught up!</h2>
+          <p className="text-slate-400 mt-2">No deals need immediate attention.</p>
           <Link 
             href="/dashboard"
-            className="mt-6 inline-block px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="btn-secondary btn-lg mt-6 inline-block"
           >
             View All Deals
           </Link>
@@ -154,8 +154,8 @@ export default function TodayPage() {
 
       {/* Recent Activity Feed */}
       {recentActivity.length > 0 && (
-        <div className="border-t border-slate-200 pt-6 sm:pt-8">
-          <h2 className="text-lg sm:text-xl font-semibold mb-4 text-slate-900">Recent Activity</h2>
+        <div className="border-t border-slate-800 pt-6 sm:pt-8">
+          <h2 className="text-lg sm:text-xl font-semibold mb-4 text-slate-50">Recent Activity</h2>
           <div className="space-y-3">
             {recentActivity.slice(0, 10).map(activity => (
               <div key={activity.id} className="flex flex-col sm:flex-row gap-2 sm:gap-3 text-sm">
@@ -170,11 +170,11 @@ export default function TodayPage() {
                 <div className="flex-1 min-w-0">
                   <Link 
                     href={`/deals/${activity.deal_id}`}
-                    className="font-medium text-slate-900 hover:text-emerald-600 block min-h-[44px] py-2 touch-manipulation"
+                    className="font-medium text-slate-50 hover:text-emerald-400 block min-h-[44px] py-2 touch-manipulation"
                   >
                     {activity.company_name}
                   </Link>
-                  <div className="text-slate-600 break-words">{activity.description}</div>
+                  <div className="text-slate-400 break-words">{activity.description}</div>
                 </div>
               </div>
             ))}

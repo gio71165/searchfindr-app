@@ -28,7 +28,7 @@ export default function GenerateMonthlyUpdateButton() {
       onClick={handleGenerate}
       isLoading={loading}
       loadingText="Generating..."
-      className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+      className="btn-secondary inline-flex items-center gap-2"
     >
       <FileDown className="h-4 w-4" />
       Generate Monthly Update

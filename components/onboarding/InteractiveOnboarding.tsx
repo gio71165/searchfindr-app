@@ -389,7 +389,7 @@ export function InteractiveOnboarding({
       {/* Instruction tooltip - positioned intelligently */}
       <div
         ref={tooltipRef}
-        className={`fixed z-[10000] bg-white rounded-lg shadow-2xl p-6 max-w-md onboarding-tooltip ${
+        className={`fixed z-[10000] bg-slate-800 border border-slate-700 rounded-lg shadow-2xl p-6 max-w-md onboarding-tooltip ${
           isModalStep 
             ? 'top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2' 
             : ''
@@ -406,21 +406,21 @@ export function InteractiveOnboarding({
       >
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <h3 className="font-semibold text-lg text-slate-900 mb-1">{currentStepData.title}</h3>
-            <p className="text-xs text-slate-500">
+            <h3 className="font-semibold text-lg text-slate-50 mb-1">{currentStepData.title}</h3>
+            <p className="text-xs text-slate-400">
               Step {currentStep + 1} of {ONBOARDING_STEPS.length}
             </p>
           </div>
           <button
             onClick={handleSkip}
-            className="text-slate-400 hover:text-slate-600 transition-colors ml-4"
+            className="text-slate-400 hover:text-slate-200 transition-colors ml-4"
             aria-label="Skip onboarding"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="text-slate-700 mb-6 whitespace-pre-line">
+        <div className="text-slate-300 mb-6 whitespace-pre-line">
           {currentStepData.content}
         </div>
 
@@ -441,7 +441,7 @@ export function InteractiveOnboarding({
           <button
             onClick={previousStep}
             disabled={currentStep === 0}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm text-slate-300 hover:text-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -452,7 +452,7 @@ export function InteractiveOnboarding({
             {!isLastStep && !isModalStep && (
               <button
                 onClick={nextStep}
-                className="px-3 py-2 text-xs text-slate-500 hover:text-slate-700 transition-colors"
+                className="px-3 py-2 text-xs text-slate-400 hover:text-slate-200 transition-colors"
                 title="Skip this step"
               >
                 Skip
@@ -466,7 +466,7 @@ export function InteractiveOnboarding({
                   await completeOnboarding();
                 }}
                 disabled={isCompleting}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isCompleting ? 'Completing...' : 'Complete'}
                 <ArrowRight className="h-4 w-4" />
@@ -474,7 +474,7 @@ export function InteractiveOnboarding({
             ) : (
               <button
                 onClick={nextStep}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                className="btn-secondary flex items-center gap-2"
               >
                 {currentStepData.id === 'keyboard-shortcuts' ? 'Show me later' : 'Got it'}
                 <ArrowRight className="h-4 w-4" />

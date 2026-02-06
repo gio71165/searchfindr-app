@@ -15,7 +15,7 @@ export function VerdictFilters(props: VerdictFiltersProps) {
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-sm font-medium text-slate-600">Verdict:</span>
+      <span className="text-sm font-medium text-slate-400">Verdict:</span>
 
       <button
         onClick={() => setSelectedVerdict('proceed')}
@@ -23,8 +23,8 @@ export function VerdictFilters(props: VerdictFiltersProps) {
           px-3 py-1.5 rounded-lg text-sm font-medium transition-all
           flex items-center gap-1.5
           ${selectedVerdict === 'proceed'
-            ? 'bg-emerald-500 text-white shadow-md'
-            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+            ? 'bg-emerald-600 text-white shadow-md'
+            : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'
           }
         `}
       >
@@ -38,8 +38,8 @@ export function VerdictFilters(props: VerdictFiltersProps) {
           px-3 py-1.5 rounded-lg text-sm font-medium transition-all
           flex items-center gap-1.5
           ${selectedVerdict === 'park'
-            ? 'bg-blue-500 text-white shadow-md'
-            : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+            ? 'bg-blue-600 text-white shadow-md'
+            : 'bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20'
           }
         `}
       >
@@ -53,8 +53,8 @@ export function VerdictFilters(props: VerdictFiltersProps) {
           px-3 py-1.5 rounded-lg text-sm font-medium transition-all
           flex items-center gap-1.5
           ${selectedVerdict === 'pass'
-            ? 'bg-red-500 text-white shadow-md'
-            : 'bg-red-50 text-red-700 hover:bg-red-100'
+            ? 'bg-red-600 text-white shadow-md'
+            : 'bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20'
           }
         `}
       >
@@ -67,8 +67,8 @@ export function VerdictFilters(props: VerdictFiltersProps) {
         className={`
           px-3 py-1.5 rounded-lg text-sm font-medium transition-all
           ${selectedVerdict === 'all'
-            ? 'bg-slate-700 text-white shadow-md'
-            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            ? 'bg-slate-950 text-slate-50 border border-slate-700'
+            : 'bg-slate-800 text-slate-400 border border-slate-800 hover:bg-slate-700 hover:text-slate-300'
           }
         `}
       >

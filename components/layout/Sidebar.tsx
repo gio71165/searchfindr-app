@@ -3,14 +3,19 @@
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth-context';
 import { useReminderCount } from '@/lib/hooks/useReminderCount';
-import { BarChart3, Clock, FileText, DollarSign, FolderOpen, Users } from 'lucide-react';
+import { BarChart3, Clock, FileText, DollarSign, FolderOpen, Users, Globe } from 'lucide-react';
+
+const FEATURE_FLAGS = {
+  DOCUMENTS: false,
+};
 
 export function Sidebar() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const { isCoalitionMember } = useAuth();
   const { count: reminderCount } = useReminderCount();
-
 
   const navItems = [
     {
@@ -23,9 +28,10 @@ export function Sidebar() {
     {
       section: 'DEAL SOURCES',
       items: [
+        { icon: Globe, label: 'On-Market', href: '/on-market' },
         { icon: FileText, label: 'CIMs', href: '/cims' },
         { icon: DollarSign, label: 'Financials', href: '/financials' },
-        { icon: FolderOpen, label: 'Documents', href: '/documents' }
+        ...(FEATURE_FLAGS.DOCUMENTS ? [{ icon: FolderOpen, label: 'Documents', href: '/documents' }] : [])
       ]
     },
     {
@@ -81,9 +87,16 @@ export function Sidebar() {
       >
         {/* Logo Section */}
         <div className="p-6 border-b border-slate-800">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-            SearchFindr
-          </h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+              SearchFindr
+            </h1>
+            {isCoalitionMember && (
+              <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-500/40">
+                Coalition
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-500 mt-1">Deal Intelligence</p>
         </div>
 

@@ -47,8 +47,8 @@ export default function InvestorOverview({ data }: InvestorOverviewProps) {
 
       {/* Pipeline Funnel Chart */}
       {data.dealsByStage.length > 0 && (
-        <div className="bg-white rounded-lg border border-slate-200 p-6">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">Pipeline by Stage</h2>
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+          <h2 className="text-xl font-semibold text-slate-50 mb-4">Pipeline by Stage</h2>
           <div className="space-y-4">
             {data.dealsByStage
               .sort((a, b) => {
@@ -70,16 +70,16 @@ export default function InvestorOverview({ data }: InvestorOverviewProps) {
                 return (
                   <div key={stage.stage} className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-slate-700 capitalize">
+                      <span className="font-medium text-slate-300 capitalize">
                         {stage.stage.replace(/_/g, ' ')}
                       </span>
-                      <span className="text-slate-600">
+                      <span className="text-slate-400">
                         {stage.count} deals • {formatCurrency(stage.totalValue)}
                       </span>
                     </div>
-                    <div className="w-full bg-slate-200 rounded-full h-3">
+                    <div className="w-full bg-slate-700 rounded-full h-3">
                       <div
-                        className="bg-blue-600 h-3 rounded-full transition-all duration-500"
+                        className="bg-emerald-500 h-3 rounded-full transition-all duration-500"
                         style={{ width: `${percentage}%` }}
                       />
                     </div>
@@ -92,17 +92,17 @@ export default function InvestorOverview({ data }: InvestorOverviewProps) {
 
       {/* Activity Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg border border-slate-200 p-4">
-          <div className="text-sm text-slate-600 mb-1">CIMs Processed</div>
-          <div className="text-2xl font-bold text-slate-900">{data.totalCimsProcessed}</div>
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-4">
+          <div className="text-sm text-slate-400 mb-1">CIMs Processed</div>
+          <div className="text-2xl font-bold text-slate-50">{data.totalCimsProcessed}</div>
         </div>
-        <div className="bg-white rounded-lg border border-slate-200 p-4">
-          <div className="text-sm text-slate-600 mb-1">IOIs Submitted</div>
-          <div className="text-2xl font-bold text-slate-900">{data.totalIoisSubmitted}</div>
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-4">
+          <div className="text-sm text-slate-400 mb-1">IOIs Submitted</div>
+          <div className="text-2xl font-bold text-slate-50">{data.totalIoisSubmitted}</div>
         </div>
-        <div className="bg-white rounded-lg border border-slate-200 p-4">
-          <div className="text-sm text-slate-600 mb-1">LOIs Submitted</div>
-          <div className="text-2xl font-bold text-slate-900">{data.totalLoisSubmitted}</div>
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-4">
+          <div className="text-sm text-slate-400 mb-1">LOIs Submitted</div>
+          <div className="text-2xl font-bold text-slate-50">{data.totalLoisSubmitted}</div>
         </div>
       </div>
     </div>

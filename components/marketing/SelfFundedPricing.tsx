@@ -107,7 +107,7 @@ export function SelfFundedPricing() {
         {/* CTA Button */}
         <Link
           href="/pricing"
-          className="block w-full py-4 bg-emerald-600 text-white rounded-lg font-semibold text-lg hover:bg-emerald-700 transition-colors shadow-lg hover:shadow-xl text-center"
+          className="btn-primary btn-lg block w-full py-4 font-semibold shadow-lg hover:shadow-xl text-center"
         >
           Lock in $79/month Forever
         </Link>

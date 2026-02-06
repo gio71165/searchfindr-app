@@ -103,19 +103,19 @@ export default function SearcherPerformance({ searchers, onSearcherUpdate, onLin
 
   if (searchers.length === 0) {
     return (
-      <div className="bg-white rounded-lg border border-slate-200 p-12 text-center">
+      <div className="bg-slate-800 rounded-xl border border-slate-700 p-12 text-center">
         <div className="max-w-md mx-auto">
           <div className="mb-4">
-            <Users className="h-12 w-12 text-slate-400 mx-auto" />
+            <Users className="h-12 w-12 text-slate-500 mx-auto" />
           </div>
-          <h3 className="text-lg font-semibold text-slate-900 mb-2">No searchers linked yet</h3>
-          <p className="text-slate-600 mb-6">
+          <h3 className="text-lg font-semibold text-slate-50 mb-2">No searchers linked yet</h3>
+          <p className="text-slate-400 mb-6">
             Link searchers to your account to start monitoring their progress, pipeline, and performance metrics.
           </p>
           {onLinkSearcher ? (
             <button
               onClick={onLinkSearcher}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              className="btn-secondary inline-flex items-center gap-2 text-sm font-medium"
             >
               Link Your First Searcher
             </button>
@@ -127,7 +127,7 @@ export default function SearcherPerformance({ searchers, onSearcherUpdate, onLin
                   window.dispatchEvent(new CustomEvent('investor:open-link-modal'));
                 }
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              className="btn-secondary inline-flex items-center gap-2 text-sm font-medium"
             >
               Link Your First Searcher
             </button>
@@ -138,44 +138,44 @@ export default function SearcherPerformance({ searchers, onSearcherUpdate, onLin
   }
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-      <div className="px-6 py-4 border-b border-slate-200">
-        <h2 className="text-xl font-semibold text-slate-900">Searcher Performance</h2>
+    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-700">
+        <h2 className="text-xl font-semibold text-slate-50">Searcher Performance</h2>
       </div>
       
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-slate-50 border-b border-slate-200">
+          <thead className="bg-slate-900/50 border-b border-slate-700">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                 Searcher (click to edit name)
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                 Capital Committed
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                 Months Searching
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                 Deals Reviewed
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                 Pipeline Value
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                 CIM → IOI Rate
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                 Last Activity
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-slate-700 uppercase tracking-wider">
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-slate-200">
+          <tbody className="divide-y divide-slate-700">
             {searchers.map((searcher) => (
-              <tr key={searcher.searcherId} className="hover:bg-slate-50">
+              <tr key={searcher.searcherId} className="hover:bg-slate-700/50">
                 <td className="px-6 py-4 whitespace-nowrap">
                   {editingSearcher === searcher.linkId ? (
                     <div className="flex items-center gap-2">
@@ -190,14 +190,14 @@ export default function SearcherPerformance({ searchers, onSearcherUpdate, onLin
                             handleCancelEdit();
                           }
                         }}
-                        className="px-2 py-1 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="px-2 py-1 text-sm bg-slate-900 border border-slate-700 rounded text-slate-300 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                         autoFocus
                         disabled={saving}
                       />
                       <AsyncButton
                         onClick={() => handleSaveEdit(searcher.linkId)}
                         isLoading={saving}
-                        className="p-1 text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 rounded transition-colors"
+                        className="p-1 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded transition-colors"
                         title="Save"
                       >
                         <Check className="h-4 w-4" />
@@ -205,7 +205,7 @@ export default function SearcherPerformance({ searchers, onSearcherUpdate, onLin
                       <button
                         onClick={handleCancelEdit}
                         disabled={saving}
-                        className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors disabled:opacity-50"
+                        className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded transition-colors disabled:opacity-50"
                         title="Cancel"
                       >
                         <X className="h-4 w-4" />
@@ -218,7 +218,7 @@ export default function SearcherPerformance({ searchers, onSearcherUpdate, onLin
                       title="Click to edit name"
                     >
                       <div className="flex items-center gap-2">
-                        <div className="text-sm font-medium text-slate-900">
+                        <div className="text-sm font-medium text-slate-50">
                           {searcher.searcherName}
                         </div>
                         <Edit2 className="h-3 w-3 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -227,31 +227,31 @@ export default function SearcherPerformance({ searchers, onSearcherUpdate, onLin
                     </div>
                   )}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">
                   {formatCurrency(searcher.capitalCommitted)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">
                   {searcher.monthsSearching}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">
                   <div>{searcher.cimsReviewedTotal} total</div>
                   <div className="text-xs text-slate-500">
                     {searcher.cimsReviewedThisMonth} this month
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">
                   <div>{formatCurrency(searcher.totalPipelineValue)}</div>
                   <div className="text-xs text-slate-500">
                     {searcher.dealsInPipeline} deals
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">
                   <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-blue-600" />
+                    <TrendingUp className="h-4 w-4 text-emerald-400" />
                     <span>{searcher.conversionRates.cimToIoi.toFixed(0)}%</span>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">
                   <div>{formatDate(searcher.lastActivity)}</div>
                   <div className="text-xs text-slate-500 capitalize">
                     {searcher.lastActivityType.replace(/_/g, ' ')}
@@ -261,7 +261,7 @@ export default function SearcherPerformance({ searchers, onSearcherUpdate, onLin
                   {searcher.searcherId && searcher.workspaceId ? (
                     <Link
                       href={`/investor/searchers/${searcher.searcherId}?workspace=${searcher.workspaceId}`}
-                      className="inline-flex items-center gap-2 px-3 py-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+                      className="inline-flex items-center gap-2 px-3 py-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors"
                     >
                       <Eye className="h-4 w-4" />
                       View Details

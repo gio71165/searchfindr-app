@@ -251,14 +251,14 @@ export function ApiKeysSettings() {
   const revokedKeys = keys.filter(k => k.revoked_at);
 
   return (
-    <div className="p-6 bg-slate-50 rounded-lg border border-slate-200">
+    <div className="p-6 bg-slate-800/50 rounded-lg border border-slate-600">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="font-semibold text-slate-900 mb-1 flex items-center gap-2">
+          <h2 className="font-semibold text-slate-50 mb-1 flex items-center gap-2">
             <span className="text-xl">🔌</span>
             Chrome Extension API Keys
           </h2>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-400">
             Generate API keys to connect the SearchFindr Chrome extension. Each key can be revoked at any time.
           </p>
         </div>
@@ -269,7 +269,7 @@ export function ApiKeysSettings() {
             setNewKey(null);
           }}
           disabled={activeKeys.length >= 5 || generating}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-secondary inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Plus className="h-4 w-4" />
           Generate New API Key
@@ -277,9 +277,9 @@ export function ApiKeysSettings() {
       </div>
 
       {activeKeys.length >= 5 && (
-        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
-          <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-amber-800">
+        <div className="mb-4 p-3 bg-amber-500/20 border border-amber-500/40 rounded-lg flex items-start gap-2">
+          <AlertTriangle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-amber-200">
             You have reached the maximum of 5 API keys. Please revoke an existing key before creating a new one.
           </p>
         </div>
@@ -287,11 +287,11 @@ export function ApiKeysSettings() {
 
       {/* Generate Key Name Modal */}
       {showNewKeyModal && !newKey && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">Generate New API Key</h3>
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4 border border-slate-600">
+            <h3 className="text-lg font-semibold text-slate-50 mb-4">Generate New API Key</h3>
             <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
                 Key Name
               </label>
               <input
@@ -299,7 +299,7 @@ export function ApiKeysSettings() {
                 value={newKeyName}
                 onChange={(e) => setNewKeyName(e.target.value)}
                 placeholder="e.g., Chrome Extension - Work Laptop"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-slate-600 rounded-lg bg-slate-900 text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && newKeyName.trim() && !generating) {
@@ -317,7 +317,7 @@ export function ApiKeysSettings() {
                 isLoading={generating}
                 loadingText="Generating..."
                 disabled={!newKeyName.trim()}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+                className="btn-secondary flex-1 flex items-center justify-center gap-2"
               >
                 Generate Key
               </AsyncButton>
@@ -327,7 +327,7 @@ export function ApiKeysSettings() {
                   setNewKeyName('');
                 }}
                 disabled={generating}
-                className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50"
+                className="px-4 py-2 border border-slate-600 rounded-lg hover:bg-slate-700 text-slate-200 disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -338,32 +338,32 @@ export function ApiKeysSettings() {
 
       {/* Show New Key Modal */}
       {newKey && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">API Key Generated</h3>
-            <p className="text-sm text-amber-600 mb-4 flex items-center gap-2">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4 border border-slate-600">
+            <h3 className="text-lg font-semibold text-slate-50 mb-2">API Key Generated</h3>
+            <p className="text-sm text-amber-400 mb-4 flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
               Save this key now. You won't be able to see it again.
             </p>
-            <div className="mb-4 p-3 bg-slate-100 rounded-lg border border-slate-300">
+            <div className="mb-4 p-3 bg-slate-900 rounded-lg border border-slate-600">
               <div className="flex items-center justify-between gap-2">
-                <code className="text-sm font-mono text-slate-900 break-all">{newKey}</code>
+                <code className="text-sm font-mono text-slate-100 break-all">{newKey}</code>
                 <button
                   onClick={() => copyToClipboard(newKey)}
-                  className="flex-shrink-0 p-2 hover:bg-slate-200 rounded"
+                  className="flex-shrink-0 p-2 hover:bg-slate-700 rounded text-slate-300"
                   title="Copy to clipboard"
                 >
                   {copied ? (
-                    <Check className="h-4 w-4 text-emerald-600" />
+                    <Check className="h-4 w-4 text-emerald-400" />
                   ) : (
-                    <Copy className="h-4 w-4 text-slate-600" />
+                    <Copy className="h-4 w-4" />
                   )}
                 </button>
               </div>
             </div>
             <button
               onClick={() => copyToClipboard(newKey)}
-              className="w-full mb-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center justify-center gap-2"
+              className="btn-secondary w-full mb-2 flex items-center justify-center gap-2"
             >
               <Copy className="h-4 w-4" />
               Copy to Clipboard
@@ -373,7 +373,7 @@ export function ApiKeysSettings() {
                 setNewKey(null);
                 setShowNewKeyModal(false);
               }}
-              className="w-full px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50"
+              className="w-full px-4 py-2 border border-slate-600 text-slate-300 rounded-lg hover:bg-slate-700"
             >
               I've Saved My Key
             </button>
@@ -383,17 +383,17 @@ export function ApiKeysSettings() {
 
       {/* Revoke Confirmation Modal */}
       {showRevokeModal && keyToRevoke && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">Revoke API Key?</h3>
-            <p className="text-sm text-slate-600 mb-4">
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-slate-800 rounded-lg p-6 max-w-md w-full mx-4 border border-slate-600">
+            <h3 className="text-lg font-semibold text-slate-50 mb-2">Revoke API Key?</h3>
+            <p className="text-sm text-slate-400 mb-4">
               Are you sure you want to revoke this API key?
             </p>
-            <div className="mb-4 p-3 bg-slate-50 rounded-lg border border-slate-200">
-              <div className="text-sm font-medium text-slate-900 mb-1">{keyToRevoke.name}</div>
-              <div className="text-xs text-slate-600 font-mono">{keyToRevoke.key_prefix}...</div>
+            <div className="mb-4 p-3 bg-slate-900 rounded-lg border border-slate-600">
+              <div className="text-sm font-medium text-slate-100 mb-1">{keyToRevoke.name}</div>
+              <div className="text-xs text-slate-500 font-mono">{keyToRevoke.key_prefix}...</div>
             </div>
-            <p className="text-sm text-amber-600 mb-4 flex items-start gap-2">
+            <p className="text-sm text-amber-400 mb-4 flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
               The Chrome extension using this key will stop working immediately.
             </p>
@@ -401,7 +401,7 @@ export function ApiKeysSettings() {
               <button
                 onClick={revokeKey}
                 disabled={revokingKeyId === keyToRevoke.id}
-                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-danger flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {revokingKeyId === keyToRevoke.id ? 'Revoking...' : 'Revoke Key'}
               </button>
@@ -411,7 +411,7 @@ export function ApiKeysSettings() {
                   setKeyToRevoke(null);
                 }}
                 disabled={revokingKeyId === keyToRevoke.id}
-                className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50"
+                className="px-4 py-2 border border-slate-600 rounded-lg hover:bg-slate-700 text-slate-200 disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -422,11 +422,11 @@ export function ApiKeysSettings() {
 
       {/* Active Keys */}
       {loading ? (
-        <p className="text-sm text-slate-600">Loading API keys...</p>
+        <p className="text-sm text-slate-400">Loading API keys...</p>
       ) : activeKeys.length === 0 && revokedKeys.length === 0 ? (
         <div className="text-center py-8">
-          <Key className="h-12 w-12 text-slate-400 mx-auto mb-3" />
-          <p className="text-sm text-slate-600 mb-2">No API keys yet</p>
+          <Key className="h-12 w-12 text-slate-500 mx-auto mb-3" />
+          <p className="text-sm text-slate-400 mb-2">No API keys yet</p>
           <p className="text-xs text-slate-500">Generate your first API key to use the Chrome extension</p>
         </div>
       ) : (
@@ -434,7 +434,7 @@ export function ApiKeysSettings() {
           {activeKeys.map((key) => (
             <div
               key={key.id}
-              className="p-4 bg-white rounded-lg border border-slate-200"
+              className="p-4 bg-slate-900/50 rounded-lg border border-slate-600"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
@@ -444,7 +444,7 @@ export function ApiKeysSettings() {
                         type="text"
                         value={editingKeyName}
                         onChange={(e) => setEditingKeyName(e.target.value)}
-                        className="flex-1 px-2 py-1 border border-slate-300 rounded text-sm"
+                        className="flex-1 px-2 py-1 border border-slate-600 rounded text-sm bg-slate-800 text-slate-100"
                         autoFocus
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') updateKeyName(key.id);
@@ -456,7 +456,7 @@ export function ApiKeysSettings() {
                       />
                       <button
                         onClick={() => updateKeyName(key.id)}
-                        className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
+                        className="p-1 text-emerald-400 hover:bg-emerald-500/20 rounded"
                       >
                         <Check className="h-4 w-4" />
                       </button>
@@ -465,32 +465,32 @@ export function ApiKeysSettings() {
                           setEditingKeyId(null);
                           setEditingKeyName('');
                         }}
-                        className="p-1 text-slate-600 hover:bg-slate-100 rounded"
+                        className="p-1 text-slate-400 hover:bg-slate-700 rounded"
                       >
                         <X className="h-4 w-4" />
                       </button>
                     </div>
                   ) : (
                     <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-medium text-slate-900">{key.name}</h3>
+                      <h3 className="font-medium text-slate-50">{key.name}</h3>
                       <button
                         onClick={() => {
                           setEditingKeyId(key.id);
                           setEditingKeyName(key.name);
                         }}
-                        className="p-1 text-slate-600 hover:bg-slate-100 rounded"
+                        className="p-1 text-slate-400 hover:bg-slate-700 rounded"
                         title="Edit name"
                       >
                         <Edit2 className="h-3 w-3" />
                       </button>
                     </div>
                   )}
-                  <div className="space-y-1 text-sm text-slate-600">
+                  <div className="space-y-1 text-sm text-slate-400">
                     <div className="flex items-center gap-2">
-                      <code className="text-xs font-mono bg-slate-100 px-2 py-0.5 rounded">
+                      <code className="text-xs font-mono bg-slate-800 px-2 py-0.5 rounded text-slate-300">
                         {key.key_prefix}•••
                       </code>
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded">
+                      <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs font-medium rounded">
                         Active
                       </span>
                     </div>
@@ -504,7 +504,7 @@ export function ApiKeysSettings() {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => openRevokeModal(key)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded"
+                    className="p-2 text-red-400 hover:bg-red-500/20 rounded"
                     title="Revoke key"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -519,18 +519,18 @@ export function ApiKeysSettings() {
       {/* Revoked Keys */}
       {revokedKeys.length > 0 && (
         <div className="mt-6">
-          <h3 className="text-sm font-medium text-slate-700 mb-3">Revoked Keys</h3>
+          <h3 className="text-sm font-medium text-slate-400 mb-3">Revoked Keys</h3>
           <div className="space-y-2">
             {revokedKeys.map((key) => (
               <div
                 key={key.id}
-                className="p-3 bg-slate-100 rounded-lg border border-slate-200 opacity-60"
+                className="p-3 bg-slate-900/50 rounded-lg border border-slate-600 opacity-60"
               >
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-medium text-slate-700">{key.name}</span>
-                      <span className="px-2 py-0.5 bg-red-100 text-red-700 text-xs font-medium rounded">
+                      <span className="text-sm font-medium text-slate-400">{key.name}</span>
+                      <span className="px-2 py-0.5 bg-red-500/20 text-red-300 text-xs font-medium rounded">
                         Revoked
                       </span>
                     </div>
@@ -545,8 +545,8 @@ export function ApiKeysSettings() {
         </div>
       )}
 
-      <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-        <p className="text-xs text-amber-800">
+      <div className="mt-4 p-3 bg-amber-500/20 border border-amber-500/40 rounded-lg">
+        <p className="text-xs text-amber-200">
           <strong>Security Warning:</strong> Keep your API keys secure. Never share them publicly or commit them to version control. 
           If a key is compromised, revoke it immediately and generate a new one.
         </p>

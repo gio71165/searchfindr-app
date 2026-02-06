@@ -240,9 +240,9 @@ export function BulkActionsBar({ selectedDealIds, onClearSelection, onRefresh }:
   if (selectedDealIds.size === 0) return null;
 
   return (
-    <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between gap-4 flex-wrap">
+    <div className="mb-6 p-4 bg-slate-800 border border-slate-600 rounded-lg flex items-center justify-between gap-4 flex-wrap">
       <div className="flex items-center gap-3">
-        <span className="text-sm font-semibold text-blue-900">
+        <span className="text-sm font-semibold text-slate-200">
           {selectedDealIds.size} deal{selectedDealIds.size !== 1 ? 's' : ''} selected
         </span>
       </div>
@@ -252,7 +252,7 @@ export function BulkActionsBar({ selectedDealIds, onClearSelection, onRefresh }:
         <button
           onClick={handleBulkArchive}
           disabled={isProcessing}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 bg-slate-700 border border-slate-600 hover:bg-slate-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Archive className="h-4 w-4" />
           Archive
@@ -262,7 +262,7 @@ export function BulkActionsBar({ selectedDealIds, onClearSelection, onRefresh }:
         <button
           onClick={handleBulkPass}
           disabled={isProcessing}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-danger inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <CheckCircle className="h-4 w-4" />
           Pass
@@ -272,7 +272,7 @@ export function BulkActionsBar({ selectedDealIds, onClearSelection, onRefresh }:
         <button
           onClick={handleBulkDelete}
           disabled={isProcessing}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-700 hover:bg-red-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 border border-red-500/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Trash2 className="h-4 w-4" />
           Delete
@@ -283,7 +283,7 @@ export function BulkActionsBar({ selectedDealIds, onClearSelection, onRefresh }:
           <button
             onClick={() => setShowStageMenu(!showStageMenu)}
             disabled={isProcessing}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-200 bg-slate-700 border border-slate-600 hover:bg-slate-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ArrowRight className="h-4 w-4" />
             Move to Stage
@@ -295,12 +295,12 @@ export function BulkActionsBar({ selectedDealIds, onClearSelection, onRefresh }:
                 className="fixed inset-0 z-10" 
                 onClick={() => setShowStageMenu(false)}
               />
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-slate-200 rounded-lg shadow-lg z-20">
+              <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-600 rounded-lg shadow-xl z-20">
                 {stages.map((stage) => (
                   <button
                     key={stage.value}
                     onClick={() => handleBulkStageChange(stage.value)}
-                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 first:rounded-t-lg last:rounded-b-lg"
+                    className="w-full text-left px-4 py-2 text-sm text-slate-200 hover:bg-slate-700 first:rounded-t-lg last:rounded-b-lg"
                   >
                     {stage.label}
                   </button>
@@ -314,7 +314,7 @@ export function BulkActionsBar({ selectedDealIds, onClearSelection, onRefresh }:
         <button
           onClick={handleExportCSV}
           disabled={isProcessing}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-blue-300 bg-blue-500/20 border border-blue-500/40 hover:bg-blue-500/30 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <FileDown className="h-4 w-4" />
           Export CSV
@@ -324,7 +324,7 @@ export function BulkActionsBar({ selectedDealIds, onClearSelection, onRefresh }:
         <button
           onClick={onClearSelection}
           disabled={isProcessing}
-          className="px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
+          className="px-3 py-2 text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50"
         >
           <X className="h-4 w-4" />
         </button>

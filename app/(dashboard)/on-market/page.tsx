@@ -90,11 +90,11 @@ export default function OnMarketPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="min-h-full bg-slate-900 p-8 max-w-7xl mx-auto">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <LoadingSpinner size="lg" className="mb-4" />
-            <p className="text-sm text-slate-600">Loading on-market deals...</p>
+            <p className="text-sm text-slate-400">Loading on-market deals...</p>
           </div>
         </div>
       </div>
@@ -102,8 +102,8 @@ export default function OnMarketPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="min-h-full bg-slate-900 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
         <ContentHeader
           title="On-Market Deals"
           description="Deals from BizBuySell, brokers, and other marketplaces"
@@ -115,7 +115,7 @@ export default function OnMarketPage() {
         placeholder="Search on-market deals..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full px-4 py-3 border rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 placeholder-slate-500 mb-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
       />
 
       {/* Pipeline Summary - Compact variant */}
@@ -136,28 +136,28 @@ export default function OnMarketPage() {
       <div className="mb-6">
         <button
           onClick={() => window.open('/settings', '_blank', 'noopener,noreferrer')}
-          className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 font-medium shadow-sm hover:shadow-md transition-all"
+          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg flex items-center gap-2 transition-all"
         >
           Get Extension API Key
         </button>
       </div>
 
       {/* Results */}
-      <div className="mb-4 text-sm text-slate-600">
+      <div className="mb-4 text-sm text-slate-400">
         Showing {filteredDeals.length} of {deals.length} deals
       </div>
 
       {/* Deal Cards */}
       {filteredDeals.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-slate-300">
+        <div className="text-center py-16 bg-slate-800 rounded-xl border-2 border-dashed border-slate-700 hover:border-emerald-500/50 transition-colors">
           <div className="text-6xl mb-4">🏪</div>
-          <h3 className="text-xl font-semibold mb-2">No on-market deals yet</h3>
-          <p className="text-slate-600 mb-6">
+          <h3 className="text-xl font-semibold text-slate-50 mb-2">No on-market deals yet</h3>
+          <p className="text-slate-400 mb-6">
             Use the extension to capture deals from BizBuySell and other listing sites
           </p>
           <button
             onClick={() => window.open('/settings', '_blank', 'noopener,noreferrer')}
-            className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-500 font-medium shadow-sm hover:shadow-md transition-all"
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-all"
           >
             Get Extension API Key
           </button>

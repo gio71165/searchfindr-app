@@ -22,7 +22,7 @@ export function BackButton({ dealSourceType }: { dealSourceType?: string | null 
   return (
     <button
       onClick={() => router.push(backHref)}
-      className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 mb-4 transition-colors min-h-[44px] px-2"
+      className="flex items-center gap-2 text-sm text-slate-300 hover:text-slate-50 mb-4 transition-colors min-h-[44px] px-2"
     >
       <ArrowLeft className="h-4 w-4" />
       <span>Back to {tabName}</span>

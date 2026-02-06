@@ -21,13 +21,13 @@ const ACTIVITY_ICONS: Record<string, React.ReactNode> = {
 };
 
 const ACTIVITY_COLORS: Record<string, string> = {
-  stage_change: 'text-blue-600 bg-blue-50',
-  verdict_set: 'text-emerald-600 bg-emerald-50',
-  note: 'text-slate-600 bg-slate-50',
-  ioi_sent: 'text-purple-600 bg-purple-50',
-  call_scheduled: 'text-amber-600 bg-amber-50',
-  cim_analyzed: 'text-indigo-600 bg-indigo-50',
-  passed: 'text-red-600 bg-red-50',
+  stage_change: 'text-blue-300 bg-blue-500/20',
+  verdict_set: 'text-emerald-300 bg-emerald-500/20',
+  note: 'text-slate-300 bg-slate-600/50',
+  ioi_sent: 'text-purple-300 bg-purple-500/20',
+  call_scheduled: 'text-amber-300 bg-amber-500/20',
+  cim_analyzed: 'text-indigo-300 bg-indigo-500/20',
+  passed: 'text-red-300 bg-red-500/20',
 };
 
 export function DealActivityTimeline({ dealId }: DealActivityTimelineProps) {
@@ -105,7 +105,7 @@ export function DealActivityTimeline({ dealId }: DealActivityTimelineProps) {
 
   if (error) {
     return (
-      <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+      <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300">
         <p className="text-sm font-semibold">Error loading timeline</p>
         <p className="text-xs mt-1">{error}</p>
       </div>
@@ -124,15 +124,15 @@ export function DealActivityTimeline({ dealId }: DealActivityTimelineProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-lg font-semibold text-slate-900 mb-4">Activity Timeline</h3>
+      <h3 className="text-lg font-semibold text-slate-50 mb-4">Activity Timeline</h3>
       <div className="relative">
         {/* Timeline line */}
-        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-200" />
+        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-600" />
         
         <div className="space-y-6">
           {activities.map((activity, index) => {
             const icon = ACTIVITY_ICONS[activity.activity_type] || <Clock className="h-4 w-4" />;
-            const colorClass = ACTIVITY_COLORS[activity.activity_type] || 'text-slate-600 bg-slate-50';
+            const colorClass = ACTIVITY_COLORS[activity.activity_type] || 'text-slate-300 bg-slate-600/50';
             const isLast = index === activities.length - 1;
 
             return (
@@ -145,7 +145,7 @@ export function DealActivityTimeline({ dealId }: DealActivityTimelineProps) {
                 {/* Content */}
                 <div className="flex-1 min-w-0 pt-1">
                   <div className="flex items-start justify-between gap-4 mb-1">
-                    <p className="text-sm text-slate-900 font-medium">{activity.description}</p>
+                    <p className="text-sm text-slate-50 font-medium">{activity.description}</p>
                     <div className="flex-shrink-0 text-xs text-slate-500">
                       <div>{formatDate(activity.created_at || '')}</div>
                       <div>{formatTime(activity.created_at || '')}</div>
@@ -155,17 +155,17 @@ export function DealActivityTimeline({ dealId }: DealActivityTimelineProps) {
                   {activity.metadata && Object.keys(activity.metadata).length > 0 && (() => {
                     const meta = activity.metadata as Record<string, any>;
                     return (
-                      <div className="mt-2 text-xs text-slate-600">
+                      <div className="mt-2 text-xs text-slate-400">
                         {activity.activity_type === 'stage_change' && meta.old_stage && meta.new_stage && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 rounded">
-                            <span className="text-slate-500">{String(meta.old_stage)}</span>
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-slate-700 rounded">
+                            <span className="text-slate-400">{String(meta.old_stage)}</span>
                             <ArrowRight className="h-3 w-3" />
-                            <span className="font-medium">{String(meta.new_stage)}</span>
+                            <span className="font-medium text-slate-50">{String(meta.new_stage)}</span>
                           </span>
                         )}
                         {activity.activity_type === 'verdict_set' && meta.verdict && (
-                          <span className="inline-flex items-center px-2 py-1 bg-slate-100 rounded">
-                            Verdict: <span className="font-medium ml-1">{String(meta.verdict)}</span>
+                          <span className="inline-flex items-center px-2 py-1 bg-slate-700 rounded text-slate-300">
+                            Verdict: <span className="font-medium ml-1 text-slate-50">{String(meta.verdict)}</span>
                           </span>
                         )}
                       </div>

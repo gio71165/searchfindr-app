@@ -36,11 +36,11 @@ export function StagePlaybook({ stage, dealId }: StagePlaybookProps) {
   const getPriorityColor = (priority: 'high' | 'medium' | 'low') => {
     switch (priority) {
       case 'high':
-        return 'text-red-600 bg-red-50 border-red-200';
+        return 'text-red-300 bg-red-500/20 border-red-500/30';
       case 'medium':
-        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+        return 'text-amber-300 bg-amber-500/20 border-amber-500/30';
       case 'low':
-        return 'text-blue-600 bg-blue-50 border-blue-200';
+        return 'text-blue-300 bg-blue-500/20 border-blue-500/30';
     }
   };
 
@@ -56,26 +56,26 @@ export function StagePlaybook({ stage, dealId }: StagePlaybookProps) {
   };
 
   return (
-    <div className="border rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200 shadow-sm">
+    <div className="border border-slate-700 rounded-lg bg-slate-800 shadow-sm">
       {/* Header */}
       <button
         onClick={toggleCollapse}
-        className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-blue-50/50 transition-colors rounded-t-lg"
+        className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-slate-700/50 transition-colors rounded-t-lg"
         aria-expanded={!isCollapsed}
       >
         <div className="flex-1 min-w-0">
-          <h3 className="text-base sm:text-lg font-semibold text-slate-900 mb-1">
+          <h3 className="text-base sm:text-lg font-semibold text-slate-50 mb-1">
             {playbook.title}
           </h3>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-400">
             {playbook.description}
           </p>
         </div>
         <div className="ml-4 flex-shrink-0">
           {isCollapsed ? (
-            <ChevronDown className="w-5 h-5 text-slate-500" />
+            <ChevronDown className="w-5 h-5 text-slate-400" />
           ) : (
-            <ChevronUp className="w-5 h-5 text-slate-500" />
+            <ChevronUp className="w-5 h-5 text-slate-400" />
           )}
         </div>
       </button>
@@ -86,8 +86,8 @@ export function StagePlaybook({ stage, dealId }: StagePlaybookProps) {
           {/* Tasks */}
           {playbook.tasks.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-600"></span>
+              <h4 className="text-sm font-semibold text-slate-50 mb-3 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                 Next Steps
               </h4>
               <div className="space-y-2.5">
@@ -101,8 +101,8 @@ export function StagePlaybook({ stage, dealId }: StagePlaybookProps) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 flex-wrap">
-                        <span className="text-sm font-medium">{task.action}</span>
-                        <span className="text-xs font-medium opacity-75 whitespace-nowrap">
+                        <span className="text-sm font-medium text-slate-50">{task.action}</span>
+                        <span className="text-xs font-medium text-slate-400 whitespace-nowrap">
                           {task.timeframe}
                         </span>
                       </div>
@@ -116,14 +116,14 @@ export function StagePlaybook({ stage, dealId }: StagePlaybookProps) {
           {/* Tips */}
           {playbook.tips.length > 0 && (
             <div>
-              <h4 className="text-sm font-semibold text-slate-900 mb-3 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
+              <h4 className="text-sm font-semibold text-slate-50 mb-3 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
                 Pro Tips
               </h4>
               <ul className="space-y-2">
                 {playbook.tips.map((tip, index) => (
-                  <li key={index} className="flex items-start gap-2 text-sm text-slate-700">
-                    <span className="text-indigo-600 mt-0.5">•</span>
+                  <li key={index} className="flex items-start gap-2 text-sm text-slate-300">
+                    <span className="text-indigo-400 mt-0.5">•</span>
                     <span>{tip}</span>
                   </li>
                 ))}
@@ -133,7 +133,7 @@ export function StagePlaybook({ stage, dealId }: StagePlaybookProps) {
 
           {/* Empty state for stages with no tasks */}
           {playbook.tasks.length === 0 && playbook.tips.length === 0 && (
-            <p className="text-sm text-slate-600 italic">
+            <p className="text-sm text-slate-400 italic">
               No specific actions needed at this stage.
             </p>
           )}

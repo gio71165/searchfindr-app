@@ -385,7 +385,7 @@ export function BrokerSelector({ dealId, currentBrokerId, onUpdate }: BrokerSele
                 onClick={handleSaveBroker}
                 isLoading={saving}
                 loadingText={editingBroker ? 'Updating...' : 'Creating...'}
-                className="flex-1 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                className="btn-secondary flex-1"
               >
                 {editingBroker ? 'Update' : 'Create'}
               </AsyncButton>

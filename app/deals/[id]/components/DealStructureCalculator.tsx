@@ -47,18 +47,23 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
   const [showScenarios, setShowScenarios] = useState(false);
   const [scenarios, setScenarios] = useState<SBAScenario[]>([]);
 
-  // Try to extract purchase price and EBITDA from deal data
+  // Try to extract purchase price and EBITDA from deal data (prefer deal-level real/adjusted EBITDA)
   const fin = deal?.ai_financials_json || {};
   const finAny = fin as Record<string, unknown>;
   const estimatedPrice = (finAny.estimated_purchase_price as string | undefined) || 
     (finAny.purchase_price as string | undefined) || 
     deal?.asking_price_extracted || '';
   
-  const ebitdaValue = fin.ebitda 
-    ? parseFloat(String(fin.ebitda).replace(/[^0-9.]/g, '')) 
-    : deal?.ebitda_ttm_extracted 
-      ? parseFloat(String(deal.ebitda_ttm_extracted).replace(/[^0-9.]/g, ''))
-      : null;
+  const ebitdaRaw = deal?.ebitda_ttm_extracted ?? fin.ebitda ?? finAny.ttm_ebitda ?? finAny.ebitda_ttm ?? finAny.latest_ebitda;
+  const ebitdaValue = deal?.ebitda_ttm_extracted
+    ? parseFloat(String(deal.ebitda_ttm_extracted).replace(/[^0-9.]/g, '')) || null
+    : Array.isArray(ebitdaRaw) && ebitdaRaw.length > 0
+      ? parseFloat(String((ebitdaRaw as { value?: number | string }[])[ebitdaRaw.length - 1]?.value ?? 0).replace(/[^0-9.]/g, '')) || null
+      : typeof ebitdaRaw === 'number'
+        ? ebitdaRaw
+        : typeof ebitdaRaw === 'string'
+          ? parseFloat(ebitdaRaw.replace(/[^0-9.]/g, '')) || null
+          : null;
 
   const handleSimpleCalculate = async () => {
     const price = parseFloat(purchasePrice);
@@ -257,21 +262,21 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
   };
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-6">
+    <div className="rounded-xl border border-slate-700 bg-slate-800 p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Calculator className="h-5 w-5 text-slate-600" />
-          <h3 className="text-xl font-semibold text-slate-900">
+          <Calculator className="h-5 w-5 text-slate-400" />
+          <h3 className="text-xl font-semibold text-slate-50">
             Deal Structure Calculator
           </h3>
         </div>
-        <div className="flex gap-2 bg-slate-200 rounded-lg p-1">
+        <div className="flex gap-2 bg-slate-700 rounded-lg p-1">
           <button
             onClick={() => setMode('simple')}
             className={`px-3 py-1 text-sm font-medium rounded transition-colors ${
               mode === 'simple'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-slate-800 text-slate-50 border border-slate-600'
+                : 'text-slate-400 hover:text-slate-300'
             }`}
           >
             Simple
@@ -280,8 +285,8 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
             onClick={() => setMode('sba')}
             className={`px-3 py-1 text-sm font-medium rounded transition-colors ${
               mode === 'sba'
-                ? 'bg-white text-slate-900 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
+                ? 'bg-slate-800 text-slate-50 border border-slate-600'
+                : 'text-slate-400 hover:text-slate-300'
             }`}
           >
             SBA 7(a)
@@ -292,7 +297,7 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
       {/* Common fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Purchase Price ($)
           </label>
           <input
@@ -300,14 +305,14 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
             value={purchasePrice}
             onChange={(e) => setPurchasePrice(e.target.value)}
             placeholder={estimatedPrice || 'Enter purchase price'}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
         </div>
 
         {mode === 'simple' ? (
           <>
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
                 Down Payment (%)
               </label>
               <input
@@ -315,11 +320,11 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
                 value={downPaymentPct}
                 onChange={(e) => setDownPaymentPct(e.target.value)}
                 step="0.1"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
                 Interest Rate (%)
               </label>
               <input
@@ -327,36 +332,36 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
                 value={interestRate}
                 onChange={(e) => setInterestRate(e.target.value)}
                 step="0.1"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
                 Loan Term (years)
               </label>
               <input
                 type="number"
                 value={loanTerm}
                 onChange={(e) => setLoanTerm(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
           </>
         ) : (
           <>
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
                 Working Capital ($)
               </label>
               <input
                 type="number"
                 value={sbaInputs.workingCapital ?? 0}
                 onChange={(e) => setSbaInputs({ ...sbaInputs, workingCapital: parseFloat(e.target.value) || 0 })}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
                 Closing Costs ($)
                 <span className="text-slate-500 ml-1">(default: 3% of purchase)</span>
               </label>
@@ -364,22 +369,22 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
                 type="number"
                 value={sbaInputs.closingCosts ?? 0}
                 onChange={(e) => setSbaInputs({ ...sbaInputs, closingCosts: parseFloat(e.target.value) || 0 })}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
                 Packaging Fee ($)
               </label>
               <input
                 type="number"
                 value={sbaInputs.packagingFee ?? 3500}
                 onChange={(e) => setSbaInputs({ ...sbaInputs, packagingFee: parseFloat(e.target.value) || 3500 })}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
                 Interest Rate (%)
                 <span className="text-slate-500 ml-1">(Prime + 2.75%)</span>
               </label>
@@ -388,33 +393,33 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
                 value={sbaInputs.interestRate ?? 10.25}
                 onChange={(e) => setSbaInputs({ ...sbaInputs, interestRate: parseFloat(e.target.value) || 10.25 })}
                 step="0.1"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
                 Loan Term (years)
               </label>
               <input
                 type="number"
                 value={sbaInputs.loanTermYears ?? 10}
                 onChange={(e) => setSbaInputs({ ...sbaInputs, loanTermYears: parseFloat(e.target.value) || 10 })}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
                 Seller Note Amount ($)
               </label>
               <input
                 type="number"
                 value={sbaInputs.sellerNoteAmount ?? 0}
                 onChange={(e) => setSbaInputs({ ...sbaInputs, sellerNoteAmount: parseFloat(e.target.value) || 0 })}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
                 Seller Note Rate (%)
               </label>
               <input
@@ -422,22 +427,22 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
                 value={sbaInputs.sellerNoteRate ?? 6.0}
                 onChange={(e) => setSbaInputs({ ...sbaInputs, sellerNoteRate: parseFloat(e.target.value) || 6.0 })}
                 step="0.1"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
                 Seller Note Term (years)
               </label>
               <input
                 type="number"
                 value={sbaInputs.sellerNoteTermYears ?? 5}
                 onChange={(e) => setSbaInputs({ ...sbaInputs, sellerNoteTermYears: parseFloat(e.target.value) || 5 })}
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-400 mb-1">
                 <JargonTooltip term="NAICS">NAICS</JargonTooltip> Code
                 <span className="text-slate-500 ml-1">(for fee waiver detection)</span>
               </label>
@@ -446,7 +451,7 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
                 value={sbaInputs.naicsCode ?? ''}
                 onChange={(e) => setSbaInputs({ ...sbaInputs, naicsCode: e.target.value || undefined })}
                 placeholder="e.g., 311, 321, 331"
-                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
           </>
@@ -457,7 +462,7 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
         <button
           onClick={mode === 'simple' ? handleSimpleCalculate : handleSBACalculate}
           disabled={calculating || !purchasePrice}
-          className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="btn-secondary flex-1 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {calculating ? (
             <>
@@ -537,34 +542,34 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
       {mode === 'simple' && simpleResult && (
         <div className="mt-6 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div className="p-3 rounded-lg bg-white border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">Loan Amount</p>
-              <p className="text-lg font-semibold text-slate-900">
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">Loan Amount</p>
+              <p className="text-lg font-semibold text-slate-50">
                 {formatCurrency(simpleResult.loanAmount)}
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-white border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">Monthly Payment</p>
-              <p className="text-lg font-semibold text-slate-900">
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">Monthly Payment</p>
+              <p className="text-lg font-semibold text-slate-50">
                 {formatCurrency(simpleResult.monthlyPayment)}
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-white border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">Debt Service Coverage</p>
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">Debt Service Coverage</p>
               <p className={`text-lg font-semibold ${getMetricColor(simpleResult.debtServiceCoverage, 'dsc')}`}>
                 {simpleResult.debtServiceCoverage.toFixed(2)}x
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-white border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">Cash-on-Cash Return</p>
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">Cash-on-Cash Return</p>
               <p className={`text-lg font-semibold ${getMetricColor(simpleResult.cashOnCashReturn, 'coc')}`}>
                 {simpleResult.cashOnCashReturn.toFixed(1)}%
               </p>
             </div>
           </div>
-          <div className="p-3 rounded-lg bg-white border border-slate-200">
+          <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
             <p className="text-xs text-slate-600 mb-1">Payback Period</p>
-            <p className="text-lg font-semibold text-slate-900">
+            <p className="text-lg font-semibold text-slate-50">
               {simpleResult.paybackPeriod.toFixed(1)} years
             </p>
           </div>
@@ -575,60 +580,60 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
       {mode === 'sba' && sbaResult && !showScenarios && (
         <div className="mt-6 space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <div className="p-3 rounded-lg bg-white border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">Total Project Cost</p>
-              <p className="text-lg font-semibold text-slate-900">
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">Total Project Cost</p>
+              <p className="text-lg font-semibold text-slate-50">
                 {formatCurrency(sbaResult.totalProjectCost)}
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-white border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">SBA Loan Amount</p>
-              <p className="text-lg font-semibold text-slate-900">
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">SBA Loan Amount</p>
+              <p className="text-lg font-semibold text-slate-50">
                 {formatCurrency(sbaResult.sbaLoanAmount)}
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-white border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">Equity Required</p>
-              <p className="text-lg font-semibold text-slate-900">
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">Equity Required</p>
+              <p className="text-lg font-semibold text-slate-50">
                 {formatCurrency(sbaResult.equityInjectionRequired)}
               </p>
               <p className="text-xs text-slate-500 mt-1">
                 ({sbaResult.equityInjectionPercent.toFixed(1)}%)
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-white border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">SBA Monthly Payment</p>
-              <p className="text-lg font-semibold text-slate-900">
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">SBA Monthly Payment</p>
+              <p className="text-lg font-semibold text-slate-50">
                 {formatCurrency(sbaResult.sbaMonthlyPayment)}
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-white border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">Total Monthly Debt</p>
-              <p className="text-lg font-semibold text-slate-900">
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">Total Monthly Debt</p>
+              <p className="text-lg font-semibold text-slate-50">
                 {formatCurrency(sbaResult.totalMonthlyDebtService)}
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-white border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">DSCR</p>
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">DSCR</p>
               <p className={`text-lg font-semibold ${getMetricColor(sbaResult.dscr, 'dsc')}`}>
                 {sbaResult.dscr.toFixed(2)}x
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-white border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">Cash-on-Cash Return</p>
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">Cash-on-Cash Return</p>
               <p className={`text-lg font-semibold ${getMetricColor(sbaResult.cashOnCash, 'coc')}`}>
                 {sbaResult.cashOnCash.toFixed(1)}%
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-white border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">Year 1 Cash Flow</p>
-              <p className="text-lg font-semibold text-slate-900">
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">Year 1 Cash Flow</p>
+              <p className="text-lg font-semibold text-slate-50">
                 {formatCurrency(sbaResult.yearOneCashFlow)}
               </p>
             </div>
-            <div className="p-3 rounded-lg bg-white border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">Payback Period</p>
-              <p className="text-lg font-semibold text-slate-900">
+            <div className="p-3 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">Payback Period</p>
+              <p className="text-lg font-semibold text-slate-50">
                 {sbaResult.paybackPeriodYears.toFixed(1)} years
               </p>
             </div>
@@ -651,9 +656,9 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
             </div>
           )}
           {sbaResult.sbaGuaranteeFeeAmount > 0 && (
-            <div className="p-3 rounded-lg bg-slate-100 border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">SBA Guarantee Fee</p>
-              <p className="text-sm font-medium text-slate-900">
+            <div className="p-3 rounded-lg bg-slate-700/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">SBA Guarantee Fee</p>
+              <p className="text-sm font-medium text-slate-50">
                 {formatCurrency(sbaResult.sbaGuaranteeFeeAmount)} (included in loan amount)
               </p>
             </div>
@@ -668,31 +673,31 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
             <h4 className="text-lg font-semibold text-slate-900">Scenario Comparison</h4>
             <button
               onClick={() => setShowScenarios(false)}
-              className="text-sm text-slate-600 hover:text-slate-900"
+              className="text-sm text-slate-400 hover:text-slate-300"
             >
               Close
             </button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {scenarios.map((scenario, idx) => (
-              <div key={idx} className="p-4 rounded-lg bg-white border border-slate-200">
-                <h5 className="font-semibold text-slate-900 mb-1">{scenario.name}</h5>
-                <p className="text-xs text-slate-600 mb-3">{scenario.description}</p>
+              <div key={idx} className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+                <h5 className="font-semibold text-slate-50 mb-1">{scenario.name}</h5>
+                <p className="text-xs text-slate-400 mb-3">{scenario.description}</p>
                 <div className="space-y-2">
                   <div>
-                    <p className="text-xs text-slate-600">Equity Required</p>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-xs text-slate-400">Equity Required</p>
+                    <p className="text-sm font-semibold text-slate-50">
                       {formatCurrency(scenario.outputs.equityInjectionRequired)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-600">Monthly Payment</p>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-xs text-slate-400">Monthly Payment</p>
+                    <p className="text-sm font-semibold text-slate-50">
                       {formatCurrency(scenario.outputs.totalMonthlyDebtService)}
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-600">
+                    <p className="text-xs text-slate-400">
                       <JargonTooltip term="DSCR">DSCR</JargonTooltip>
                     </p>
                     <p className={`text-sm font-semibold ${getMetricColor(scenario.outputs.dscr, 'dsc')}`}>
@@ -700,13 +705,13 @@ export function DealStructureCalculator({ deal }: { deal: Deal | null }) {
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-600">Cash-on-Cash</p>
+                    <p className="text-xs text-slate-400">Cash-on-Cash</p>
                     <p className={`text-sm font-semibold ${getMetricColor(scenario.outputs.cashOnCash, 'coc')}`}>
                       {scenario.outputs.cashOnCash.toFixed(1)}%
                     </p>
                   </div>
                   {scenario.outputs.sbaEligibilityIssues.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-slate-200">
+                    <div className="mt-2 pt-2 border-t border-slate-700">
                       <p className="text-xs text-red-600 font-medium">Not SBA Eligible</p>
                     </div>
                   )}

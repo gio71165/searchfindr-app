@@ -13,6 +13,8 @@ interface PassDealModalProps {
   companyName: string;
   workspaceId: string;
   deal?: Deal | null; // Optional deal object for feedback generation
+  /** Seconds spent on deal page since last opened (for training_data context_metadata). */
+  sessionDurationSeconds?: number | null;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -22,10 +24,13 @@ export function PassDealModal({
   companyName, 
   workspaceId,
   deal,
+  sessionDurationSeconds,
   onClose, 
   onSuccess 
 }: PassDealModalProps) {
   const [passReason, setPassReason] = useState('');
+  const [passReasonSentence, setPassReasonSentence] = useState('');
+  const [gutCheckRating, setGutCheckRating] = useState<number>(5);
   const [passNotes, setPassNotes] = useState('');
   const [passing, setPassing] = useState(false);
   const [generateFeedback, setGenerateFeedback] = useState(true);
@@ -128,23 +133,20 @@ export function PassDealModal({
       const token = sessionData?.session?.access_token;
       if (!token) throw new Error('Not signed in.');
 
-      // Prepare request body
-      const requestBody: {
-        pass_reason: string;
-        pass_notes?: string | null;
-        broker_feedback?: string | null;
-      } = {
+      const requestBody = {
+        verdict_type: 'pass' as const,
+        searcher_input_text: passReasonSentence.trim(),
+        searcher_rating: gutCheckRating,
+        context_metadata: {
+          session_duration_seconds: sessionDurationSeconds ?? undefined,
+          broker_name: brokerName ?? undefined,
+        },
         pass_reason: passReason,
         pass_notes: passNotes || null,
+        broker_feedback: (generateFeedback && brokerFeedback) ? brokerFeedback : undefined,
       };
 
-      // Include broker feedback if generated
-      if (generateFeedback && brokerFeedback) {
-        requestBody.broker_feedback = brokerFeedback;
-      }
-
-      // Call API endpoint with pass reason and notes
-      const res = await fetch(`/api/deals/${dealId}/pass`, {
+      const res = await fetch(`/api/deals/${dealId}/verdict`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -175,6 +177,10 @@ export function PassDealModal({
   async function handlePass() {
     if (!passReason) {
       alert('Please select a reason for passing');
+      return;
+    }
+    if (!passReasonSentence.trim()) {
+      alert('Please provide a one-sentence reason (used to improve our deal scoring).');
       return;
     }
 
@@ -219,25 +225,25 @@ export function PassDealModal({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-        <div className="bg-white rounded-lg p-4 sm:p-6 max-w-md w-full my-auto">
-          <h2 id="pass-modal-title" className="text-lg sm:text-xl font-semibold mb-4">
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
+        <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl p-4 sm:p-6 max-w-md w-full my-auto">
+          <h2 id="pass-modal-title" className="text-xl font-bold text-slate-50 mb-4">
             Pass {companyName}?
           </h2>
           
-          <p className="text-sm text-slate-600 mb-4">
+          <p className="text-sm text-slate-400 mb-4">
             Document why you're passing to avoid re-evaluating this deal later.
           </p>
 
           {/* Reason Dropdown */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Why are you passing? <span className="text-red-500">*</span>
+            <label className="block text-sm font-medium text-slate-400 mb-2">
+              Why are you passing? <span className="text-red-400">*</span>
             </label>
             <select
               value={passReason}
               onChange={(e) => setPassReason(e.target.value)}
-              className="w-full border border-slate-300 rounded-lg px-3 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation"
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-3 text-slate-300 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 touch-manipulation"
               required
             >
               <option value="">Select a reason...</option>
@@ -249,6 +255,40 @@ export function PassDealModal({
             </select>
           </div>
 
+          {/* One-sentence reason for ML training */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-slate-400 mb-2">
+              In one sentence, why are you passing? <span className="text-red-400">*</span>
+            </label>
+            <p className="text-xs text-slate-500 mb-1">Used to improve our deal scoring model.</p>
+            <input
+              type="text"
+              value={passReasonSentence}
+              onChange={(e) => setPassReasonSentence(e.target.value)}
+              placeholder="e.g. Customer concentration too high for our criteria"
+              maxLength={500}
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-3 text-slate-300 placeholder-slate-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+            />
+          </div>
+
+          {/* Gut Check: How confident in this decision? */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-slate-400 mb-2">
+              How confident are you in this decision? <span className="text-red-400">*</span>
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min={1}
+                max={10}
+                value={gutCheckRating}
+                onChange={(e) => setGutCheckRating(parseInt(e.target.value, 10))}
+                className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer"
+              />
+              <span className="text-slate-300 font-medium w-8">{gutCheckRating}/10</span>
+            </div>
+          </div>
+
           {/* Generate Broker Feedback Checkbox */}
           {deal && deal.broker_id && (
             <div className="mb-4">
@@ -257,9 +297,9 @@ export function PassDealModal({
                   type="checkbox"
                   checked={generateFeedback}
                   onChange={(e) => setGenerateFeedback(e.target.checked)}
-                  className="mt-1 h-4 w-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
+                  className="mt-1 h-4 w-4 text-emerald-600 border-slate-600 rounded focus:ring-emerald-500 bg-slate-900"
                 />
-                <span className="text-sm font-medium text-slate-700">
+                <span className="text-sm font-medium text-slate-400">
                   Generate broker feedback note
                 </span>
               </label>
@@ -268,14 +308,14 @@ export function PassDealModal({
 
           {/* Broker Feedback Preview */}
           {generateFeedback && brokerFeedback && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="mb-4 p-3 bg-blue-950/20 border border-blue-500/30 rounded-lg">
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block text-sm font-medium text-slate-400">
                   Feedback Note Preview
                 </label>
                 <button
                   onClick={handleCopyFeedback}
-                  className="text-xs px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors min-h-[44px]"
+                  className="btn-secondary btn-sm min-h-[44px]"
                 >
                   Copy Note
                 </button>
@@ -284,14 +324,14 @@ export function PassDealModal({
                 value={brokerFeedback}
                 readOnly
                 rows={6}
-                className="w-full border border-blue-300 rounded-lg px-3 py-2 text-sm bg-white text-slate-800 resize-none focus:outline-none"
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 resize-none focus:outline-none"
               />
             </div>
           )}
 
           {/* Additional Notes */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-slate-700 mb-2">
+            <label className="block text-sm font-medium text-slate-400 mb-2">
               Additional notes (optional)
             </label>
             <textarea
@@ -299,7 +339,7 @@ export function PassDealModal({
               onChange={(e) => setPassNotes(e.target.value)}
               placeholder="Any other details to remember..."
               rows={3}
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-300 placeholder-slate-500 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 resize-none"
             />
           </div>
 
@@ -308,14 +348,14 @@ export function PassDealModal({
             <button
               onClick={onClose}
               disabled={passing}
-              className="flex-1 px-4 py-3 min-h-[44px] border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50 touch-manipulation font-medium"
+              className="btn-ghost flex-1 min-h-[44px] touch-manipulation"
             >
               Cancel
             </button>
             <button
               onClick={handlePass}
-              disabled={passing || !passReason}
-              className="flex-1 px-4 py-3 min-h-[44px] bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 touch-manipulation font-medium flex items-center justify-center gap-2"
+              disabled={passing || !passReason || !passReasonSentence.trim()}
+              className="btn-danger flex-1 min-h-[44px] touch-manipulation flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {passing ? (
                 <>

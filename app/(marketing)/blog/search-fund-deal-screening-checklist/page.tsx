@@ -250,7 +250,7 @@ export default function DealScreeningChecklistPage() {
               </p>
               <Link
                 href="/signup"
-                className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-500 transition-colors"
+                className="btn-primary btn-lg inline-flex items-center gap-2"
               >
                 Start Your Free Trial
               </Link>

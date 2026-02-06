@@ -24,6 +24,28 @@ const MAX_TEXT_LENGTH = 50000;
 const MAX_URL_LENGTH = 2048;
 const MAX_TITLE_LENGTH = 500;
 
+// Allowed deal/listing domains (extension + API only accept these)
+const DEAL_PAGE_HOSTS = [
+  "bizbuysell.com",
+  "bizquest.com",
+  "loopnet.com",
+  "dealstream.com",
+  "axial.net",
+  "sunbeltnetwork.com",
+  "businessbroker.net",
+  "mergersandacquisitions.com",
+];
+
+function isAllowedDealUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase().replace(/^www\./, "");
+    return DEAL_PAGE_HOSTS.some((h) => host === h || host.endsWith("." + h));
+  } catch {
+    return false;
+  }
+}
+
 function json(resBody: any, status = 200) {
   return NextResponse.json(resBody, { status, headers: corsHeaders });
 }
@@ -261,6 +283,13 @@ async function handlePOST(req: NextRequest) {
       if (titleError) {
         return json({ error: titleError }, 400);
       }
+    }
+
+    if (!isAllowedDealUrl(url)) {
+      return json(
+        { error: "Capture is only allowed from supported listing sites (e.g. BizBuySell, LoopNet)." },
+        400
+      );
     }
 
     const company_name = title || null;

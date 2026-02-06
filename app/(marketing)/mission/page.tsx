@@ -113,7 +113,7 @@ export default function MissionPage() {
             </h2>
             <Link
               href="/signup"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-emerald-600 text-white rounded-xl font-semibold text-lg hover:bg-emerald-500 transition-all shadow-lg hover:shadow-emerald-500/50 hover:scale-105"
+              className="btn-primary btn-lg inline-flex items-center gap-2 px-8 rounded-xl shadow-lg hover:shadow-emerald-500/50 hover:scale-105"
             >
               Start Your Free Trial
             </Link>

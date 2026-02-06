@@ -63,13 +63,13 @@ export function LinkSearcherModal({ isOpen, onClose, onSuccess }: LinkSearcherMo
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-        <div className="flex items-center justify-between p-6 border-b border-slate-200">
-          <h2 className="text-xl font-semibold text-slate-900">Link Searcher</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+      <div className="bg-slate-800 border border-slate-700 rounded-xl shadow-xl max-w-md w-full mx-4">
+        <div className="flex items-center justify-between p-6 border-b border-slate-700">
+          <h2 className="text-xl font-semibold text-slate-50">Link Searcher</h2>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
+            className="text-slate-400 hover:text-slate-300 transition-colors p-2 hover:bg-slate-700 rounded-lg"
           >
             <X className="h-5 w-5" />
           </button>
@@ -77,13 +77,13 @@ export function LinkSearcherModal({ isOpen, onClose, onSuccess }: LinkSearcherMo
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+            <div className="bg-red-950/20 border border-red-500/30 rounded-lg p-3 text-sm text-red-400">
               {error}
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label className="block text-sm font-medium text-slate-400 mb-1">
               Searcher Workspace ID *
             </label>
             <input
@@ -91,7 +91,7 @@ export function LinkSearcherModal({ isOpen, onClose, onSuccess }: LinkSearcherMo
               required
               value={workspaceId}
               onChange={(e) => setWorkspaceId(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 font-mono text-sm placeholder-slate-500"
               placeholder="00000000-0000-0000-0000-000000000000"
             />
             <p className="mt-1 text-xs text-slate-500">
@@ -100,27 +100,27 @@ export function LinkSearcherModal({ isOpen, onClose, onSuccess }: LinkSearcherMo
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label className="block text-sm font-medium text-slate-400 mb-1">
               Capital Committed (optional)
             </label>
             <input
               type="number"
               value={capitalCommitted}
               onChange={(e) => setCapitalCommitted(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 placeholder-slate-500"
               placeholder="0.00"
               step="0.01"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label className="block text-sm font-medium text-slate-400 mb-1">
               Access Level
             </label>
             <select
               value={accessLevel}
               onChange={(e) => setAccessLevel(e.target.value as 'full' | 'summary')}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-300 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
             >
               <option value="summary">Summary (aggregated metrics only)</option>
               <option value="full">Full (all deal details including company names)</option>
@@ -131,14 +131,14 @@ export function LinkSearcherModal({ isOpen, onClose, onSuccess }: LinkSearcherMo
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+              className="btn-ghost flex-1"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Linking...' : 'Link Searcher'}
             </button>

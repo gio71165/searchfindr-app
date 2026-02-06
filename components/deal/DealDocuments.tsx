@@ -1171,7 +1171,7 @@ export function DealDocuments({ dealId, onDocumentSelect, selectedDocuments }: D
                   }
                 }}
                 disabled={attachingToDeal}
-                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+                className="btn-secondary flex-1 disabled:opacity-50"
               >
                 {attachingToDeal ? 'Attaching...' : 'Attach'}
               </button>

@@ -14,15 +14,15 @@ export function AttentionCard({
   children 
 }: AttentionCardProps) {
   const variantStyles = {
-    urgent: 'border-red-200 bg-white',
-    warning: 'border-amber-200 bg-white',
-    info: 'border-blue-200 bg-white'
+    urgent: 'border-red-500/30 bg-slate-800',
+    warning: 'border-amber-500/30 bg-slate-800',
+    info: 'border-blue-500/30 bg-slate-800'
   };
 
   const iconBgStyles = {
-    urgent: 'bg-red-50',
-    warning: 'bg-amber-50',
-    info: 'bg-blue-50'
+    urgent: 'bg-red-500/10',
+    warning: 'bg-amber-500/10',
+    info: 'bg-blue-500/10'
   };
 
   return (
@@ -33,8 +33,8 @@ export function AttentionCard({
             <span className="text-2xl">{icon}</span>
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
-            <p className="text-sm text-slate-600">{count} {count === 1 ? 'deal' : 'deals'}</p>
+            <h2 className="text-lg font-semibold text-slate-50">{title}</h2>
+            <p className="text-sm text-slate-400">{count} {count === 1 ? 'deal' : 'deals'}</p>
           </div>
         </div>
       </div>

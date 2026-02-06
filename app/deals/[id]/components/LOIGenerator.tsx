@@ -195,17 +195,17 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
   };
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-6">
+    <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
       <div className="flex items-center gap-2 mb-4">
-        <FileText className="h-5 w-5 text-slate-600" />
-        <h3 className="text-xl font-semibold text-slate-900">
+        <FileText className="h-5 w-5 text-slate-400" />
+        <h3 className="text-xl font-semibold text-slate-50">
           <JargonTooltip term="LOI">LOI</JargonTooltip> Generator
         </h3>
       </div>
 
       {showPreview && preview ? (
         <div className="space-y-4">
-          <div className="border rounded-lg p-4 bg-slate-50 max-h-96 overflow-y-auto">
+          <div className="border border-slate-700 rounded-lg p-4 bg-slate-900 max-h-96 overflow-y-auto">
             <pre className="whitespace-pre-wrap text-sm text-slate-700 font-mono">
               {preview}
             </pre>
@@ -216,21 +216,21 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
                 setShowPreview(false);
                 setPreview(null);
               }}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50"
+              className="btn-ghost flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
               Back to Edit
             </button>
             <button
               onClick={handleCopy}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50"
+              className="btn-ghost flex items-center gap-2"
             >
               {copied ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
               {copied ? 'Copied!' : 'Copy to Clipboard'}
             </button>
             <button
               onClick={handleDownload}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50"
+              className="btn-ghost flex items-center gap-2"
             >
               <Download className="h-4 w-4" />
               Download as TXT
@@ -242,53 +242,53 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
           {/* Company Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Company Name *</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Company Name *</label>
               <input
                 type="text"
                 value={formData.companyName}
                 onChange={(e) => handleInputChange('companyName', e.target.value)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Industry</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Industry</label>
               <input
                 type="text"
                 value={formData.industry}
                 onChange={(e) => handleInputChange('industry', e.target.value)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Location</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Location</label>
               <input
                 type="text"
                 value={formData.location}
                 onChange={(e) => handleInputChange('location', e.target.value)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
           </div>
 
           {/* Purchase Price */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Purchase Price ($) *</label>
+            <label className="block text-sm font-medium text-slate-400 mb-1">Purchase Price ($) *</label>
             <input
               type="number"
               value={formData.purchasePrice || ''}
               onChange={(e) => handleInputChange('purchasePrice', parseFloat(e.target.value) || 0)}
-              className="w-full border rounded-lg px-3 py-2"
+              className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
             />
           </div>
 
           {/* Structure & Financing */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Structure Type</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Structure Type</label>
               <select
                 value={formData.structureType}
                 onChange={(e) => handleInputChange('structureType', e.target.value as 'asset' | 'stock' | 'tbd')}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
               >
                 <option value="asset">Asset Purchase</option>
                 <option value="stock">Stock Purchase</option>
@@ -296,13 +296,13 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label className="block text-sm font-medium text-slate-400 mb-1">
                 Financing Type <JargonTooltip term="SBA 7(a)"><span className="text-slate-400 cursor-help align-middle" title="Learn about financing types">ⓘ</span></JargonTooltip>
               </label>
               <select
                 value={formData.financingType}
                 onChange={(e) => handleInputChange('financingType', e.target.value as LOIData['financingType'])}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
               >
                 <option value="sba_7a">SBA 7(a)</option>
                 <option value="conventional">Conventional</option>
@@ -314,58 +314,58 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
 
           {/* Working Capital */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Working Capital Mechanism</label>
+            <label className="block text-sm font-medium text-slate-400 mb-1">Working Capital Mechanism</label>
             <textarea
               value={formData.workingCapitalMechanism}
               onChange={(e) => handleInputChange('workingCapitalMechanism', e.target.value)}
               rows={3}
-              className="w-full border rounded-lg px-3 py-2"
+              className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
             />
           </div>
 
           {/* Seller Note & Earnout */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label className="block text-sm font-medium text-slate-400 mb-1">
                 <JargonTooltip term="Seller Note">Seller Note</JargonTooltip> Amount ($)
               </label>
               <input
                 type="number"
                 value={formData.sellerNoteAmount || ''}
                 onChange={(e) => handleInputChange('sellerNoteAmount', parseFloat(e.target.value) || 0)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label className="block text-sm font-medium text-slate-400 mb-1">
                 <JargonTooltip term="Seller Note">Seller Note</JargonTooltip> Terms
               </label>
               <input
                 type="text"
                 value={formData.sellerNoteTerms || ''}
                 onChange={(e) => handleInputChange('sellerNoteTerms', e.target.value)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
                 placeholder="e.g., 5 years, 6% interest"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Earnout Amount ($)</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Earnout Amount ($)</label>
               <input
                 type="number"
                 value={formData.earnoutAmount || ''}
                 onChange={(e) => handleInputChange('earnoutAmount', parseFloat(e.target.value) || 0)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">
+              <label className="block text-sm font-medium text-slate-400 mb-1">
                 <JargonTooltip term="Earnout">Earnout</JargonTooltip> Triggers
               </label>
               <input
                 type="text"
                 value={formData.earnoutTriggers || ''}
                 onChange={(e) => handleInputChange('earnoutTriggers', e.target.value)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
                 placeholder="e.g., Revenue targets, EBITDA milestones"
               />
             </div>
@@ -374,35 +374,35 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
           {/* Timeline */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Due Diligence Period (days)</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Due Diligence Period (days)</label>
               <input
                 type="number"
                 value={formData.dueDiligencePeriod}
                 onChange={(e) => handleInputChange('dueDiligencePeriod', parseInt(e.target.value) || 0)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Target Close Date</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Target Close Date</label>
               <input
                 type="date"
                 value={formData.targetCloseDate}
                 onChange={(e) => handleInputChange('targetCloseDate', e.target.value)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
           </div>
 
           {/* Key Conditions */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Due Diligence Conditions</label>
+            <label className="block text-sm font-medium text-slate-400 mb-2">Due Diligence Conditions</label>
             {formData.keyConditions.map((condition, index) => (
               <div key={index} className="flex gap-2 mb-2">
                 <input
                   type="text"
                   value={condition}
                   onChange={(e) => handleArrayChange('keyConditions', index, e.target.value)}
-                  className="flex-1 border rounded-lg px-3 py-2"
+                  className="flex-1 border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
                 <button
                   onClick={() => handleArrayRemove('keyConditions', index)}
@@ -422,14 +422,14 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
 
           {/* Reps & Warranties */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Representations & Warranties</label>
+            <label className="block text-sm font-medium text-slate-400 mb-2">Representations & Warranties</label>
             {formData.repAndWarrantyExpectations.map((rep, index) => (
               <div key={index} className="flex gap-2 mb-2">
                 <input
                   type="text"
                   value={rep}
                   onChange={(e) => handleArrayChange('repAndWarrantyExpectations', index, e.target.value)}
-                  className="flex-1 border rounded-lg px-3 py-2"
+                  className="flex-1 border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
                 <button
                   onClick={() => handleArrayRemove('repAndWarrantyExpectations', index)}
@@ -450,44 +450,44 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
           {/* Non-Compete */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Non-Compete Period (years)</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Non-Compete Period (years)</label>
               <input
                 type="number"
                 value={formData.nonCompetePeriod}
                 onChange={(e) => handleInputChange('nonCompetePeriod', parseInt(e.target.value) || 0)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Non-Compete Radius (miles)</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Non-Compete Radius (miles)</label>
               <input
                 type="number"
                 value={formData.nonCompeteRadius}
                 onChange={(e) => handleInputChange('nonCompeteRadius', parseInt(e.target.value) || 0)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Transition Period (months)</label>
+              <label className="block text-sm font-medium text-slate-400 mb-1">Transition Period (months)</label>
               <input
                 type="number"
                 value={formData.transitionPeriod}
                 onChange={(e) => handleInputChange('transitionPeriod', parseInt(e.target.value) || 0)}
-                className="w-full border rounded-lg px-3 py-2"
+                className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
               />
             </div>
           </div>
 
           {/* Employee Retention */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Key Employees to Retain</label>
+            <label className="block text-sm font-medium text-slate-400 mb-2">Key Employees to Retain</label>
             {formData.employeeRetention.map((employee, index) => (
               <div key={index} className="flex gap-2 mb-2">
                 <input
                   type="text"
                   value={employee}
                   onChange={(e) => handleArrayChange('employeeRetention', index, e.target.value)}
-                  className="flex-1 border rounded-lg px-3 py-2"
+                  className="flex-1 border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
                   placeholder="Employee name/role"
                 />
                 <button
@@ -508,14 +508,14 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
 
           {/* Contingencies */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Conditions to Closing</label>
+            <label className="block text-sm font-medium text-slate-400 mb-2">Conditions to Closing</label>
             {formData.contingencies.map((contingency, index) => (
               <div key={index} className="flex gap-2 mb-2">
                 <input
                   type="text"
                   value={contingency}
                   onChange={(e) => handleArrayChange('contingencies', index, e.target.value)}
-                  className="flex-1 border rounded-lg px-3 py-2"
+                  className="flex-1 border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
                 <button
                   onClick={() => handleArrayRemove('contingencies', index)}
@@ -541,13 +541,13 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
               onChange={(e) => handleInputChange('exclusivityRequested', e.target.checked)}
               className="rounded"
             />
-            <label className="text-sm font-medium text-slate-700">Request Exclusivity</label>
+            <label className="text-sm font-medium text-slate-400">Request Exclusivity</label>
             {formData.exclusivityRequested && (
               <input
                 type="number"
                 value={formData.exclusivityPeriod || 30}
                 onChange={(e) => handleInputChange('exclusivityPeriod', parseInt(e.target.value) || 30)}
-                className="w-20 border rounded-lg px-2 py-1 text-sm"
+                className="w-20 border border-slate-700 rounded-lg px-2 py-1 text-sm bg-slate-900 text-slate-50"
                 placeholder="Days"
               />
             )}
@@ -555,43 +555,43 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
 
           {/* Buyer Info */}
           <div className="border-t pt-4">
-            <h4 className="text-sm font-semibold text-slate-700 mb-3">Buyer Information</h4>
+            <h4 className="text-sm font-semibold text-slate-300 mb-3">Buyer Information</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Buyer Name *</label>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Buyer Name *</label>
                 <input
                   type="text"
                   value={formData.buyerName}
                   onChange={(e) => handleInputChange('buyerName', e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2"
+                  className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Buyer Entity</label>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Buyer Entity</label>
                 <input
                   type="text"
                   value={formData.buyerEntity}
                   onChange={(e) => handleInputChange('buyerEntity', e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2"
+                  className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
                   placeholder="LLC, Inc., etc."
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Buyer Email *</label>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Buyer Email *</label>
                 <input
                   type="email"
                   value={formData.buyerEmail}
                   onChange={(e) => handleInputChange('buyerEmail', e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2"
+                  className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Buyer Phone</label>
+                <label className="block text-sm font-medium text-slate-400 mb-1">Buyer Phone</label>
                 <input
                   type="tel"
                   value={formData.buyerPhone}
                   onChange={(e) => handleInputChange('buyerPhone', e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2"
+                  className="w-full border border-slate-700 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
               </div>
             </div>
@@ -601,7 +601,7 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
             onClick={handleGenerate}
             isLoading={loading}
             loadingText="Generating..."
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+            className="btn-secondary w-full flex items-center justify-center gap-2"
           >
             <Eye className="h-4 w-4" />
             Preview LOI

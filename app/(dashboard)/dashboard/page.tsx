@@ -592,17 +592,14 @@ function DashboardPageContent() {
     }
   };
 
-  // Comparison selection handlers
+  // Bulk selection: unlimited for bulk actions; Compare only allows 2–3
   const handleToggleDealSelection = useCallback((dealId: string) => {
     setSelectedDealIds((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(dealId)) {
         newSet.delete(dealId);
       } else {
-        // Max 3 deals can be selected
-        if (newSet.size < 3) {
-          newSet.add(dealId);
-        }
+        newSet.add(dealId);
       }
       return newSet;
     });
@@ -613,10 +610,13 @@ function DashboardPageContent() {
   }, []);
 
   const handleCompareSelected = useCallback(() => {
-    if (selectedDealIds.size >= 2 && selectedDealIds.size <= 3) {
-      const idsArray = Array.from(selectedDealIds);
-      router.push(`/deals/compare?ids=${idsArray.join(',')}`);
+    if (selectedDealIds.size < 2) return;
+    if (selectedDealIds.size > 3) {
+      showToast('Compare is limited to 2–3 deals. Deselect some to compare.', 'info', 4000);
+      return;
     }
+    const idsArray = Array.from(selectedDealIds);
+    router.push(`/deals/compare?ids=${idsArray.join(',')}`);
   }, [selectedDealIds, router]);
 
   // Keyboard shortcuts
@@ -685,11 +685,11 @@ function DashboardPageContent() {
 
   if (authLoading || loading) {
     return (
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="min-h-full bg-slate-900 p-8 max-w-7xl mx-auto">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <LoadingSpinner size="lg" className="mb-4" />
-            <p className="text-sm text-slate-600">Loading dashboard...</p>
+            <p className="text-sm text-slate-400">Loading dashboard...</p>
           </div>
         </div>
       </div>
@@ -697,12 +697,12 @@ function DashboardPageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="min-h-full bg-slate-900 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
       {/* Page Header */}
       <div className="mb-8" data-onboarding="dashboard-main">
-        <h1 className="text-2xl font-bold text-slate-900 mb-2">Dashboard</h1>
-        <p className="text-slate-600">Track and analyze your deal pipeline</p>
+        <h1 className="text-3xl font-bold text-slate-50">Dashboard</h1>
+        <p className="text-sm text-slate-400 mt-2">Track and analyze your deal pipeline</p>
       </div>
 
       {/* Simplified Filter Bar - Single Row */}
@@ -710,14 +710,14 @@ function DashboardPageContent() {
         {/* Search */}
         <div className="flex-1 min-w-[200px] max-w-md">
           <div className="relative">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
             <input
               ref={searchInputRef}
               type="text"
               placeholder="Search deals..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              className="w-full pl-10 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-colors"
               aria-label="Search deals"
             />
           </div>
@@ -729,8 +729,8 @@ function DashboardPageContent() {
             onClick={() => setSelectedVerdict('all')}
             className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
               selectedVerdict === 'all'
-                ? 'bg-slate-900 text-white'
-                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                ? 'bg-slate-950 text-slate-50 border border-slate-700'
+                : 'bg-slate-800 text-slate-400 border border-slate-800 hover:bg-slate-700 hover:text-slate-300'
             }`}
           >
             All Deals
@@ -740,7 +740,7 @@ function DashboardPageContent() {
             className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
               selectedVerdict === 'proceed'
                 ? 'bg-emerald-600 text-white'
-                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                : 'bg-slate-800 text-slate-400 border border-slate-800 hover:bg-slate-700 hover:text-slate-300'
             }`}
           >
             Proceed
@@ -750,7 +750,7 @@ function DashboardPageContent() {
             className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
               selectedVerdict === 'park'
                 ? 'bg-blue-600 text-white'
-                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                : 'bg-slate-800 text-slate-400 border border-slate-800 hover:bg-slate-700 hover:text-slate-300'
             }`}
           >
             Park
@@ -760,16 +760,16 @@ function DashboardPageContent() {
         {/* Advanced Filters Dropdown */}
         <button
           onClick={() => setShowFilters(!showFilters)}
-          className={`px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition flex items-center gap-2 ${
+          className={`px-3 py-2 bg-slate-800 border rounded-lg text-sm font-medium transition flex items-center gap-2 ${
             showFilters || selectedStage !== 'all' || selectedSource !== null
-              ? 'border-emerald-300 bg-emerald-50'
-              : ''
+              ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400'
+              : 'border-slate-700 text-slate-400 hover:bg-slate-700 hover:text-slate-300'
           }`}
         >
           <SlidersHorizontal className="w-4 h-4" />
           More Filters
           {((selectedStage !== 'all') || (selectedSource !== null)) && (
-            <span className="ml-1 text-emerald-600 font-semibold">
+            <span className="ml-1 text-emerald-400 font-semibold">
               ({[selectedStage !== 'all' ? 1 : 0, selectedSource !== null ? 1 : 0].reduce((a, b) => a + b, 0)})
             </span>
           )}
@@ -778,7 +778,7 @@ function DashboardPageContent() {
         {/* Upload CIM Button */}
         <button
           onClick={handleCimButtonClick}
-          className="px-4 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-500 transition flex items-center gap-2"
+          className="btn-primary flex items-center gap-2"
         >
           <Upload className="w-4 h-4" />
           Upload CIM
@@ -787,11 +787,11 @@ function DashboardPageContent() {
 
       {/* Advanced Filters Panel (Collapsible) */}
       {showFilters && (
-        <div className="mb-6 p-4 bg-white border border-slate-200 rounded-lg">
+        <div className="mb-6 p-4 bg-slate-800 border border-slate-700 rounded-lg">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Stage filters */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Stage</label>
+              <label className="block text-sm font-medium text-slate-400 mb-2">Stage</label>
               <div className="flex items-center gap-2 flex-wrap">
                 {[
                   { label: 'All', value: 'all' as const },
@@ -805,8 +805,8 @@ function DashboardPageContent() {
                     onClick={() => setSelectedStage(stage.value as Stage)}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       selectedStage === stage.value
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                        ? 'bg-slate-950 text-slate-50 border border-slate-700'
+                        : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 hover:text-slate-300'
                     }`}
                   >
                     {stage.label}
@@ -817,7 +817,7 @@ function DashboardPageContent() {
 
             {/* Source filters */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">Source</label>
+              <label className="block text-sm font-medium text-slate-400 mb-2">Source</label>
               <div className="flex items-center gap-2 flex-wrap">
                 {[
                   { label: 'All', value: null as SourceType },
@@ -831,8 +831,8 @@ function DashboardPageContent() {
                     onClick={() => setSelectedSource(source.value)}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       selectedSource === source.value
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                        ? 'bg-slate-950 text-slate-50 border border-slate-700'
+                        : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700 hover:text-slate-300'
                     }`}
                   >
                     {source.label}
@@ -844,7 +844,7 @@ function DashboardPageContent() {
         </div>
       )}
 
-      {/* Stat Cards - Clean White Cards with Subtle Accents */}
+      {/* Stat Cards - Dark theme */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {/* New Deals - Emerald accent */}
         <button
@@ -853,21 +853,21 @@ function DashboardPageContent() {
             setSelectedVerdict('all');
             router.push('/dashboard?filter=new', { scroll: false });
           }}
-          className={`bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg hover:border-slate-300 transition-all duration-200 cursor-pointer group text-left ${
-            selectedStage === 'new' ? 'ring-2 ring-emerald-500 ring-offset-2' : ''
+          className={`bg-slate-800 border border-slate-700 rounded-xl p-6 hover:border-slate-600 hover:shadow-lg transition-all duration-200 cursor-pointer group text-left ${
+            selectedStage === 'new' ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-slate-900' : ''
           }`}
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2.5 bg-emerald-50 rounded-lg">
-              <TrendingUp className="w-5 h-5 text-emerald-600" />
+            <div className="p-2 bg-emerald-500/10 rounded-lg">
+              <TrendingUp className="w-5 h-5 text-emerald-400" />
             </div>
             {stageCounts.new > 0 && (
-              <span className="text-sm font-medium text-emerald-600">Review these first</span>
+              <span className="text-xs font-medium text-slate-400">In analysis</span>
             )}
           </div>
           <div className="space-y-1">
-            <p className="text-3xl font-bold font-mono text-slate-900">{stageCounts.new || 0}</p>
-            <p className="text-sm text-slate-600">New Deals</p>
+            <p className="text-3xl font-bold font-mono text-slate-50">{stageCounts.new || 0}</p>
+            <p className="text-sm text-slate-400">New Deals</p>
           </div>
           <div className="mt-4 text-xs text-slate-500 opacity-0 group-hover:opacity-100 transition">
             Click to filter →
@@ -881,21 +881,21 @@ function DashboardPageContent() {
             setSelectedStage('all');
             router.push('/dashboard?filter=reviewing', { scroll: false });
           }}
-          className={`bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg hover:border-slate-300 transition-all duration-200 cursor-pointer group text-left ${
-            selectedVerdict === 'proceed' ? 'ring-2 ring-blue-500 ring-offset-2' : ''
+          className={`bg-slate-800 border border-slate-700 rounded-xl p-6 hover:border-slate-600 hover:shadow-lg transition-all duration-200 cursor-pointer group text-left ${
+            selectedVerdict === 'proceed' ? 'ring-2 ring-blue-500 ring-offset-2 ring-offset-slate-900' : ''
           }`}
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2.5 bg-blue-50 rounded-lg">
-              <Target className="w-5 h-5 text-blue-600" />
+            <div className="p-2 bg-blue-500/10 rounded-lg">
+              <Target className="w-5 h-5 text-blue-400" />
             </div>
             {stageCounts.reviewing > 0 && (
-              <span className="text-sm font-medium text-blue-600">In analysis</span>
+              <span className="text-xs font-medium text-slate-400">In analysis</span>
             )}
           </div>
           <div className="space-y-1">
-            <p className="text-3xl font-bold font-mono text-slate-900">{stageCounts.reviewing || 0}</p>
-            <p className="text-sm text-slate-600">Reviewing</p>
+            <p className="text-3xl font-bold font-mono text-slate-50">{stageCounts.reviewing || 0}</p>
+            <p className="text-sm text-slate-400">Reviewing</p>
           </div>
           <div className="mt-4 text-xs text-slate-500 opacity-0 group-hover:opacity-100 transition">
             Click to filter →
@@ -909,23 +909,23 @@ function DashboardPageContent() {
             setSelectedVerdict('all');
             router.push('/dashboard?filter=pipeline', { scroll: false });
           }}
-          className={`bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg hover:border-slate-300 transition-all duration-200 cursor-pointer group text-left ${
-            selectedStage === 'follow_up' || selectedStage === 'ioi_sent' || selectedStage === 'loi' || selectedStage === 'dd' ? 'ring-2 ring-amber-500 ring-offset-2' : ''
+          className={`bg-slate-800 border border-slate-700 rounded-xl p-6 hover:border-slate-600 hover:shadow-lg transition-all duration-200 cursor-pointer group text-left ${
+            selectedStage === 'follow_up' || selectedStage === 'ioi_sent' || selectedStage === 'loi' || selectedStage === 'dd' ? 'ring-2 ring-amber-500 ring-offset-2 ring-offset-slate-900' : ''
           }`}
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2.5 bg-amber-50 rounded-lg">
-              <TrendingUp className="w-5 h-5 text-amber-600" />
+            <div className="p-2 bg-amber-500/10 rounded-lg">
+              <TrendingUp className="w-5 h-5 text-amber-400" />
             </div>
             {(stageCounts.follow_up || 0) + (stageCounts.ioi_sent || 0) + (stageCounts.loi || 0) + (stageCounts.dd || 0) > 0 && (
-              <span className="text-sm font-medium text-amber-600">Active deals</span>
+              <span className="text-xs font-medium text-slate-400">Active deals</span>
             )}
           </div>
           <div className="space-y-1">
-            <p className="text-3xl font-bold font-mono text-slate-900">
+            <p className="text-3xl font-bold font-mono text-slate-50">
               {(stageCounts.follow_up || 0) + (stageCounts.ioi_sent || 0) + (stageCounts.loi || 0) + (stageCounts.dd || 0)}
             </p>
-            <p className="text-sm text-slate-600">In Pipeline</p>
+            <p className="text-sm text-slate-400">In Pipeline</p>
           </div>
           <div className="mt-4 text-xs text-slate-500 opacity-0 group-hover:opacity-100 transition">
             Click to filter →
@@ -939,21 +939,21 @@ function DashboardPageContent() {
             setSelectedVerdict('all');
             router.push('/dashboard?filter=passed', { scroll: false });
           }}
-          className={`bg-white border border-slate-200 rounded-xl p-6 hover:shadow-lg hover:border-slate-300 transition-all duration-200 cursor-pointer group text-left ${
-            selectedStage === 'passed' ? 'ring-2 ring-slate-500 ring-offset-2' : ''
+          className={`bg-slate-800 border border-slate-700 rounded-xl p-6 hover:border-slate-600 hover:shadow-lg transition-all duration-200 cursor-pointer group text-left ${
+            selectedStage === 'passed' ? 'ring-2 ring-slate-500 ring-offset-2 ring-offset-slate-900' : ''
           }`}
         >
           <div className="flex items-center justify-between mb-4">
-            <div className="p-2.5 bg-slate-50 rounded-lg">
-              <XCircle className="w-5 h-5 text-slate-600" />
+            <div className="p-2 bg-slate-700/50 rounded-lg">
+              <XCircle className="w-5 h-5 text-slate-400" />
             </div>
             {stageCounts.passed > 0 && (
-              <span className="text-sm font-medium text-slate-600">This month</span>
+              <span className="text-xs font-medium text-slate-400">This month</span>
             )}
           </div>
           <div className="space-y-1">
-            <p className="text-3xl font-bold font-mono text-slate-900">{stageCounts.passed || 0}</p>
-            <p className="text-sm text-slate-600">Passed</p>
+            <p className="text-3xl font-bold font-mono text-slate-50">{stageCounts.passed || 0}</p>
+            <p className="text-sm text-slate-400">Passed</p>
           </div>
           <div className="mt-4 text-xs text-slate-500 opacity-0 group-hover:opacity-100 transition">
             Click to filter →
@@ -999,10 +999,10 @@ function DashboardPageContent() {
         <div
           className={`rounded-xl border-2 p-4 mb-4 ${
             cimUploadStatus === 'uploaded'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-400'
               : cimUploadStatus === 'error'
-                ? 'bg-red-50 border-red-200 text-red-700'
-                : 'bg-blue-50 border-blue-200 text-blue-700'
+                ? 'bg-red-950/30 border-red-500/30 text-red-400'
+                : 'bg-blue-950/30 border-blue-500/30 text-blue-400'
           }`}
         >
           <div className="font-semibold">
@@ -1021,9 +1021,9 @@ function DashboardPageContent() {
             </div>
           )}
           {cimUploadStatus === 'uploading' && (
-            <div className="mt-2 w-full bg-slate-200 rounded-full h-2">
+            <div className="mt-2 w-full bg-slate-700 rounded-full h-2">
               <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${cimUploadProgress}%` }}
               />
             </div>
@@ -1035,10 +1035,10 @@ function DashboardPageContent() {
         <div
           className={`rounded-xl border-2 p-4 mb-4 ${
             finUploadStatus === 'uploaded'
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+              ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-400'
               : finUploadStatus === 'error'
-                ? 'bg-red-50 border-red-200 text-red-700'
-                : 'bg-blue-50 border-blue-200 text-blue-700'
+                ? 'bg-red-950/30 border-red-500/30 text-red-400'
+                : 'bg-blue-950/30 border-blue-500/30 text-blue-400'
           }`}
           style={{ animation: 'fadeInUp 0.3s ease-out' }}
         >
@@ -1060,15 +1060,18 @@ function DashboardPageContent() {
             onRefresh={() => workspaceId && loadDeals(workspaceId)}
           />
           
-          {/* Comparison Actions (if 2-3 deals selected) */}
-          {selectedDealIds.size >= 2 && selectedDealIds.size <= 3 && (
-            <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg flex items-center justify-between gap-4">
-              <span className="text-sm text-slate-600">
-                Compare {selectedDealIds.size} deals side-by-side
+          {/* Compare: only for 2–3 deals */}
+          {selectedDealIds.size >= 2 && (
+            <div className="mb-6 p-4 bg-slate-800 border border-slate-700 rounded-lg flex items-center justify-between gap-4">
+              <span className="text-sm text-slate-400">
+                {selectedDealIds.size <= 3
+                  ? `Compare ${selectedDealIds.size} deals side-by-side`
+                  : `Compare is limited to 2–3 deals. ${selectedDealIds.size} selected — use bulk actions or deselect to compare.`}
               </span>
               <button
                 onClick={handleCompareSelected}
-                className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                disabled={selectedDealIds.size > 3}
+                className="btn-secondary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Compare Selected
               </button>
@@ -1133,28 +1136,28 @@ function DashboardPageContent() {
         />
       ) : (
         <>
-          <div className="mb-6 text-sm font-medium text-slate-600">
-            Showing <span className="font-semibold text-slate-900">{filteredDeals.length}</span> of{' '}
-            <span className="font-semibold text-slate-900">{criteriaFilteredDeals !== null ? criteriaFilteredDeals.length : deals.length}</span> deals
+          <div className="mb-6 text-sm font-medium text-slate-400">
+            Showing <span className="font-semibold text-slate-50">{filteredDeals.length}</span> of{' '}
+            <span className="font-semibold text-slate-50">{criteriaFilteredDeals !== null ? criteriaFilteredDeals.length : deals.length}</span> deals
             {activeCriteria && (
-              <span className="ml-2 text-blue-600">
+              <span className="ml-2 text-blue-400">
                 (filtered by "{activeCriteria.name}")
               </span>
             )}
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-5 lg:gap-6">
             {/* Mobile: Stack vertically, Desktop: Grid */}
             {filteredDeals.map((deal, index) => (
               <div
                 key={deal.id}
                 id={`deal-${deal.id}`}
-                className={selectedDealIndex === index ? 'ring-2 ring-blue-500 rounded-xl' : ''}
+                className={selectedDealIndex === index ? 'ring-2 ring-emerald-500 rounded-xl ring-offset-2 ring-offset-slate-900' : ''}
               >
                 <DealCard
                   deal={deal}
                   isSelected={selectedDealIds.has(deal.id)}
                   onToggleSelect={handleToggleDealSelection}
-                  canSelect={selectedDealIds.size < 3 || selectedDealIds.has(deal.id)}
+                  canSelect={true}
                   fromView={selectedSource || undefined}
                   onRefresh={() => workspaceId && loadDeals(workspaceId)}
                 />
@@ -1223,10 +1226,10 @@ function DashboardPageContent() {
       <div className="fixed bottom-4 right-4 z-40">
         <button
           onClick={() => setShowShortcutsModal(true)}
-          className="text-xs text-slate-500 hover:text-slate-700 bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm transition-colors"
+          className="text-xs text-slate-500 hover:text-slate-300 bg-slate-800/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-700 shadow-sm transition-colors"
           aria-label="Show keyboard shortcuts"
         >
-          Press <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded text-xs">?</kbd> for shortcuts
+          Press <kbd className="px-1 py-0.5 bg-slate-700 border border-slate-600 rounded text-xs text-slate-300">?</kbd> for shortcuts
         </button>
       </div>
       </div>
@@ -1237,11 +1240,11 @@ function DashboardPageContent() {
 export default function DashboardPage() {
   return (
     <Suspense fallback={
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="p-8 max-w-7xl mx-auto bg-slate-900">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <LoadingSpinner size="lg" className="mb-4" />
-            <p className="text-sm text-slate-600">Loading dashboard...</p>
+            <p className="text-sm text-slate-400">Loading dashboard...</p>
           </div>
         </div>
       </div>

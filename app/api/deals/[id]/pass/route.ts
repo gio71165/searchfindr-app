@@ -17,7 +17,8 @@ export async function OPTIONS() {
 /**
  * POST /api/deals/[id]/pass
  * Marks a deal as passed (sets passed_at timestamp, stage, and reason)
- * Body: { pass_reason: string, pass_notes?: string | null, broker_feedback?: string | null }
+ * Body: { pass_reason: string, pass_reason_sentence?: string, pass_notes?: string | null, broker_feedback?: string | null }
+ * When pass_reason_sentence is provided, saves to training_data for ML fine-tuning.
  */
 export async function POST(
   req: NextRequest,
@@ -34,6 +35,7 @@ export async function POST(
 
     const body = await req.json().catch(() => ({}));
     const passReason = body.pass_reason;
+    const passReasonSentence = typeof body.pass_reason_sentence === 'string' ? body.pass_reason_sentence.trim() : null;
     const passNotes = body.pass_notes || null;
     const brokerFeedback = body.broker_feedback || null;
 
@@ -41,20 +43,32 @@ export async function POST(
       return NextResponse.json({ error: "pass_reason is required" }, { status: 400, headers: corsHeaders });
     }
 
-    // Pass the deal with notes
-    await deals.passDeal(dealId, passReason, passNotes, brokerFeedback ? true : false);
+    // Pass the deal with notes; get updated deal for training_data
+    const deal = await deals.passDeal(dealId, passReason, passNotes, brokerFeedback ? true : false);
+
+    // Save to training_data for ML (when called directly; PassDealModal now uses /api/deals/[id]/verdict)
+    if (passReasonSentence && passReasonSentence.length > 0) {
+      try {
+        const { buildExtractedMetrics } = await import('@/lib/data-access/training-data');
+        const extractedMetrics = buildExtractedMetrics(deal as unknown as Record<string, unknown>);
+        await supabase.from('training_data').insert({
+          deal_id: dealId,
+          workspace_id: workspace.id,
+          user_id: user.id,
+          verdict_type: 'pass',
+          searcher_input_text: passReasonSentence,
+          pass_reason_sentence: passReasonSentence,
+          extracted_metrics: extractedMetrics,
+        });
+      } catch (trainingErr) {
+        console.error('Error saving training_data:', trainingErr);
+      }
+    }
 
     // If broker feedback is provided, save it to deal notes
     if (brokerFeedback && typeof brokerFeedback === 'string') {
       try {
-        // Get the deal to check if it exists
-        const deal = await deals.getById(dealId);
-        
-        // Save broker feedback as a note
-        // Format: "Broker Feedback: [feedback text]"
         const feedbackNote = `Broker Feedback:\n\n${brokerFeedback.trim()}`;
-        
-        // Update user_notes, appending if there are existing notes
         const existingNotes = deal.user_notes || '';
         const updatedNotes = existingNotes 
           ? `${existingNotes}\n\n---\n\n${feedbackNote}`
@@ -64,7 +78,6 @@ export async function POST(
           user_notes: updatedNotes,
         });
       } catch (noteError) {
-        // Log error but don't fail the pass operation
         console.error('Error saving broker feedback to notes:', noteError);
       }
     }

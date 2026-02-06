@@ -29,33 +29,33 @@ export function StatCard({
   }, []);
 
   const iconColorClasses = {
-    blue: 'text-blue-600',
-    green: 'text-emerald-600',
-    yellow: 'text-amber-600',
-    red: 'text-red-600',
-    purple: 'text-violet-600',
+    blue: 'text-blue-400',
+    green: 'text-emerald-400',
+    yellow: 'text-amber-400',
+    red: 'text-red-400',
+    purple: 'text-violet-400',
   };
 
   const iconBgClasses = {
-    blue: 'bg-blue-50',
-    green: 'bg-emerald-50',
-    yellow: 'bg-amber-50',
-    red: 'bg-red-50',
-    purple: 'bg-violet-50',
+    blue: 'bg-blue-500/10',
+    green: 'bg-emerald-500/10',
+    yellow: 'bg-amber-500/10',
+    red: 'bg-red-500/10',
+    purple: 'bg-violet-500/10',
   };
 
   const iconColor = iconColorClasses[color];
   const iconBg = iconBgClasses[color];
 
   const baseClasses = `
-    group bg-white border border-slate-200 rounded-xl p-6
-    hover:shadow-lg hover:border-slate-300 transition-all duration-200
+    group bg-slate-800 border border-slate-700 rounded-xl p-6
+    hover:shadow-lg hover:border-slate-600 transition-all duration-200
     ${onClick ? 'cursor-pointer' : ''}
-    ${isActive ? 'ring-2 ring-offset-2 ring-emerald-500 shadow-md' : ''}
+    ${isActive ? 'ring-2 ring-offset-2 ring-offset-slate-900 ring-emerald-500 shadow-md' : ''}
     ${mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}
   `;
 
-  const trendColor = trend === 'up' ? 'text-emerald-600' : trend === 'down' ? 'text-red-600' : 'text-slate-600';
+  const trendColor = trend === 'up' ? 'text-emerald-400' : trend === 'down' ? 'text-red-400' : 'text-slate-400';
 
   return (
     <div
@@ -79,8 +79,8 @@ export function StatCard({
 
       {/* Metric */}
       <div className="space-y-1">
-        <p className="text-3xl font-bold font-mono text-slate-900">{value}</p>
-        <p className="text-sm text-slate-600">{label}</p>
+        <p className="text-3xl font-bold font-mono text-slate-50">{value}</p>
+        <p className="text-sm text-slate-400">{label}</p>
       </div>
     </div>
   );

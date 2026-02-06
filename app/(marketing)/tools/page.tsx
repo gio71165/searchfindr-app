@@ -76,7 +76,7 @@ export default function ToolsPage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/signup"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-500 transition-colors"
+              className="btn-primary btn-lg inline-flex items-center gap-2"
             >
               Start Free Trial
               <ArrowRight className="w-4 h-4" />

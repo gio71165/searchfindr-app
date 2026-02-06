@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY?.trim().replace(/^["']|["']$/g, '');
@@ -12,7 +13,7 @@ function getStripe() {
   });
 }
 
-function getSupabase() {
+function getSupabaseAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -46,15 +47,20 @@ function getAppUrl(): string {
 
 export async function POST(req: NextRequest) {
   try {
+    const serverSupabase = await createServerClient();
+    const { data: { user }, error: authError } = await serverSupabase.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const stripe = getStripe();
-    const supabase = getSupabase();
+    const supabase = getSupabaseAdmin();
     const appUrl = getAppUrl();
-    const { userId } = await req.json();
 
     const { data: profile } = await supabase
       .from('profiles')
       .select('stripe_customer_id')
-      .eq('id', userId)
+      .eq('id', user.id)
       .single();
 
     if (!profile?.stripe_customer_id) {
@@ -68,8 +74,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ url: session.url });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Portal session error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to open billing portal' }, { status: 500 });
   }
 }

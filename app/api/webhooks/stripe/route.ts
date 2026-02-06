@@ -20,6 +20,12 @@ function getSupabase() {
 }
 
 export async function POST(req: NextRequest) {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+  if (!webhookSecret) {
+    console.error('STRIPE_WEBHOOK_SECRET is not set');
+    return NextResponse.json({ error: 'Webhook not configured' }, { status: 500 });
+  }
+
   const stripe = getStripe();
   const supabase = getSupabase();
   const body = await req.text();
@@ -32,13 +38,10 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
-  } catch (err: any) {
-    console.error('Webhook signature verification failed:', err.message);
+    event = stripe.webhooks.constructEvent(body, sig, webhookSecret);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('Webhook signature verification failed:', message);
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
@@ -68,9 +71,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ received: true });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Webhook handler error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 });
   }
 }
 

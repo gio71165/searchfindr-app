@@ -170,10 +170,10 @@ export function DragDropZone({
         onClick={handleClick}
         className={`
           relative border-2 border-dashed rounded-xl p-8 transition-all cursor-pointer
-          ${isDragging ? 'border-blue-500 bg-blue-50 scale-[1.02]' : 'border-slate-300 bg-white'}
-          ${disabled || isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:border-blue-400 hover:bg-slate-50'}
-          ${hasError ? 'border-red-300 bg-red-50' : ''}
-          ${isUploaded ? 'border-emerald-300 bg-emerald-50' : ''}
+          ${isDragging ? 'border-emerald-500 bg-emerald-500/10 scale-[1.02]' : 'border-slate-700 bg-slate-800'}
+          ${disabled || isUploading ? 'opacity-50 cursor-not-allowed' : 'hover:border-emerald-500/50 hover:bg-slate-800/50'}
+          ${hasError ? 'border-red-500/50 bg-red-950/20' : ''}
+          ${isUploaded ? 'border-emerald-500/50 bg-emerald-950/20' : ''}
         `}
       >
         <input
@@ -195,17 +195,17 @@ export function DragDropZone({
             ) : hasError ? (
               <AlertCircle className="h-12 w-12 text-red-500" />
             ) : icon ? (
-              <div className="text-blue-500">{icon}</div>
+              <div className="text-slate-400">{icon}</div>
             ) : (
-              <Upload className="h-12 w-12 text-slate-400" />
+              <Upload className="h-12 w-12 text-slate-500" />
             )}
           </div>
 
           {/* Label and Description */}
           {!previewFile && (
             <>
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">{label}</h3>
-              <p className="text-sm text-slate-600 mb-4">{description}</p>
+              <h3 className="text-lg font-semibold text-slate-50 mb-2">{label}</h3>
+              <p className="text-sm text-slate-400 mb-4">{description}</p>
               <p className="text-xs text-slate-500">
                 {allowedFileTypes && allowedFileTypes.length > 0 && (
                   <>Accepted: {allowedFileTypes.join(', ')} • </>
@@ -220,8 +220,8 @@ export function DragDropZone({
             <div className="w-full max-w-md">
               <div className={`flex items-center gap-3 p-4 rounded-lg border ${
                 hasError 
-                  ? 'bg-red-50 border-red-200' 
-                  : 'bg-slate-50 border-slate-200'
+                  ? 'bg-red-950/20 border-red-500/30' 
+                  : 'bg-slate-900 border-slate-700'
               }`}>
                 {hasError ? (
                   <AlertCircle className="h-8 w-8 text-red-500 flex-shrink-0" />
@@ -230,12 +230,12 @@ export function DragDropZone({
                 )}
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium truncate ${
-                    hasError ? 'text-red-900' : 'text-slate-900'
+                    hasError ? 'text-red-400' : 'text-slate-50'
                   }`}>
                     {previewFile.name}
                   </p>
                   <p className={`text-xs ${
-                    hasError ? 'text-red-600' : 'text-slate-500'
+                    hasError ? 'text-red-400' : 'text-slate-500'
                   }`}>
                     {formatFileSize(previewFile.size)}
                   </p>
@@ -243,7 +243,7 @@ export function DragDropZone({
                 {!disabled && (
                   <button
                     onClick={handleRemovePreview}
-                    className="p-1 hover:bg-slate-200 rounded transition-colors"
+                    className="p-1 hover:bg-slate-700 rounded transition-colors"
                     type="button"
                   >
                     <X className="h-4 w-4 text-slate-500" />
@@ -256,18 +256,18 @@ export function DragDropZone({
           {/* Upload Progress */}
           {isUploading && previewFile && (
             <div className="w-full max-w-md mt-4">
-              <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center gap-3 p-4 bg-slate-900 rounded-lg border border-slate-700">
                 <LoadingSpinner size="sm" className="flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">{previewFile.name}</p>
+                  <p className="text-sm font-medium text-slate-50 truncate">{previewFile.name}</p>
                   <div className="mt-2">
-                    <div className="w-full bg-slate-200 rounded-full h-2">
+                    <div className="w-full bg-slate-700 rounded-full h-2">
                       <div
                         className="bg-emerald-500 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${uploadProgress || 0}%` }}
                       />
                     </div>
-                    <p className="text-xs text-slate-600 mt-1">
+                    <p className="text-xs text-slate-400 mt-1">
                       {uploadProgress !== undefined ? `${Math.round(uploadProgress)}%` : 'Uploading...'}
                     </p>
                   </div>
@@ -279,9 +279,9 @@ export function DragDropZone({
           {/* Success State */}
           {isUploaded && successMessage && (
             <div className="w-full max-w-md mt-4">
-              <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-lg border border-emerald-200">
+              <div className="flex items-center gap-3 p-4 bg-emerald-950/20 rounded-lg border border-emerald-500/30">
                 <CheckCircle2 className="h-5 w-5 text-emerald-500 flex-shrink-0" />
-                <p className="text-sm font-medium text-emerald-900">{successMessage}</p>
+                <p className="text-sm font-medium text-emerald-400">{successMessage}</p>
               </div>
             </div>
           )}
@@ -289,9 +289,9 @@ export function DragDropZone({
           {/* Error State */}
           {hasError && errorMessage && (
             <div className="w-full max-w-md mt-4">
-              <div className="flex items-center gap-3 p-4 bg-red-50 rounded-lg border border-red-200">
+              <div className="flex items-center gap-3 p-4 bg-red-950/20 rounded-lg border border-red-500/30">
                 <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
-                <p className="text-sm font-medium text-red-900">{errorMessage}</p>
+                <p className="text-sm font-medium text-red-400">{errorMessage}</p>
               </div>
             </div>
           )}

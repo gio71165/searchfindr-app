@@ -149,23 +149,23 @@ export function DiligenceChecklist({
   const totalCount = checklistState.length;
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-6">
+    <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <CheckSquare className="h-5 w-5 text-slate-600" />
-          <h3 className="text-xl font-semibold text-slate-900">
+          <CheckSquare className="h-5 w-5 text-slate-400" />
+          <h3 className="text-xl font-semibold text-slate-50">
             Due Diligence Checklist
           </h3>
         </div>
         {totalCount > 0 && (
-          <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+          <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
             {completedCount}/{totalCount} completed
           </span>
         )}
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-slate-600">{emptyText || 'No checklist generated yet.'}</p>
+        <p className="text-sm text-slate-400">{emptyText || 'No checklist generated yet.'}</p>
       ) : (
         <ul className="space-y-3">
           {checklistState.map((item) => (
@@ -174,7 +174,7 @@ export function DiligenceChecklist({
                 type="checkbox"
                 checked={item.completed}
                 onChange={() => toggleComplete(item.id)}
-                className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                className="mt-1 h-4 w-4 rounded border-slate-600 text-emerald-500 focus:ring-emerald-500/20 bg-slate-900 cursor-pointer"
               />
               <div className="flex-1">
                 <div className="flex items-start gap-2">
@@ -182,7 +182,7 @@ export function DiligenceChecklist({
                     className={`text-sm flex-1 ${
                       item.completed
                         ? 'text-slate-500 line-through'
-                        : 'text-slate-700'
+                        : 'text-slate-300'
                     }`}
                   >
                     {item.text}
@@ -197,7 +197,7 @@ export function DiligenceChecklist({
                       )
                     }
                     label={expandedNotes.has(item.id) ? `Collapse notes for ${item.text}` : `Expand notes for ${item.text}`}
-                    className="text-xs text-slate-500 hover:text-slate-700"
+                    className="text-xs text-slate-400 hover:text-slate-300"
                   />
                 </div>
                 {expandedNotes.has(item.id) && (
@@ -205,7 +205,7 @@ export function DiligenceChecklist({
                     value={item.notes || ''}
                     onChange={(e) => updateNotes(item.id, e.target.value)}
                     placeholder="Add notes..."
-                    className="mt-2 w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                    className="mt-2 w-full px-3 py-2 text-xs rounded-lg border border-slate-600 bg-slate-900 text-slate-50 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 resize-none"
                     rows={2}
                   />
                 )}
@@ -215,7 +215,7 @@ export function DiligenceChecklist({
         </ul>
       )}
       {saving && (
-        <p className="mt-2 text-xs text-slate-500">Saving...</p>
+        <p className="mt-2 text-xs text-slate-400">Saving...</p>
       )}
     </div>
   );

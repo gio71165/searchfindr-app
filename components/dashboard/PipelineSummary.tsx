@@ -24,13 +24,13 @@ function PipelineSummaryComponent({ selectedStage, setSelectedStage, stageCounts
   if (variant === 'compact') {
     return (
       <div className="mb-6">
-        <label className="block text-sm font-medium text-slate-700 mb-2">
+        <label className="block text-sm font-medium text-slate-400 mb-2">
           Stage: <span className="text-slate-500 font-normal">({stageCounts[selectedStage] ?? 0} deals)</span>
         </label>
         <select
           value={selectedStage}
           onChange={(e) => setSelectedStage(e.target.value)}
-          className="px-3 py-2 border border-slate-300 rounded-lg bg-white text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="px-3 py-2 border border-slate-700 rounded-lg bg-slate-800 text-slate-300 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
         >
           {STAGES.map((s) => (
             <option key={s.key} value={s.key}>{s.label} ({stageCounts[s.key] ?? 0})</option>
@@ -46,8 +46,8 @@ function PipelineSummaryComponent({ selectedStage, setSelectedStage, stageCounts
         const sel = selectedStage === stage.key;
         const base = 'p-3 sm:p-4 rounded-xl border-2 font-semibold transition-colors text-left touch-manipulation min-h-[80px] sm:min-h-[auto]';
         const styles = sel
-          ? 'bg-slate-700 text-white border-slate-700'
-          : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50';
+          ? 'bg-slate-950 text-slate-50 border-slate-700'
+          : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600 hover:bg-slate-700 hover:text-slate-300';
         return (
           <button
             key={stage.key}

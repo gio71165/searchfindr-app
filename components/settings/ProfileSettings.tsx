@@ -24,30 +24,30 @@ export function ProfileSettings() {
   };
 
   return (
-    <div className="p-6 bg-slate-50 rounded-lg border border-slate-200">
-      <h3 className="font-semibold text-slate-900 mb-4">Profile Information</h3>
-      <p className="text-sm text-slate-600 mb-4">
+    <div className="p-6 bg-slate-800/50 rounded-lg border border-slate-600">
+      <h3 className="font-semibold text-slate-50 mb-4">Profile Information</h3>
+      <p className="text-sm text-slate-400 mb-4">
         Your account details. Share your workspace ID with investors who want to link to your account.
       </p>
       
       <div className="space-y-4">
         {/* Email */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label className="block text-sm font-medium text-slate-300 mb-1">
             Email Address
           </label>
-          <div className="px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900">
+          <div className="px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-sm text-slate-100">
             {user?.email || 'Not available'}
           </div>
         </div>
 
         {/* Workspace ID */}
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
+          <label className="block text-sm font-medium text-slate-300 mb-1">
             Workspace ID
           </label>
           <div className="flex items-center gap-2">
-            <div className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 font-mono break-all">
+            <div className="flex-1 px-3 py-2 bg-slate-900/50 border border-slate-600 rounded-lg text-sm text-slate-100 font-mono break-all">
               {workspaceId || 'Not available'}
             </div>
             {workspaceId && (

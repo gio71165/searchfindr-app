@@ -157,7 +157,7 @@ export function SetReminderButton({
                 isLoading={saving}
                 loadingText="Saving..."
                 disabled={!date}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="btn-secondary flex-1"
               >
                 Save
               </AsyncButton>

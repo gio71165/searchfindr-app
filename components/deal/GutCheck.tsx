@@ -144,13 +144,13 @@ export function GutCheck({ deal, dealId, onUpdate }: GutCheckProps) {
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-6">
+    <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
       <div className="flex items-center gap-2 mb-4">
         <Heart className="h-5 w-5 text-pink-600" />
-        <h3 className="text-xl font-semibold text-slate-900">Gut Check</h3>
+        <h3 className="text-xl font-semibold text-slate-50">Gut Check</h3>
       </div>
 
-      <p className="text-sm text-slate-600 mb-6">
+      <p className="text-sm text-slate-400 mb-6">
         How excited are you to run this business for 5-7 years?
       </p>
 
@@ -164,7 +164,7 @@ export function GutCheck({ deal, dealId, onUpdate }: GutCheckProps) {
             value={score ?? 5}
             onChange={(e) => handleScoreChange(parseInt(e.target.value))}
             disabled={saving}
-            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               background: `linear-gradient(to right, 
                 #ec4899 0%, 
@@ -183,26 +183,26 @@ export function GutCheck({ deal, dealId, onUpdate }: GutCheckProps) {
         {/* Score display */}
         <div className="flex items-center justify-center gap-2">
           <span className="text-3xl font-bold text-pink-600">{score ?? 5}</span>
-          <span className="text-slate-600">/ 10</span>
+          <span className="text-slate-400">/ 10</span>
         </div>
 
         {/* Conflict warning */}
         {hasConflict && conflictMessage && (
           <div className={`mt-4 p-4 rounded-lg border-l-4 ${
             isProceedVerdict && score !== null && score <= 4
-              ? 'bg-yellow-50 border-yellow-400'
-              : 'bg-blue-50 border-blue-400'
+              ? 'bg-amber-500/10 border-amber-500/50'
+              : 'bg-blue-500/10 border-blue-500/50'
           }`}>
             <div className="flex items-start gap-2">
               <AlertTriangle className={`h-5 w-5 mt-0.5 ${
                 isProceedVerdict && score !== null && score <= 4
-                  ? 'text-yellow-600'
-                  : 'text-blue-600'
+                  ? 'text-amber-400'
+                  : 'text-blue-400'
               }`} />
               <p className={`text-sm font-medium ${
                 isProceedVerdict && score !== null && score <= 4
-                  ? 'text-yellow-800'
-                  : 'text-blue-800'
+                  ? 'text-amber-200'
+                  : 'text-blue-200'
               }`}>
                 {conflictMessage}
               </p>
@@ -214,7 +214,7 @@ export function GutCheck({ deal, dealId, onUpdate }: GutCheckProps) {
         <div className="flex justify-end mt-4">
           <button
             onClick={handleSkip}
-            className="text-sm text-slate-500 hover:text-slate-700 transition-colors"
+            className="text-sm text-slate-400 hover:text-slate-300 transition-colors"
           >
             Skip
           </button>

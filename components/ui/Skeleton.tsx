@@ -15,7 +15,7 @@ export function Skeleton({
   rounded = true,
   lines 
 }: SkeletonProps) {
-  const baseClasses = 'animate-pulse bg-emerald-100';
+  const baseClasses = 'animate-pulse bg-slate-800';
   const roundedClass = rounded ? 'rounded' : '';
   const widthStyle = width ? (typeof width === 'number' ? `${width}px` : width) : undefined;
   const heightStyle = height ? (typeof height === 'number' ? `${height}px` : height) : undefined;

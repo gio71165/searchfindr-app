@@ -56,25 +56,25 @@ export default function DealPage() {
   // Page states
   if (!id) {
     return (
-      <main className="py-10 text-center">
+      <main className="min-h-screen bg-slate-900 py-10 text-center">
         <LoadingSpinner size="lg" className="mb-4" />
-        <p className="text-slate-600">Loading deal…</p>
+        <p className="text-slate-400">Loading deal…</p>
       </main>
     );
   }
   
   if (loading) {
     return (
-      <main className="py-10 text-center">
+      <main className="min-h-screen bg-slate-900 py-10 text-center">
         <LoadingSpinner size="lg" className="mb-4" />
-        <p className="text-slate-600">Loading deal details…</p>
+        <p className="text-slate-400">Loading deal details…</p>
       </main>
     );
   }
   
   if (!deal) {
     return (
-      <main className="py-10 max-w-2xl mx-auto px-4">
+      <main className="min-h-screen bg-slate-900 py-10 max-w-2xl mx-auto px-4">
         <ErrorState
           title="Deal not found"
           message="The deal you're looking for doesn't exist or you don't have access to it."

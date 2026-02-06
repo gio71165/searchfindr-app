@@ -1003,43 +1003,44 @@ export async function POST(req: NextRequest) {
     const dealSizeBand = parsed.deal_economics?.deal_size_band || null;
     
     // Extract location and industry from parsed result
-    // Priority: top-level fields first, then fallback to nested fields
-    const locationStr = parsed.location || 
-                       (parsed.criteria_match as any)?.location || 
-                       (parsed as any).deal_economics?.location || 
-                       null;
-    
-    let locationCity: string | null = null;
-    let locationState: string | null = null;
-    if (typeof locationStr === 'string' && locationStr.trim()) {
+    // Priority: explicit city/state, then "City, State" string, then nested
+    const parsedAny = parsed as Record<string, unknown>;
+    const locationStr = (typeof parsedAny.location === 'string' && parsedAny.location.trim()) ? parsedAny.location as string
+      : (parsed.criteria_match as any)?.location
+      || (parsedAny.deal_economics as any)?.location
+      || null;
+
+    let locationCity: string | null = (typeof parsedAny.location_city === 'string' && (parsedAny.location_city as string).trim()) ? (parsedAny.location_city as string).trim() : null;
+    let locationState: string | null = (typeof parsedAny.location_state === 'string' && (parsedAny.location_state as string).trim()) ? (parsedAny.location_state as string).trim() : null;
+
+    if ((!locationCity || !locationState) && typeof locationStr === 'string' && locationStr.trim()) {
       // Parse "City, State" format (e.g., "Austin, TX" or "Austin, Texas")
       const parts = locationStr.split(',').map(s => s.trim());
       if (parts.length >= 2) {
-        locationCity = parts[0] || null;
-        // Handle state abbreviations (e.g., "TX" or "Texas")
-        const statePart = parts[1] || null;
-        if (statePart) {
-          // If state is full name, try to extract abbreviation (basic mapping)
-          const stateMap: Record<string, string> = {
-            'texas': 'TX', 'california': 'CA', 'florida': 'FL', 'new york': 'NY',
-            'illinois': 'IL', 'pennsylvania': 'PA', 'ohio': 'OH', 'georgia': 'GA',
-            'north carolina': 'NC', 'michigan': 'MI', 'new jersey': 'NJ', 'virginia': 'VA',
-            'washington': 'WA', 'arizona': 'AZ', 'massachusetts': 'MA', 'tennessee': 'TN',
-            'indiana': 'IN', 'missouri': 'MO', 'maryland': 'MD', 'wisconsin': 'WI',
-            'colorado': 'CO', 'minnesota': 'MN', 'south carolina': 'SC', 'alabama': 'AL',
-            'louisiana': 'LA', 'kentucky': 'KY', 'oregon': 'OR', 'oklahoma': 'OK',
-            'connecticut': 'CT', 'utah': 'UT', 'iowa': 'IA', 'nevada': 'NV',
-            'arkansas': 'AR', 'mississippi': 'MS', 'kansas': 'KS', 'new mexico': 'NM',
-            'nebraska': 'NE', 'west virginia': 'WV', 'idaho': 'ID', 'hawaii': 'HI',
-            'new hampshire': 'NH', 'maine': 'ME', 'montana': 'MT', 'rhode island': 'RI',
-            'delaware': 'DE', 'south dakota': 'SD', 'north dakota': 'ND', 'alaska': 'AK',
-            'vermont': 'VT', 'wyoming': 'WY', 'district of columbia': 'DC'
-          };
-          const stateLower = statePart.toLowerCase();
-          locationState = stateMap[stateLower] || statePart.toUpperCase();
+        if (!locationCity) locationCity = parts[0] || null;
+        if (!locationState) {
+          const statePart = parts[1] || null;
+          if (statePart) {
+            const stateMap: Record<string, string> = {
+              'texas': 'TX', 'california': 'CA', 'florida': 'FL', 'new york': 'NY',
+              'illinois': 'IL', 'pennsylvania': 'PA', 'ohio': 'OH', 'georgia': 'GA',
+              'north carolina': 'NC', 'michigan': 'MI', 'new jersey': 'NJ', 'virginia': 'VA',
+              'washington': 'WA', 'arizona': 'AZ', 'massachusetts': 'MA', 'tennessee': 'TN',
+              'indiana': 'IN', 'missouri': 'MO', 'maryland': 'MD', 'wisconsin': 'WI',
+              'colorado': 'CO', 'minnesota': 'MN', 'south carolina': 'SC', 'alabama': 'AL',
+              'louisiana': 'LA', 'kentucky': 'KY', 'oregon': 'OR', 'oklahoma': 'OK',
+              'connecticut': 'CT', 'utah': 'UT', 'iowa': 'IA', 'nevada': 'NV',
+              'arkansas': 'AR', 'mississippi': 'MS', 'kansas': 'KS', 'new mexico': 'NM',
+              'nebraska': 'NE', 'west virginia': 'WV', 'idaho': 'ID', 'hawaii': 'HI',
+              'new hampshire': 'NH', 'maine': 'ME', 'montana': 'MT', 'rhode island': 'RI',
+              'delaware': 'DE', 'south dakota': 'SD', 'north dakota': 'ND', 'alaska': 'AK',
+              'vermont': 'VT', 'wyoming': 'WY', 'district of columbia': 'DC'
+            };
+            locationState = stateMap[statePart.toLowerCase()] || statePart.toUpperCase();
+          }
         }
       } else if (parts.length === 1) {
-        locationCity = parts[0] || null;
+        if (!locationCity) locationCity = parts[0] || null;
       }
     }
     
@@ -1141,6 +1142,7 @@ export async function POST(req: NextRequest) {
       revalidatePath('/dashboard');
     }
     
+    const responseTimeMs = Date.now() - startTime;
     const response = NextResponse.json({
       success: true,
       companyId,
@@ -1154,6 +1156,9 @@ export async function POST(req: NextRequest) {
 
       // ✅ helpful for UI debugging / dashboard
       ai_confidence_json: cimDataConfidence,
+
+      // Demo / trust: "60-second" claim — actual time for framing ("deeper audit than 3 hours human")
+      analysis_time_seconds: Math.round(responseTimeMs / 1000),
     });
 
     // Log usage

@@ -11,7 +11,7 @@ type QoeRedFlag = {
   next_action?: string;
 };
 
-export function QoeRedFlagsPanel({ qoeRedFlags }: { qoeRedFlags: QoeRedFlag[] }) {
+export function QoeRedFlagsPanel({ qoeRedFlags, embedded }: { qoeRedFlags: QoeRedFlag[]; embedded?: boolean }) {
   if (!qoeRedFlags || qoeRedFlags.length === 0) {
     return null;
   }
@@ -20,20 +20,20 @@ export function QoeRedFlagsPanel({ qoeRedFlags }: { qoeRedFlags: QoeRedFlag[] })
     const severityLower = severity.toLowerCase();
     if (severityLower === 'high') {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-300">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-red-300 border border-red-500/30">
           High
         </span>
       );
     }
     if (severityLower === 'medium') {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700 border border-yellow-300">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
           Medium
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-300">
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-600/50 text-slate-300 border border-slate-500">
         Low
       </span>
     );
@@ -46,54 +46,70 @@ export function QoeRedFlagsPanel({ qoeRedFlags }: { qoeRedFlags: QoeRedFlag[] })
     return 'ℹ️';
   };
 
+  const listContent = (
+    <ul className="space-y-3">
+      {qoeRedFlags.map((flag, idx) => (
+        <li key={idx} className="flex items-start gap-3">
+          <span className="text-lg flex-shrink-0 mt-0.5">
+            {getSeverityIcon(flag.severity)}
+          </span>
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              {getSeverityBadge(flag.severity)}
+              <span className="text-xs font-medium text-slate-400 uppercase">
+                {flag.type.replace(/_/g, ' ')}
+              </span>
+            </div>
+            <p className="text-sm text-slate-300 mb-2">{flag.description}</p>
+            {flag.why_it_matters && (
+              <div className="mt-2 p-2 bg-emerald-500/10 border border-emerald-500/30 rounded text-sm">
+                <p className="font-medium text-emerald-400 mb-1">Why This Matters:</p>
+                <p className="text-slate-300">{flag.why_it_matters}</p>
+              </div>
+            )}
+            {flag.next_action && (
+              <div className="mt-2 p-2 bg-emerald-500/10 border border-emerald-500/30 rounded text-sm">
+                <p className="font-medium text-emerald-400 mb-1">Next Action:</p>
+                <p className="text-slate-300">{flag.next_action}</p>
+              </div>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+
+  if (embedded) {
+    return (
+      <div className="space-y-3">
+        <h4 className="text-sm font-semibold text-slate-300">
+          Quality of <JargonTooltip term="QoE">Earnings</JargonTooltip> Red Flags
+        </h4>
+        <p className="text-xs text-slate-400">Earnings quality issues that may overstate EBITDA or indicate accounting concerns.</p>
+        {listContent}
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-white border-2 border-amber-200 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
+    <div className="bg-slate-800 border-2 border-amber-500/30 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
       <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 bg-amber-50 rounded-lg">
-          <AlertTriangle className="w-5 h-5 text-amber-600" />
+        <div className="p-2 bg-amber-500/10 rounded-lg">
+          <AlertTriangle className="w-5 h-5 text-amber-400" />
         </div>
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-slate-900">
+          <h3 className="text-lg font-semibold text-slate-50">
             Quality of <JargonTooltip term="QoE">Earnings</JargonTooltip> Red Flags
           </h3>
-          <p className="text-sm text-slate-600 mt-1">
+          <p className="text-sm text-slate-400 mt-1">
             Earnings quality issues that may overstate EBITDA or indicate accounting concerns
           </p>
         </div>
-        <span className="px-2.5 py-0.5 rounded-md text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+        <span className="px-2.5 py-0.5 rounded-md text-xs font-medium bg-amber-500/20 text-amber-300 border border-amber-500/30">
           {qoeRedFlags.length}
         </span>
       </div>
-      <ul className="space-y-3">
-        {qoeRedFlags.map((flag, idx) => (
-          <li key={idx} className="flex items-start gap-3">
-            <span className="text-lg flex-shrink-0 mt-0.5">
-              {getSeverityIcon(flag.severity)}
-            </span>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                {getSeverityBadge(flag.severity)}
-                <span className="text-xs font-medium text-slate-600 uppercase">
-                  {flag.type.replace(/_/g, ' ')}
-                </span>
-              </div>
-              <p className="text-sm text-slate-700 mb-2">{flag.description}</p>
-              {flag.why_it_matters && (
-                <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm">
-                  <p className="font-medium text-blue-900 mb-1">Why This Matters:</p>
-                  <p className="text-blue-800">{flag.why_it_matters}</p>
-                </div>
-              )}
-              {flag.next_action && (
-                <div className="mt-2 p-2 bg-emerald-50 border border-emerald-200 rounded text-sm">
-                  <p className="font-medium text-emerald-900 mb-1">Next Action:</p>
-                  <p className="text-emerald-800">{flag.next_action}</p>
-                </div>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
+      {listContent}
     </div>
   );
 }

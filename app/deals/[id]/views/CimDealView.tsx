@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { supabase } from '../../../supabaseClient';
+import { useState, useRef } from 'react';
 import { DealChatPanel } from '../components/DealChatPanel';
 import { BackButton } from '../components/BackButton';
 import { DealTabs, type TabId } from '@/components/deal/DealTabs';
@@ -9,10 +8,12 @@ import { StickyDealHeader } from '../components/StickyDealHeader';
 import { AnalysisTab } from '@/components/deal/tabs/AnalysisTab';
 import { ModelingTab } from '@/components/deal/tabs/ModelingTab';
 import { ActivityTab } from '@/components/deal/tabs/ActivityTab';
+import { DealManagementTab } from '@/components/deal/tabs/DealManagementTab';
 import { IOIGenerator } from '../components/IOIGenerator';
 import { LOIGenerator } from '../components/LOIGenerator';
 import type { Deal } from '@/lib/types/deal';
-import { PassDealModal } from '@/components/modals/PassDealModal';
+import { DealVerdictModals } from '../components/DealVerdictModals';
+import { useBrokerName } from '../hooks/useBrokerName';
 import { useKeyboardShortcuts, createShortcut } from '@/lib/hooks/useKeyboardShortcuts';
 import { KeyboardShortcutsModal } from '@/components/KeyboardShortcutsModal';
 import { showToast } from '@/components/ui/Toast';
@@ -40,78 +41,45 @@ export function CimDealView({
 }) {
   const { user, workspaceId } = useAuth();
   const [showPassModal, setShowPassModal] = useState(false);
+  const [showProceedModal, setShowProceedModal] = useState(false);
+  const [showParkModal, setShowParkModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [settingVerdict, setSettingVerdict] = useState(false);
+  const brokerName = useBrokerName(deal?.broker_id, workspaceId ?? deal?.workspace_id);
+  const sessionStartedAtRef = useRef<number>(Date.now());
 
   const handlePassSuccess = () => {
     setShowPassModal(false);
     window.location.href = '/dashboard';
   };
 
-  const handleProceed = async () => {
-    setSettingVerdict(true);
-    try {
-      if (!user || !workspaceId) throw new Error('Not signed in or missing workspace');
-
-      const { error } = await supabase
-        .from('companies')
-        .update({ 
-          verdict: 'proceed',
-          last_action_at: new Date().toISOString()
-        })
-        .eq('id', dealId)
-        .eq('workspace_id', workspaceId);
-
-      if (error) throw error;
-      showToast('Marked as Proceed', 'success', 2000);
-      // Track proceed action
-      window.dispatchEvent(new CustomEvent('onboarding:deal-proceeded'));
-      onRefresh?.();
-    } catch (error) {
-      console.error('Error setting proceed:', error);
-      showToast('Failed to set verdict. Please try again.', 'error');
-    } finally {
-      setSettingVerdict(false);
-    }
+  const handleProceed = () => {
+    setShowProceedModal(true);
   };
 
-  const handlePark = async () => {
-    setSettingVerdict(true);
-    try {
-      if (!user || !workspaceId) throw new Error('Not signed in or missing workspace');
+  const handleProceedSuccess = () => {
+    setShowProceedModal(false);
+    window.dispatchEvent(new CustomEvent('onboarding:deal-proceeded'));
+    onRefresh?.();
+  };
 
-      const { error } = await supabase
-        .from('companies')
-        .update({ 
-          verdict: 'park',
-          last_action_at: new Date().toISOString()
-        })
-        .eq('id', dealId)
-        .eq('workspace_id', workspaceId);
+  const handlePark = () => {
+    setShowParkModal(true);
+  };
 
-      if (error) throw error;
-      showToast('Marked as Park', 'info', 2000);
-      onRefresh?.();
-    } catch (error) {
-      logger.error('Error setting park:', error);
-      showToast('Failed to set verdict. Please try again.', 'error');
-    } finally {
-      setSettingVerdict(false);
-    }
+  const handleParkSuccess = () => {
+    setShowParkModal(false);
+    onRefresh?.();
   };
 
   // Keyboard shortcuts
   useKeyboardShortcuts(
     [
       createShortcut('P', () => {
-        if (!settingVerdict) {
-          handleProceed();
-        }
+        if (!settingVerdict && !showProceedModal) handleProceed();
       }, 'Mark as Proceed', ['deal-detail']),
       createShortcut('K', () => {
-        if (!settingVerdict) {
-          handlePark();
-        }
+        if (!settingVerdict && !showParkModal) handlePark();
       }, 'Mark as Park', ['deal-detail']),
       createShortcut('X', () => {
         if (!settingVerdict) {
@@ -156,6 +124,14 @@ export function CimDealView({
         return <IOIGenerator deal={deal} />;
       case 'loi':
         return <LOIGenerator deal={deal} />;
+      case 'management':
+        return (
+          <DealManagementTab
+            deal={deal}
+            dealId={dealId}
+            onRefresh={onRefresh}
+          />
+        );
       case 'activity':
         return <ActivityTab dealId={dealId} />;
       default:
@@ -164,7 +140,7 @@ export function CimDealView({
   };
 
   return (
-    <main className="min-h-screen bg-[#F9FAFB] overflow-x-hidden">
+    <main className="min-h-screen bg-slate-900 overflow-x-hidden">
       <div className="max-w-7xl mx-auto py-4 sm:py-6 lg:py-8 px-4 sm:px-6">
         <BackButton dealSourceType={deal.source_type} />
         
@@ -192,16 +168,21 @@ export function CimDealView({
         </div>
       </div>
       
-      {showPassModal && (
-        <PassDealModal
-          dealId={dealId}
-          companyName={deal.company_name || 'this deal'}
-          workspaceId={deal.workspace_id}
-          deal={deal}
-          onClose={() => setShowPassModal(false)}
-          onSuccess={handlePassSuccess}
-        />
-      )}
+      <DealVerdictModals
+        deal={deal}
+        dealId={dealId}
+        brokerName={brokerName}
+        sessionStartedAtRef={sessionStartedAtRef}
+        showPassModal={showPassModal}
+        setShowPassModal={setShowPassModal}
+        showProceedModal={showProceedModal}
+        setShowProceedModal={setShowProceedModal}
+        showParkModal={showParkModal}
+        setShowParkModal={setShowParkModal}
+        onPassSuccess={handlePassSuccess}
+        onProceedSuccess={handleProceedSuccess}
+        onParkSuccess={handleParkSuccess}
+      />
 
       <KeyboardShortcutsModal
         isOpen={showShortcutsModal}
@@ -213,10 +194,10 @@ export function CimDealView({
       <div className="fixed bottom-4 right-4 z-40">
         <button
           onClick={() => setShowShortcutsModal(true)}
-          className="text-xs text-slate-500 hover:text-slate-700 bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm transition-colors"
+          className="text-xs text-slate-500 hover:text-slate-300 bg-slate-800/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-700 shadow-sm transition-colors"
           aria-label="Show keyboard shortcuts"
         >
-          Press <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded text-xs">?</kbd> for shortcuts
+          Press <kbd className="px-1 py-0.5 bg-slate-700 border border-slate-600 rounded text-xs text-slate-300">?</kbd> for shortcuts
         </button>
       </div>
     </main>

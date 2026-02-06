@@ -74,17 +74,17 @@ export function SearchCriteriaSettings() {
   };
 
   return (
-    <div className="p-6 bg-slate-50 rounded-lg border border-slate-200">
+    <div className="p-6 bg-slate-800/50 rounded-lg border border-slate-600">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="font-semibold text-slate-900 mb-1">Search Criteria</h2>
-          <p className="text-sm text-slate-600">
+          <h2 className="font-semibold text-slate-50 mb-1">Search Criteria</h2>
+          <p className="text-sm text-slate-400">
             Define what deals you're looking for. Set industries, geography, deal size, revenue, and EBITDA ranges.
           </p>
         </div>
         <button
           onClick={handleCreateNew}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+          className="btn-secondary inline-flex items-center gap-2"
         >
           <Plus className="h-4 w-4" />
           New Criteria
@@ -97,12 +97,12 @@ export function SearchCriteriaSettings() {
         </div>
       ) : criteriaList.length === 0 ? (
         <div className="text-center py-8">
-          <p className="text-sm text-slate-600 mb-4">
+          <p className="text-sm text-slate-400 mb-4">
             No search criteria defined yet. Create your first criteria to get started.
           </p>
           <button
             onClick={handleCreateNew}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-300 bg-blue-500/20 border border-blue-500/50 rounded-lg hover:bg-blue-500/30 transition-colors"
           >
             <Plus className="h-4 w-4" />
             Create Search Criteria
@@ -113,20 +113,20 @@ export function SearchCriteriaSettings() {
           {criteriaList.map((criteria) => (
             <div
               key={criteria.id}
-              className="p-4 bg-white border border-slate-200 rounded-lg hover:border-slate-300 transition-colors"
+              className="p-4 bg-slate-900/50 border border-slate-600 rounded-lg hover:border-slate-500 transition-colors"
             >
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold text-slate-900">{criteria.name}</h3>
+                    <h3 className="font-semibold text-slate-50">{criteria.name}</h3>
                     {criteria.is_active && (
-                      <span className="px-2 py-0.5 text-xs font-medium text-emerald-700 bg-emerald-100 rounded">
+                      <span className="px-2 py-0.5 text-xs font-medium text-emerald-300 bg-emerald-500/20 rounded">
                         Active
                       </span>
                     )}
                   </div>
                   {criteria.description && (
-                    <p className="text-sm text-slate-600 mb-2">{criteria.description}</p>
+                    <p className="text-sm text-slate-400 mb-2">{criteria.description}</p>
                   )}
                   <div className="flex flex-wrap gap-4 text-xs text-slate-500">
                     {criteria.industries && criteria.industries.length > 0 && (
@@ -149,7 +149,7 @@ export function SearchCriteriaSettings() {
                 </div>
                 <button
                   onClick={() => handleEdit(criteria)}
-                  className="ml-4 px-3 py-1.5 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  className="ml-4 px-3 py-1.5 text-sm text-blue-300 hover:text-blue-200 hover:bg-blue-500/20 rounded-lg transition-colors"
                 >
                   Edit
                 </button>

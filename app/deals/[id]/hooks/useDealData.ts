@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
 import { logger } from '@/lib/utils/logger';
+import { showToast } from '@/components/ui/Toast';
 import type { Deal, FinancialAnalysis } from '@/lib/types/deal';
 
 export function useDealData(dealId: string | undefined) {
@@ -413,6 +414,7 @@ export function useDealData(dealId: string | undefined) {
       let json: {
         success?: boolean;
         error?: string;
+        analysis_time_seconds?: number;
       } | null = null;
       try {
         json = JSON.parse(text);
@@ -426,6 +428,11 @@ export function useDealData(dealId: string | undefined) {
 
       await refreshDeal(dealId);
       setCimSuccess(true);
+      // Optional: show latency for demo ("60-second" story; if longer: "deeper forensic audit than 3 hours human")
+      const sec = json.analysis_time_seconds;
+      if (typeof sec === 'number' && sec > 0) {
+        showToast(`Analysis complete in ${sec}s`, 'success', 4000);
+      }
       // Track AI analysis run
       window.dispatchEvent(new CustomEvent('onboarding:ai-analysis-run'));
     } catch (e: unknown) {

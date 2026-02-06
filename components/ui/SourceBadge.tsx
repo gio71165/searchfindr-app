@@ -8,29 +8,29 @@ export function SourceBadge({ source }: { source: string | null }) {
     on_market: {
       label: 'On-market',
       icon: Globe,
-      color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
     },
     off_market: {
       label: 'Off-market',
       icon: Globe,
-      color: 'bg-sky-50 text-sky-700 border-sky-200',
+      color: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
     },
     cim_pdf: {
       label: 'CIM Upload',
       icon: FileText,
-      color: 'bg-purple-50 text-purple-700 border-purple-200',
+      color: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
     },
     financials: {
       label: 'Financials',
       icon: DollarSign,
-      color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+      color: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
     },
   };
 
   const conf = config[source as keyof typeof config] || {
     label: source,
     icon: Upload,
-    color: 'bg-slate-50 text-slate-700 border-slate-200',
+    color: 'bg-slate-700/50 text-slate-400 border-slate-600',
   };
 
   const Icon = conf.icon;

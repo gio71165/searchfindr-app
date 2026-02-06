@@ -90,7 +90,7 @@ export function DocumentsSidebar({ deal, dealId }: DocumentsSidebarProps) {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed right-0 lg:right-[400px] top-1/2 -translate-y-1/2 z-30 bg-blue-600 text-white p-2 rounded-l-lg shadow-lg hover:bg-blue-700 transition-colors"
+        className="btn-secondary fixed right-0 lg:right-[400px] top-1/2 -translate-y-1/2 z-30 p-2 rounded-l-lg shadow-lg"
         title="Open Documents"
       >
         <FileText className="h-5 w-5" />
@@ -164,7 +164,7 @@ export function DocumentsSidebar({ deal, dealId }: DocumentsSidebarProps) {
                   <div className="sticky bottom-0 p-4 bg-blue-50 border-t border-blue-200">
                     <button
                       onClick={handleToggleComparison}
-                      className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+                      className="btn-secondary w-full flex items-center justify-center gap-2"
                     >
                       <GitCompare className="h-4 w-4" />
                       Compare {selectedDocs.size} Documents

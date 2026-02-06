@@ -42,24 +42,24 @@ function ToastComponent({ toast, onRemove }: ToastProps) {
   const config = {
     success: {
       icon: CheckCircle2,
-      bg: 'bg-emerald-50',
-      border: 'border-emerald-200',
-      text: 'text-emerald-800',
-      iconColor: 'text-emerald-600',
+      bg: 'bg-emerald-600',
+      border: 'border-emerald-500',
+      text: 'text-white',
+      iconColor: 'text-white',
     },
     error: {
       icon: AlertCircle,
-      bg: 'bg-red-50',
-      border: 'border-red-200',
-      text: 'text-red-800',
-      iconColor: 'text-red-600',
+      bg: 'bg-red-600',
+      border: 'border-red-500',
+      text: 'text-white',
+      iconColor: 'text-white',
     },
     info: {
       icon: Info,
-      bg: 'bg-slate-50',
-      border: 'border-slate-200',
-      text: 'text-slate-800',
-      iconColor: 'text-slate-600',
+      bg: 'bg-blue-600',
+      border: 'border-blue-500',
+      text: 'text-white',
+      iconColor: 'text-white',
     },
   };
 

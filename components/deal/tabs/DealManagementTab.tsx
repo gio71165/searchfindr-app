@@ -42,24 +42,24 @@ export function DealManagementTab({ deal, dealId, onRefresh }: DealManagementTab
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2 mb-6">
-        <Settings className="h-5 w-5 text-slate-600" />
-        <h2 className="text-xl font-semibold text-slate-900">Deal Management</h2>
+        <Settings className="h-5 w-5 text-slate-400" />
+        <h2 className="text-xl font-semibold text-slate-50">Deal Management</h2>
       </div>
 
       <div className="space-y-6">
         {/* Broker */}
-        <div className="border rounded-lg p-4 sm:p-6 bg-white">
-          <h3 className="text-base font-semibold mb-4">Broker</h3>
+        <div className="border border-slate-700 rounded-lg p-4 sm:p-6 bg-slate-800">
+          <h3 className="text-base font-semibold text-slate-50 mb-4">Broker</h3>
           <BrokerSelector dealId={dealId} currentBrokerId={deal.broker_id} />
         </div>
 
         {/* Deal Workflow */}
-        <div className="border rounded-lg p-4 sm:p-6 bg-slate-50">
+        <div className="border border-slate-700 rounded-lg p-4 sm:p-6 bg-slate-800/50">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-base sm:text-lg font-semibold">Deal Workflow</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-slate-50">Deal Workflow</h3>
             <button 
               onClick={() => setEditingWorkflow(!editingWorkflow)}
-              className="text-sm text-blue-600 hover:text-blue-800 min-h-[44px] px-3 touch-manipulation"
+              className="text-sm text-emerald-400 hover:text-emerald-300 min-h-[44px] px-3 touch-manipulation"
             >
               {editingWorkflow ? 'Done' : 'Edit'}
             </button>
@@ -68,7 +68,7 @@ export function DealManagementTab({ deal, dealId, onRefresh }: DealManagementTab
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Stage Selector */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-medium text-slate-400 mb-2">
                 Stage
               </label>
               {editingWorkflow ? (
@@ -94,7 +94,7 @@ export function DealManagementTab({ deal, dealId, onRefresh }: DealManagementTab
                       console.error('Error updating stage:', error);
                     }
                   }}
-                  className="w-full border rounded-lg px-3 py-2"
+                  className="w-full border border-slate-600 rounded-lg px-3 py-2 bg-slate-900 text-slate-50"
                 >
                   <option value="new">New</option>
                   <option value="reviewing">Reviewing</option>
@@ -107,7 +107,7 @@ export function DealManagementTab({ deal, dealId, onRefresh }: DealManagementTab
                   <option value="closed_lost">Closed Lost</option>
                 </select>
               ) : (
-                <div className="text-base font-medium capitalize">
+                <div className="text-base font-medium text-slate-50 capitalize">
                   {localStage?.replace(/_/g, ' ') || 'New'}
                 </div>
               )}
@@ -115,7 +115,7 @@ export function DealManagementTab({ deal, dealId, onRefresh }: DealManagementTab
 
             {/* Next Action */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-medium text-slate-400 mb-2">
                 Next Action
               </label>
               {editingWorkflow ? (
@@ -131,10 +131,10 @@ export function DealManagementTab({ deal, dealId, onRefresh }: DealManagementTab
                     await onRefresh?.();
                   }}
                   placeholder="e.g., Call broker to clarify revenue"
-                  className="w-full border rounded-lg px-3 py-2"
+                  className="w-full border border-slate-600 rounded-lg px-3 py-2 bg-slate-900 text-slate-50 placeholder-slate-500"
                 />
               ) : (
-                <div className="text-base">
+                <div className="text-base text-slate-50">
                   {deal.next_action || <span className="text-slate-400">Not set</span>}
                 </div>
               )}
@@ -142,7 +142,7 @@ export function DealManagementTab({ deal, dealId, onRefresh }: DealManagementTab
 
             {/* Reminder Date */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-medium text-slate-400 mb-2">
                 Follow-up Date
               </label>
               {editingWorkflow ? (
@@ -157,10 +157,10 @@ export function DealManagementTab({ deal, dealId, onRefresh }: DealManagementTab
                       .eq('id', deal.id);
                     await onRefresh?.();
                   }}
-                  className="w-full border rounded-lg px-3 py-2"
+                  className="w-full border border-slate-600 rounded-lg px-3 py-2 bg-slate-900 text-slate-50"
                 />
               ) : (
-                <div className="text-base">
+                <div className="text-base text-slate-50">
                   {deal.next_action_date 
                     ? new Date(deal.next_action_date).toLocaleDateString()
                     : <span className="text-slate-400">Not set</span>

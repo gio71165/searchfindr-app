@@ -51,12 +51,12 @@ export function ComparisonTable({
     <div className="space-y-4">
       {/* Deal Selection */}
       {comparisonDeals.length > 0 && (
-        <div className="border rounded-lg p-4 bg-slate-50">
+        <div className="border border-slate-600 rounded-lg p-4 bg-slate-800/50">
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-semibold text-slate-900">Select deals to compare</h4>
+            <h4 className="text-sm font-semibold text-slate-50">Select deals to compare</h4>
             <button
               onClick={handleSelectAll}
-              className="text-xs text-blue-600 hover:text-blue-800"
+              className="text-xs text-blue-400 hover:text-blue-300"
             >
               {selectedDealIds.length === comparisonDeals.length ? 'Deselect All' : 'Select All'}
             </button>
@@ -65,15 +65,15 @@ export function ComparisonTable({
             {comparisonDeals.map((deal) => (
               <label
                 key={deal.id}
-                className="flex items-center gap-2 p-2 rounded border bg-white hover:bg-slate-50 cursor-pointer"
+                className="flex items-center gap-2 p-2 rounded border border-slate-600 bg-slate-800 hover:bg-slate-700 cursor-pointer"
               >
                 <input
                   type="checkbox"
                   checked={selectedDealIds.includes(deal.id)}
                   onChange={() => handleToggleDeal(deal.id)}
-                  className="rounded border-slate-300"
+                  className="rounded border-slate-500 bg-slate-800 text-emerald-500"
                 />
-                <span className="text-sm truncate flex-1">{deal.company_name}</span>
+                <span className="text-sm text-slate-200 truncate flex-1">{deal.company_name}</span>
               </label>
             ))}
           </div>
@@ -82,32 +82,32 @@ export function ComparisonTable({
 
       {/* Comparison Table */}
       {displayDeals.length > 0 ? (
-        <div className="overflow-x-auto border rounded-lg">
+        <div className="overflow-x-auto border border-slate-600 rounded-lg">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
+              <tr className="bg-slate-700/50 border-b border-slate-600">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">
                   Company
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">
                   Industry
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">
                   Location
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase">
                   Revenue
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-300 uppercase">
                   EBITDA
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700 uppercase">
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-300 uppercase">
                   Tier
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">
                   Source
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-300 uppercase">
                   Added
                 </th>
               </tr>
@@ -118,43 +118,43 @@ export function ComparisonTable({
                 return (
                   <tr
                     key={deal.id}
-                    className={`border-b border-slate-100 ${
-                      isCurrentDeal ? 'bg-blue-50 font-semibold' : 'hover:bg-slate-50'
+                    className={`border-b border-slate-600 ${
+                      isCurrentDeal ? 'bg-blue-500/20 font-semibold' : 'hover:bg-slate-700/30'
                     }`}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         {isCurrentDeal && (
-                          <span className="text-xs text-blue-600 font-medium">Current</span>
+                          <span className="text-xs text-blue-400 font-medium">Current</span>
                         )}
-                        <span className={isCurrentDeal ? 'text-blue-900' : 'text-slate-900'}>
+                        <span className={isCurrentDeal ? 'text-blue-200' : 'text-slate-200'}>
                           {deal.company_name}
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-700">
+                    <td className="px-4 py-3 text-sm text-slate-300">
                       {deal.industry || '—'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-700">
+                    <td className="px-4 py-3 text-sm text-slate-300">
                       {deal.location || '—'}
                     </td>
-                    <td className="px-4 py-3 text-right text-sm text-slate-700">
+                    <td className="px-4 py-3 text-right text-sm text-slate-300">
                       {deal.revenue || '—'}
                     </td>
-                    <td className="px-4 py-3 text-right text-sm text-slate-700">
+                    <td className="px-4 py-3 text-right text-sm text-slate-300">
                       {deal.ebitda || '—'}
                     </td>
                     <td className="px-4 py-3 text-center">
                       {deal.tier && (deal.source_type === 'on_market' || deal.source_type === 'off_market') ? (
                         <TierBadge tier={deal.tier} />
                       ) : (
-                        <span className="text-xs text-slate-400">—</span>
+                        <span className="text-xs text-slate-500">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       <SourceBadge source={deal.source_type} />
                     </td>
-                    <td className="px-4 py-3 text-xs text-slate-500">
+                    <td className="px-4 py-3 text-xs text-slate-400">
                       {safeDateLabel(deal.created_at)}
                     </td>
                   </tr>
@@ -164,7 +164,7 @@ export function ComparisonTable({
           </table>
         </div>
       ) : (
-        <div className="text-center py-8 text-slate-500">
+        <div className="text-center py-8 text-slate-400">
           Select deals above to compare
         </div>
       )}

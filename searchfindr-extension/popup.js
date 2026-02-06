@@ -20,12 +20,10 @@ const API_URL = `${BASE_URL}/api/capture-deal`;
 const APP_HOME_URL = `${BASE_URL}/dashboard`;
 const SETTINGS_URL = `${BASE_URL}/settings`;
 
-// Storage key for API key
+// Storage key for API key — MUST use local so key persists after popup closes (MV3 session clears)
 const API_KEY_STORAGE_KEY = "searchfindr_api_key";
-// Support both MV2 (local) and MV3 (session) - automatically fallback
-const STORAGE = chrome.storage.session || chrome.storage.local;
-const STORAGE_TYPE = chrome.storage.session ? "session" : "local";
-console.log("📦 Popup using storage:", STORAGE_TYPE);
+const STORAGE = chrome.storage.local;
+console.log("📦 Popup using storage: local (persistent)");
 
 // Verify API key format
 function validateApiKeyFormat(apiKey) {
@@ -195,13 +193,23 @@ function render() {
 
     case "ready":
       setTitle("Connected");
-      setStatus("Ready to capture this listing.");
-      setButtons({
-        primaryText: "Capture / Save to SearchFindr",
-        primaryDisabled: false,
-        secondaryText: "Disconnect",
-        secondaryHidden: !secondaryBtn,
-      });
+      if (window._currentTabIsDealPage) {
+        setStatus("Ready to capture this listing.");
+        setButtons({
+          primaryText: "Capture / Save to SearchFindr",
+          primaryDisabled: false,
+          secondaryText: "Disconnect",
+          secondaryHidden: !secondaryBtn,
+        });
+      } else {
+        setStatus("Open a listing page on BizBuySell, LoopNet, or another supported deal site to capture.");
+        setButtons({
+          primaryText: "Capture / Save to SearchFindr",
+          primaryDisabled: true,
+          secondaryText: "Disconnect",
+          secondaryHidden: !secondaryBtn,
+        });
+      }
       break;
 
     case "loading":
@@ -262,14 +270,54 @@ function copyToClipboard(text) {
   navigator.clipboard?.writeText(text).catch(() => {});
 }
 
+// ---- Deal-page allowlist: only these domains can be captured ----
+const DEAL_PAGE_HOSTS = [
+  "bizbuysell.com",
+  "www.bizbuysell.com",
+  "bizquest.com",
+  "www.bizquest.com",
+  "loopnet.com",
+  "www.loopnet.com",
+  "dealstream.com",
+  "www.dealstream.com",
+  "axial.net",
+  "www.axial.net",
+  "sunbeltnetwork.com",
+  "www.sunbeltnetwork.com",
+  "businessbroker.net",
+  "www.businessbroker.net",
+  "mergersandacquisitions.com",
+  "www.mergersandacquisitions.com",
+];
+
+function isDealPageUrl(url) {
+  if (!url || typeof url !== "string") return false;
+  try {
+    const u = new URL(url);
+    const host = u.hostname.toLowerCase().replace(/^www\./, "");
+    return DEAL_PAGE_HOSTS.some((h) => host === h || host.endsWith("." + h));
+  } catch {
+    return false;
+  }
+}
+
 // ---- Capture ----
 function getActiveTabId() {
   return new Promise((resolve, reject) => {
-    // With MV3, this typically works under user gesture with "activeTab".
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tab = tabs?.[0];
       if (!tab || !tab.id) return reject(new Error("No active tab"));
       resolve(tab.id);
+    });
+  });
+}
+
+function getActiveTabUrl() {
+  return new Promise((resolve, reject) => {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs?.[0];
+      if (!tab || !tab.url) return reject(new Error("No active tab"));
+      resolve(tab.url);
     });
   });
 }
@@ -465,12 +513,33 @@ async function doCapture() {
     return;
   }
   
-  // Check if API key format is valid before making API call
   if (!validateApiKeyFormat(apiKey)) {
     console.warn("⚠️ Invalid API key format, clearing and showing expired state");
     await clearApiKey();
     uiState = "expired";
     render();
+    console.groupEnd();
+    return;
+  }
+
+  // Only allow capture on deal/listing pages
+  let currentUrl;
+  try {
+    currentUrl = await getActiveTabUrl();
+  } catch {
+    uiState = "error";
+    setStatus("Could not read current tab. Please try again.", true);
+    setDebug(makeDebugId());
+    render();
+    console.groupEnd();
+    return;
+  }
+  if (!isDealPageUrl(currentUrl)) {
+    uiState = "error";
+    setStatus("Capture is only allowed on listing pages (e.g. BizBuySell, LoopNet). Open a deal listing and try again.", true);
+    setDebug(makeDebugId());
+    render();
+    console.groupEnd();
     return;
   }
 
@@ -662,25 +731,31 @@ logDebugInfo().catch(err => {
   console.error("Failed to log debug info:", err);
 });
 
-// Then check for API key asynchronously
-ensureStateFromApiKey().catch(err => {
-  console.error("❌ Initial API key check failed:", err);
+// Then check for API key and current tab URL
+async function initState() {
+  await ensureStateFromApiKey();
+  try {
+    const url = await getActiveTabUrl();
+    window._currentTabIsDealPage = isDealPageUrl(url);
+    if (uiState === "ready") render();
+  } catch {
+    window._currentTabIsDealPage = false;
+    if (uiState === "ready") render();
+  }
+}
+initState().catch(err => {
+  console.error("❌ Initial state check failed:", err);
 });
 
 console.groupEnd();
 
-// Listen for storage changes (when API key is saved)
+// Listen for storage changes (when API key is saved) — only react to local so we don't double-run
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (changes[API_KEY_STORAGE_KEY]) {
-    console.group("💾 SearchFindr Extension - Storage Changed");
-    console.log("API key storage changed in:", areaName);
-    console.log("Change:", changes[API_KEY_STORAGE_KEY] ? "API key added/updated" : "API key removed");
-    console.log("Refreshing state...");
-    console.groupEnd();
-    ensureStateFromApiKey().catch(err => {
-      console.error("❌ API key state refresh failed:", err);
-    });
-  }
+  if (areaName !== "local" || !changes[API_KEY_STORAGE_KEY]) return;
+  console.log("💾 API key storage changed in local, refreshing state...");
+  initState().catch(err => {
+    console.error("❌ API key state refresh failed:", err);
+  });
 });
 
 // Periodic check when popup is open (in case storage listener misses it)
@@ -691,25 +766,28 @@ function startPeriodicCheck() {
   checkInterval = setInterval(async () => {
     try {
       const apiKey = await getApiKey();
-      // Check for API key changes
       if (apiKey) {
-        // If we have an API key but state is logged_out, refresh state
         if (uiState === "logged_out") {
           await ensureStateFromApiKey();
-        }
-        // If API key format is invalid, update state
-        else if (!validateApiKeyFormat(apiKey)) {
+        } else if (!validateApiKeyFormat(apiKey)) {
           await ensureStateFromApiKey();
+        } else if (uiState === "ready") {
+          try {
+            const url = await getActiveTabUrl();
+            const isDeal = isDealPageUrl(url);
+            if (window._currentTabIsDealPage !== isDeal) {
+              window._currentTabIsDealPage = isDeal;
+              render();
+            }
+          } catch {}
         }
-      }
-      // If no API key but state is not logged_out, refresh state
-      else if (uiState !== "logged_out" && uiState !== "expired") {
+      } else if (uiState !== "logged_out" && uiState !== "expired") {
         await ensureStateFromApiKey();
       }
     } catch (err) {
       console.error("[SearchFindr] Periodic check error:", err);
     }
-  }, 1500); // Check every 1.5 seconds
+  }, 1500);
 }
 
 // Start checking after initial render

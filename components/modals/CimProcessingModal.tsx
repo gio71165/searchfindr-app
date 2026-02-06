@@ -164,24 +164,24 @@ export function CimProcessingModal({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 p-6 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+      <div className="bg-slate-800 border border-slate-700 rounded-2xl shadow-2xl max-w-md w-full mx-4 p-6 relative">
         {/* Close button (only show if not processing or on error) */}
         {(!isProcessing || (stage as string) === 'error') && (
           <IconButton
             onClick={onClose}
             icon={<X className="h-5 w-5" />}
             label="Close modal"
-            className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+            className="absolute top-4 right-4 text-slate-400 hover:text-slate-300"
           />
         )}
 
         {/* Header */}
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-slate-900 mb-2">
+          <h2 className="text-xl font-semibold text-slate-50 mb-2">
             {STAGE_MESSAGES[stage]}
           </h2>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-400">
             {STAGE_DESCRIPTIONS[stage]}
           </p>
         </div>
@@ -190,17 +190,17 @@ export function CimProcessingModal({
         {isProcessing && (
           <div className="mb-6">
             <LoadingSteps steps={loadingSteps} currentStepId={stage} />
-            <div className="mt-4 flex items-center justify-between text-xs text-slate-600">
+            <div className="mt-4 flex items-center justify-between text-xs text-slate-400">
               {estimatedTimeRemaining !== undefined && estimatedTimeRemaining > 0 ? (
                 <span>
-                  Estimated time remaining: <span className="font-medium text-emerald-600">{Math.round(estimatedTimeRemaining)}s</span>
+                  Estimated time remaining: <span className="font-medium text-emerald-400">{Math.round(estimatedTimeRemaining)}s</span>
                 </span>
               ) : (
                 <span>
-                  Elapsed: <span className="font-medium">{timeElapsed}s</span>
+                  Elapsed: <span className="font-medium text-slate-300">{timeElapsed}s</span>
                 </span>
               )}
-              <span className="font-medium text-slate-700">
+              <span className="font-medium text-slate-500">
                 Expected: 30-60 seconds
               </span>
             </div>
@@ -209,15 +209,15 @@ export function CimProcessingModal({
 
         {/* Error message */}
         {stage === 'error' && error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="mb-6 p-4 bg-red-950/20 border border-red-500/30 rounded-lg">
+            <p className="text-sm text-red-400">{error}</p>
           </div>
         )}
 
         {/* Success message */}
         {stage === 'complete' && (
-          <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
-            <p className="text-sm text-emerald-700">
+          <div className="mb-6 p-4 bg-emerald-950/20 border border-emerald-500/30 rounded-lg">
+            <p className="text-sm text-emerald-400">
               Your CIM has been successfully analyzed. You can now review the deal details.
             </p>
           </div>
@@ -225,11 +225,11 @@ export function CimProcessingModal({
 
         {/* Info message */}
         {isProcessing && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm font-medium text-blue-900 mb-1">
+          <div className="mb-6 p-4 bg-blue-950/20 border border-blue-500/30 rounded-lg">
+            <p className="text-sm font-medium text-blue-400 mb-1">
               Expected processing time: 30-60 seconds
             </p>
-            <p className="text-xs text-blue-700">
+            <p className="text-xs text-slate-400">
               Your CIM is being analyzed. This typically takes 30-60 seconds depending on file size. Please don't close this window.
             </p>
           </div>
@@ -240,7 +240,7 @@ export function CimProcessingModal({
           {showCancel && (
             <button
               onClick={onCancel}
-              className="flex-1 px-4 py-3 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors min-h-[44px]"
+              className="flex-1 px-4 py-3 text-sm font-medium text-slate-300 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors min-h-[44px]"
             >
               Cancel
             </button>
@@ -248,7 +248,7 @@ export function CimProcessingModal({
           {(!isProcessing || (stage as string) === 'error') && (
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-3 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors min-h-[44px]"
+              className="btn-secondary flex-1 min-h-[44px]"
             >
               {stage === 'error' ? 'Close' : 'Done'}
             </button>

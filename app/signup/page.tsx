@@ -235,7 +235,7 @@ function SignupPageContent() {
                   type="submit"
                   isLoading={loading}
                   loadingText="Creating account…"
-                  className="w-full rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500"
+                  className="btn-primary w-full rounded-xl"
                 >
                   {planName ? 'Sign up & Continue to Checkout' : 'Create account'}
                 </AsyncButton>

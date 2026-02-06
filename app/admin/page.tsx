@@ -226,20 +226,20 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <p className="text-slate-500">Loading admin dashboard…</p>
+      <main className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <p className="text-slate-400">Loading admin dashboard…</p>
       </main>
     );
   }
 
   if (error && !overviewStats) {
     return (
-      <main className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <main className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-red-400 mb-4">{error}</p>
           <button
             onClick={() => router.push('/dashboard')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="btn-secondary"
           >
             Go to Dashboard
           </button>
@@ -251,12 +251,12 @@ export default function AdminDashboard() {
   return (
     <>
       <Navigation />
-      <main className="min-h-screen bg-slate-50 p-8">
+      <main className="min-h-screen bg-slate-900 p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Admin Analytics Dashboard</h1>
-          <p className="text-slate-600">Comprehensive user activity and system metrics</p>
+          <h1 className="text-3xl font-bold text-slate-50 mb-2">Admin Analytics Dashboard</h1>
+          <p className="text-slate-400">Comprehensive user activity and system metrics</p>
         </div>
 
         {/* Metric Cards - Top Row */}
@@ -330,18 +330,19 @@ export default function AdminDashboard() {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Activity Trend Line Chart */}
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-            <h2 className="text-xl font-semibold text-slate-900 mb-4">Activity Trend (30 Days)</h2>
+          <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+            <h2 className="text-xl font-semibold text-slate-50 mb-4">Activity Trend (30 Days)</h2>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="date" stroke="#6b7280" fontSize={12} />
-                <YAxis stroke="#6b7280" fontSize={12} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
+                <YAxis stroke="#94a3b8" fontSize={12} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #475569',
+                    borderRadius: '8px',
+                    color: '#f8fafc',
                   }}
                 />
                 <Legend />
@@ -374,18 +375,19 @@ export default function AdminDashboard() {
           </div>
 
           {/* Feature Adoption Bar Chart */}
-          <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-            <h2 className="text-xl font-semibold text-slate-900 mb-4">Feature Adoption</h2>
+          <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+            <h2 className="text-xl font-semibold text-slate-50 mb-4">Feature Adoption</h2>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={featureAdoption} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis type="number" domain={[0, 100]} stroke="#6b7280" fontSize={12} />
-                <YAxis dataKey="name" type="category" stroke="#6b7280" fontSize={12} width={120} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis type="number" domain={[0, 100]} stroke="#94a3b8" fontSize={12} />
+                <YAxis dataKey="name" type="category" stroke="#94a3b8" fontSize={12} width={120} />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: 'white',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '6px',
+                    backgroundColor: '#1e293b',
+                    border: '1px solid #475569',
+                    borderRadius: '8px',
+                    color: '#f8fafc',
                   }}
                   formatter={(value: number | undefined) => [`${value ?? 0}%`, 'Adoption']}
                 />
@@ -409,25 +411,25 @@ export default function AdminDashboard() {
         </div>
 
         {/* User Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 mb-8">
-          <div className="p-6 border-b border-slate-200">
+        <div className="bg-slate-800 rounded-xl border border-slate-700 mb-8 overflow-hidden">
+          <div className="p-6 border-b border-slate-700">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-slate-900">Users</h2>
+              <h2 className="text-xl font-semibold text-slate-50">Users</h2>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <input
                   type="text"
                   placeholder="Search by email..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="pl-10 pr-4 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-300 placeholder-slate-500 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
                 />
               </div>
             </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-50">
+              <thead className="bg-slate-900/50">
                 <tr>
                   <TableHeader onClick={() => handleSort('email')} sortField={sortField} field="email">
                     Email
@@ -451,17 +453,17 @@ export default function AdminDashboard() {
                   <TableHeader onClick={() => handleSort('deals')} sortField={sortField} field="deals">
                     Deals
                   </TableHeader>
-                  <th className="text-left p-4 text-sm font-medium text-slate-700">Pipeline</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-700">Plan</th>
-                  <th className="text-left p-4 text-sm font-medium text-slate-700"></th>
+                  <th className="text-left p-4 text-sm font-medium text-slate-400">Pipeline</th>
+                  <th className="text-left p-4 text-sm font-medium text-slate-400">Plan</th>
+                  <th className="text-left p-4 text-sm font-medium text-slate-400"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-200">
+              <tbody className="divide-y divide-slate-700">
                 {sortedUsers.map((user) => (
                   <React.Fragment key={user.id}>
-                    <tr className="hover:bg-slate-50">
-                      <td className="p-4 text-sm text-slate-900">{user.email}</td>
-                      <td className="p-4 text-sm text-slate-600">
+                    <tr className="hover:bg-slate-700/50">
+                      <td className="p-4 text-sm text-slate-50">{user.email}</td>
+                      <td className="p-4 text-sm text-slate-400">
                         {new Date(user.signedUp).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric',
@@ -469,18 +471,18 @@ export default function AdminDashboard() {
                         })}
                       </td>
                       <td className="p-4 text-sm">
-                        <span className={user.isInactive ? 'text-red-600' : 'text-slate-600'}>
+                        <span className={user.isInactive ? 'text-red-400' : 'text-slate-400'}>
                           {formatRelativeTime(user.lastActive)}
                         </span>
                       </td>
-                      <td className="p-4 text-sm text-slate-600">{user.cimsAnalyzed}</td>
-                      <td className="p-4 text-sm text-slate-600">{user.financialsAnalyzed}</td>
-                      <td className="p-4 text-sm text-slate-600">{user.deals}</td>
+                      <td className="p-4 text-sm text-slate-300">{user.cimsAnalyzed}</td>
+                      <td className="p-4 text-sm text-slate-300">{user.financialsAnalyzed}</td>
+                      <td className="p-4 text-sm text-slate-300">{user.deals}</td>
                       <td className="p-4">
                         <PipelineBreakdown breakdown={user.stageBreakdown} />
                       </td>
                       <td className="p-4">
-                        <span className="px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-medium">
+                        <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded text-xs font-medium">
                           {user.plan}
                         </span>
                       </td>
@@ -489,7 +491,7 @@ export default function AdminDashboard() {
                           onClick={() =>
                             setExpandedUser(expandedUser === user.id ? null : user.id)
                           }
-                          className="text-blue-600 hover:text-blue-700"
+                          className="text-emerald-400 hover:text-emerald-300"
                         >
                           {expandedUser === user.id ? (
                             <ChevronUp className="h-4 w-4" />
@@ -501,14 +503,14 @@ export default function AdminDashboard() {
                     </tr>
                     {expandedUser === user.id && (
                       <tr>
-                        <td colSpan={9} className="p-4 bg-slate-50">
-                          <div className="text-sm text-slate-600">
-                            <p className="font-medium mb-2">Pipeline Stage Breakdown:</p>
+                        <td colSpan={9} className="p-4 bg-slate-900/50">
+                          <div className="text-sm text-slate-400">
+                            <p className="font-medium text-slate-300 mb-2">Pipeline Stage Breakdown:</p>
                             <div className="flex flex-wrap gap-2">
                               {Object.entries(user.stageBreakdown).map(([stage, count]) => (
                                 <span
                                   key={stage}
-                                  className="px-2 py-1 bg-white border border-slate-200 rounded text-xs"
+                                  className="px-2 py-1 bg-slate-800 border border-slate-700 rounded text-xs text-slate-300"
                                 >
                                   {stage}: {count}
                                 </span>
@@ -526,14 +528,14 @@ export default function AdminDashboard() {
         </div>
 
         {/* Activity Feed */}
-        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-          <h2 className="text-xl font-semibold text-slate-900 mb-4">Recent Activity</h2>
+        <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
+          <h2 className="text-xl font-semibold text-slate-50 mb-4">Recent Activity</h2>
           <div className="space-y-3">
             {activityFeed.map((event) => (
-              <div key={event.id} className="flex items-start gap-3 p-3 hover:bg-slate-50 rounded-lg">
+              <div key={event.id} className="flex items-start gap-3 p-3 hover:bg-slate-700/50 rounded-lg">
                 <span className="text-xl">{event.icon}</span>
                 <div className="flex-1">
-                  <p className="text-sm text-slate-900">{event.message}</p>
+                  <p className="text-sm text-slate-300">{event.message}</p>
                   <p className="text-xs text-slate-500 mt-1">{formatRelativeTime(event.timestamp)}</p>
                 </div>
               </div>
@@ -560,14 +562,14 @@ function MetricCard({
   isWarning?: boolean;
 }) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+    <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
       <div className="flex items-center justify-between mb-2">
-        <div className={`p-2 rounded-lg ${isWarning ? 'bg-red-100' : 'bg-blue-100'}`}>
-          <div className={isWarning ? 'text-red-600' : 'text-blue-600'}>{icon}</div>
+        <div className={`p-2 rounded-lg ${isWarning ? 'bg-red-500/10' : 'bg-emerald-500/10'}`}>
+          <div className={isWarning ? 'text-red-400' : 'text-emerald-400'}>{icon}</div>
         </div>
       </div>
-      <p className="text-sm text-slate-600 mb-1">{title}</p>
-      <p className={`text-2xl font-bold ${isWarning ? 'text-red-600' : 'text-slate-900'}`}>
+      <p className="text-sm text-slate-400 mb-1">{title}</p>
+      <p className={`text-2xl font-bold ${isWarning ? 'text-red-400' : 'text-slate-50'}`}>
         {typeof value === 'number' ? value.toLocaleString() : value}
       </p>
       {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
@@ -589,7 +591,7 @@ function TableHeader({
   return (
     <th
       onClick={onClick}
-      className="text-left p-4 text-sm font-medium text-slate-700 cursor-pointer hover:bg-slate-100 select-none"
+      className="text-left p-4 text-sm font-medium text-slate-400 cursor-pointer hover:bg-slate-700/50 hover:text-slate-50 select-none"
     >
       <div className="flex items-center gap-2">
         {children}

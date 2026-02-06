@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useMemo, useEffect, useState, useRef } from 'react';
 import type { Deal } from '@/lib/types/deal';
 
-export type TabId = 'analysis' | 'modeling' | 'ioi' | 'loi' | 'activity';
+export type TabId = 'analysis' | 'modeling' | 'ioi' | 'loi' | 'activity' | 'management';
 
 interface Tab {
   id: TabId;
@@ -48,6 +48,11 @@ export function DealTabs({ deal, children }: DealTabsProps) {
         id: 'loi',
         label: 'LOI',
         visible: true, // Always visible - part of search fund workflow
+      },
+      {
+        id: 'management',
+        label: 'Manage',
+        visible: true,
       },
       {
         id: 'activity',
@@ -107,7 +112,7 @@ export function DealTabs({ deal, children }: DealTabsProps) {
   return (
     <div className="w-full">
       {/* Tab Navigation */}
-      <div className="border-b border-slate-200 bg-slate-50/50 px-4 mb-6 relative">
+      <div className="border-b border-slate-800 bg-slate-950/50 px-4 mb-6 relative">
         {/* Scrollable tabs */}
         <nav 
           ref={scrollContainerRef}
@@ -126,8 +131,8 @@ export function DealTabs({ deal, children }: DealTabsProps) {
                   flex items-center gap-2 whitespace-nowrap
                   min-h-[44px] snap-start flex-shrink-0
                   ${isActive
-                    ? 'bg-white text-emerald-600 border-t-2 border-t-emerald-500 shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    ? 'bg-slate-900 text-emerald-400 border-t-2 border-t-emerald-500'
+                    : 'text-slate-400 hover:text-slate-300 hover:bg-slate-800'
                   }
                 `}
                 aria-current={isActive ? 'page' : undefined}

@@ -160,7 +160,7 @@ export function ApplyCriteriaFilter({ deals, onFilterChange }: ApplyCriteriaFilt
             <button
               onClick={handleCreateNew}
               data-onboarding="search-criteria"
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-blue-600 border-2 border-blue-700 rounded-lg hover:bg-blue-700 hover:border-blue-800 transition-all shadow-md hover:shadow-lg"
+              className="btn-secondary inline-flex items-center gap-1.5 shadow-md hover:shadow-lg"
             >
               <Plus className="h-4 w-4" />
               New Criteria

@@ -75,11 +75,11 @@ export function SubscriptionCard() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200">
+      <div className="bg-slate-800 rounded-lg shadow-sm p-6 border border-slate-700">
         <div className="animate-pulse">
-          <div className="h-6 bg-slate-200 rounded w-1/3 mb-4"></div>
-          <div className="h-4 bg-slate-200 rounded w-2/3 mb-2"></div>
-          <div className="h-4 bg-slate-200 rounded w-1/2"></div>
+          <div className="h-6 bg-slate-700 rounded w-1/3 mb-4"></div>
+          <div className="h-4 bg-slate-700 rounded w-2/3 mb-2"></div>
+          <div className="h-4 bg-slate-700 rounded w-1/2"></div>
         </div>
       </div>
     );
@@ -87,12 +87,12 @@ export function SubscriptionCard() {
 
   if (!subscription || subscription.subscription_status === 'inactive') {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200">
-        <h3 className="text-lg font-semibold mb-4">Subscription</h3>
-        <p className="text-slate-600 mb-4">You don't have an active subscription.</p>
+      <div className="bg-slate-800 rounded-lg shadow-sm p-6 border border-slate-700">
+        <h3 className="text-lg font-semibold text-slate-50 mb-4">Subscription</h3>
+        <p className="text-slate-400 mb-4">You don't have an active subscription.</p>
         <Link
           href="/pricing"
-          className="inline-block px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-500 transition-colors"
+          className="btn-primary btn-lg inline-block"
         >
           View Plans
         </Link>
@@ -103,11 +103,11 @@ export function SubscriptionCard() {
   const isTrialing = subscription.subscription_status === 'trialing';
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6 border border-slate-200">
+    <div className="bg-slate-800 rounded-lg shadow-sm p-6 border border-slate-700">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-semibold">Subscription</h3>
+        <h3 className="text-lg font-semibold text-slate-50">Subscription</h3>
         {isTrialing && (
-          <span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-sm font-semibold rounded-full">
+          <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 text-sm font-semibold rounded-full border border-emerald-500/30">
             Trial Active
           </span>
         )}
@@ -115,8 +115,8 @@ export function SubscriptionCard() {
 
       <div className="space-y-4 mb-6">
         <div>
-          <p className="text-sm text-slate-600">Current Plan</p>
-          <p className="text-lg font-semibold">
+          <p className="text-sm text-slate-400">Current Plan</p>
+          <p className="text-lg font-semibold text-slate-50">
             {subscription.subscription_tier === 'self_funded' ? 'Self-Funded Searcher' : 'Traditional Search Fund'}
             {' '}(Early Bird)
           </p>
@@ -124,8 +124,8 @@ export function SubscriptionCard() {
 
         {isTrialing && subscription.trial_end_date && (
           <div>
-            <p className="text-sm text-slate-600">Trial Ends</p>
-            <p className="text-lg font-semibold">
+            <p className="text-sm text-slate-400">Trial Ends</p>
+            <p className="text-lg font-semibold text-slate-50">
               {new Date(subscription.trial_end_date).toLocaleDateString()}
             </p>
           </div>
@@ -133,8 +133,8 @@ export function SubscriptionCard() {
 
         {!isTrialing && subscription.subscription_current_period_end && (
           <div>
-            <p className="text-sm text-slate-600">Next Billing Date</p>
-            <p className="text-lg font-semibold">
+            <p className="text-sm text-slate-400">Next Billing Date</p>
+            <p className="text-lg font-semibold text-slate-50">
               {new Date(subscription.subscription_current_period_end).toLocaleDateString()}
             </p>
           </div>
@@ -143,8 +143,8 @@ export function SubscriptionCard() {
 
       {/* Usage Display */}
       {usage && subscription.subscription_tier === 'self_funded' && (
-        <div className="border-t border-slate-200 pt-6 mb-6">
-          <h4 className="font-semibold mb-4">Usage This Month</h4>
+        <div className="border-t border-slate-700 pt-6 mb-6">
+          <h4 className="font-semibold text-slate-50 mb-4">Usage This Month</h4>
           
           <div className="space-y-3">
             <UsageBar
@@ -168,7 +168,7 @@ export function SubscriptionCard() {
 
       <button
         onClick={openBillingPortal}
-        className="w-full px-6 py-3 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-500 transition-colors"
+        className="btn-primary btn-lg w-full"
       >
         Manage Subscription & Billing
       </button>
@@ -184,8 +184,8 @@ function UsageBar({ label, used, limit }: { label: string; used: number; limit: 
     return (
       <div>
         <div className="flex justify-between text-sm mb-1">
-          <span className="text-slate-700">{label}</span>
-          <span className="font-semibold text-emerald-600">Unlimited</span>
+          <span className="text-slate-400">{label}</span>
+          <span className="font-semibold text-emerald-400">Unlimited</span>
         </div>
       </div>
     );
@@ -197,15 +197,15 @@ function UsageBar({ label, used, limit }: { label: string; used: number; limit: 
   return (
     <div>
       <div className="flex justify-between text-sm mb-1">
-        <span className="text-slate-700">{label}</span>
-        <span className={`font-semibold ${isNearLimit ? 'text-orange-600' : 'text-slate-900'}`}>
+        <span className="text-slate-400">{label}</span>
+        <span className={`font-semibold ${isNearLimit ? 'text-amber-400' : 'text-slate-50'}`}>
           {used} / {limit}
         </span>
       </div>
-      <div className="w-full bg-slate-200 rounded-full h-2">
+      <div className="w-full bg-slate-700 rounded-full h-2">
         <div
           className={`h-2 rounded-full transition-all ${
-            isNearLimit ? 'bg-orange-500' : 'bg-emerald-500'
+            isNearLimit ? 'bg-amber-500' : 'bg-emerald-500'
           }`}
           style={{ width: `${Math.min(percentage, 100)}%` }}
         />

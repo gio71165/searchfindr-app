@@ -503,10 +503,10 @@ function ComparePageContent() {
 
   if (loading) {
     return (
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="min-h-screen bg-slate-900 p-8 max-w-7xl mx-auto">
         <div className="text-center py-20">
           <LoadingSpinner size="lg" className="mb-4" />
-          <p className="text-sm text-slate-600">Loading comparison...</p>
+          <p className="text-sm text-slate-400">Loading comparison...</p>
         </div>
       </div>
     );
@@ -514,10 +514,10 @@ function ComparePageContent() {
 
   if (error || deals.length === 0) {
     return (
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="min-h-screen bg-slate-900 p-8 max-w-7xl mx-auto">
         <div className="text-center py-20">
-          <p className="text-red-600 mb-4">{error || 'No deals found'}</p>
-          <Link href="/dashboard" className="text-blue-600 hover:underline">
+          <p className="text-red-400 mb-4">{error || 'No deals found'}</p>
+          <Link href="/dashboard" className="text-blue-400 hover:text-blue-300 underline">
             Back to Dashboard
           </Link>
         </div>
@@ -526,25 +526,25 @@ function ComparePageContent() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1800px] mx-auto">
+    <div className="min-h-screen bg-slate-900 p-4 sm:p-6 lg:p-8 max-w-[1800px] mx-auto">
       {/* Header */}
       <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Deal Comparison</h1>
-          <p className="text-sm text-slate-600">Compare {deals.length} deals side-by-side</p>
+          <h1 className="text-3xl font-bold text-slate-50 mb-2">Deal Comparison</h1>
+          <p className="text-sm text-slate-400">Compare {deals.length} deals side-by-side</p>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={handleExportCSV}
             disabled={exportingCSV}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
+            className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-blue-300 bg-blue-500/20 border border-blue-500/40 rounded-lg hover:bg-blue-500/30 transition-colors disabled:opacity-50"
           >
             <Download className="h-4 w-4" />
             {exportingCSV ? 'Exporting...' : 'Export CSV'}
           </button>
           <Link
             href="/dashboard"
-            className="px-4 py-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+            className="px-4 py-2 text-sm font-semibold text-slate-200 bg-slate-700 border border-slate-600 rounded-lg hover:bg-slate-600 transition-colors"
           >
             Back to Dashboard
           </Link>
@@ -555,13 +555,13 @@ function ComparePageContent() {
       <div className="mb-4 grid gap-4" style={{ gridTemplateColumns: `200px repeat(${deals.length}, 1fr)` }}>
         <div></div>
         {deals.map((deal, idx) => (
-          <div key={deal.id} className="bg-white border border-slate-200 rounded-lg p-4">
+          <div key={deal.id} className="bg-slate-800 border border-slate-600 rounded-lg p-4">
             <div className="flex items-start justify-between mb-2">
               <div className="flex-1 min-w-0">
-                <h2 className="text-lg font-bold text-slate-900 truncate mb-1">
+                <h2 className="text-lg font-bold text-slate-50 truncate mb-1">
                   {deal.company_name || 'Untitled Company'}
                 </h2>
-                <p className="text-xs text-slate-600 truncate">
+                <p className="text-xs text-slate-400 truncate">
                   {deal.location_city && deal.location_state 
                     ? `${deal.location_city}, ${deal.location_state}`
                     : deal.location_city || deal.location_state || '—'}
@@ -572,7 +572,7 @@ function ComparePageContent() {
               </div>
               <button
                 onClick={() => handleRemoveDeal(deal.id)}
-                className="ml-2 p-1 text-slate-400 hover:text-red-600 transition-colors flex-shrink-0"
+                className="ml-2 p-1 text-slate-400 hover:text-red-400 transition-colors flex-shrink-0"
                 title="Remove from comparison"
               >
                 <X className="h-4 w-4" />
@@ -580,7 +580,7 @@ function ComparePageContent() {
             </div>
             <Link
               href={`/deals/${deal.id}`}
-              className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+              className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
             >
               <ExternalLink className="h-3 w-3" />
               View Details
@@ -590,22 +590,22 @@ function ComparePageContent() {
       </div>
 
       {/* Comparison Table */}
-      <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+      <div className="bg-slate-800 border border-slate-600 rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
+            <thead className="bg-slate-700/50 border-b border-slate-600">
               <tr>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700 sticky left-0 bg-slate-50 z-10 min-w-[200px]">
+                <th className="px-4 py-3 text-left text-sm font-semibold text-slate-300 sticky left-0 bg-slate-700/50 z-10 min-w-[200px]">
                   Metric
                 </th>
                 {deals.map((deal, idx) => (
-                  <th key={deal.id} className="px-4 py-3 text-center text-sm font-semibold text-slate-700 min-w-[200px]">
+                  <th key={deal.id} className="px-4 py-3 text-center text-sm font-semibold text-slate-300 min-w-[200px]">
                     Deal {idx + 1}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
+            <tbody className="divide-y divide-slate-600">
               {comparisonMetrics.map((metric, metricIdx) => {
                 const winnerIdx = getWinner(metric);
                 const values = deals.map((deal, idx) => {
@@ -618,8 +618,8 @@ function ComparePageContent() {
                 });
 
                 return (
-                  <tr key={metricIdx} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 text-sm font-medium text-slate-900 sticky left-0 bg-white z-10">
+                  <tr key={metricIdx} className="hover:bg-slate-700/30">
+                    <td className="px-4 py-3 text-sm font-medium text-slate-200 sticky left-0 bg-slate-800 z-10">
                       {metric.label}
                     </td>
                     {values.map(({ idx, formatted, raw }) => {
@@ -631,17 +631,17 @@ function ComparePageContent() {
                           key={idx}
                           className={`px-4 py-3 text-center text-sm ${
                             isWinner
-                              ? 'bg-emerald-50 text-emerald-900 font-semibold'
+                              ? 'bg-emerald-500/20 text-emerald-300 font-semibold'
                               : isLoser
-                              ? 'bg-red-50 text-red-900'
-                              : 'text-slate-700'
+                              ? 'bg-red-500/20 text-red-300'
+                              : 'text-slate-300'
                           }`}
                         >
                           <div className="flex items-center justify-center gap-2">
-                            {isWinner && <Award className="h-4 w-4 text-emerald-600" />}
-                            {isLoser && <TrendingDown className="h-4 w-4 text-red-600" />}
+                            {isWinner && <Award className="h-4 w-4 text-emerald-400" />}
+                            {isLoser && <TrendingDown className="h-4 w-4 text-red-400" />}
                             {!isWinner && !isLoser && raw !== null && raw !== undefined && winnerIdx === null && (
-                              <Minus className="h-4 w-4 text-slate-400" />
+                              <Minus className="h-4 w-4 text-slate-500" />
                             )}
                             <span>{formatted}</span>
                           </div>
@@ -659,8 +659,8 @@ function ComparePageContent() {
       {/* Summary Section */}
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         {/* Strengths Comparison */}
-        <div className="bg-white border border-slate-200 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-slate-900 mb-3">Key Strengths</h3>
+        <div className="bg-slate-800 border border-slate-600 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-slate-50 mb-3">Key Strengths</h3>
           <div className="space-y-3">
             {deals.map((deal, idx) => {
               const strengths: string[] = [];
@@ -675,17 +675,17 @@ function ComparePageContent() {
               
               return (
                 <div key={deal.id}>
-                  <div className="text-xs font-semibold text-slate-600 mb-1">
+                  <div className="text-xs font-semibold text-slate-400 mb-1">
                     Deal {idx + 1}: {deal.company_name || 'Untitled'}
                   </div>
-                  <ul className="text-xs text-slate-700 space-y-1">
+                  <ul className="text-xs text-slate-300 space-y-1">
                     {strengths.slice(0, 3).map((s, sIdx) => (
                       <li key={sIdx} className="flex items-start gap-1">
-                        <span className="text-emerald-600">•</span>
+                        <span className="text-emerald-400">•</span>
                         <span>{s}</span>
                       </li>
                     ))}
-                    {strengths.length === 0 && <li className="text-slate-400">—</li>}
+                    {strengths.length === 0 && <li className="text-slate-500">—</li>}
                   </ul>
                 </div>
               );
@@ -694,8 +694,8 @@ function ComparePageContent() {
         </div>
 
         {/* Risks Comparison */}
-        <div className="bg-white border border-slate-200 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-slate-900 mb-3">Key Risks</h3>
+        <div className="bg-slate-800 border border-slate-600 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-slate-50 mb-3">Key Risks</h3>
           <div className="space-y-3">
             {deals.map((deal, idx) => {
               const risks: string[] = [];
@@ -714,17 +714,17 @@ function ComparePageContent() {
 
               return (
                 <div key={deal.id}>
-                  <div className="text-xs font-semibold text-slate-600 mb-1">
+                  <div className="text-xs font-semibold text-slate-400 mb-1">
                     Deal {idx + 1}: {deal.company_name || 'Untitled'}
                   </div>
-                  <ul className="text-xs text-slate-700 space-y-1">
+                  <ul className="text-xs text-slate-300 space-y-1">
                     {risks.slice(0, 3).map((r, rIdx) => (
                       <li key={rIdx} className="flex items-start gap-1">
-                        <span className="text-red-600">•</span>
+                        <span className="text-red-400">•</span>
                         <span>{r}</span>
                       </li>
                     ))}
-                    {risks.length === 0 && <li className="text-slate-400">—</li>}
+                    {risks.length === 0 && <li className="text-slate-500">—</li>}
                   </ul>
                 </div>
               );
@@ -739,10 +739,10 @@ function ComparePageContent() {
 export default function ComparePage() {
   return (
     <Suspense fallback={
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="min-h-screen bg-slate-900 p-8 max-w-7xl mx-auto">
         <div className="text-center py-20">
           <LoadingSpinner size="lg" className="mb-4" />
-          <p className="text-sm text-slate-600">Loading comparison...</p>
+          <p className="text-sm text-slate-400">Loading comparison...</p>
         </div>
       </div>
     }>

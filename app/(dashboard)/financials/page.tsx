@@ -230,11 +230,11 @@ export default function FinancialsPage() {
 
   if (authLoading || loading) {
     return (
-      <div className="p-8 max-w-7xl mx-auto">
+      <div className="min-h-full bg-slate-900 p-8 max-w-7xl mx-auto">
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <LoadingSpinner size="lg" className="mb-4" />
-            <p className="text-sm text-slate-600">Loading financials...</p>
+            <p className="text-sm text-slate-400">Loading financials...</p>
           </div>
         </div>
       </div>
@@ -242,8 +242,8 @@ export default function FinancialsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="min-h-full bg-slate-900 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
       <ContentHeader
         title="Financials"
         description="Financial statements uploaded for analysis"
@@ -255,7 +255,7 @@ export default function FinancialsPage() {
         placeholder="Search financials..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full px-4 py-3 border rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 placeholder-slate-500 mb-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
       />
 
       {/* Verdict Filters */}
@@ -289,21 +289,21 @@ export default function FinancialsPage() {
       </div>
 
       {/* Results */}
-      <div className="mb-4 text-sm text-slate-600">
+      <div className="mb-4 text-sm text-slate-400">
         Showing {filteredDeals.length} of {deals.length} deals
       </div>
 
       {/* Deal Cards */}
       {filteredDeals.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-slate-300">
+        <div className="text-center py-16 bg-slate-800 rounded-xl border-2 border-dashed border-slate-700 hover:border-emerald-500/50 transition-colors">
           <div className="text-6xl mb-4">💰</div>
-          <h3 className="text-xl font-semibold mb-2">No financials uploaded yet</h3>
-          <p className="text-slate-600 mb-6">
+          <h3 className="text-xl font-semibold text-slate-50 mb-2">No financials uploaded yet</h3>
+          <p className="text-slate-400 mb-6">
             Upload financial statements to get <JargonTooltip term="QoE">QoE</JargonTooltip>-level analysis
           </p>
           <button
             onClick={handleFinancialsButtonClick}
-            className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium"
+            className="btn-primary btn-lg"
           >
             Upload Financials
           </button>
@@ -318,7 +318,7 @@ export default function FinancialsPage() {
 
       {/* Error Message */}
       {errorMsg && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-red-700 mt-4">
+        <div className="rounded-xl border border-red-500/30 bg-red-950/20 p-4 text-red-400 mt-4">
           {errorMsg}
         </div>
       )}

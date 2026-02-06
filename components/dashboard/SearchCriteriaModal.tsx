@@ -490,7 +490,7 @@ export function SearchCriteriaModal({ criteria, onClose, onSuccess }: SearchCrit
               type="submit"
               isLoading={loading}
               loadingText="Saving..."
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2"
+              className="btn-secondary flex-1 flex items-center justify-center gap-2"
             >
               {criteria ? 'Update Criteria' : 'Create Criteria'}
             </AsyncButton>

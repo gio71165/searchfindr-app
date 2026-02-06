@@ -19,7 +19,7 @@ export function Hero() {
           <div className="flex justify-center mt-10 mb-6">
             <Link
               href="/signup"
-              className="px-8 py-4 bg-emerald-600 text-white rounded-xl font-bold text-lg hover:bg-emerald-500 transition-all shadow-lg hover:shadow-emerald-500/50 text-center min-h-[56px] flex items-center justify-center"
+              className="btn-primary btn-lg px-8 rounded-xl font-bold text-center min-h-[56px] flex items-center justify-center shadow-lg hover:shadow-emerald-500/50"
             >
               Try It Free
             </Link>

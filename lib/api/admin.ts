@@ -35,6 +35,39 @@ export async function checkIsAdmin(
 }
 
 /**
+ * Check if a user can access the Coalition Dashboard (coalition leader or admin)
+ */
+export async function checkIsCoalitionLeader(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('is_admin, is_coalition_leader')
+    .eq('id', userId)
+    .single();
+
+  if (error || !data) {
+    return false;
+  }
+
+  return data.is_admin === true || data.is_coalition_leader === true;
+}
+
+/**
+ * Authenticate and verify coalition leader access
+ */
+export async function authenticateCoalitionLeader(
+  supabase: SupabaseClient,
+  user: User
+): Promise<void> {
+  const allowed = await checkIsCoalitionLeader(supabase, user.id);
+  if (!allowed) {
+    throw new AdminError('Coalition leader access required', 403);
+  }
+}
+
+/**
  * Authenticate and verify admin access
  * Throws AdminError if user is not an admin
  */

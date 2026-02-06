@@ -225,12 +225,12 @@ export function DDTracker({ dealId }: { dealId: string }) {
 
   const getStatusBadge = (status: DDItem['status']) => {
     const badges = {
-      not_started: { icon: Clock, color: 'bg-slate-100 text-slate-700', label: 'Not Started' },
-      requested: { icon: FileText, color: 'bg-blue-100 text-blue-700', label: 'Requested' },
-      received: { icon: FileCheck, color: 'bg-yellow-100 text-yellow-700', label: 'Received' },
-      reviewed: { icon: CheckCircle2, color: 'bg-emerald-100 text-emerald-700', label: 'Reviewed' },
-      issue_found: { icon: AlertTriangle, color: 'bg-red-100 text-red-700', label: 'Issue Found' },
-      cleared: { icon: CheckSquare, color: 'bg-emerald-100 text-emerald-700', label: 'Cleared' },
+      not_started: { icon: Clock, color: 'bg-slate-600/50 text-slate-300', label: 'Not Started' },
+      requested: { icon: FileText, color: 'bg-blue-500/20 text-blue-300', label: 'Requested' },
+      received: { icon: FileCheck, color: 'bg-amber-500/20 text-amber-300', label: 'Received' },
+      reviewed: { icon: CheckCircle2, color: 'bg-emerald-500/20 text-emerald-300', label: 'Reviewed' },
+      issue_found: { icon: AlertTriangle, color: 'bg-red-500/20 text-red-300', label: 'Issue Found' },
+      cleared: { icon: CheckSquare, color: 'bg-emerald-500/20 text-emerald-300', label: 'Cleared' },
     };
     
     const badge = badges[status];
@@ -248,10 +248,10 @@ export function DDTracker({ dealId }: { dealId: string }) {
     if (!severity) return null;
     
     const colors = {
-      blocker: 'bg-red-200 text-red-800',
-      major: 'bg-orange-200 text-orange-800',
-      minor: 'bg-yellow-200 text-yellow-800',
-      info: 'bg-blue-200 text-blue-800',
+      blocker: 'bg-red-500/20 text-red-300',
+      major: 'bg-orange-500/20 text-orange-300',
+      minor: 'bg-amber-500/20 text-amber-300',
+      info: 'bg-blue-500/20 text-blue-300',
     };
     
     return (
@@ -282,7 +282,7 @@ export function DDTracker({ dealId }: { dealId: string }) {
 
   if (loading) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-6">
+      <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
         <div className="flex items-center justify-center py-8">
           <LoadingSpinner size="md" />
         </div>
@@ -292,17 +292,17 @@ export function DDTracker({ dealId }: { dealId: string }) {
 
   if (!progress || progress.categories.length === 0) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-6">
+      <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
         <div className="flex items-center gap-2 mb-4">
-          <FileText className="h-5 w-5 text-slate-600" />
-          <h3 className="text-xl font-semibold text-slate-900">Due Diligence Tracker</h3>
+          <FileText className="h-5 w-5 text-slate-400" />
+          <h3 className="text-xl font-semibold text-slate-50">Due Diligence Tracker</h3>
         </div>
         <div className="text-center py-8">
-          <p className="text-slate-600 mb-4">No DD checklist initialized for this deal.</p>
+          <p className="text-slate-400 mb-4">No DD checklist initialized for this deal.</p>
           <button
             onClick={handleInitialize}
             disabled={initializing}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+            className="btn-secondary flex items-center gap-2 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {initializing ? (
               <>
@@ -322,16 +322,16 @@ export function DDTracker({ dealId }: { dealId: string }) {
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-6">
+    <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <FileText className="h-5 w-5 text-slate-600" />
-          <h3 className="text-xl font-semibold text-slate-900">Due Diligence Tracker</h3>
+          <FileText className="h-5 w-5 text-slate-400" />
+          <h3 className="text-xl font-semibold text-slate-50">Due Diligence Tracker</h3>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleExport}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50"
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg border border-slate-600 bg-slate-800 hover:bg-slate-700 text-slate-200"
           >
             <Download className="h-4 w-4" />
             Export
@@ -343,17 +343,17 @@ export function DDTracker({ dealId }: { dealId: string }) {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-slate-700">
+            <span className="text-sm font-medium text-slate-300">
               Progress: {progress.completedItems} / {progress.totalItems} items cleared ({progress.progressPercent}%)
             </span>
             {progress.issuesFound > 0 && (
-              <span className="text-sm text-red-600 font-medium">
+              <span className="text-sm text-red-400 font-medium">
                 {progress.issuesFound} issue{progress.issuesFound !== 1 ? 's' : ''} found
               </span>
             )}
           </div>
         </div>
-        <div className="w-full bg-slate-200 rounded-full h-3">
+        <div className="w-full bg-slate-700 rounded-full h-3">
           <div
             className="bg-emerald-600 h-3 rounded-full transition-all"
             style={{ width: `${progress.progressPercent}%` }}
@@ -362,15 +362,15 @@ export function DDTracker({ dealId }: { dealId: string }) {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4 mb-4 pb-4 border-b">
+      <div className="flex items-center gap-4 mb-4 pb-4 border-b border-slate-700">
         <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-slate-500" />
-          <span className="text-sm font-medium text-slate-700">Filter:</span>
+          <Filter className="h-4 w-4 text-slate-400" />
+          <span className="text-sm font-medium text-slate-300">Filter:</span>
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-          className="text-sm border rounded-lg px-3 py-1.5"
+          className="text-sm border border-slate-600 rounded-lg px-3 py-1.5 bg-slate-900 text-slate-200"
         >
           <option value="all">All Status</option>
           <option value="not_started">Not Started</option>
@@ -383,7 +383,7 @@ export function DDTracker({ dealId }: { dealId: string }) {
         <button
           onClick={handleMarkAllRequested}
           disabled={saving}
-          className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
+          className="text-sm text-emerald-400 hover:text-emerald-300 disabled:opacity-50"
         >
           Mark All as Requested
         </button>
@@ -396,26 +396,26 @@ export function DDTracker({ dealId }: { dealId: string }) {
           const items = category.dd_items || [];
           
           return (
-            <div key={category.id} className="border rounded-lg">
+            <div key={category.id} className="border border-slate-700 rounded-lg">
               <button
                 onClick={() => toggleCategory(category.id)}
-                className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
+                className="w-full flex items-center justify-between p-4 hover:bg-slate-700/50 transition-colors"
               >
                 <div className="flex items-center gap-3">
                   {isExpanded ? (
-                    <ChevronUp className="h-5 w-5 text-slate-500" />
+                    <ChevronUp className="h-5 w-5 text-slate-400" />
                   ) : (
-                    <ChevronDown className="h-5 w-5 text-slate-500" />
+                    <ChevronDown className="h-5 w-5 text-slate-400" />
                   )}
                   <div className="text-left">
-                    <h4 className="font-semibold text-slate-900">{category.name}</h4>
+                    <h4 className="font-semibold text-slate-50">{category.name}</h4>
                     {category.description && (
-                      <p className="text-sm text-slate-600">{category.description}</p>
+                      <p className="text-sm text-slate-400">{category.description}</p>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-600">
+                  <span className="text-sm text-slate-400">
                     {items.filter(i => i.status === 'cleared').length} / {items.length} cleared
                   </span>
                 </div>
@@ -433,9 +433,9 @@ export function DDTracker({ dealId }: { dealId: string }) {
                         <div
                           key={item.id}
                           className={`p-3 rounded-lg border ${
-                            item.status === 'issue_found' ? 'border-red-200 bg-red-50' :
-                            item.status === 'cleared' ? 'border-emerald-200 bg-emerald-50' :
-                            'border-slate-200 bg-white'
+                            item.status === 'issue_found' ? 'border-red-500/50 bg-red-500/10' :
+                            item.status === 'cleared' ? 'border-emerald-500/50 bg-emerald-500/10' :
+                            'border-slate-700 bg-slate-800/50'
                           }`}
                         >
                           <div className="flex items-start gap-3">
@@ -459,12 +459,12 @@ export function DDTracker({ dealId }: { dealId: string }) {
                                           handleItemUpdate(item.id, { name: e.target.value });
                                         }
                                       }}
-                                      className="w-full border rounded px-2 py-1 text-sm font-medium"
+                                      className="w-full border border-slate-600 rounded px-2 py-1 text-sm font-medium bg-slate-900 text-slate-50"
                                       autoFocus
                                     />
                                   ) : (
                                     <h5
-                                      className="font-medium text-slate-900 cursor-pointer hover:text-blue-600"
+                                      className="font-medium text-slate-50 cursor-pointer hover:text-emerald-400"
                                       onClick={() => setEditingItem(item.id)}
                                     >
                                       {item.name}
@@ -478,7 +478,7 @@ export function DDTracker({ dealId }: { dealId: string }) {
                               </div>
 
                               {/* Dates */}
-                              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600 mb-2">
+                              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 mb-2">
                                 {item.requested_date && (
                                   <div className="flex items-center gap-1">
                                     <Calendar className="h-3 w-3" />
@@ -501,7 +501,7 @@ export function DDTracker({ dealId }: { dealId: string }) {
 
                               {/* Assigned To */}
                               {item.assigned_to && (
-                                <div className="flex items-center gap-1 text-xs text-slate-600 mb-2">
+                                <div className="flex items-center gap-1 text-xs text-slate-400 mb-2">
                                   <User className="h-3 w-3" />
                                   Assigned to: {item.assigned_to}
                                 </div>
@@ -509,14 +509,14 @@ export function DDTracker({ dealId }: { dealId: string }) {
 
                               {/* Issue Description */}
                               {item.issue_description && (
-                                <div className="mb-2 p-2 bg-red-100 rounded text-sm text-red-800">
+                                <div className="mb-2 p-2 bg-red-500/10 rounded text-sm text-red-300">
                                   <strong>Issue:</strong> {item.issue_description}
                                 </div>
                               )}
 
                               {/* Notes */}
                               {item.notes && (
-                                <div className="mb-2 text-sm text-slate-700">
+                                <div className="mb-2 text-sm text-slate-300">
                                   <strong>Notes:</strong> {item.notes}
                                 </div>
                               )}
@@ -526,7 +526,7 @@ export function DDTracker({ dealId }: { dealId: string }) {
                                 <select
                                   value={item.status}
                                   onChange={(e) => handleStatusChange(item.id, e.target.value as DDItem['status'])}
-                                  className="text-xs border rounded px-2 py-1"
+                                  className="text-xs border border-slate-600 rounded px-2 py-1 bg-slate-900 text-slate-200"
                                   disabled={saving}
                                 >
                                   <option value="not_started">Not Started</option>
@@ -545,7 +545,7 @@ export function DDTracker({ dealId }: { dealId: string }) {
                                       handleItemUpdate(item.id, { assigned_to: e.target.value || null });
                                     }
                                   }}
-                                  className="text-xs border rounded px-2 py-1 flex-1 max-w-xs"
+                                  className="text-xs border border-slate-600 rounded px-2 py-1 flex-1 max-w-xs bg-slate-900 text-slate-200 placeholder-slate-500"
                                 />
                                 <textarea
                                   placeholder="Notes..."
@@ -555,7 +555,7 @@ export function DDTracker({ dealId }: { dealId: string }) {
                                       handleItemUpdate(item.id, { notes: e.target.value || null });
                                     }
                                   }}
-                                  className="text-xs border rounded px-2 py-1 flex-1 max-w-xs"
+                                  className="text-xs border border-slate-600 rounded px-2 py-1 flex-1 max-w-xs bg-slate-900 text-slate-200 placeholder-slate-500"
                                   rows={1}
                                 />
                               </div>

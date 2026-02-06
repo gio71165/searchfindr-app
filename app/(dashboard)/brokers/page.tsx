@@ -27,17 +27,17 @@ export default function BrokersPage() {
 
   if (loading || authLoading) {
     return (
-      <div className="min-h-screen bg-[#F9FAFB] flex items-center justify-center">
+      <div className="min-h-full bg-slate-900 flex items-center justify-center">
         <div className="text-center">
           <LoadingSpinner size="lg" className="mb-4" />
-          <p className="text-sm text-slate-600">Loading brokers...</p>
+          <p className="text-sm text-slate-400">Loading brokers...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-[#F9FAFB]">
+    <main className="min-h-full bg-slate-900">
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <BrokerDashboard />
       </div>

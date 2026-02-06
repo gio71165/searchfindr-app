@@ -73,8 +73,8 @@ export function ExecutiveSummaryCard({
                  (typeof fin.margin === 'string' ? fin.margin : null) ||
                  null;
   
-  const location = [deal.location_city, deal.location_state].filter(Boolean).join(', ') || 'Unknown';
-  const industry = deal.industry || 'Unknown';
+  const location = [deal.location_city, deal.location_state].filter(Boolean).join(', ') || '—';
+  const industry = deal.industry || '—';
   
   // Extract asking price
   const askingPrice = (deal as any).asking_price_extracted || deal.criteria_match_json?.asking_price || null;
@@ -86,34 +86,34 @@ export function ExecutiveSummaryCard({
     strong: {
       icon: CheckCircle2,
       label: 'Strong Opportunity',
-      color: 'green',
-      bgColor: 'bg-emerald-50',
-      borderColor: 'border-emerald-200',
-      textColor: 'text-emerald-700',
+      color: 'emerald',
+      bgColor: 'bg-emerald-500/10',
+      borderColor: 'border-emerald-500/30',
+      textColor: 'text-emerald-400',
     },
     caution: {
       icon: AlertTriangle,
       label: 'Proceed with Caution',
       color: 'yellow',
-      bgColor: 'bg-blue-50',
-      borderColor: 'border-blue-200',
-      textColor: 'text-blue-700',
+      bgColor: 'bg-blue-500/10',
+      borderColor: 'border-blue-500/30',
+      textColor: 'text-blue-400',
     },
     pass: {
       icon: XCircle,
       label: 'Pass',
       color: 'red',
-      bgColor: 'bg-red-50',
-      borderColor: 'border-red-200',
-      textColor: 'text-red-700',
+      bgColor: 'bg-red-500/10',
+      borderColor: 'border-red-500/30',
+      textColor: 'text-red-400',
     },
     not_analyzed: {
       icon: Circle,
       label: 'Not Analyzed',
       color: 'gray',
-      bgColor: 'bg-slate-50',
-      borderColor: 'border-slate-200',
-      textColor: 'text-slate-700',
+      bgColor: 'bg-slate-700/50',
+      borderColor: 'border-slate-600',
+      textColor: 'text-slate-400',
     },
   };
   
@@ -125,24 +125,24 @@ export function ExecutiveSummaryCard({
   
   // User verdict badge config
   const userVerdictConfig = {
-    proceed: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Proceed' },
-    park: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', label: 'Parked' },
-    pass: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', label: 'Passed' }
+    proceed: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', label: 'Proceed' },
+    park: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20', label: 'Parked' },
+    pass: { bg: 'bg-slate-700/50', text: 'text-slate-400', border: 'border-slate-600', label: 'Passed' }
   };
   
   const userVerdictNormalized = userVerdict ? userVerdict.toLowerCase() : null;
   const userVerdictStyle = userVerdictNormalized ? userVerdictConfig[userVerdictNormalized as keyof typeof userVerdictConfig] : null;
   
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all mb-6">
+    <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 shadow-sm hover:border-slate-600 transition-all mb-6">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-slate-100 rounded-lg">
-          <Sparkles className="w-5 h-5 text-slate-600" />
+        <div className="p-2 bg-slate-700/50 rounded-lg">
+          <Sparkles className="w-5 h-5 text-slate-400" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-slate-900">AI Analysis</h3>
-          <p className="text-sm text-slate-600">Deal evaluation complete</p>
+          <h3 className="text-lg font-semibold text-slate-50">AI Analysis</h3>
+          <p className="text-sm text-slate-400">Deal evaluation complete</p>
         </div>
       </div>
       
@@ -170,7 +170,7 @@ export function ExecutiveSummaryCard({
             </div>
             <div>
               <h2 className={`text-xl font-semibold ${config.textColor}`}>{config.label}</h2>
-              <p className="text-sm text-slate-600 mt-1">
+              <p className="text-sm text-slate-400 mt-1">
                 Based on confidence level and risk assessment
               </p>
             </div>
@@ -180,55 +180,55 @@ export function ExecutiveSummaryCard({
         </div>
       
       {/* Key Metrics Grid */}
-      <div className="grid grid-cols-3 gap-6 pb-6 border-b border-slate-100">
+      <div className="grid grid-cols-3 gap-6 pb-6 border-b border-slate-700">
         {askingPrice && (
           <div>
             <p className="text-xs text-slate-500 mb-1">Asking Price</p>
-            <p className="text-2xl font-bold font-mono text-slate-900">
+            <p className="text-2xl font-bold font-mono text-slate-50">
               {askingPrice}
             </p>
           </div>
         )}
         <div>
           <p className="text-xs text-slate-500 mb-1">Revenue (TTM)</p>
-          <p className="text-2xl font-bold font-mono text-slate-900">
+          <p className="text-2xl font-bold font-mono text-slate-50">
             {typeof revenue === 'string' ? revenue : formatMoney(revenue)}
           </p>
         </div>
         <div>
           <p className="text-xs text-slate-500 mb-1">EBITDA (TTM)</p>
-          <p className="text-2xl font-bold font-mono text-slate-900">
+          <p className="text-2xl font-bold font-mono text-slate-50">
             {typeof ebitda === 'string' ? ebitda : formatMoney(ebitda)}
           </p>
         </div>
       </div>
       
       {margin && margin !== 'Not stated' && (
-        <div className="flex items-center justify-between text-sm pb-6 border-b border-slate-100">
-          <span className="text-slate-600">EBITDA Margin</span>
-          <span className="font-semibold font-mono text-slate-900">{margin}</span>
+        <div className="flex items-center justify-between text-sm pb-6 border-b border-slate-700">
+          <span className="text-slate-400">EBITDA Margin</span>
+          <span className="font-semibold font-mono text-slate-50">{margin}</span>
         </div>
       )}
       
       <div className="grid grid-cols-2 gap-6">
         <div>
           <p className="text-xs text-slate-500 mb-1">Location</p>
-          <p className="text-base font-semibold text-slate-900">{location}</p>
+          <p className="text-base font-semibold text-slate-50">{location}</p>
         </div>
         <div>
           <p className="text-xs text-slate-500 mb-1">Industry</p>
-          <p className="text-base font-semibold text-slate-900">{industry}</p>
+          <p className="text-base font-semibold text-slate-50">{industry}</p>
         </div>
       </div>
       
       {/* Source Link - View Original Listing/Website */}
       {((deal.source_type === 'on_market' && deal.listing_url) || (deal.source_type === 'off_market' && deal.website)) && (
-        <div className="mb-6 pt-4 border-t border-slate-200">
+        <div className="mb-6 pt-4 border-t border-slate-700">
           <a
             href={deal.source_type === 'on_market' ? deal.listing_url! : deal.website!}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 hover:underline transition-colors"
+            className="inline-flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 hover:underline transition-colors"
           >
             <ExternalLink className="h-4 w-4" />
             <span>{deal.source_type === 'on_market' ? 'View Listing' : 'View Website'}</span>
@@ -240,7 +240,7 @@ export function ExecutiveSummaryCard({
       {confidenceTier && (
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-slate-700">Data Confidence</span>
+            <span className="text-sm font-medium text-slate-400">Data Confidence</span>
             <ConfidenceBadge level={confidenceTier} analyzed={true} />
           </div>
         </div>
@@ -248,15 +248,15 @@ export function ExecutiveSummaryCard({
       
       {/* Primary Actions - Verdict Buttons */}
       {!hideVerdictButtons && (
-        <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-slate-200">
+        <div className="flex flex-wrap items-center gap-2 pt-4 border-t border-slate-700">
           <AsyncButton
             onClick={onProceed}
             isLoading={settingVerdict}
             loadingText="Setting…"
             className={`px-4 py-2 rounded-lg font-medium text-sm border-2 transition-all ${
               userVerdict === 'proceed'
-                ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
+                : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
             }`}
           >
             ✓ Proceed
@@ -267,8 +267,8 @@ export function ExecutiveSummaryCard({
             loadingText="Setting…"
             className={`px-4 py-2 rounded-lg font-medium text-sm border-2 transition-all ${
               userVerdict === 'park'
-                ? 'border-blue-500 bg-blue-50 text-blue-700'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
             }`}
           >
             ⏸ Park
@@ -278,8 +278,8 @@ export function ExecutiveSummaryCard({
             isLoading={settingVerdict}
             className={`px-4 py-2 rounded-lg font-medium text-sm border-2 transition-all ${
               userVerdict === 'pass'
-                ? 'border-slate-400 bg-slate-50 text-slate-700'
-                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                ? 'border-slate-500 bg-slate-700/50 text-slate-400'
+                : 'border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700'
             }`}
           >
             ✕ Pass

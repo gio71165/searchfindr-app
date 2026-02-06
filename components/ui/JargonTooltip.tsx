@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { getJargonDefinition } from '@/lib/jargon-definitions';
 
 interface JargonTooltipProps {
@@ -9,9 +10,12 @@ interface JargonTooltipProps {
   className?: string;
 }
 
+const TOOLTIP_OFFSET = 8;
+const TOOLTIP_WIDTH = 256; // w-64
+
 export function JargonTooltip({ term, children, className = '' }: JargonTooltipProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState<'top' | 'bottom'>('top');
+  const [tooltipStyle, setTooltipStyle] = useState<{ top: number; left: number } | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLSpanElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -23,20 +27,25 @@ export function JargonTooltip({ term, children, className = '' }: JargonTooltipP
     return <span className={className}>{children || term}</span>;
   }
 
-  // Handle positioning
+  // Position tooltip (runs when open); tooltip is portaled so we use fixed positioning
   useEffect(() => {
-    if (isOpen && triggerRef.current && tooltipRef.current) {
-      const triggerRect = triggerRef.current.getBoundingClientRect();
-      const tooltipRect = tooltipRef.current.getBoundingClientRect();
-      const viewportHeight = window.innerHeight;
-      
-      // Check if tooltip would overflow bottom
-      if (triggerRect.bottom + tooltipRect.height + 8 > viewportHeight) {
-        setPosition('bottom');
-      } else {
-        setPosition('top');
-      }
+    if (!isOpen || !triggerRef.current || !tooltipRef.current) return;
+
+    const triggerRect = triggerRef.current.getBoundingClientRect();
+    const tooltipRect = tooltipRef.current.getBoundingClientRect();
+    const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
+
+    const left = triggerRect.left + triggerRect.width / 2 - TOOLTIP_WIDTH / 2;
+    const leftClamped = Math.max(8, Math.min(left, (typeof window !== 'undefined' ? window.innerWidth : 0) - TOOLTIP_WIDTH - 8));
+
+    let top: number;
+    if (triggerRect.bottom + tooltipRect.height + TOOLTIP_OFFSET > viewportHeight && triggerRect.top - tooltipRect.height - TOOLTIP_OFFSET >= 0) {
+      top = triggerRect.top - tooltipRect.height - TOOLTIP_OFFSET;
+    } else {
+      top = triggerRect.bottom + TOOLTIP_OFFSET;
     }
+
+    setTooltipStyle({ top, left: leftClamped });
   }, [isOpen]);
 
   // Handle click outside to close
@@ -66,7 +75,6 @@ export function JargonTooltip({ term, children, className = '' }: JargonTooltipP
   };
 
   const handleMouseLeave = () => {
-    // Small delay to allow moving to tooltip
     timeoutRef.current = setTimeout(() => {
       setIsOpen(false);
     }, 100);
@@ -80,39 +88,41 @@ export function JargonTooltip({ term, children, className = '' }: JargonTooltipP
 
   const displayText = children || term;
 
-  return (
-    <span className={`relative inline-block ${className}`}>
-      <span
-        ref={triggerRef}
+  const tooltipContent =
+    isOpen && typeof document !== 'undefined' ? (
+      <div
+        ref={tooltipRef}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        onClick={handleClick}
-        className="cursor-help underline decoration-dotted decoration-slate-400 underline-offset-2 hover:decoration-slate-600"
+        style={
+          tooltipStyle
+            ? { position: 'fixed' as const, top: tooltipStyle.top, left: tooltipStyle.left, width: TOOLTIP_WIDTH }
+            : { position: 'fixed' as const, top: -9999, left: 0, width: TOOLTIP_WIDTH, visibility: 'hidden' as const }
+        }
+        className="z-[10000] p-3 text-sm text-slate-300 bg-slate-800 border border-slate-700 rounded-lg shadow-lg pointer-events-auto"
+        role="tooltip"
       >
-        {displayText}
-      </span>
-      
-      {isOpen && (
-        <div
-          ref={tooltipRef}
+        <div className="font-semibold text-slate-50 mb-1">{term}</div>
+        <div className="text-slate-400 leading-relaxed">{definition}</div>
+      </div>
+    ) : null;
+
+  return (
+    <>
+      <span className={`relative inline-block ${className}`}>
+        <span
+          ref={triggerRef}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
-          className={`absolute z-50 w-64 p-3 text-sm text-slate-700 bg-white border border-slate-200 rounded-lg shadow-lg pointer-events-auto ${
-            position === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
-          } left-1/2 -translate-x-1/2`}
-          role="tooltip"
+          onClick={handleClick}
+          className="cursor-help underline decoration-dotted decoration-slate-400 underline-offset-2 hover:decoration-slate-600"
         >
-          <div className="font-semibold text-slate-900 mb-1">{term}</div>
-          <div className="text-slate-600 leading-relaxed">{definition}</div>
-          <div
-            className={`absolute w-0 h-0 border-4 border-transparent ${
-              position === 'top'
-                ? 'top-full left-1/2 -translate-x-1/2 border-t-slate-200'
-                : 'bottom-full left-1/2 -translate-x-1/2 border-b-slate-200'
-            }`}
-          />
-        </div>
-      )}
-    </span>
+          {displayText}
+        </span>
+      </span>
+      {typeof document !== 'undefined' && tooltipContent
+        ? createPortal(tooltipContent, document.body)
+        : null}
+    </>
   );
 }

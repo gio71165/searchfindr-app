@@ -52,9 +52,9 @@ function VerdictBadge({ verdict, size = 'default' }: { verdict: string | null; s
   if (!verdict) return null;
   
   const config = {
-    proceed: { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500', label: 'Proceed' },
-    park: { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500', label: 'Parked' },
-    pass: { bg: 'bg-slate-50', text: 'text-slate-700', border: 'border-slate-200', dot: 'bg-slate-400', label: 'Passed' }
+    proceed: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', border: 'border-emerald-500/20', dot: 'bg-emerald-400', label: 'Proceed' },
+    park: { bg: 'bg-blue-500/10', text: 'text-blue-400', border: 'border-blue-500/20', dot: 'bg-blue-400', label: 'Parked' },
+    pass: { bg: 'bg-slate-700/50', text: 'text-slate-400', border: 'border-slate-600', dot: 'bg-slate-400', label: 'Passed' }
   };
   
   const normalizedVerdict = verdict.toLowerCase();
@@ -104,7 +104,7 @@ function DealCardComponent({
   const [isSavingNote, setIsSavingNote] = useState(false);
   if (isLoading || !deal) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-6">
+      <div className="rounded-xl border border-slate-700 bg-slate-800 p-6">
         <div className="flex items-center justify-between mb-4">
           <Skeleton height={24} width="30%" />
           <Skeleton height={24} width="25%" />
@@ -121,7 +121,7 @@ function DealCardComponent({
         </div>
         <Skeleton height={60} className="mb-4 rounded-lg" />
         <Skeleton lines={2} className="mb-5" />
-        <div className="flex gap-3 pt-4 border-t border-slate-200">
+        <div className="flex gap-3 pt-4 border-t border-slate-700">
           <Skeleton height={40} className="flex-1" />
           <Skeleton height={40} width={80} />
         </div>
@@ -291,15 +291,15 @@ function DealCardComponent({
           className="block group focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded-xl cursor-pointer"
           aria-label={`View details for ${deal.company_name || 'deal'}`}
         >
-          <div className={`relative group rounded-xl border bg-white p-6 transition-all duration-200 hover:shadow-lg hover:border-slate-300 ${
+          <div className={`relative group rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-sm transition-all duration-200 hover:shadow-lg hover:border-slate-600 hover:shadow-black/50 ${
             isSelected 
-              ? 'border-blue-500 border-2 bg-blue-50/30' 
-              : 'border-slate-200'
+              ? 'border-emerald-500 border-2 bg-emerald-500/10' 
+              : 'border-slate-700'
           }`}>
-      {/* Comparison Checkbox - Only visible on hover */}
+      {/* Bulk select checkbox - always visible so selected state is clear */}
       {onToggleSelect && (
-        <div className="flex items-center justify-end mb-3 opacity-0 group-hover:opacity-100 transition-opacity" data-no-navigate onClick={(e) => e.stopPropagation()}>
-          <label className="flex items-center gap-2 cursor-pointer">
+        <div className="flex items-center justify-end mb-3" data-no-navigate onClick={(e) => e.stopPropagation()}>
+          <label className={`flex items-center gap-2 cursor-pointer ${isSelected ? 'opacity-100' : 'opacity-80 group-hover:opacity-100'} transition-opacity`}>
             <input
               type="checkbox"
               checked={isSelected || false}
@@ -310,38 +310,38 @@ function DealCardComponent({
                 }
               }}
               disabled={canSelect === false && !isSelected}
-              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={(e) => e.stopPropagation()}
             />
-            <span className="text-xs text-slate-600 font-medium">
+            <span className={`text-xs font-medium ${isSelected ? 'text-emerald-400' : 'text-slate-400'}`}>
               {isSelected ? 'Selected' : 'Select'}
             </span>
           </label>
         </div>
       )}
 
-      {/* Header: Company Name + Verdict */}
-      <div className="flex items-start justify-between mb-4">
+      {/* Header: Company Name + Verdict - title truncates so badge never overlaps */}
+      <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold text-slate-900 mb-1 group-hover:text-emerald-600 transition">
+          <h3 className="text-xl font-bold text-slate-50 mb-2 group-hover:text-emerald-400 transition-colors truncate" title={deal.company_name || 'Untitled Deal'}>
             {deal.company_name || 'Untitled Deal'}
           </h3>
           
           {/* Location + Industry */}
-          <div className="flex items-center gap-2 text-sm text-slate-600">
+          <div className="flex items-center gap-2 text-sm text-slate-400 min-w-0">
             {location && (
               <>
-                <MapPin className="w-4 h-4" />
-                <span>{location}</span>
+                <MapPin className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">{location}</span>
               </>
             )}
-            {deal.industry && location && <span>·</span>}
-            {deal.industry && <span>{deal.industry}</span>}
+            {deal.industry && location && <span className="flex-shrink-0">·</span>}
+            {deal.industry && <span className="truncate">{deal.industry}</span>}
           </div>
         </div>
 
-        {/* Verdict Badge (subtle) */}
-        <div className="flex items-center gap-2">
+        {/* Verdict Badge + menu - fixed width so they never overlap title */}
+        <div className="flex items-center gap-2 flex-shrink-0">
           <VerdictBadge verdict={verdict} size="sm" />
           <div data-no-navigate onClick={(e) => e.stopPropagation()}>
             <MoreActionsMenu
@@ -356,19 +356,19 @@ function DealCardComponent({
 
       {/* Key Metrics Grid */}
       {(askingPrice || ebitda) && (
-        <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-slate-100">
+        <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-slate-700">
           {askingPrice && (
             <div>
               <p className="text-xs text-slate-500 mb-1">Asking Price</p>
-              <p className="text-base font-semibold font-mono text-slate-900">{askingPrice}</p>
+              <p className="text-base font-semibold font-mono text-slate-300">{askingPrice}</p>
             </div>
           )}
           {ebitda && (
             <div>
-              <p className="text-xs text-slate-500 mb-1">
+              <div className="text-xs text-slate-500 mb-1">
                 <JargonTooltip term="EBITDA">EBITDA</JargonTooltip>
-              </p>
-              <p className="text-base font-semibold font-mono text-slate-900">{ebitda}</p>
+              </div>
+              <p className="text-base font-semibold font-mono text-slate-300">{ebitda}</p>
             </div>
           )}
         </div>
@@ -376,7 +376,7 @@ function DealCardComponent({
 
       {/* Next Action (if exists) */}
       {(nextAction || deal.next_action_date) && (
-        <div className="flex items-center gap-2 text-sm text-slate-600 mb-4">
+        <div className="flex items-center gap-2 text-sm text-slate-400 mb-4">
           <Clock className="w-4 h-4" />
           <span>{nextAction || deal.next_action}</span>
           {deal.next_action_date && (
@@ -391,7 +391,7 @@ function DealCardComponent({
 
       {/* Hover Actions */}
       <div className="mt-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition">
-        <button className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">
+        <button className="text-sm text-emerald-400 hover:text-emerald-300 font-medium">
           View Details
         </button>
         {onSaveToggle && (
@@ -400,7 +400,7 @@ function DealCardComponent({
               e.stopPropagation();
               onSaveToggle(deal.id);
             }}
-            className="text-sm text-slate-600 hover:text-slate-700"
+            className="text-sm text-slate-400 hover:text-slate-300"
             data-no-navigate
           >
             {deal.is_saved ? 'Unsave' : 'Save'}
@@ -426,9 +426,9 @@ function DealCardComponent({
           className="block focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 rounded-lg cursor-pointer"
           aria-label={`View details for ${deal.company_name || 'deal'}`}
         >
-          <div className={`bg-white rounded-lg p-4 border border-slate-200 active:bg-slate-50 relative ${
+          <div className={`bg-slate-800 rounded-lg p-4 border border-slate-700 active:bg-slate-700 relative ${
             isSelected 
-              ? 'border-blue-500 border-2 bg-blue-50/30' 
+              ? 'border-emerald-500 border-2 bg-emerald-500/10' 
               : ''
           }`}>
             {/* Comparison Checkbox */}
@@ -445,10 +445,10 @@ function DealCardComponent({
                       }
                     }}
                     disabled={canSelect === false && !isSelected}
-                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-4 w-4 rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={(e) => e.stopPropagation()}
                   />
-                  <span className="text-xs text-slate-600 font-medium">
+                  <span className="text-xs text-slate-400 font-medium">
                     {isSelected ? 'Selected' : 'Select'}
                   </span>
                 </label>
@@ -458,11 +458,11 @@ function DealCardComponent({
             {/* Header: Name + Tier */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1 min-w-0 pr-2">
-                <h3 className="font-semibold text-base truncate text-slate-900 mb-1">
+                <h3 className="font-semibold text-base truncate text-slate-50 mb-1">
                   {deal.company_name || 'Untitled Deal'}
                 </h3>
                 {deal.industry && (
-                  <p className="text-sm text-slate-600 truncate">
+                  <p className="text-sm text-slate-400 truncate">
                     {deal.industry}
                   </p>
                 )}
@@ -480,7 +480,7 @@ function DealCardComponent({
                 {askingPrice && (
                   <div>
                     <p className="text-xs text-slate-500">Asking Price</p>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-slate-300">
                       {formatCurrency(askingPrice)}
                     </p>
                   </div>
@@ -488,7 +488,7 @@ function DealCardComponent({
                 {ebitda && (
                   <div>
                     <p className="text-xs text-slate-500">EBITDA</p>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-slate-300">
                       {formatCurrency(ebitda)}
                     </p>
                   </div>
@@ -499,7 +499,7 @@ function DealCardComponent({
             {/* Badges - horizontal scroll */}
             <div className="flex gap-2 overflow-x-auto pb-2 mb-3 -mx-4 px-4 scrollbar-hide">
               {sbaEligible && (
-                <span className="px-2 py-1 bg-emerald-50 text-emerald-700 text-xs font-medium rounded whitespace-nowrap">
+                <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-medium rounded whitespace-nowrap">
                   SBA Eligible
                 </span>
               )}
@@ -511,7 +511,7 @@ function DealCardComponent({
             
             {/* Next action - condensed */}
             {nextAction && (
-              <div className="flex items-center gap-2 text-xs text-slate-600">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
                 <Clock className="w-3 h-3 flex-shrink-0" />
                 <span className="truncate">{nextAction}</span>
               </div>

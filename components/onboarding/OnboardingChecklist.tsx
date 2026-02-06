@@ -230,10 +230,31 @@ export function OnboardingChecklist() {
     }
   }, [pathname]);
 
+  // Skip checklist: hide permanently for this session and mark complete in DB
+  const handleSkipChecklist = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('onboarding_checklist', JSON.stringify({
+      items: CHECKLIST_ITEMS.map(item => ({ ...item, completed: true })),
+      skipped: true,
+    }));
+    setItems(CHECKLIST_ITEMS.map(item => ({ ...item, completed: true })));
+    setOnboardingCompleted(true);
+    if (user) {
+      const onboardingRepo = new OnboardingRepository(supabase);
+      onboardingRepo.completeOnboarding(user.id).catch(console.error);
+    }
+  }, [user]);
+
   // Don't show if onboarding is marked as completed in database AND progress is 100%
   // But allow showing if checklist was just reset (localStorage cleared)
   const hasChecklistData = typeof window !== 'undefined' && localStorage.getItem('onboarding_checklist');
-  const shouldHide = onboardingCompleted && isComplete && hasChecklistData;
+  const skipped = typeof window !== 'undefined' && (() => {
+    try {
+      const s = localStorage.getItem('onboarding_checklist');
+      return s ? (JSON.parse(s)?.skipped === true) : false;
+    } catch { return false; }
+  })();
+  const shouldHide = (onboardingCompleted && isComplete && hasChecklistData) || skipped;
   
   // Define marketing and public pages where checklist should not show
   // Check if pathname starts with any marketing route to catch nested routes
@@ -268,21 +289,21 @@ export function OnboardingChecklist() {
 
   return (
     <div className="fixed bottom-4 right-4 z-50 max-w-sm">
-      <div className="bg-white rounded-lg shadow-2xl border border-slate-200 overflow-hidden">
+      <div className="bg-slate-800 rounded-lg shadow-2xl border border-slate-700 overflow-hidden">
         {/* Header */}
         <button
           onClick={() => setIsExpanded(!isExpanded)}
-          className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
+          className="w-full flex items-center justify-between p-4 hover:bg-slate-700/50 transition-colors"
         >
           <div className="flex items-center gap-3">
             <div className="flex-1">
-              <h3 className="font-semibold text-slate-900 text-sm">Getting Started</h3>
-              <p className="text-xs text-slate-500">
+              <h3 className="font-semibold text-slate-50 text-sm">Getting Started</h3>
+              <p className="text-xs text-slate-400">
                 {completedCount} of {totalCount} completed
               </p>
             </div>
-            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center">
-              <span className="text-sm font-semibold text-emerald-700">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+              <span className="text-sm font-semibold text-emerald-300">
                 {Math.round(progress)}%
               </span>
             </div>
@@ -295,7 +316,7 @@ export function OnboardingChecklist() {
         </button>
 
         {/* Progress bar */}
-        <div className="h-1 bg-slate-200">
+        <div className="h-1 bg-slate-700">
           <div
             className="h-full bg-emerald-500 transition-all duration-300"
             style={{ width: `${progress}%` }}
@@ -305,23 +326,32 @@ export function OnboardingChecklist() {
         {/* Checklist items */}
         {isExpanded && (
           <div className="max-h-96 overflow-y-auto p-4 space-y-2">
+            <div className="flex justify-end pb-2">
+              <button
+                type="button"
+                onClick={handleSkipChecklist}
+                className="text-xs text-slate-400 hover:text-slate-300 underline transition-colors"
+              >
+                Skip checklist
+              </button>
+            </div>
             {items.map((item) => (
               <div
                 key={item.id}
                 className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
-                  item.completed ? 'bg-emerald-50' : 'hover:bg-slate-50'
+                  item.completed ? 'bg-emerald-500/10' : 'hover:bg-slate-700/50'
                 }`}
               >
                 {item.completed ? (
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+                  <CheckCircle2 className="h-5 w-5 text-emerald-400 flex-shrink-0" />
                 ) : (
-                  <Circle className="h-5 w-5 text-slate-300 flex-shrink-0" />
+                  <Circle className="h-5 w-5 text-slate-500 flex-shrink-0" />
                 )}
                 <span
                   className={`text-sm flex-1 ${
                     item.completed
-                      ? 'text-emerald-700 line-through'
-                      : 'text-slate-700'
+                      ? 'text-emerald-300 line-through'
+                      : 'text-slate-300'
                   }`}
                 >
                   {item.label}

@@ -21,18 +21,18 @@ export function OwnerInterviewQuestions({ questions }: { questions: OwnerQuestio
   }, {} as Record<string, OwnerQuestion[]>);
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-6">
+    <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
       <div className="flex items-center gap-2 mb-4">
-        <MessageSquare className="h-5 w-5 text-slate-600" />
-        <h3 className="text-xl font-semibold text-slate-900">
+        <MessageSquare className="h-5 w-5 text-slate-400" />
+        <h3 className="text-xl font-semibold text-slate-50">
           Suggested Questions for Owner
         </h3>
       </div>
       <div className="space-y-6">
         {Object.entries(grouped).map(([category, categoryQuestions]) => (
           <div key={category}>
-            <h4 className="font-semibold text-slate-900 mb-2">{category}</h4>
-            <ol className="list-decimal list-inside space-y-2 text-sm text-slate-700">
+            <h4 className="font-semibold text-slate-50 mb-2">{category}</h4>
+            <ol className="list-decimal list-inside space-y-2 text-sm text-slate-300">
               {categoryQuestions.map((q, idx) => (
                 <li key={idx} className="pl-2">{q.question}</li>
               ))}

@@ -139,7 +139,7 @@ export default function InvestorDashboardPage() {
     return (
       <>
         <Navigation />
-        <main className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
+        <main className="min-h-screen bg-slate-900 p-4 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {/* Header Skeleton */}
             <div className="mb-8">
@@ -150,7 +150,7 @@ export default function InvestorDashboardPage() {
             {/* Stats Cards Skeleton */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-white rounded-lg border border-slate-200 p-6">
+                <div key={i} className="bg-slate-800 rounded-lg border border-slate-700 p-6">
                   <Skeleton height={16} width="60%" className="mb-2" />
                   <Skeleton height={32} width="40%" />
                 </div>
@@ -158,7 +158,7 @@ export default function InvestorDashboardPage() {
             </div>
             
             {/* Pipeline Chart Skeleton */}
-            <div className="bg-white rounded-lg border border-slate-200 p-6 mb-8">
+            <div className="bg-slate-800 rounded-lg border border-slate-700 p-6 mb-8">
               <Skeleton height={24} width="200px" className="mb-4" />
               <div className="space-y-4">
                 {[1, 2, 3, 4, 5].map((i) => (
@@ -176,7 +176,7 @@ export default function InvestorDashboardPage() {
             {/* Activity Summary Skeleton */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="bg-white rounded-lg border border-slate-200 p-4">
+                <div key={i} className="bg-slate-800 rounded-lg border border-slate-700 p-4">
                   <Skeleton height={14} width="50%" className="mb-2" />
                   <Skeleton height={32} width="30%" />
                 </div>
@@ -184,8 +184,8 @@ export default function InvestorDashboardPage() {
             </div>
             
             {/* Table Skeleton */}
-            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-200">
+            <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-700">
                 <Skeleton height={24} width="200px" />
               </div>
               <div className="p-6">
@@ -215,14 +215,14 @@ export default function InvestorDashboardPage() {
     return (
       <>
         <Navigation />
-        <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <main className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
           <div className="max-w-md w-full text-center">
             <div className="mb-6">
-              <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-slate-900 mb-2">
+              <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold text-slate-50 mb-2">
                 {isServiceRoleError ? 'Unable to Load Dashboard' : 'Error Loading Dashboard'}
               </h2>
-              <p className="text-slate-600 mb-4">
+              <p className="text-slate-400 mb-4">
                 {isServiceRoleError 
                   ? 'We\'re having trouble accessing searcher data. This may be a temporary issue. Please try refreshing or contact support if the problem persists.'
                   : error}
@@ -231,14 +231,14 @@ export default function InvestorDashboardPage() {
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
                 onClick={() => loadDashboard(true)}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="btn-secondary inline-flex items-center justify-center gap-2"
               >
                 <RefreshCw className="h-4 w-4" />
                 Try Again
               </button>
               <button
                 onClick={() => router.push('/dashboard')}
-                className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
+                className="px-4 py-2 bg-slate-700 text-slate-300 rounded-lg hover:bg-slate-600 transition-colors"
               >
                 Go to Dashboard
               </button>
@@ -252,18 +252,18 @@ export default function InvestorDashboardPage() {
   return (
     <>
       <Navigation />
-      <main className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
+      <main className="min-h-screen bg-slate-900 p-4 sm:p-6 lg:p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 mb-2">Investor Dashboard</h1>
-              <p className="text-slate-600">Monitor your portfolio searchers' progress and pipeline</p>
+              <h1 className="text-3xl font-bold text-slate-50 mb-2">Investor Dashboard</h1>
+              <p className="text-slate-400">Monitor your portfolio searchers' progress and pipeline</p>
             </div>
             <div className="flex gap-3 flex-wrap">
               <button
                 onClick={() => loadDashboard(true)}
                 disabled={loading || refreshing}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-slate-800 text-slate-300 rounded-lg hover:bg-slate-700 border border-slate-700 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Refresh dashboard data"
               >
                 <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
@@ -271,7 +271,7 @@ export default function InvestorDashboardPage() {
               </button>
               <button
                 onClick={() => setShowLinkModal(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                className="btn-secondary text-sm font-medium"
               >
                 Link Searcher
               </button>
@@ -281,16 +281,16 @@ export default function InvestorDashboardPage() {
           </div>
           
           {error && dashboardData && (
-            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div className="mb-6 p-4 bg-amber-950/20 border border-amber-500/30 rounded-lg flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm text-yellow-800 font-medium mb-1">Partial data loaded</p>
-                <p className="text-sm text-yellow-700">{error}</p>
+                <p className="text-sm text-amber-400 font-medium mb-1">Partial data loaded</p>
+                <p className="text-sm text-slate-300">{error}</p>
               </div>
               <button
                 onClick={() => loadDashboard(true)}
                 disabled={refreshing}
-                className="text-sm text-yellow-800 hover:text-yellow-900 underline disabled:opacity-50"
+                className="text-sm text-amber-400 hover:text-amber-300 underline disabled:opacity-50"
               >
                 {refreshing ? 'Retrying...' : 'Retry'}
               </button>

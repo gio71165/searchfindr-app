@@ -21,6 +21,7 @@ import {
 import { supabase } from '@/app/supabaseClient';
 import { showToast } from '@/components/ui/Toast';
 import { BrokerDetailModal } from './BrokerDetailModal';
+import { AddBrokerModal } from './AddBrokerModal';
 import { LogInteractionModal } from './LogInteractionModal';
 
 interface Broker {
@@ -151,17 +152,17 @@ export function BrokerDashboard() {
 
   const renderStars = (rating: number | null | undefined) => {
     if (!rating) return <span className="text-slate-400 text-sm">Not rated</span>;
-    return (
-      <div className="flex items-center gap-1">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Star
-            key={star}
-            className={`h-4 w-4 ${
-              star <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-slate-300'
-            }`}
-          />
-        ))}
-        <span className="text-sm text-slate-600 ml-1">({rating})</span>
+        return (
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map((star) => (
+              <Star
+                key={star}
+                className={`h-4 w-4 ${
+                  star <= rating ? 'fill-amber-400 text-amber-400' : 'text-slate-600'
+                }`}
+              />
+            ))}
+            <span className="text-sm text-slate-500 ml-1">({rating})</span>
       </div>
     );
   };
@@ -182,30 +183,41 @@ export function BrokerDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Broker CRM</h1>
-          <p className="text-sm text-slate-600 mt-1">
-            Track broker relationships and performance
+          <h1 className="text-2xl font-bold text-slate-50">Brokers</h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Track and manage your broker relationships
           </p>
         </div>
+        <button
+          onClick={() => {
+            setSelectedBroker(null);
+            setShowDetailModal(true);
+          }}
+          className="btn-primary flex items-center gap-2"
+          aria-label="Add new broker"
+        >
+          <Users className="w-4 h-4" />
+          Add Broker
+        </button>
       </div>
 
       {/* Stats Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white border rounded-lg p-4">
-          <div className="text-sm text-slate-600">Total Brokers</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">{brokers.length}</div>
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+          <div className="text-sm text-slate-400">Total Brokers</div>
+          <div className="text-2xl font-bold text-slate-50 mt-1">{brokers.length}</div>
         </div>
-        <div className="bg-white border rounded-lg p-4">
-          <div className="text-sm text-slate-600">Total Deals</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+          <div className="text-sm text-slate-400">Total Deals</div>
+          <div className="text-2xl font-bold text-slate-50 mt-1">
             {brokers.reduce((sum, b) => sum + (b.deals_received || 0), 0)}
           </div>
         </div>
-        <div className="bg-white border rounded-lg p-4">
-          <div className="text-sm text-slate-600">Avg Proceed Rate</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+          <div className="text-sm text-slate-400">Avg Proceed Rate</div>
+          <div className="text-2xl font-bold text-slate-50 mt-1">
             {brokers.length > 0
               ? Math.round(
                   brokers.reduce((sum, b) => sum + calculateProceedRate(b), 0) / brokers.length
@@ -213,9 +225,9 @@ export function BrokerDashboard() {
               : 0}%
           </div>
         </div>
-        <div className="bg-white border rounded-lg p-4">
-          <div className="text-sm text-slate-600">Avg Win Rate</div>
-          <div className="text-2xl font-bold text-slate-900 mt-1">
+        <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
+          <div className="text-sm text-slate-400">Avg Win Rate</div>
+          <div className="text-2xl font-bold text-slate-50 mt-1">
             {brokers.length > 0
               ? Math.round(
                   brokers.reduce((sum, b) => sum + calculateWinRate(b), 0) / brokers.length
@@ -226,99 +238,99 @@ export function BrokerDashboard() {
       </div>
 
       {/* Brokers Table */}
-      <div className="bg-white border rounded-lg overflow-hidden">
+      <div className="bg-slate-800 border border-slate-700 rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-slate-50 border-b">
+            <thead className="bg-slate-900 border-b border-slate-700">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">
                   <button
                     onClick={() => handleSort('name')}
-                    className="flex items-center gap-1 hover:text-slate-900"
+                    className="flex items-center gap-1 hover:text-slate-50"
                   >
                     Name
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">
                   <button
                     onClick={() => handleSort('firm')}
-                    className="flex items-center gap-1 hover:text-slate-900"
+                    className="flex items-center gap-1 hover:text-slate-50"
                   >
                     Company
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase">
                   <button
                     onClick={() => handleSort('deals_received')}
-                    className="flex items-center gap-1 hover:text-slate-900 ml-auto"
+                    className="flex items-center gap-1 hover:text-slate-50 ml-auto"
                   >
                     Deals Received
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase">
                   <button
                     onClick={() => handleSort('proceed_rate')}
-                    className="flex items-center gap-1 hover:text-slate-900 ml-auto"
+                    className="flex items-center gap-1 hover:text-slate-50 ml-auto"
                   >
                     Proceed Rate
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase">
+                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-400 uppercase">
                   <button
                     onClick={() => handleSort('win_rate')}
-                    className="flex items-center gap-1 hover:text-slate-900 ml-auto"
+                    className="flex items-center gap-1 hover:text-slate-50 ml-auto"
                   >
                     Win Rate
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700 uppercase">
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-400 uppercase">
                   <button
                     onClick={() => handleSort('avg_deal_quality')}
-                    className="flex items-center gap-1 hover:text-slate-900 mx-auto"
+                    className="flex items-center gap-1 hover:text-slate-50 mx-auto"
                   >
                     Avg Quality
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">
+                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-400 uppercase">
                   <button
                     onClick={() => handleSort('last_contact_date')}
-                    className="flex items-center gap-1 hover:text-slate-900"
+                    className="flex items-center gap-1 hover:text-slate-50"
                   >
                     Last Contact
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-700 uppercase">
+                <th className="px-4 py-3 text-center text-xs font-semibold text-slate-400 uppercase">
                   Actions
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
+            <tbody className="divide-y divide-slate-700">
               {sortedBrokers.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-8 text-center text-slate-500">
+                  <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
                     No brokers found. Add brokers from deal pages.
                   </td>
                 </tr>
               ) : (
                 sortedBrokers.map((broker) => (
-                  <tr key={broker.id} className="hover:bg-slate-50">
+                  <tr key={broker.id} className="hover:bg-slate-700/50">
                     <td className="px-4 py-3">
-                      <div className="font-medium text-slate-900">{broker.name}</div>
+                      <div className="font-medium text-slate-50">{broker.name}</div>
                       {broker.rating && (
                         <div className="mt-1">{renderStars(broker.rating)}</div>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-slate-400">
                       {broker.firm || '-'}
                     </td>
-                    <td className="px-4 py-3 text-right text-slate-900">
+                    <td className="px-4 py-3 text-right text-slate-50">
                       {broker.deals_received || 0}
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -344,7 +356,7 @@ export function BrokerDashboard() {
                     <td className="px-4 py-3 text-center">
                       {broker.avg_deal_quality ? renderStars(Math.round(broker.avg_deal_quality)) : '-'}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-slate-400">
                       {formatDate(broker.last_contact_date)}
                     </td>
                     <td className="px-4 py-3">
@@ -354,7 +366,7 @@ export function BrokerDashboard() {
                             setSelectedBroker(broker);
                             setShowDetailModal(true);
                           }}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-blue-400 transition-colors"
                           title="View Details"
                         >
                           <Eye className="h-4 w-4" />
@@ -364,7 +376,7 @@ export function BrokerDashboard() {
                             setSelectedBroker(broker);
                             setShowInteractionModal(true);
                           }}
-                          className="p-1.5 text-slate-400 hover:text-emerald-600 transition-colors"
+                          className="p-1.5 text-slate-400 hover:text-emerald-400 transition-colors"
                           title="Log Interaction"
                         >
                           <MessageSquare className="h-4 w-4" />
@@ -380,6 +392,15 @@ export function BrokerDashboard() {
       </div>
 
       {/* Modals */}
+      {showDetailModal && !selectedBroker && (
+        <AddBrokerModal
+          onClose={() => setShowDetailModal(false)}
+          onSuccess={() => {
+            setShowDetailModal(false);
+            loadBrokers();
+          }}
+        />
+      )}
       {showDetailModal && selectedBroker && (
         <BrokerDetailModal
           broker={selectedBroker}

@@ -78,8 +78,8 @@ export function StrengthsPanel({ deal, financialAnalysis }: { deal: Deal; financ
   
   if (uniqueStrengths.length === 0) {
     return (
-      <div className="bg-white border-2 border-emerald-200 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
-        <div className="text-sm text-slate-600">
+      <div className="bg-slate-800 border-2 border-emerald-500/30 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
+        <div className="text-sm text-slate-400">
           No specific strengths identified yet. Run analysis to generate strengths.
         </div>
       </div>
@@ -87,18 +87,18 @@ export function StrengthsPanel({ deal, financialAnalysis }: { deal: Deal; financ
   }
 
   return (
-    <div className="bg-white border-2 border-emerald-200 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
+    <div className="bg-slate-800 border-2 border-emerald-500/30 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
       <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 bg-emerald-50 rounded-lg">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+        <div className="p-2 bg-emerald-500/10 rounded-lg">
+          <CheckCircle2 className="w-5 h-5 text-emerald-400" />
         </div>
-        <h3 className="text-lg font-semibold text-slate-900">Key Strengths</h3>
+        <h3 className="text-lg font-semibold text-slate-50">Key Strengths</h3>
       </div>
       <div className="space-y-2">
         {uniqueStrengths.map((strength, idx) => (
-          <div key={idx} className="flex items-start gap-2 bg-slate-50 rounded-lg p-3 border border-emerald-200 hover:bg-slate-100 transition-colors">
+          <div key={idx} className="flex items-start gap-2 bg-slate-800/50 rounded-lg p-3 border border-slate-700 hover:bg-slate-700/50 transition-colors">
             <div className="w-2 h-2 bg-emerald-500 rounded-full mt-2 flex-shrink-0" />
-            <p className="text-slate-900 text-sm leading-relaxed">{strength}</p>
+            <p className="text-slate-50 text-sm leading-relaxed">{strength}</p>
           </div>
         ))}
       </div>

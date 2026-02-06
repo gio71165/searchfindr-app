@@ -165,16 +165,16 @@ export function FinancialTable({ table }: FinancialTableProps) {
   });
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-6">
+    <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-slate-900">{table.table_name}</h3>
-          <p className="text-sm text-slate-600 capitalize">{table.table_type.replace('_', ' ')}</p>
+          <h3 className="text-lg font-semibold text-slate-50">{table.table_name}</h3>
+          <p className="text-sm text-slate-400 capitalize">{table.table_type.replace('_', ' ')}</p>
         </div>
         <button
           onClick={handleExportCSV}
-          className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+          className="flex items-center gap-2 rounded-lg border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 hover:bg-slate-700 transition-colors"
         >
           <Download className="h-4 w-4" />
           Export CSV
@@ -191,7 +191,7 @@ export function FinancialTable({ table }: FinancialTableProps) {
             placeholder="Search accounts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-slate-300 bg-white py-2 pl-10 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="w-full rounded-lg border border-slate-600 bg-slate-900 py-2 pl-10 pr-4 text-sm text-slate-50 placeholder-slate-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
           />
           {searchQuery && (
             <button
@@ -207,7 +207,7 @@ export function FinancialTable({ table }: FinancialTableProps) {
         <select
           value={selectedYear || ''}
           onChange={(e) => setSelectedYear(e.target.value || null)}
-          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-50 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
         >
           <option value="">All Years</option>
           {sortedYears.map((year) => (
@@ -222,28 +222,28 @@ export function FinancialTable({ table }: FinancialTableProps) {
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
+            <tr className="border-b border-slate-700 bg-slate-900/50">
               <th className="px-4 py-3 text-left">
                 <button
                   onClick={() => handleSort('account_name')}
-                  className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-700 hover:text-slate-900"
+                  className="flex items-center gap-2 text-xs font-semibold uppercase text-slate-300 hover:text-slate-50"
                 >
                   Account Name
-                  <ArrowUpDown className={`h-3 w-3 ${sortField === 'account_name' ? 'text-blue-600' : 'text-slate-400'}`} />
+                  <ArrowUpDown className={`h-3 w-3 ${sortField === 'account_name' ? 'text-emerald-400' : 'text-slate-400'}`} />
                 </button>
               </th>
               {sortedYears.map((year, idx) => {
                 const prevYear = idx < sortedYears.length - 1 ? sortedYears[idx + 1] : null;
                 return (
                   <th key={year} className="px-4 py-3 text-right">
-                    <div className="text-xs font-semibold uppercase text-slate-700">{year}</div>
+                    <div className="text-xs font-semibold uppercase text-slate-300">{year}</div>
                     {prevYear && (
                       <div className="text-xs font-normal text-slate-500">vs {prevYear}</div>
                     )}
                   </th>
                 );
               })}
-              <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-slate-700">Unit</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold uppercase text-slate-300">Unit</th>
             </tr>
           </thead>
           <tbody>
@@ -257,10 +257,10 @@ export function FinancialTable({ table }: FinancialTableProps) {
               filteredAndSortedRows.map((row, rowIdx) => (
                 <tr
                   key={rowIdx}
-                  className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                  className="border-b border-slate-700 hover:bg-slate-700/30 transition-colors"
                 >
                   <td className="px-4 py-3">
-                    <div className="font-medium text-slate-900">{row.account_name}</div>
+                    <div className="font-medium text-slate-50">{row.account_name}</div>
                     {row.account_category && (
                       <div className="text-xs text-slate-500">{row.account_category}</div>
                     )}
@@ -272,11 +272,11 @@ export function FinancialTable({ table }: FinancialTableProps) {
                     
                     return (
                       <td key={year} className="px-4 py-3 text-right">
-                        <div className="font-medium text-slate-900">
+                        <div className="font-medium text-slate-50">
                           {formatValue(value as number | null, row.unit)}
                         </div>
                         {yoYChange && (
-                          <div className={`text-xs ${yoYChange.startsWith('+') ? 'text-emerald-600' : yoYChange.startsWith('-') ? 'text-red-600' : 'text-slate-500'}`}>
+                          <div className={`text-xs ${yoYChange.startsWith('+') ? 'text-emerald-400' : yoYChange.startsWith('-') ? 'text-red-400' : 'text-slate-500'}`}>
                             {yoYChange}
                           </div>
                         )}

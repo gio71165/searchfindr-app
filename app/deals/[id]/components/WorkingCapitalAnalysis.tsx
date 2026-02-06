@@ -120,10 +120,10 @@ export function WorkingCapitalAnalysis({ deal }: { deal: Deal | null }) {
   const currentWC = currentAssets - currentLiabilities;
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-6">
+    <div className="rounded-xl border border-slate-700 bg-slate-800 p-6">
       <div className="flex items-center gap-2 mb-4">
-        <DollarSign className="h-5 w-5 text-slate-600" />
-        <h3 className="text-xl font-semibold text-slate-900">
+        <DollarSign className="h-5 w-5 text-slate-400" />
+        <h3 className="text-xl font-semibold text-slate-50">
           <JargonTooltip term="Working Capital">Working Capital</JargonTooltip> Analysis
         </h3>
       </div>
@@ -131,67 +131,67 @@ export function WorkingCapitalAnalysis({ deal }: { deal: Deal | null }) {
       {/* Input Fields */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Accounts Receivable ($)
           </label>
           <input
             type="number"
             value={inputs.accountsReceivable || ''}
             onChange={(e) => setInputs({ ...inputs, accountsReceivable: parseFloat(e.target.value) || 0 })}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Inventory ($)
           </label>
           <input
             type="number"
             value={inputs.inventory || ''}
             onChange={(e) => setInputs({ ...inputs, inventory: parseFloat(e.target.value) || 0 })}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Prepaid Expenses ($)
           </label>
           <input
             type="number"
             value={inputs.prepaidExpenses || ''}
             onChange={(e) => setInputs({ ...inputs, prepaidExpenses: parseFloat(e.target.value) || 0 })}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Accounts Payable ($)
           </label>
           <input
             type="number"
             value={inputs.accountsPayable || ''}
             onChange={(e) => setInputs({ ...inputs, accountsPayable: parseFloat(e.target.value) || 0 })}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Accrued Expenses ($)
           </label>
           <input
             type="number"
             value={inputs.accruedExpenses || ''}
             onChange={(e) => setInputs({ ...inputs, accruedExpenses: parseFloat(e.target.value) || 0 })}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Annual Revenue ($)
           </label>
           <input
@@ -199,12 +199,12 @@ export function WorkingCapitalAnalysis({ deal }: { deal: Deal | null }) {
             value={inputs.annualRevenue || ''}
             onChange={(e) => setInputs({ ...inputs, annualRevenue: parseFloat(e.target.value) || 0 })}
             placeholder={estimatedRevenue > 0 ? estimatedRevenue.toLocaleString() : 'Enter annual revenue'}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">
+          <label className="block text-xs font-medium text-slate-400 mb-1">
             Industry
           </label>
           <input
@@ -212,7 +212,7 @@ export function WorkingCapitalAnalysis({ deal }: { deal: Deal | null }) {
             value={inputs.industry || ''}
             onChange={(e) => setInputs({ ...inputs, industry: e.target.value })}
             placeholder={deal?.industry || 'Enter industry'}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-700 bg-slate-900 text-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
         </div>
       </div>
@@ -220,7 +220,7 @@ export function WorkingCapitalAnalysis({ deal }: { deal: Deal | null }) {
       <button
         onClick={handleCalculate}
         disabled={calculating || !inputs.annualRevenue || !inputs.industry}
-        className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-4"
+        className="btn-secondary w-full flex items-center justify-center gap-2 mb-4 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {calculating ? (
           <>
@@ -243,13 +243,13 @@ export function WorkingCapitalAnalysis({ deal }: { deal: Deal | null }) {
 
       {/* Current WC Breakdown Visualization */}
       {!result && (currentAssets > 0 || currentLiabilities > 0) && (
-        <div className="mb-4 p-4 rounded-lg bg-white border border-slate-200">
-          <h4 className="text-sm font-semibold text-slate-900 mb-3">Current Working Capital Breakdown</h4>
+        <div className="mb-4 p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+          <h4 className="text-sm font-semibold text-slate-50 mb-3">Current Working Capital Breakdown</h4>
           <div className="space-y-3">
             <div>
               <div className="flex justify-between text-sm mb-1">
-                <span className="text-slate-600 font-medium">Current Assets</span>
-                <span className="font-semibold text-slate-900">{formatCurrency(currentAssets)}</span>
+                <span className="text-slate-400 font-medium">Current Assets</span>
+                <span className="font-semibold text-slate-50">{formatCurrency(currentAssets)}</span>
               </div>
               <div className="grid grid-cols-3 gap-2 text-xs text-slate-500 pl-2">
                 <div>AR: {formatCurrency(inputs.accountsReceivable || 0)}</div>
@@ -259,16 +259,16 @@ export function WorkingCapitalAnalysis({ deal }: { deal: Deal | null }) {
             </div>
             <div>
               <div className="flex justify-between text-sm mb-1">
-                <span className="text-slate-600 font-medium">Current Liabilities</span>
-                <span className="font-semibold text-slate-900">{formatCurrency(currentLiabilities)}</span>
+                <span className="text-slate-400 font-medium">Current Liabilities</span>
+                <span className="font-semibold text-slate-50">{formatCurrency(currentLiabilities)}</span>
               </div>
               <div className="grid grid-cols-2 gap-2 text-xs text-slate-500 pl-2">
                 <div>AP: {formatCurrency(inputs.accountsPayable || 0)}</div>
                 <div>Accrued: {formatCurrency(inputs.accruedExpenses || 0)}</div>
               </div>
             </div>
-            <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
-              <span className="text-sm font-semibold text-slate-900">Current WC:</span>
+            <div className="pt-2 border-t border-slate-700 flex justify-between items-center">
+              <span className="text-sm font-semibold text-slate-50">Current WC:</span>
               <span className={`text-lg font-bold ${currentWC >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                 {formatCurrency(currentWC)}
               </span>
@@ -299,9 +299,9 @@ export function WorkingCapitalAnalysis({ deal }: { deal: Deal | null }) {
 
           {/* Current vs Target WC */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 rounded-lg bg-white border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">Current Working Capital</p>
-              <p className="text-2xl font-semibold text-slate-900 mb-1">
+            <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">Current Working Capital</p>
+              <p className="text-2xl font-semibold text-slate-50 mb-1">
                 {formatCurrency(result.currentWorkingCapital)}
               </p>
               <p className="text-xs text-slate-500">
@@ -309,9 +309,9 @@ export function WorkingCapitalAnalysis({ deal }: { deal: Deal | null }) {
               </p>
             </div>
 
-            <div className="p-4 rounded-lg bg-white border border-slate-200">
-              <p className="text-xs text-slate-600 mb-1">Target Working Capital</p>
-              <p className="text-2xl font-semibold text-slate-900 mb-1">
+            <div className="p-4 rounded-lg bg-slate-800/50 border border-slate-700">
+              <p className="text-xs text-slate-400 mb-1">Target Working Capital</p>
+              <p className="text-2xl font-semibold text-slate-50 mb-1">
                 {formatCurrency(result.normalizedWorkingCapital)}
               </p>
               <p className="text-xs text-slate-500">
@@ -326,7 +326,7 @@ export function WorkingCapitalAnalysis({ deal }: { deal: Deal | null }) {
               ? 'bg-blue-50 border-blue-300'
               : result.adjustmentDirection === 'buyer_credit'
                 ? 'bg-orange-50 border-orange-300'
-                : 'bg-slate-50 border-slate-300'
+                : 'bg-slate-800 border-slate-600'
           }`}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
@@ -335,15 +335,15 @@ export function WorkingCapitalAnalysis({ deal }: { deal: Deal | null }) {
                 ) : result.adjustmentDirection === 'buyer_credit' ? (
                   <TrendingDown className="h-5 w-5 text-orange-600" />
                 ) : (
-                  <CheckCircle2 className="h-5 w-5 text-slate-600" />
+                  <CheckCircle2 className="h-5 w-5 text-emerald-400" />
                 )}
-                <h4 className="font-semibold text-slate-900">Estimated Adjustment at Close</h4>
+                <h4 className="font-semibold text-slate-50">Estimated Adjustment at Close</h4>
               </div>
             </div>
-            <p className="text-2xl font-bold mb-2">
+            <p className="text-2xl font-bold text-slate-50 mb-2">
               {formatCurrency(Math.abs(result.estimatedWCAdjustment))}
             </p>
-            <p className="text-sm text-slate-700">
+            <p className="text-sm text-slate-300">
               {result.adjustmentDirection === 'buyer_debit' 
                 ? 'Buyer owes seller (WC above target)'
                 : result.adjustmentDirection === 'buyer_credit'
@@ -354,11 +354,11 @@ export function WorkingCapitalAnalysis({ deal }: { deal: Deal | null }) {
 
           {/* Recommendations */}
           {result.recommendations.length > 0 && (
-            <div className="p-4 rounded-lg bg-slate-100 border border-slate-200">
-              <h4 className="font-semibold text-slate-900 mb-2">Recommendations</h4>
+            <div className="p-4 rounded-lg bg-slate-700/50 border border-slate-700">
+              <h4 className="font-semibold text-slate-50 mb-2">Recommendations</h4>
               <ul className="list-disc list-inside space-y-1">
                 {result.recommendations.map((rec, idx) => (
-                  <li key={idx} className="text-sm text-slate-700">{rec}</li>
+                  <li key={idx} className="text-sm text-slate-300">{rec}</li>
                 ))}
               </ul>
             </div>

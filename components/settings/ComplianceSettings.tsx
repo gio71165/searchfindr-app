@@ -214,12 +214,12 @@ export function ComplianceSettings() {
 
   if (isLoading) {
     return (
-      <div className="p-6 bg-slate-50 rounded-lg border border-slate-200">
-        <h3 className="font-semibold text-slate-900 mb-2">SBA Compliance</h3>
+      <div className="p-6 bg-slate-800/50 rounded-lg border border-slate-600">
+        <h3 className="font-semibold text-slate-50 mb-2">SBA Compliance</h3>
         <div className="flex items-center justify-center py-8">
           <div className="text-center">
             <LoadingSpinner size="md" className="mb-2" />
-            <p className="text-sm text-slate-600">Loading...</p>
+            <p className="text-sm text-slate-400">Loading...</p>
           </div>
         </div>
       </div>
@@ -227,14 +227,14 @@ export function ComplianceSettings() {
   }
 
   return (
-    <div className="p-6 bg-slate-50 rounded-lg border border-slate-200">
-      <h3 className="font-semibold text-slate-900 mb-2">SBA Compliance</h3>
-      <p className="text-sm text-slate-600 mb-4">
+    <div className="p-6 bg-slate-800/50 rounded-lg border border-slate-600">
+      <h3 className="font-semibold text-slate-50 mb-2">SBA Compliance</h3>
+      <p className="text-sm text-slate-400 mb-4">
         SBA 7(a) loans require 100% U.S. ownership. All investors must be U.S. citizens or permanent residents.
       </p>
       
       {loadError && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+        <div className="mb-4 p-3 bg-red-950/30 border border-red-500/40 rounded-md text-red-300 text-sm">
           {loadError}
           <button 
             onClick={() => window.location.reload()} 
@@ -253,11 +253,11 @@ export function ComplianceSettings() {
             checked={isCitizenOrResident}
             onChange={(e) => handleCitizenResidentChange(e.target.checked)}
             disabled={isLoading || isSaving}
-            className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
+            className="mt-1 h-4 w-4 text-blue-500 focus:ring-blue-500 border-slate-500 rounded bg-slate-800"
           />
           <label 
             htmlFor="is-citizen-resident" 
-            className="text-sm text-slate-700 cursor-pointer"
+            className="text-sm text-slate-300 cursor-pointer"
           >
             I am a U.S. citizen or permanent resident
           </label>
@@ -270,22 +270,22 @@ export function ComplianceSettings() {
             checked={isSbaCompliant}
             onChange={(e) => handleSbaComplianceChange(e.target.checked)}
             disabled={isLoading || isSaving}
-            className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-slate-300 rounded"
+            className="mt-1 h-4 w-4 text-blue-500 focus:ring-blue-500 border-slate-500 rounded bg-slate-800"
           />
           <label 
             htmlFor="sba-compliant" 
-            className="text-sm text-slate-700 cursor-pointer"
+            className="text-sm text-slate-300 cursor-pointer"
           >
             All investors are U.S. citizens or permanent residents (SBA compliant)
           </label>
         </div>
 
         {!isSbaCompliant && (
-          <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-            <p className="text-sm text-yellow-800">
+          <div className="bg-amber-950/30 border border-amber-500/40 p-4 rounded-lg">
+            <p className="text-sm text-amber-200">
               ⚠️ <strong>Warning:</strong> SBA 7(a) loans require 100% U.S. ownership. Your current investor structure may not qualify. Consider conventional financing.
             </p>
-            <p className="text-xs text-yellow-700 mt-2">
+            <p className="text-xs text-amber-200/80 mt-2">
               Deals will default to Conventional financing in your models when this setting is unchecked.
             </p>
           </div>

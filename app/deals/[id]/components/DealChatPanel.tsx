@@ -354,24 +354,24 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
   // Chat is always available now
 
   const chatContent = (
-    <div className="flex flex-col h-full bg-white border-l border-slate-200 shadow-lg">
+    <div className="flex flex-col h-full bg-slate-950 border-l border-slate-800">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-200">
+      <div className="flex items-center justify-between p-4 border-b border-slate-800">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">AI Assistant</h2>
-          <p className="text-xs text-slate-600">Ask about this deal</p>
+          <h2 className="text-lg font-semibold text-slate-50">Deal Assistant</h2>
+          <p className="text-xs text-slate-500 mt-1">Ask questions about this deal</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={handleClearChat}
-            className="text-xs text-slate-600 hover:text-slate-900 underline"
+            className="text-xs text-slate-400 hover:text-slate-300 underline"
           >
             Clear
           </button>
           {isMobile && (
             <button
               onClick={() => setIsMobileDrawerOpen(false)}
-              className="p-1.5 rounded-lg hover:bg-slate-100"
+              className="p-1.5 rounded-lg hover:bg-slate-800"
             >
               <X className="h-4 w-4" />
             </button>
@@ -394,15 +394,15 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
               className={`flex items-start gap-2 ${isUser ? "justify-end" : "justify-start"}`}
             >
               {!isUser && (
-                <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-                  <Bot className="h-3 w-3 text-slate-600" />
+                <div className="h-6 w-6 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                  <Bot className="h-3 w-3 text-emerald-400" />
                 </div>
               )}
               <div
                 className={`group relative max-w-[85%] rounded-lg px-3 py-2 ${
                   isUser
-                    ? "bg-blue-600 text-white"
-                    : "bg-slate-100 text-slate-900"
+                    ? "bg-emerald-600 text-white"
+                    : "bg-slate-800 text-slate-300"
                 }`}
               >
                 <p className="whitespace-pre-line text-xs leading-relaxed">{m.content}</p>
@@ -412,7 +412,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
                   </span>
                   <button
                     onClick={() => copyMessage(m.content, msgId)}
-                    className="p-0.5 rounded hover:bg-slate-200 transition-colors"
+                    className="p-0.5 rounded hover:bg-slate-700 transition-colors"
                     title="Copy"
                   >
                     <Copy className="h-2.5 w-2.5" />
@@ -425,8 +425,8 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
                 )}
               </div>
               {isUser && (
-                <div className="h-6 w-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <User className="h-3 w-3 text-blue-600" />
+                <div className="h-6 w-6 rounded-full bg-emerald-600 flex items-center justify-center flex-shrink-0">
+                  <User className="h-3 w-3 text-white" />
                 </div>
               )}
             </div>
@@ -434,11 +434,11 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
         })}
         {sending && (
           <div className="flex items-start gap-2">
-            <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
-              <Bot className="h-3 w-3 text-slate-600" />
+            <div className="h-6 w-6 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+              <Bot className="h-3 w-3 text-emerald-400" />
             </div>
-            <div className="bg-slate-100 rounded-lg px-3 py-2">
-              <div className="flex items-center gap-2 text-xs text-slate-600">
+            <div className="bg-slate-800 rounded-lg px-3 py-2">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
                 <LoadingSpinner size="sm" />
                 <span>Analyzing...</span>
               </div>
@@ -450,13 +450,13 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
 
       {/* Error */}
       {err && (
-        <div className="px-4 py-2 border-t border-slate-200 bg-red-50">
-          <p className="text-xs text-red-700">{err}</p>
+        <div className="px-4 py-2 border-t border-slate-800 bg-red-950/20">
+          <p className="text-xs text-red-400">{err}</p>
         </div>
       )}
 
       {/* Input */}
-      <div className="border-t border-slate-200 bg-white p-4">
+      <div className="border-t border-slate-800 p-4">
         {/* Prompt Chips */}
         {corePrompts.length > 0 && (
           <div className="flex gap-2 flex-wrap mb-2">
@@ -465,7 +465,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
                 key={idx}
                 onClick={() => onClickPrompt(prompt)}
                 disabled={sending}
-                className="px-3 py-2.5 text-xs rounded-full border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors min-h-[44px]"
+                className="px-3 py-2.5 text-xs rounded-full border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 disabled:opacity-50 transition-colors min-h-[44px]"
               >
                 {prompt.text}
               </button>
@@ -493,7 +493,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
             }}
             disabled={sending}
             placeholder="Ask about this deal..."
-            className="flex-1 min-h-[60px] px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 resize-none"
+            className="flex-1 min-h-[60px] px-3 py-2 text-xs rounded-lg border border-slate-700 bg-slate-900 text-slate-300 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 disabled:opacity-50 resize-none"
             rows={2}
           />
           <button
@@ -504,7 +504,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
               }
             }}
             disabled={sending || !input.trim()}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            className="btn-secondary flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {sending ? (
               <LoadingSpinner size="sm" />
@@ -538,7 +538,7 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
       {!isMobileDrawerOpen && (
         <button
           onClick={() => setIsMobileDrawerOpen(true)}
-          className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg flex items-center justify-center transition-colors"
+          className="btn-secondary fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full shadow-lg flex items-center justify-center"
         >
           <MessageCircle className="h-6 w-6" />
         </button>

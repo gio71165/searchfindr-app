@@ -199,7 +199,7 @@ export function SavedFilters({ onLoadFilter, currentFilters }: SavedFiltersProps
             <div className="flex items-center gap-2">
               <button
                 onClick={handleSaveCurrent}
-                className="flex-1 px-3 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                className="btn-secondary flex-1"
               >
                 Save
               </button>

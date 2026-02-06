@@ -75,13 +75,6 @@ export async function POST(req: NextRequest) {
       return json({ error: "Invalid API key" }, 401);
     }
 
-    if (error || !keyRecord) {
-      logger.warn("API key verification failed: key not found", {
-        keyPrefix: apiKey.substring(0, 12),
-      });
-      return json({ error: "Invalid API key" }, 401);
-    }
-
     // Check if revoked
     if (keyRecord.revoked_at) {
       logger.warn("API key verification failed: key revoked", {

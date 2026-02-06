@@ -185,7 +185,7 @@ export function SearcherDetailClient({ searcherId, workspaceId, investorId }: Se
         <p className="text-red-700 mb-4">{error}</p>
         <button
           onClick={loadData}
-          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          className="btn-danger"
         >
           Retry
         </button>
@@ -224,7 +224,7 @@ export function SearcherDetailClient({ searcherId, workspaceId, investorId }: Se
           <AsyncButton
             onClick={() => handleGenerateReport('weekly')}
             isLoading={generatingReport}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="btn-secondary inline-flex items-center gap-2"
           >
             <Download className="h-4 w-4" />
             Weekly Report
@@ -232,7 +232,7 @@ export function SearcherDetailClient({ searcherId, workspaceId, investorId }: Se
           <AsyncButton
             onClick={() => handleGenerateReport('monthly')}
             isLoading={generatingReport}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="btn-secondary inline-flex items-center gap-2"
           >
             <Calendar className="h-4 w-4" />
             Monthly Report

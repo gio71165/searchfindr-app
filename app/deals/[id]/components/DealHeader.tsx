@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Download } from 'lucide-react';
+import { Download, FileText } from 'lucide-react';
 import { SourceBadge } from './SourceBadge';
 import { TierBadge } from './TierBadge';
 import { ConfidencePill } from './ConfidencePill';
@@ -22,9 +22,9 @@ function VerdictBadge({ verdict }: { verdict: string | null }) {
   if (!verdict) return null;
   
   const config = {
-    proceed: { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'Proceed' },
-    park: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Parked' },
-    pass: { bg: 'bg-slate-100', text: 'text-slate-800', label: 'Passed' }
+    proceed: { bg: 'bg-emerald-500/20', text: 'text-emerald-300', label: 'Proceed' },
+    park: { bg: 'bg-blue-500/20', text: 'text-blue-300', label: 'Parked' },
+    pass: { bg: 'bg-slate-600/50', text: 'text-slate-300', label: 'Passed' }
   };
   
   const normalizedVerdict = verdict.toLowerCase();
@@ -59,8 +59,10 @@ export function DealHeader({
   const [isDeleting, setIsDeleting] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
   const [isExportingPDF, setIsExportingPDF] = useState(false);
+  const [loadingCimPreview, setLoadingCimPreview] = useState(false);
   
   const isArchived = Boolean(deal.archived_at);
+  const showViewCimPdf = deal?.source_type === 'cim_pdf' && !!(deal as any).cim_storage_path;
   
   const isTierSource = deal?.source_type === 'on_market' || deal?.source_type === 'off_market';
   const tier = isTierSource ? ((deal?.final_tier as string | null) || null) : null;
@@ -212,9 +214,35 @@ export function DealHeader({
     }
   };
 
+  const handleViewCimPdf = async () => {
+    if (!showViewCimPdf || loadingCimPreview) return;
+    setLoadingCimPreview(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('Please log in to view the CIM.');
+        return;
+      }
+      const res = await fetch(`/api/deals/${deal.id}/cim-preview`, {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to open CIM');
+      }
+      const { preview_url } = await res.json();
+      if (preview_url) window.open(preview_url, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      console.error('View CIM PDF error:', e);
+      alert(e instanceof Error ? e.message : 'Failed to open CIM PDF.');
+    } finally {
+      setLoadingCimPreview(false);
+    }
+  };
+
   return (
     <section>
-      <button onClick={onBack} className="text-xs underline mb-4">
+      <button onClick={onBack} className="text-sm text-slate-300 hover:text-slate-50 underline mb-4 transition-colors">
         ← Back to dashboard
       </button>
       <div className="flex items-start justify-between gap-4 mb-2">
@@ -222,25 +250,37 @@ export function DealHeader({
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1">
               <div className="flex items-center gap-4 mb-1">
-                <h1 className="text-3xl font-semibold">{deal.company_name || 'Untitled Company'}</h1>
+                <h1 className="text-3xl font-semibold text-slate-50">{deal.company_name || 'Untitled Company'}</h1>
                 {askingPrice && (
-                  <div className="px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
-                    <span className="text-xs text-blue-600 font-medium">Asking:</span>
-                    <span className="text-lg font-bold text-blue-900 ml-2">{askingPrice}</span>
+                  <div className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                    <span className="text-xs text-emerald-400 font-medium">Asking:</span>
+                    <span className="text-lg font-bold text-slate-50 ml-2">{askingPrice}</span>
                   </div>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-slate-400">
                 {deal.location_city && `${deal.location_city}, `}
                 {deal.location_state || (deal.metadata?.address as string | undefined) || ''}
               </p>
             </div>
             <div className="flex items-center gap-2">
+              {showViewCimPdf && (
+                <AsyncButton
+                  onClick={handleViewCimPdf}
+                  isLoading={loadingCimPreview}
+                  loadingText="Opening..."
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-slate-200 bg-slate-700/50 border border-slate-600 rounded-lg hover:bg-slate-700 transition-colors"
+                  title="Open CIM PDF to verify citations (e.g. page numbers)"
+                >
+                  <FileText className="h-4 w-4" />
+                  View CIM PDF
+                </AsyncButton>
+              )}
               <AsyncButton
                 onClick={handleExportPDF}
                 isLoading={isExportingPDF}
                 loadingText="Generating..."
-                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/20 transition-colors"
                 title="Export to PDF"
               >
                 <Download className="h-4 w-4" />
@@ -265,27 +305,27 @@ export function DealHeader({
 
       {/* Verdict Details Section */}
       {verdict && (verdictConfidence || verdictReason || nextAction) && (
-        <div className="mb-4 p-4 rounded-lg bg-slate-50 mt-4">
+        <div className="mb-4 p-4 rounded-lg bg-slate-800/50 border border-slate-700 mt-4">
           <div className="flex items-center justify-between">
             <div>
               {(verdictConfidence || verdictReason) && (
                 <>
-                  <div className="text-sm text-slate-500">Decision Details</div>
+                  <div className="text-sm text-slate-400">Decision Details</div>
                   <div className="flex items-center gap-2 mt-1">
                     {verdictConfidence && (
-                      <span className="text-sm text-slate-600">{verdictConfidence} confidence</span>
+                      <span className="text-sm text-slate-300">{verdictConfidence} confidence</span>
                     )}
                   </div>
                   {verdictReason && (
-                    <div className="text-sm mt-1">{verdictReason}</div>
+                    <div className="text-sm text-slate-300 mt-1">{verdictReason}</div>
                   )}
                 </>
               )}
             </div>
             {nextAction && (
               <div>
-                <div className="text-sm text-slate-500">Next Action</div>
-                <div className="text-sm font-medium mt-1">{nextAction}</div>
+                <div className="text-sm text-slate-400">Next Action</div>
+                <div className="text-sm font-medium text-slate-50 mt-1">{nextAction}</div>
               </div>
             )}
           </div>
@@ -295,25 +335,25 @@ export function DealHeader({
       {/* Deal Economics Card */}
       {(askingPrice || ebitda || sbaEligible !== null) && (
         <div className="grid grid-cols-3 gap-4 mb-4 mt-4">
-          <div className="p-3 border rounded">
-            <div className="text-sm text-slate-500">Asking Price</div>
-            <div className="text-lg font-semibold">
+          <div className="p-3 border border-slate-700 rounded-lg bg-slate-800/50">
+            <div className="text-sm text-slate-400">Asking Price</div>
+            <div className="text-lg font-semibold text-slate-50">
               {askingPrice || 'Unknown'}
             </div>
           </div>
-          <div className="p-3 border rounded">
-            <div className="text-sm text-slate-500">
+          <div className="p-3 border border-slate-700 rounded-lg bg-slate-800/50">
+            <div className="text-sm text-slate-400">
               <JargonTooltip term="EBITDA">EBITDA</JargonTooltip>
             </div>
-            <div className="text-lg font-semibold">
+            <div className="text-lg font-semibold text-slate-50">
               {ebitda || 'Unknown'}
             </div>
           </div>
-          <div className="p-3 border rounded">
-            <div className="text-sm text-slate-500">
+          <div className="p-3 border border-slate-700 rounded-lg bg-slate-800/50">
+            <div className="text-sm text-slate-400">
               <JargonTooltip term="SBA">SBA</JargonTooltip> Eligible
             </div>
-            <div className="text-lg font-semibold">
+            <div className="text-lg font-semibold text-slate-50">
               {sbaEligible === true ? '✓ Yes' : sbaEligible === false ? '✗ No' : 'Unknown'}
             </div>
           </div>
@@ -322,12 +362,12 @@ export function DealHeader({
 
       {/* Stage Selector */}
       <div className="mb-4 mt-4">
-        <label className="text-sm text-slate-500">Stage</label>
+        <label className="text-sm text-slate-400">Stage</label>
         <select 
           value={stage}
           onChange={handleStageChange}
           disabled={updatingStage}
-          className="mt-1 block w-full rounded border-slate-300 px-3 py-2 border bg-white"
+          className="mt-1 block w-full rounded border border-slate-600 px-3 py-2 bg-slate-900 text-slate-50"
         >
           <option value="new">New</option>
           <option value="reviewing">Reviewing</option>
@@ -353,7 +393,7 @@ export function DealHeader({
           />
 
           {addedLabel ? (
-            <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center rounded-full border border-slate-600 px-2 py-0.5 text-[11px] text-slate-400">
               Added {addedLabel}
             </span>
           ) : null}
@@ -373,7 +413,7 @@ export function DealHeader({
             <button
               onClick={onToggleSave}
               disabled={savingToggle}
-              className="text-xs px-3 py-1 border rounded"
+              className="text-xs px-3 py-1 border border-slate-600 rounded bg-slate-800 text-slate-200 hover:bg-slate-700"
               title="Save/Unsave deal"
             >
               {savingToggle ? 'Saving…' : deal.is_saved ? 'Saved ✓' : 'Save'}

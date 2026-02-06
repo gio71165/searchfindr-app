@@ -4,22 +4,15 @@ import { useMemo } from 'react';
 import { ExecutiveSummaryCard } from '@/app/deals/[id]/components/ExecutiveSummaryCard';
 import { RedFlagsPanel } from '@/app/deals/[id]/components/RedFlagsPanel';
 import { QoeRedFlagsPanel } from '@/app/deals/[id]/components/QoeRedFlagsPanel';
-import { StrengthsPanel } from '@/app/deals/[id]/components/StrengthsPanel';
 import { AIInvestmentMemo } from '@/app/deals/[id]/components/AIInvestmentMemo';
 import { FinancialSnapshot } from '@/app/deals/[id]/components/FinancialSnapshot';
 import { OwnerInterviewQuestions } from '@/app/deals/[id]/components/OwnerInterviewQuestions';
-import { RiskSignalsCard } from '@/app/deals/[id]/components/RiskSignalsCard';
-import { SearcherSnapshot } from '@/app/deals/[id]/components/SearcherSnapshot';
-import { ConfidencePill } from '@/app/deals/[id]/components/ConfidencePill';
-import { SignalsGrid } from '@/app/deals/[id]/components/SignalsGrid';
-import { getDealConfidence } from '@/app/deals/[id]/lib/confidence';
-import { normalizeRedFlags, normalizeConfidenceSignals, normalizeStringArray, normalizeMetricRows, normalizeMarginRows } from '@/app/deals/[id]/lib/normalizers';
-import { safeDateLabel, formatMoney, formatPct, sortYearsLikeHuman } from '@/app/deals/[id]/lib/formatters';
+import { normalizeRedFlags, normalizeStringArray, normalizeMetricRows, normalizeMarginRows } from '@/app/deals/[id]/lib/normalizers';
+import { formatMoney, formatPct, sortYearsLikeHuman } from '@/app/deals/[id]/lib/formatters';
 import type { Deal, FinancialMetrics, FinancialAnalysis } from '@/lib/types/deal';
-import { CheckCircle2, FileCheck, BarChart3, TrendingUp, User, AlertTriangle } from 'lucide-react';
+import { BarChart3, TrendingUp, AlertTriangle, User } from 'lucide-react';
 import { ConfidenceBadge } from '@/components/ui/ConfidenceBadge';
 import { AsyncButton } from '@/components/ui/AsyncButton';
-import { JargonTooltip } from '@/components/ui/JargonTooltip';
 import { GutCheck } from '@/components/deal/GutCheck';
 import type { MarginRow } from '@/app/deals/[id]/lib/types';
 
@@ -115,24 +108,11 @@ export function AnalysisTab({
     ? (financialAnalysis.extracted_metrics?.owner_interview_questions || [])
     : (fin.owner_interview_questions || []);
   
-  const scoring = deal.ai_scoring_json || {};
   const criteria = deal.criteria_match_json || {};
-
-  const confidence = getDealConfidence(deal, { financialAnalysis: financialAnalysis ?? null });
-
-  const signals = useMemo(() => {
-    if (sourceType === 'financials' && financialAnalysis?.confidence_json?.signals) {
-      return normalizeConfidenceSignals(financialAnalysis.confidence_json.signals);
-    }
-    return normalizeConfidenceSignals(deal?.ai_confidence_json?.signals ?? null);
-  }, [deal?.ai_confidence_json?.signals, financialAnalysis?.confidence_json?.signals, sourceType]);
 
   // Financials-specific data extraction
   const extracted = financialAnalysis?.extracted_metrics ?? null;
   const yoy = normalizeStringArray(extracted?.yoy_trends);
-  const greenFlags = sourceType === 'financials' && financialAnalysis
-    ? normalizeStringArray(financialAnalysis.green_flags)
-    : [];
   const missingItems = sourceType === 'financials' && financialAnalysis
     ? normalizeStringArray(financialAnalysis.missing_items)
     : [];
@@ -181,15 +161,15 @@ export function AnalysisTab({
       {sourceType === 'cim_pdf' && onRunCim && (
         <div className={`rounded-lg border-2 p-6 ${
           hasCimAnalysis 
-            ? 'border-slate-200 bg-white' 
-            : 'border-blue-200 bg-blue-50'
+            ? 'border-slate-700 bg-slate-800' 
+            : 'border-emerald-500/50 bg-emerald-500/10'
         }`}>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <h2 className="text-lg font-semibold text-slate-900 mb-2">
+              <h2 className="text-lg font-semibold text-slate-50 mb-2">
                 {hasCimAnalysis ? 'CIM Processing' : 'Run AI Analysis'}
               </h2>
-              <p className="text-sm text-slate-600 mb-3">
+              <p className="text-sm text-slate-400 mb-3">
                 {hasCimAnalysis 
                   ? 'Re-run AI analysis on the original CIM PDF to update the analysis.'
                   : 'Process this CIM with AI to extract key information, financials, and generate an investment recommendation.'}
@@ -207,7 +187,7 @@ export function AnalysisTab({
               loadingText="Processing…"
               className={`px-6 py-3 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
                 hasCimAnalysis
-                  ? 'border border-slate-300 bg-white hover:bg-slate-50 text-slate-700'
+                  ? 'border border-slate-600 bg-slate-800 hover:bg-slate-700 text-slate-200'
                   : 'bg-emerald-600 text-white hover:bg-emerald-500'
               }`}
             >
@@ -219,10 +199,10 @@ export function AnalysisTab({
 
       {/* Last Updated Timestamp */}
       {deal?.updated_at && (
-        <div className="mb-4 p-3 bg-slate-50 border border-slate-200 rounded-lg">
-          <p className="text-sm text-slate-600">
+        <div className="mb-4 p-3 bg-slate-800/50 border border-slate-700 rounded-lg">
+          <p className="text-sm text-slate-400">
             Analysis generated on{' '}
-            <span className="font-medium text-slate-900">
+            <span className="font-medium text-slate-50">
               {new Date(deal.updated_at).toLocaleDateString('en-US', {
                 month: 'short',
                 day: 'numeric',
@@ -251,69 +231,7 @@ export function AnalysisTab({
         hideVerdictButtons={hideVerdictButtons}
       />
 
-      {/* Gut Check */}
-      <GutCheck deal={deal} dealId={dealId} />
-
-      {/* Red Flags (general) */}
-      <RedFlagsPanel redFlags={redFlags} />
-
-      {/* QoE Red Flags — after Red Flags, before Strengths */}
-      <QoeRedFlagsPanel qoeRedFlags={qoeRedFlags} />
-
-      {/* Strengths - Already handled by StrengthsPanel component */}
-        {sourceType === 'financials' && greenFlags.length > 0 ? (
-          hasAnyAnalysis ? (
-            <ul className="space-y-2">
-              {greenFlags.map((x, idx) => (
-                <li key={idx} className="flex items-start gap-2 text-sm">
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-slate-700">{x}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-slate-600">Green flags will populate here after you run Financial Analysis.</p>
-          )
-        ) : (
-          <StrengthsPanel deal={deal} />
-        )}
-
-      {/* Data Confidence */}
-      <div className="bg-white border-2 border-blue-200 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-blue-50 rounded-lg">
-            <FileCheck className="w-5 h-5 text-blue-600" />
-          </div>
-          <h3 className="text-lg font-semibold text-slate-900">Data Confidence & Read Quality</h3>
-        </div>
-        <div className="flex-1">
-            <div className="flex flex-wrap items-center gap-2 mb-4">
-              <ConfidencePill
-                icon={confidence.icon}
-                label={confidence.label}
-                title={confidence.reason}
-                analyzed={confidence.analyzed}
-                level={confidence.level}
-              />
-              {deal?.ai_confidence_json?.updated_at && (
-                <span className="text-xs text-blue-700">
-                  Updated {safeDateLabel(deal.ai_confidence_json.updated_at) || ''}
-                </span>
-              )}
-            </div>
-            {confidence.analyzed ? (
-              signals.length === 0 ? (
-                <p className="text-sm text-slate-600">No confidence signals returned.</p>
-              ) : (
-                <SignalsGrid signals={signals} />
-              )
-            ) : (
-              <p className="text-sm text-slate-600">Run AI analysis to generate read-quality signals.</p>
-            )}
-          </div>
-        </div>
-
-      {/* AI Investment Memo */}
+      {/* AI Investment Memo — moved up; high importance */}
       <AIInvestmentMemo
         summary={deal.ai_summary}
         emptyText={
@@ -325,57 +243,74 @@ export function AnalysisTab({
         }
       />
 
+      {/* Gut Check */}
+      <GutCheck deal={deal} dealId={dealId} />
+
+      {/* Red Flags & QoE — single merged section */}
+      <div className="bg-slate-800 border-2 border-red-500/30 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2 bg-red-500/10 rounded-lg">
+            <AlertTriangle className="w-5 h-5 text-red-400" />
+          </div>
+          <h3 className="text-lg font-semibold text-slate-50">Red Flags & QoE</h3>
+        </div>
+        <div className="space-y-8">
+          <RedFlagsPanel redFlags={redFlags} embedded />
+          <QoeRedFlagsPanel qoeRedFlags={qoeRedFlags} embedded />
+        </div>
+      </div>
+
       {/* Financial Details */}
       <FinancialSnapshot fin={fin} deal={deal} />
 
       {/* YoY Trends - Financials only */}
       {sourceType === 'financials' && (
-        <div className="rounded-lg border border-slate-200 bg-white p-6">
+        <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
           <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="h-5 w-5 text-slate-600" />
-            <h3 className="text-xl font-semibold text-slate-900">YoY Trends</h3>
+            <TrendingUp className="h-5 w-5 text-slate-400" />
+            <h3 className="text-xl font-semibold text-slate-50">YoY Trends</h3>
           </div>
           {hasAnyAnalysis ? (
             yoy.length === 0 ? (
-              <p className="text-sm text-slate-600">No YoY trends returned.</p>
+              <p className="text-sm text-slate-400">No YoY trends returned.</p>
             ) : (
-              <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
+              <ul className="list-disc list-inside space-y-1 text-sm text-slate-300">
                 {yoy.slice(0, 20).map((t: string, idx: number) => (
                   <li key={idx}>{t}</li>
                 ))}
               </ul>
             )
           ) : (
-            <p className="text-sm text-slate-600">YoY trends will appear here after you run Financial Analysis.</p>
+            <p className="text-sm text-slate-400">YoY trends will appear here after you run Financial Analysis.</p>
           )}
         </div>
       )}
 
       {/* Missing Items - Financials only */}
       {sourceType === 'financials' && (
-        <div className="rounded-lg border border-slate-200 bg-white p-6">
+        <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
           <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle className="h-5 w-5 text-slate-600" />
-            <h3 className="text-xl font-semibold text-slate-900">Missing / Unclear Items</h3>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+            <AlertTriangle className="h-5 w-5 text-slate-400" />
+            <h3 className="text-xl font-semibold text-slate-50">Missing / Unclear Items</h3>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-700 text-slate-300">
               {missingItems.length}
             </span>
           </div>
           {hasAnyAnalysis ? (
             missingItems.length === 0 ? (
-              <p className="text-sm text-slate-600">Nothing flagged as missing or unclear.</p>
+              <p className="text-sm text-slate-400">Nothing flagged as missing or unclear.</p>
             ) : (
               <ul className="space-y-2">
                 {missingItems.map((x, idx) => (
                   <li key={idx} className="flex items-start gap-2 text-sm">
                     <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-slate-700">{x}</span>
+                    <span className="text-slate-300">{x}</span>
                   </li>
                 ))}
               </ul>
             )
           ) : (
-            <p className="text-sm text-slate-600">Missing or unclear items will populate here after you run Financial Analysis.</p>
+            <p className="text-sm text-slate-400">Missing or unclear items will populate here after you run Financial Analysis.</p>
           )}
         </div>
       )}
@@ -383,85 +318,54 @@ export function AnalysisTab({
       {/* Owner Interview Questions */}
       <OwnerInterviewQuestions questions={ownerQuestions} />
 
-      {/* Scoring Breakdown - Not for financials */}
-      {sourceType !== 'financials' && (
-        <div className="bg-white border-2 border-blue-200 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <BarChart3 className="w-5 h-5 text-blue-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-slate-900">
-                {sourceType === 'cim_pdf' ? (
-                  <>
-                    <JargonTooltip term="CIM">CIM</JargonTooltip> Quality & Risk Signals
-                  </>
-                ) : (
-                  'Scoring Breakdown'
-                )}
-            </h3>
-          </div>
-          <div className="flex-1">
-            <RiskSignalsCard
-                scoring={scoring}
-                title=""
-                subtitle={
-                  sourceType === 'cim_pdf'
-                    ? 'Interpretation aids from CIM content (not a grade). Risk signals: High = more risk. Quality signals: High = stronger quality. No Tier is produced for CIM uploads.'
-                    : 'Prioritization signals (not a recommendation). Risk signals: High = more risk. Fit/quality signals: High = stronger alignment/quality.'
-                }
-              />
-          </div>
-        </div>
-      )}
-
       {/* Key Metrics Table - Financials only */}
       {sourceType === 'financials' && (
-        <div className="rounded-lg border border-slate-200 bg-white p-6">
+        <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
           <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="h-5 w-5 text-slate-600 flex-shrink-0" />
-            <h3 className="text-lg sm:text-xl font-semibold text-slate-900">Key Metrics</h3>
+            <BarChart3 className="h-5 w-5 text-slate-400 flex-shrink-0" />
+            <h3 className="text-lg sm:text-xl font-semibold text-slate-50">Key Metrics</h3>
           </div>
           {!hasAnyAnalysis ? (
-            <p className="text-sm text-slate-600">Key metrics will populate here after you run Financial Analysis.</p>
+            <p className="text-sm text-slate-400">Key metrics will populate here after you run Financial Analysis.</p>
           ) : allYears.length === 0 ? (
-            <p className="text-sm text-slate-600">No structured metrics extracted.</p>
+            <p className="text-sm text-slate-400">No structured metrics extracted.</p>
           ) : (
             <div className="overflow-x-auto -mx-4 sm:mx-0">
               <div className="inline-block min-w-full align-middle px-4 sm:px-0">
                 <table className="min-w-full text-left text-xs">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-slate-900/50">
                     <tr>
-                      <th className="px-3 py-2 font-semibold text-slate-700 sticky left-0 bg-slate-50 z-10">Metric</th>
+                      <th className="px-3 py-2 font-semibold text-slate-300 sticky left-0 bg-slate-900/50 z-10">Metric</th>
                       {allYears.map((y) => (
-                        <th key={y} className="px-3 py-2 font-semibold text-slate-700 whitespace-nowrap">
+                        <th key={y} className="px-3 py-2 font-semibold text-slate-300 whitespace-nowrap">
                           {y}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200">
+                  <tbody className="divide-y divide-slate-700">
                     <tr>
-                      <td className="px-3 py-2 font-medium text-slate-900">Revenue</td>
+                      <td className="px-3 py-2 font-medium text-slate-50">Revenue</td>
                       {allYears.map((y) => (
-                        <td key={y} className="px-3 py-2 text-slate-700">
+                        <td key={y} className="px-3 py-2 text-slate-300">
                           {formatMoney(yearToRevenue.get(y)?.value ?? null)}
                         </td>
                       ))}
                     </tr>
 
                     <tr>
-                      <td className="px-3 py-2 font-medium text-slate-900">EBITDA</td>
+                      <td className="px-3 py-2 font-medium text-slate-50">EBITDA</td>
                       {allYears.map((y) => (
-                        <td key={y} className="px-3 py-2 text-slate-700">
+                        <td key={y} className="px-3 py-2 text-slate-300">
                           {formatMoney(yearToEbitda.get(y)?.value ?? null)}
                         </td>
                       ))}
                     </tr>
 
                     <tr>
-                      <td className="px-3 py-2 font-medium text-slate-900">Net Income</td>
+                      <td className="px-3 py-2 font-medium text-slate-50">Net Income</td>
                       {allYears.map((y) => (
-                        <td key={y} className="px-3 py-2 text-slate-700">
+                        <td key={y} className="px-3 py-2 text-slate-300">
                           {formatMoney(yearToNet.get(y)?.value ?? null)}
                         </td>
                       ))}
@@ -471,9 +375,9 @@ export function AnalysisTab({
                       const map = marginsByTypeYear.get(mt);
                       return (
                         <tr key={mt}>
-                          <td className="px-3 py-2 font-medium text-slate-900">{mt}</td>
+                          <td className="px-3 py-2 font-medium text-slate-50">{mt}</td>
                           {allYears.map((y) => (
-                            <td key={y} className="px-3 py-2 text-slate-700">
+                            <td key={y} className="px-3 py-2 text-slate-300">
                               {formatPct(map?.get(y)?.value_pct ?? null)}
                             </td>
                           ))}
@@ -485,21 +389,6 @@ export function AnalysisTab({
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Searcher Fit Analysis - TODO: Evaluate if still useful, may remove if no value */}
-      {sourceType !== 'financials' && (
-        <div className="bg-white border-2 border-blue-200 rounded-xl p-6 shadow-sm hover:shadow-lg transition-all">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-blue-50 rounded-lg">
-              <TrendingUp className="w-5 h-5 text-blue-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-slate-900">Searcher Fit Analysis</h3>
-          </div>
-          <div className="flex-1">
-            <SearcherSnapshot criteria={criteria} />
-          </div>
         </div>
       )}
 
@@ -525,15 +414,15 @@ export function AnalysisTab({
         if (!ownerSignals) return null;
 
         return (
-          <div className="rounded-lg border border-slate-200 bg-white p-6">
+          <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
             <div className="flex items-center gap-2 mb-4">
-              <User className="h-5 w-5 text-slate-600" />
-              <h3 className="text-xl font-semibold text-slate-900">Owner Signals (Probabilistic)</h3>
+              <User className="h-5 w-5 text-slate-400" />
+              <h3 className="text-xl font-semibold text-slate-50">Owner Signals (Probabilistic)</h3>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
-                <p className="text-xs uppercase text-slate-600 mb-1">Likely owner-operated</p>
-                <p className="font-medium text-slate-900">
+                <p className="text-xs uppercase text-slate-400 mb-1">Likely owner-operated</p>
+                <p className="font-medium text-slate-50">
                   {ownerSignals.likely_owner_operated ? 'Yes' : 'No'}
                   {confidenceTier && (
                     <span className="ml-2">
@@ -544,35 +433,35 @@ export function AnalysisTab({
               </div>
 
               <div>
-                <p className="text-xs uppercase text-slate-600 mb-1">Owner named on site</p>
-                <p className="font-medium text-slate-900">
+                <p className="text-xs uppercase text-slate-400 mb-1">Owner named on site</p>
+                <p className="font-medium text-slate-50">
                   {ownerSignals.owner_named_on_site ? 'Yes' : 'No'}
                   {ownerSignals.owner_named_on_site && ownerSignals.owner_name && (
-                    <span className="text-xs text-slate-600"> — {ownerSignals.owner_name}</span>
+                    <span className="text-xs text-slate-400"> — {ownerSignals.owner_name}</span>
                   )}
                 </p>
               </div>
 
               <div>
-                <p className="text-xs uppercase text-slate-600 mb-1">Generation hint</p>
-                <p className="font-medium text-slate-900">{ownerSignals.generation_hint || 'unknown'}</p>
+                <p className="text-xs uppercase text-slate-400 mb-1">Generation hint</p>
+                <p className="font-medium text-slate-50">{ownerSignals.generation_hint || 'unknown'}</p>
               </div>
 
               <div>
-                <p className="text-xs uppercase text-slate-600 mb-1">Key-person dependency risk</p>
-                <p className="font-medium text-slate-900">{ownerSignals.owner_dependency_risk || 'Unknown'}</p>
+                <p className="text-xs uppercase text-slate-400 mb-1">Key-person dependency risk</p>
+                <p className="font-medium text-slate-50">{ownerSignals.owner_dependency_risk || 'Unknown'}</p>
               </div>
 
               <div className="sm:col-span-2">
-                <p className="text-xs uppercase text-slate-600 mb-1">Years in business</p>
-                <p className="font-medium text-slate-900">{ownerSignals.years_in_business || 'Unknown'}</p>
+                <p className="text-xs uppercase text-slate-400 mb-1">Years in business</p>
+                <p className="font-medium text-slate-50">{ownerSignals.years_in_business || 'Unknown'}</p>
               </div>
             </div>
 
             {Array.isArray(ownerSignals.evidence) && ownerSignals.evidence.length > 0 && (
               <div className="mt-4">
-                <p className="text-xs uppercase text-slate-600 mb-2">Evidence</p>
-                <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
+                <p className="text-xs uppercase text-slate-400 mb-2">Evidence</p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-slate-300">
                   {ownerSignals.evidence.slice(0, 6).map((e: string, idx: number) => (
                     <li key={idx}>{e}</li>
                   ))}
@@ -582,8 +471,8 @@ export function AnalysisTab({
 
             {Array.isArray(ownerSignals.missing_info) && ownerSignals.missing_info.length > 0 && (
               <div className="mt-4">
-                <p className="text-xs uppercase text-slate-600 mb-2">Missing info</p>
-                <ul className="list-disc list-inside space-y-1 text-sm text-slate-700">
+                <p className="text-xs uppercase text-slate-400 mb-2">Missing info</p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-slate-300">
                   {ownerSignals.missing_info.slice(0, 6).map((m: string, idx: number) => (
                     <li key={idx}>{m}</li>
                   ))}

@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/app/supabaseClient';
+import { useState, useRef } from 'react';
 import { DealChatPanel } from '../components/DealChatPanel';
 import { MessageSquare, X } from 'lucide-react';
 import { BrokerSelector } from '@/components/deal/BrokerSelector';
@@ -12,10 +11,12 @@ import { StickyDealHeader } from '../components/StickyDealHeader';
 import { AnalysisTab } from '@/components/deal/tabs/AnalysisTab';
 import { ModelingTab } from '@/components/deal/tabs/ModelingTab';
 import { ActivityTab } from '@/components/deal/tabs/ActivityTab';
+import { DealManagementTab } from '@/components/deal/tabs/DealManagementTab';
 import { IOIGenerator } from '../components/IOIGenerator';
 import { LOIGenerator } from '../components/LOIGenerator';
 import type { Deal } from '@/lib/types/deal';
-import { PassDealModal } from '@/components/modals/PassDealModal';
+import { DealVerdictModals } from '../components/DealVerdictModals';
+import { useBrokerName } from '../hooks/useBrokerName';
 import { useKeyboardShortcuts, createShortcut } from '@/lib/hooks/useKeyboardShortcuts';
 import { KeyboardShortcutsModal } from '@/components/KeyboardShortcutsModal';
 import { showToast } from '@/components/ui/Toast';
@@ -41,81 +42,40 @@ export function OnMarketDealView({
 }) {
   const { user, workspaceId, session } = useAuth();
   const [showPassModal, setShowPassModal] = useState(false);
+  const [showProceedModal, setShowProceedModal] = useState(false);
+  const [showParkModal, setShowParkModal] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [settingVerdict, setSettingVerdict] = useState(false);
   const [editingWorkflow, setEditingWorkflow] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const brokerName = useBrokerName(deal?.broker_id, workspaceId ?? deal?.workspace_id);
+  const sessionStartedAtRef = useRef<number>(Date.now());
 
   const handlePassSuccess = () => {
     setShowPassModal(false);
     window.location.href = '/dashboard';
   };
 
-  const handleProceed = async () => {
-    setSettingVerdict(true);
-    try {
-      if (!user || !workspaceId) throw new Error('Not signed in or missing workspace');
-
-      const { error } = await supabase
-        .from('companies')
-        .update({ 
-          verdict: 'proceed',
-          last_action_at: new Date().toISOString()
-        })
-        .eq('id', dealId)
-        .eq('workspace_id', workspaceId);
-
-      if (error) throw error;
-      showToast('Marked as Proceed', 'success', 2000);
-      // Track proceed action
-      window.dispatchEvent(new CustomEvent('onboarding:deal-proceeded'));
-      // Refresh deal data instead of full page reload
-      onRefresh?.();
-    } catch (error) {
-      logger.error('Error setting proceed:', error);
-      showToast('Failed to set verdict. Please try again.', 'error');
-    } finally {
-      setSettingVerdict(false);
-    }
+  const handleProceed = () => setShowProceedModal(true);
+  const handleProceedSuccess = () => {
+    setShowProceedModal(false);
+    window.dispatchEvent(new CustomEvent('onboarding:deal-proceeded'));
+    onRefresh?.();
   };
-
-  const handlePark = async () => {
-    setSettingVerdict(true);
-    try {
-      if (!user || !workspaceId) throw new Error('Not signed in or missing workspace');
-
-      const { error } = await supabase
-        .from('companies')
-        .update({ 
-          verdict: 'park',
-          last_action_at: new Date().toISOString()
-        })
-        .eq('id', dealId)
-        .eq('workspace_id', workspaceId);
-
-      if (error) throw error;
-      showToast('Marked as Park', 'info', 2000);
-      onRefresh?.();
-    } catch (error) {
-      logger.error('Error setting park:', error);
-      showToast('Failed to set verdict. Please try again.', 'error');
-    } finally {
-      setSettingVerdict(false);
-    }
+  const handlePark = () => setShowParkModal(true);
+  const handleParkSuccess = () => {
+    setShowParkModal(false);
+    onRefresh?.();
   };
 
   // Keyboard shortcuts
   useKeyboardShortcuts(
     [
       createShortcut('P', () => {
-        if (!settingVerdict) {
-          handleProceed();
-        }
+        if (!settingVerdict && !showProceedModal) handleProceed();
       }, 'Mark as Proceed', ['deal-detail']),
       createShortcut('K', () => {
-        if (!settingVerdict) {
-          handlePark();
-        }
+        if (!settingVerdict && !showParkModal) handlePark();
       }, 'Mark as Park', ['deal-detail']),
       createShortcut('X', () => {
         if (!settingVerdict) {
@@ -155,6 +115,14 @@ export function OnMarketDealView({
         return <IOIGenerator deal={deal} />;
       case 'loi':
         return <LOIGenerator deal={deal} />;
+      case 'management':
+        return (
+          <DealManagementTab
+            deal={deal}
+            dealId={dealId}
+            onRefresh={onRefresh}
+          />
+        );
       case 'activity':
         return <ActivityTab dealId={dealId} />;
       default:
@@ -163,7 +131,7 @@ export function OnMarketDealView({
   };
 
   return (
-    <main className="min-h-screen bg-[#F9FAFB] overflow-x-hidden">
+    <main className="min-h-screen bg-slate-900 overflow-x-hidden">
       <div className="max-w-7xl mx-auto py-4 sm:py-6 lg:py-8 px-4 sm:px-6">
         <BackButton dealSourceType={deal.source_type} />
         
@@ -180,16 +148,16 @@ export function OnMarketDealView({
           {/* Main Content */}
           <div className="flex-1 lg:pr-6 space-y-6 sm:space-y-8 min-w-0">
             {/* Initial Diligence Run Strip */}
-            <section className="rounded-lg border border-slate-200 bg-white p-4">
+            <section className="rounded-lg border border-slate-700 bg-slate-800 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <h2 className="text-sm font-semibold">Initial Diligence</h2>
-                  <p className="text-xs text-slate-600">Runs AI based on listing text captured from the browser extension.</p>
+                  <h2 className="text-sm font-semibold text-slate-50">Initial Diligence</h2>
+                  <p className="text-xs text-slate-400">Runs AI based on listing text captured from the browser extension.</p>
                 </div>
                 <button
                   onClick={onRunInitialDiligence}
                   disabled={analyzing}
-                  className="px-4 py-2 text-sm font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50"
+                  className="btn-ghost disabled:opacity-50"
                 >
                   {analyzing ? 'Running…' : deal.ai_summary ? 'Re-run Analysis' : 'Run Analysis'}
                 </button>
@@ -221,15 +189,15 @@ export function OnMarketDealView({
 
         {/* Mobile Chat Overlay */}
         {isChatOpen && (
-          <div className="lg:hidden fixed inset-0 bg-white z-50 flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-slate-200">
-              <h2 className="text-lg font-semibold text-slate-900">Chat</h2>
+          <div className="lg:hidden fixed inset-0 bg-slate-900 z-50 flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b border-slate-700">
+              <h2 className="text-lg font-semibold text-slate-50">Chat</h2>
               <button
                 onClick={() => setIsChatOpen(false)}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
                 aria-label="Close chat"
               >
-                <X className="h-5 w-5 text-slate-600" />
+                <X className="h-5 w-5 text-slate-400" />
               </button>
             </div>
             <div className="flex-1 overflow-hidden">
@@ -239,16 +207,21 @@ export function OnMarketDealView({
         )}
       </div>
       
-      {showPassModal && (
-        <PassDealModal
-          dealId={dealId}
-          companyName={deal.company_name || 'this deal'}
-          workspaceId={deal.workspace_id}
-          deal={deal}
-          onClose={() => setShowPassModal(false)}
-          onSuccess={handlePassSuccess}
-        />
-      )}
+      <DealVerdictModals
+        deal={deal}
+        dealId={dealId}
+        brokerName={brokerName}
+        sessionStartedAtRef={sessionStartedAtRef}
+        showPassModal={showPassModal}
+        setShowPassModal={setShowPassModal}
+        showProceedModal={showProceedModal}
+        setShowProceedModal={setShowProceedModal}
+        showParkModal={showParkModal}
+        setShowParkModal={setShowParkModal}
+        onPassSuccess={handlePassSuccess}
+        onProceedSuccess={handleProceedSuccess}
+        onParkSuccess={handleParkSuccess}
+      />
 
       <KeyboardShortcutsModal
         isOpen={showShortcutsModal}
@@ -260,10 +233,10 @@ export function OnMarketDealView({
       <div className="fixed bottom-4 right-4 z-40">
         <button
           onClick={() => setShowShortcutsModal(true)}
-          className="text-xs text-slate-500 hover:text-slate-700 bg-white/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm transition-colors"
+          className="text-xs text-slate-500 hover:text-slate-300 bg-slate-800/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-slate-700 shadow-sm transition-colors"
           aria-label="Show keyboard shortcuts"
         >
-          Press <kbd className="px-1 py-0.5 bg-slate-100 border border-slate-300 rounded text-xs">?</kbd> for shortcuts
+          Press <kbd className="px-1 py-0.5 bg-slate-700 border border-slate-600 rounded text-xs text-slate-300">?</kbd> for shortcuts
         </button>
       </div>
     </main>

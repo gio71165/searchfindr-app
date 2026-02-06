@@ -430,19 +430,19 @@ export default function CimsPage() {
   };
 
   if (authLoading || loading) return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
+    <div className="min-h-full bg-slate-900 p-4 sm:p-8 max-w-7xl mx-auto">
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <LoadingSpinner size="lg" className="mb-4" />
-          <p className="text-sm text-slate-600">Loading...</p>
+          <p className="text-sm text-slate-400">Loading...</p>
         </div>
       </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6 py-8">
+    <div className="min-h-full bg-slate-900 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
       <ContentHeader
         title="CIMs"
         description="Confidential Information Memorandums uploaded for analysis"
@@ -450,11 +450,11 @@ export default function CimsPage() {
 
       {/* Sample CIM Button - Prominent for new users */}
       {showSampleCimButton && (
-        <div className="mb-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg">
+        <div className="mb-6 p-4 bg-blue-500/10 border-2 border-blue-500/30 rounded-lg">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <h3 className="font-semibold text-blue-900 mb-1">New to SearchFindr?</h3>
-              <p className="text-sm text-blue-700">
+              <h3 className="font-semibold text-blue-400 mb-1">New to SearchFindr?</h3>
+              <p className="text-sm text-slate-300">
                 Upload our sample CIM to see how AI analysis works. This will create a demo deal you can explore.
               </p>
             </div>
@@ -463,7 +463,7 @@ export default function CimsPage() {
               isLoading={uploadingSample}
               loadingText="Uploading..."
               disabled={!user || !workspaceId}
-              className="ml-4 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium whitespace-nowrap"
+              className="btn-secondary btn-lg ml-4 whitespace-nowrap"
             >
               Upload Sample CIM
             </AsyncButton>
@@ -477,7 +477,7 @@ export default function CimsPage() {
         placeholder="Search CIMs..."
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full px-4 py-3 text-base border rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 placeholder-slate-500 mb-6 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
       />
 
       {/* Pipeline Summary - Compact variant (CIM-specific counts) */}
@@ -507,7 +507,7 @@ export default function CimsPage() {
           disabled={!userId || !workspaceId}
           label="Upload CIM"
           description="Drag and drop a PDF, DOCX, or DOC file here, or click to browse"
-          icon={<Upload className="h-12 w-12 text-blue-500" />}
+          icon={<Upload className="h-12 w-12 text-slate-400" />}
           allowedFileTypes={['.pdf', '.docx', '.doc', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword']}
           validateFile={(file) => {
             if (!isAllowedCimFile(file)) {
@@ -519,16 +519,16 @@ export default function CimsPage() {
       </div>
 
       {/* Results */}
-      <div className="mb-4 text-sm text-slate-600">
+      <div className="mb-4 text-sm text-slate-400">
         Showing {filteredDeals.length} of {deals.length} deals
       </div>
 
       {/* Deal Cards */}
       {filteredDeals.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-slate-300">
+        <div className="text-center py-16 bg-slate-800 rounded-xl border-2 border-dashed border-slate-700 hover:border-emerald-500/50 hover:bg-slate-800/50 transition-colors">
           <div className="text-6xl mb-4">📄</div>
-          <h3 className="text-xl font-semibold mb-2">No CIMs uploaded yet</h3>
-          <p className="text-slate-600">Use the upload zone above to upload your first CIM</p>
+          <h3 className="text-xl font-semibold text-slate-50 mb-2">No CIMs uploaded yet</h3>
+          <p className="text-slate-400">Use the upload zone above to upload your first CIM</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
