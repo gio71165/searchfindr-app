@@ -950,6 +950,14 @@ export async function POST(req: NextRequest) {
         };
         deal_size_band?: string;
       };
+      next_steps?: Array<{
+        id?: string;
+        title?: string;
+        description?: string;
+        priority?: string;
+        completed?: boolean;
+        completed_at?: string | null;
+      }>;
     };
 
     try {
@@ -1083,7 +1091,27 @@ export async function POST(req: NextRequest) {
       if (locationCity) updateData.location_city = locationCity;
       if (locationState) updateData.location_state = locationState;
       if (industry) updateData.industry = industry;
-      
+
+      // Next steps: normalize and store (generate UUIDs if missing)
+      const rawSteps = Array.isArray(parsed.next_steps) ? parsed.next_steps : [];
+      if (rawSteps.length > 0) {
+        const crypto = await import('crypto');
+        const steps = rawSteps
+          .filter((s) => s && (s.title || s.description))
+          .map((s) => ({
+            id: typeof s.id === 'string' && s.id.length > 0 ? s.id : crypto.randomUUID(),
+            title: typeof s.title === 'string' ? s.title : 'Next step',
+            description: typeof s.description === 'string' ? s.description : '',
+            priority: s.priority === 'high' || s.priority === 'medium' || s.priority === 'low' ? s.priority : 'medium',
+            completed: Boolean(s.completed),
+            completed_at: s.completed_at ?? null,
+          }));
+        updateData.next_steps = {
+          generated_at: new Date().toISOString(),
+          steps,
+        };
+      }
+
       const { error: updateError } = await supabaseUser
         .from('companies')
         .update(updateData)

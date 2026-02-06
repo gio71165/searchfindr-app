@@ -354,9 +354,9 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
   // Chat is always available now
 
   const chatContent = (
-    <div className="flex flex-col h-full bg-slate-950 border-l border-slate-800">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-slate-800">
+    <div className="flex flex-col h-full min-h-0 bg-slate-950 border-l border-slate-800">
+      {/* Header - fixed height */}
+      <div className="flex items-center justify-between p-4 border-b border-slate-800 flex-shrink-0">
         <div>
           <h2 className="text-lg font-semibold text-slate-50">Deal Assistant</h2>
           <p className="text-xs text-slate-500 mt-1">Ask questions about this deal</p>
@@ -379,10 +379,10 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
         </div>
       </div>
 
-      {/* Messages */}
+      {/* Messages - scrollable, takes remaining space */}
       <div 
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-3" 
+        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-4 space-y-3" 
         style={{ scrollBehavior: 'smooth' }}
       >
         {messages.map((m, idx) => {
@@ -450,13 +450,13 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
 
       {/* Error */}
       {err && (
-        <div className="px-4 py-2 border-t border-slate-800 bg-red-950/20">
+        <div className="flex-shrink-0 px-4 py-2 border-t border-slate-800 bg-red-950/20">
           <p className="text-xs text-red-400">{err}</p>
         </div>
       )}
 
-      {/* Input */}
-      <div className="border-t border-slate-800 p-4">
+      {/* Input - always visible at bottom */}
+      <div className="flex-shrink-0 border-t border-slate-800 p-4">
         {/* Prompt Chips */}
         {corePrompts.length > 0 && (
           <div className="flex gap-2 flex-wrap mb-2">
@@ -520,11 +520,11 @@ export function DealChatPanel({ dealId, deal }: { dealId: string; deal: Deal }) 
     </div>
   );
 
-  // Desktop: Sticky sidebar
+  // Desktop: Sticky sidebar with fixed height so messages scroll and input stays visible
   if (!isMobile) {
     return (
       <aside className="hidden lg:block w-[400px] flex-shrink-0">
-        <div className="sticky top-16 h-[calc(100vh-4rem)]">
+        <div className="sticky top-16 h-[calc(100vh-4rem)] min-h-0 flex flex-col overflow-hidden">
           {chatContent}
         </div>
       </aside>

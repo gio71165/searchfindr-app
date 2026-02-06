@@ -103,6 +103,9 @@ export function OffMarketDealView({
             settingVerdict={settingVerdict}
             sourceType="off_market"
             hideVerdictButtons={true}
+            onRunAnalysis={onRunInitialDiligence}
+            runningAnalysis={running}
+            onRefresh={onRefresh}
           />
         );
       case 'modeling':

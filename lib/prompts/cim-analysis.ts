@@ -791,6 +791,23 @@ When assessing SBA eligibility:
 - If NAICS code indicates manufacturing (31-33), mention fee waiver eligibility
 
 ============================================================
+NEXT STEPS (REQUIRED)
+============================================================
+Generate 3-8 deal-specific next steps from your analysis. Each step must be SPECIFIC to this deal, not generic.
+
+Rules:
+- IF red flags found → Add "Review red flag: [specific flag]" with description = why it matters (e.g. "Customer concentration (top 3 = 78%)").
+- IF add-backs detected (especially Maybe/Aggressive) → Add "Verify add-back: [specific item]" with description = amount/reason.
+- IF financial data missing or unclear → Add "Request from broker: [missing item]".
+- IF high asking multiple vs comps → Add "Negotiate price: [comparison to comps]" with description.
+- IF customer concentration risk → Add "Request customer contracts" with description (e.g. "Top 3 = 78% of revenue").
+- IF owner-dependent / succession risk → Add "Assess management team depth" with description.
+
+Prioritize: red flags first (high), then verification/addbacks (high/medium), then modeling/requests (medium/low).
+Use UUID v4 for each step id. Set completed: false, completed_at: null for all.
+Include "why it matters" in description so the searcher sees context.
+
+============================================================
 JSON OUTPUT SCHEMA (STRICT)
 ============================================================
 You MUST return JSON ONLY, matching this schema exactly:
@@ -946,6 +963,17 @@ You MUST return JSON ONLY, matching this schema exactly:
 
   "key_assumptions": [
     "string"
+  ],
+
+  "next_steps": [
+    {
+      "id": "string (UUID v4)",
+      "title": "string (short action, e.g. 'Review red flag: Customer concentration')",
+      "description": "string (why it matters, e.g. 'Top 3 customers = 78% of revenue')",
+      "priority": "high | medium | low",
+      "completed": false,
+      "completed_at": null
+    }
   ]
 }
 

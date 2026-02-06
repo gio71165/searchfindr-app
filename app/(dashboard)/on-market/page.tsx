@@ -23,7 +23,7 @@ export default function OnMarketPage() {
 
   async function loadDeals(workspaceId: string) {
     // Optimized: Only fetch columns needed for DealCard display
-    const columns = 'id,company_name,location_city,location_state,industry,source_type,final_tier,created_at,stage,verdict,next_action_date,sba_eligible,deal_size_band,is_saved,asking_price_extracted,ebitda_ttm_extracted,next_action';
+    const columns = 'id,company_name,location_city,location_state,industry,source_type,final_tier,created_at,stage,verdict,next_action_date,sba_eligible,deal_size_band,is_saved,asking_price_extracted,ebitda_ttm_extracted,revenue_ttm_extracted,next_action,criteria_match_json';
     const { data, error } = await supabase
       .from('companies')
       .select(columns)

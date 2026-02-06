@@ -180,6 +180,26 @@ export interface NotesForSearcher {
 }
 
 /**
+ * Single next step (AI-generated or derived from analysis)
+ */
+export interface NextStepItem {
+  id: string;
+  title: string;
+  description: string;
+  priority: 'high' | 'medium' | 'low';
+  completed: boolean;
+  completed_at: string | null;
+}
+
+/**
+ * Next steps payload stored on companies.next_steps
+ */
+export interface NextStepsPayload {
+  generated_at: string;
+  steps: NextStepItem[];
+}
+
+/**
  * Criteria match structure
  */
 export interface CriteriaMatch {
@@ -288,6 +308,8 @@ export interface Deal {
   score_components?: Record<string, number> | null;
   // Gut check score (1-10)
   gut_check_score?: number | null;
+  // AI-generated next steps (after CIM/analysis)
+  next_steps?: NextStepsPayload | null;
 }
 
 /**

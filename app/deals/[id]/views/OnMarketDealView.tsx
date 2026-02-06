@@ -107,6 +107,9 @@ export function OnMarketDealView({
             settingVerdict={settingVerdict}
             sourceType="on_market"
             hideVerdictButtons={true}
+            onRunAnalysis={onRunInitialDiligence}
+            runningAnalysis={analyzing}
+            onRefresh={onRefresh}
           />
         );
       case 'modeling':

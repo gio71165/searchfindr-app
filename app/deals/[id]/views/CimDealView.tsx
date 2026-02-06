@@ -116,6 +116,7 @@ export function CimDealView({
             cimError={cimError}
             cimSuccess={cimSuccess}
             onRunCim={onRunCim}
+            onRefresh={onRefresh}
           />
         );
       case 'modeling':

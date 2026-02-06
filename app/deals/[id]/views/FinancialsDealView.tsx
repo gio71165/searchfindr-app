@@ -77,6 +77,9 @@ export function FinancialsDealView({
             sourceType="financials"
             financialAnalysis={analysis}
             hideVerdictButtons={true}
+            onRunAnalysis={onRun}
+            runningAnalysis={running}
+            onRefresh={onRefresh}
           />
         );
       case 'modeling':

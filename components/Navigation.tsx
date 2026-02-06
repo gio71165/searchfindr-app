@@ -76,9 +76,9 @@ export function Navigation() {
     );
   }
 
-  // Full nav when authenticated - Dark theme
+  // Full nav when authenticated - Dark theme; pl-14 on mobile so sidebar hamburger doesn't overlap
   return (
-    <nav className="sticky top-0 z-40 h-16 bg-slate-950 border-b border-slate-800 flex items-center justify-between px-6">
+    <nav className="sticky top-0 z-40 h-16 bg-slate-950 border-b border-slate-800 flex items-center justify-between pl-14 lg:pl-6 pr-4 sm:px-6">
       {/* Search / Command Palette - Placeholder for future */}
       <div className="flex-1 max-w-2xl hidden lg:block" />
 

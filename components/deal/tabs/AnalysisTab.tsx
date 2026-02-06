@@ -60,6 +60,12 @@ interface AnalysisTabProps {
   cimError?: string | null;
   cimSuccess?: boolean;
   onRunCim?: () => void;
+  /** When provided, Next Steps "Run AI Analysis" button will call this (e.g. onRunCim, onRunInitialDiligence) */
+  onRunAnalysis?: () => void | Promise<void>;
+  /** While analysis is running (disables Run AI Analysis button) */
+  runningAnalysis?: boolean;
+  /** After next steps are updated (e.g. refetch deal) */
+  onRefresh?: () => void;
 }
 
 export function AnalysisTab({
@@ -77,6 +83,9 @@ export function AnalysisTab({
   cimError,
   cimSuccess,
   onRunCim,
+  onRunAnalysis,
+  runningAnalysis = false,
+  onRefresh,
 }: AnalysisTabProps) {
   const finRaw = deal.ai_financials_json || {};
   const finRawAny = finRaw as Record<string, unknown>;
@@ -198,8 +207,16 @@ export function AnalysisTab({
         </div>
       )}
 
-      {/* Next Steps Checklist - Prominent, source-type-aware */}
-      <NextStepsChecklist dealId={dealId} sourceType={sourceType} />
+      {/* Next Steps: before analysis = single Run AI button; after = dynamic steps from deal.next_steps */}
+      <NextStepsChecklist
+        deal={deal}
+        dealId={dealId}
+        sourceType={sourceType}
+        onRunAnalysis={onRunAnalysis ?? onRunCim}
+        running={runningAnalysis || !!processingCim}
+        onStepsUpdated={onRefresh}
+        hasAnalysisOverride={sourceType === 'financials' ? !!financialAnalysis : undefined}
+      />
 
       {/* Last Updated Timestamp */}
       {deal?.updated_at && (

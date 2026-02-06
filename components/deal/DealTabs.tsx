@@ -37,7 +37,7 @@ export function DealTabs({ deal, children }: DealTabsProps) {
       {
         id: 'modeling',
         label: 'Modeling',
-        visible: verdict === 'proceed' || stage !== 'new',
+        visible: true, // Always visible so on-market and all deal types can use SBA calculator, structure, scenarios
       },
       {
         id: 'ioi',

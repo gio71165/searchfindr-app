@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
 import { useReminderCount } from '@/lib/hooks/useReminderCount';
-import { BarChart3, Clock, FileText, DollarSign, FolderOpen, Users, Globe } from 'lucide-react';
+import { BarChart3, Clock, FileText, DollarSign, FolderOpen, Users, Globe, Menu, X } from 'lucide-react';
 
 const FEATURE_FLAGS = {
   DOCUMENTS: false,
@@ -44,72 +44,74 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile Menu Button */}
+      {/* Mobile Menu Button - high contrast on dark, 44x44 touch target */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-3 min-h-[44px] min-w-[44px] bg-slate-950 border border-slate-800 rounded-lg shadow-md touch-manipulation flex items-center justify-center"
-        aria-label="Toggle menu"
+        className="lg:hidden fixed top-4 left-4 z-[60] min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-slate-500/70 bg-slate-800/90 backdrop-blur-sm text-white hover:bg-slate-700 hover:border-slate-400 transition-colors shadow-lg touch-manipulation"
+        aria-label={isOpen ? 'Close menu' : 'Open menu'}
       >
-        <svg
-          className="w-6 h-6 text-slate-300"
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="2"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          {isOpen ? (
-            <path d="M6 18L18 6M6 6l12 12" />
-          ) : (
-            <path d="M4 6h16M4 12h16M4 18h16" />
-          )}
-        </svg>
+        {isOpen ? (
+          <X className="w-6 h-6" aria-hidden />
+        ) : (
+          <Menu className="w-6 h-6" aria-hidden />
+        )}
       </button>
 
-      {/* Overlay for mobile */}
+      {/* Overlay for mobile - clearly visible */}
       {isOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
+          className="lg:hidden fixed inset-0 bg-black/60 z-[45] backdrop-blur-[2px]"
           onClick={() => setIsOpen(false)}
+          aria-hidden
         />
       )}
 
-      {/* Sidebar - Premium Dark Theme */}
+      {/* Sidebar - Premium Dark Theme, z-50 so above overlay on mobile */}
       <aside
         className={`
-          w-64 bg-slate-950 border-r border-slate-800 h-screen flex flex-col z-30
+          w-64 bg-slate-950 border-r border-slate-800 h-screen flex flex-col z-50
           fixed lg:sticky top-0 left-0
           transition-transform duration-300 ease-in-out
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0
         `}
       >
-        {/* Logo Section */}
-        <div className="p-6 border-b border-slate-800">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-              SearchFindr
-            </h1>
-            {isCoalitionMember && (
-              <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-500/40">
-                Coalition
-              </span>
-            )}
+        {/* Logo Section + mobile close button */}
+        <div className="p-4 lg:p-6 border-b border-slate-800 flex items-center justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+                SearchFindr
+              </h1>
+              {isCoalitionMember && (
+                <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-300 border border-blue-500/40">
+                  Coalition
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 mt-1">Deal Intelligence</p>
           </div>
-          <p className="text-xs text-slate-500 mt-1">Deal Intelligence</p>
+          {/* Close (X) button - visible on mobile only */}
+          <button
+            type="button"
+            onClick={() => setIsOpen(false)}
+            className="lg:hidden flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-slate-100 hover:text-white hover:bg-slate-800 border border-slate-600 touch-manipulation"
+            aria-label="Close menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Navigation */}
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {navItems.map((group, idx) => (
             <div key={idx}>
-              {/* Section Header */}
-              <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3 px-3">
+              {/* Section Header - readable on dark */}
+              <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 px-3">
                 {group.section}
               </div>
 
-              {/* Nav Items */}
+              {/* Nav Items - high contrast text */}
               <nav className="space-y-1">
                 {group.items.map(item => {
                   const isActive = pathname === item.href || 
@@ -126,8 +128,8 @@ export function Sidebar() {
                         flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                         transition-all duration-200 min-h-[44px] touch-manipulation
                         ${isActive 
-                          ? 'bg-slate-900 text-white border-l-4 border-emerald-500 pl-2.5' 
-                          : 'text-slate-400 hover:text-white hover:bg-slate-900/50'
+                          ? 'bg-slate-800 text-white border-l-4 border-emerald-500 pl-2.5' 
+                          : 'text-slate-200 hover:text-white hover:bg-slate-800/70'
                         }
                       `}
                     >

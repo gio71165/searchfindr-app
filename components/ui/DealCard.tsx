@@ -2,12 +2,11 @@
 
 import React, { useState, memo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Building2, Calendar, DollarSign, TrendingUp, StickyNote, Plus, Tag, Clock, ChevronRight, Eye } from 'lucide-react';
+import { MapPin, Building2, Calendar, DollarSign, TrendingUp, StickyNote, Plus, Tag, Clock, ChevronRight } from 'lucide-react';
 import { SourceBadge } from './SourceBadge';
 import { Skeleton } from './Skeleton';
 import { MoreActionsMenu } from '@/components/deal/MoreActionsMenu';
 import { TierBadge } from '@/app/deals/[id]/components/TierBadge';
-import { QuickViewModal } from '@/components/modals/QuickViewModal';
 import { supabase } from '@/app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
 import { logger } from '@/lib/utils/logger';
@@ -47,6 +46,18 @@ type Deal = {
     sba_eligible?: boolean;
     recommended_next_action?: string;
   } | null;
+  /** On-market listing data when joined (e.g. from on_market_deals); used for card financials */
+  on_market_data?: {
+    asking_price?: number | null;
+    revenue_min?: number | null;
+    revenue_max?: number | null;
+    ebitda_min?: number | null;
+    ebitda_max?: number | null;
+    revenue_band?: string | null;
+    ebitda_band?: string | null;
+  } | null;
+  /** Raw asking price (number) when not in asking_price_extracted */
+  asking_price?: number | null;
 };
 
 function VerdictBadge({ verdict, size = 'default' }: { verdict: string | null; size?: 'sm' | 'default' }) {
@@ -103,7 +114,6 @@ function DealCardComponent({
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [noteInput, setNoteInput] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
-  const [showQuickView, setShowQuickView] = useState(false);
   if (isLoading || !deal) {
     return (
       <div className="rounded-xl border border-slate-700 bg-slate-800 p-6">
@@ -240,10 +250,6 @@ function DealCardComponent({
       setIsDeleting(false);
     }
   };
-  const askingPrice = deal.asking_price_extracted || deal.criteria_match_json?.asking_price || null;
-  const ebitda = deal.ebitda_ttm_extracted || deal.criteria_match_json?.ebitda_ttm || null;
-  const sbaEligible = deal.sba_eligible !== undefined ? deal.sba_eligible : deal.criteria_match_json?.sba_eligible ?? null;
-  const nextAction = deal.next_action || deal.criteria_match_json?.recommended_next_action || null;
 
   // Helper to format currency from string or number
   const formatCurrency = (value: string | number | null | undefined): string => {
@@ -258,6 +264,39 @@ function DealCardComponent({
     }
     return '—';
   };
+
+  // Extract financials: columns first, then criteria_match, then on_market_data / asking_price
+  const om = deal.on_market_data;
+  const askingPriceRaw: string | number | null =
+    deal.asking_price_extracted ??
+    deal.criteria_match_json?.asking_price ??
+    ((typeof (deal as any).asking_price === 'number' && (deal as any).asking_price > 0)
+      ? (deal as any).asking_price
+      : null) ??
+    (om?.asking_price != null && om.asking_price > 0 ? om.asking_price : null);
+  const askingPrice =
+    askingPriceRaw == null
+      ? null
+      : typeof askingPriceRaw === 'string'
+        ? askingPriceRaw
+        : formatCurrency(askingPriceRaw);
+  const ebitdaRaw: string | null =
+    deal.ebitda_ttm_extracted ??
+    deal.criteria_match_json?.ebitda_ttm ??
+    (om?.ebitda_band ?? (om?.ebitda_min != null || om?.ebitda_max != null
+      ? [om!.ebitda_min, om!.ebitda_max].filter(Boolean).map((n) => n!.toLocaleString()).join('–')
+      : null)) ??
+    null;
+  const ebitda = ebitdaRaw;
+  const revenueDisplay: string | null =
+    (deal as any).revenue_ttm_extracted ??
+    om?.revenue_band ??
+    (om?.revenue_min != null || om?.revenue_max != null
+      ? [om!.revenue_min, om!.revenue_max].filter(Boolean).map((n) => n!.toLocaleString()).join('–')
+      : null) ??
+    null;
+  const sbaEligible = deal.sba_eligible !== undefined ? deal.sba_eligible : deal.criteria_match_json?.sba_eligible ?? null;
+  const nextAction = deal.next_action || deal.criteria_match_json?.recommended_next_action || null;
 
   const dealHref = `/deals/${deal.id}${fromView ? `?from_view=${fromView}` : ''}`;
 
@@ -357,7 +396,7 @@ function DealCardComponent({
       </div>
 
       {/* Key Metrics Grid */}
-      {(askingPrice || ebitda) && (
+      {(askingPrice || ebitda || revenueDisplay) && (
         <div className="grid grid-cols-2 gap-4 mb-4 pb-4 border-b border-slate-700">
           {askingPrice && (
             <div>
@@ -371,6 +410,12 @@ function DealCardComponent({
                 <JargonTooltip term="EBITDA">EBITDA</JargonTooltip>
               </div>
               <p className="text-base font-semibold font-mono text-slate-300">{ebitda}</p>
+            </div>
+          )}
+          {revenueDisplay && (
+            <div className={askingPrice && ebitda ? 'col-span-2' : ''}>
+              <p className="text-xs text-slate-500 mb-1">Revenue</p>
+              <p className="text-base font-semibold font-mono text-slate-300">{revenueDisplay}</p>
             </div>
           )}
         </div>
@@ -393,20 +438,7 @@ function DealCardComponent({
 
       {/* Hover Actions */}
       <div className="mt-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowQuickView(true);
-          }}
-          className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-emerald-400 font-medium"
-          data-no-navigate
-        >
-          <Eye className="h-4 w-4" />
-          Quick view
-        </button>
-        <button className="text-sm text-emerald-400 hover:text-emerald-300 font-medium">
-          View Details
-        </button>
+        <span className="text-sm text-emerald-400 font-medium">View Details</span>
         {onSaveToggle && (
           <button
             onClick={(e) => {
@@ -488,22 +520,24 @@ function DealCardComponent({
             </div>
             
             {/* Key metrics - 2 column grid */}
-            {(askingPrice || ebitda) && (
+            {(askingPrice || ebitda || revenueDisplay) && (
               <div className="grid grid-cols-2 gap-3 mb-3">
                 {askingPrice && (
                   <div>
                     <p className="text-xs text-slate-500">Asking Price</p>
-                    <p className="text-sm font-semibold text-slate-300">
-                      {formatCurrency(askingPrice)}
-                    </p>
+                    <p className="text-sm font-semibold text-slate-300">{askingPrice}</p>
                   </div>
                 )}
                 {ebitda && (
                   <div>
                     <p className="text-xs text-slate-500">EBITDA</p>
-                    <p className="text-sm font-semibold text-slate-300">
-                      {formatCurrency(ebitda)}
-                    </p>
+                    <p className="text-sm font-semibold text-slate-300">{ebitda}</p>
+                  </div>
+                )}
+                {revenueDisplay && (
+                  <div>
+                    <p className="text-xs text-slate-500">Revenue</p>
+                    <p className="text-sm font-semibold text-slate-300">{revenueDisplay}</p>
                   </div>
                 )}
               </div>
@@ -530,31 +564,10 @@ function DealCardComponent({
               </div>
             )}
             
-            {/* Quick view + Chevron */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowQuickView(true);
-              }}
-              className="absolute right-4 top-4 flex items-center gap-1 p-2 -m-2 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-slate-700/50"
-              data-no-navigate
-            >
-              <Eye className="w-4 h-4" />
-              <span className="text-xs font-medium">Quick view</span>
-            </button>
           </div>
         </div>
       </div>
 
-      {showQuickView && (
-        <QuickViewModal
-          dealId={deal.id}
-          initialDeal={deal}
-          fromView={fromView ?? undefined}
-          onClose={() => setShowQuickView(false)}
-        />
-      )}
     </>
   );
 }

@@ -127,37 +127,33 @@ export function MarketingNavigation() {
             </Link>
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Menu Button - high contrast, 44x44 touch target, visible on dark */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden p-2 text-white/70 hover:text-white transition-colors"
-            aria-label="Toggle menu"
+            className="lg:hidden min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-slate-500/60 bg-slate-800/70 backdrop-blur-sm text-white hover:bg-slate-700 hover:border-slate-400 transition-colors touch-manipulation"
+            aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
           >
             {isMobileMenuOpen ? (
-              <X className="h-6 w-6" />
+              <X className="h-6 w-6" aria-hidden />
             ) : (
-              <Menu className="h-6 w-6" />
+              <Menu className="h-6 w-6" aria-hidden />
             )}
           </button>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu - high contrast background and text */}
         {isMobileMenuOpen && (
-          <div className={`lg:hidden pb-6 border-t border-white/10 mt-4 pt-4 ${
-            isScrolled 
-              ? '' 
-              : 'bg-[#0a0e14]/95 backdrop-blur-md'
-          }`}>
-            <div className="flex flex-col gap-4">
+          <div className="lg:hidden pb-6 border-t border-slate-600 mt-4 pt-4 bg-slate-900/98 backdrop-blur-md">
+            <div className="flex flex-col gap-1">
               {navLinks.map((link) => (
                 link.scroll ? (
                   <button
                     key={link.href}
                     onClick={(e) => handleLinkClick(e, link.href, true)}
-                    className={`text-left text-sm font-medium transition-colors py-2 ${
+                    className={`text-left text-sm font-medium transition-colors py-3 px-2 rounded-lg min-h-[44px] flex items-center touch-manipulation ${
                       pathname === link.href
-                        ? 'text-emerald-400'
-                        : 'text-white/70 hover:text-white'
+                        ? 'text-emerald-400 bg-emerald-500/10'
+                        : 'text-slate-100 hover:text-white hover:bg-slate-800'
                     }`}
                   >
                     {link.label}
@@ -167,34 +163,34 @@ export function MarketingNavigation() {
                     key={link.href}
                     href={link.href}
                     onClick={() => setIsMobileMenuOpen(false)}
-                    className={`text-left text-sm font-medium transition-colors py-2 ${
+                    className={`text-left text-sm font-medium transition-colors py-3 px-2 rounded-lg min-h-[44px] flex items-center touch-manipulation ${
                       pathname === link.href
-                        ? 'text-emerald-400'
-                        : 'text-white/70 hover:text-white'
+                        ? 'text-emerald-400 bg-emerald-500/10'
+                        : 'text-slate-100 hover:text-white hover:bg-slate-800'
                     }`}
                   >
                     {link.label}
                   </Link>
                 )
               ))}
-              <div className="pt-4 border-t border-white/10 flex flex-col gap-3">
+              <div className="pt-4 mt-2 border-t border-slate-600 flex flex-col gap-2">
                 <Link
                   href="/login"
-                  className="text-sm font-medium text-white/70 hover:text-white transition-colors py-2"
+                  className="text-sm font-medium text-slate-100 hover:text-white hover:bg-slate-800 transition-colors py-3 px-2 rounded-lg min-h-[44px] flex items-center touch-manipulation"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Log In
                 </Link>
                 <Link
                   href="/pricing"
-                  className="btn-primary text-center"
+                  className="btn-primary text-center py-3 min-h-[44px] flex items-center justify-center touch-manipulation"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Pricing
                 </Link>
                 <Link
                   href="/demo"
-                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-sm font-semibold text-white text-center hover:from-emerald-400 hover:to-emerald-500 transition-all"
+                  className="px-4 py-3 rounded-lg bg-gradient-to-r from-emerald-500 to-emerald-600 text-sm font-semibold text-white text-center hover:from-emerald-400 hover:to-emerald-500 transition-all min-h-[44px] flex items-center justify-center touch-manipulation"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Book Demo

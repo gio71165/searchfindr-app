@@ -168,7 +168,17 @@ Return a JSON object with this EXACT structure (no extra keys):
       "assessment": "YES | NO | LIKELY | UNKNOWN",
       "reasoning": "string"
     }
-  }
+  },
+  "next_steps": [
+    {
+      "id": "string (UUID v4)",
+      "title": "string (e.g. 'Review red flag: ...' or 'Request from broker: ...')",
+      "description": "string (why it matters)",
+      "priority": "high | medium | low",
+      "completed": false,
+      "completed_at": null
+    }
+  ]
 }
 
 Rules:
@@ -191,6 +201,17 @@ recommended_next_action: Be SPECIFIC - "Schedule call with broker to clarify X" 
 estimated_time_to_decision: Given listing quality, how long until LOI? (e.g., "Can decide in 1 week" | "Needs 2-3 weeks DD" | "Pass now")
 
 Be OPINIONATED. Searchers pay for judgment, not just information.
+
+============================================================
+NEXT STEPS (REQUIRED)
+============================================================
+Generate 3-6 deal-specific next steps. Be SPECIFIC to this listing.
+- IF red flags in ai_red_flags → Add "Review red flag: [specific flag]" (priority high).
+- IF financial data missing → Add "Request from broker: [missing item]".
+- IF high asking multiple → Add "Negotiate price: [context]".
+- IF customer concentration → Add "Request customer contracts" with description (e.g. "Top 3 = X%").
+- IF owner-dependent → Add "Assess management team depth".
+Use UUID v4 for each id. completed: false, completed_at: null.
 
 ============================================================
 DEAL ECONOMICS (REQUIRED)
@@ -328,22 +349,45 @@ Listing Text:
           ai_confidence_json: parsed.ai_confidence_json,
         });
 
+        // Next steps: normalize and build payload
+        const rawSteps = Array.isArray(parsed.next_steps) ? parsed.next_steps : [];
+        let nextStepsPayload: { generated_at: string; steps: Array<{ id: string; title: string; description: string; priority: 'high' | 'medium' | 'low'; completed: boolean; completed_at: string | null }> } | null = null;
+        if (rawSteps.length > 0) {
+          const crypto = await import('crypto');
+          nextStepsPayload = {
+            generated_at: new Date().toISOString(),
+            steps: rawSteps
+              .filter((s: any) => s && (s.title || s.description))
+              .map((s: any) => ({
+                id: typeof s.id === 'string' && s.id.length > 0 ? s.id : crypto.randomUUID(),
+                title: typeof s.title === 'string' ? s.title : 'Next step',
+                description: typeof s.description === 'string' ? s.description : '',
+                priority: s.priority === 'high' || s.priority === 'medium' || s.priority === 'low' ? s.priority : 'medium',
+                completed: Boolean(s.completed),
+                completed_at: s.completed_at ?? null,
+              })),
+          };
+        }
+
         // Update analysis outputs (fields not in updateAnalysis method)
+        const updatePayload: Record<string, unknown> = {
+          verdict: verdict === 'proceed' || verdict === 'park' || verdict === 'pass' ? verdict : null,
+          verdict_reason: verdictReason,
+          verdict_confidence: verdictConfidence === 'high' || verdictConfidence === 'medium' || verdictConfidence === 'low' ? verdictConfidence : null,
+          next_action: nextAction,
+          asking_price_extracted: askingPrice,
+          revenue_ttm_extracted: revenueTTM,
+          ebitda_ttm_extracted: ebitdaTTM,
+          sba_eligible: sbaEligible,
+          deal_size_band: dealSizeBand,
+          stage: 'reviewing',
+          last_action_at: new Date().toISOString(),
+        };
+        if (nextStepsPayload) updatePayload.next_steps = nextStepsPayload;
+
         const { error: updateError } = await supabaseUser
           .from('companies')
-          .update({
-            verdict: verdict === 'proceed' || verdict === 'park' || verdict === 'pass' ? verdict : null,
-            verdict_reason: verdictReason,
-            verdict_confidence: verdictConfidence === 'high' || verdictConfidence === 'medium' || verdictConfidence === 'low' ? verdictConfidence : null,
-            next_action: nextAction,
-            asking_price_extracted: askingPrice,
-            revenue_ttm_extracted: revenueTTM,
-            ebitda_ttm_extracted: ebitdaTTM,
-            sba_eligible: sbaEligible,
-            deal_size_band: dealSizeBand,
-            stage: 'reviewing', // Auto-advance from 'new' to 'reviewing'
-            last_action_at: new Date().toISOString(),
-          })
+          .update(updatePayload)
           .eq('id', dealId)
           .eq('workspace_id', workspace.id);
 
