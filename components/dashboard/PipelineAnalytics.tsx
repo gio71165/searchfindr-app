@@ -134,7 +134,7 @@ export function PipelineAnalytics({ stageCounts }: PipelineAnalyticsProps) {
                       borderRadius: '8px',
                     }}
                     labelStyle={{ color: '#e2e8f0' }}
-                    formatter={(value: number) => [value, 'Deals']}
+                    formatter={(value: number | undefined) => [value ?? 0, 'Deals']}
                   />
                   <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                     {chartData.map((entry, index) => (

@@ -4,28 +4,25 @@ import { useState, useEffect } from 'react';
 import { X, ExternalLink, MapPin, Building2, DollarSign, TrendingUp } from 'lucide-react';
 import { supabase } from '@/app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
-import type { Deal } from '@/lib/types/deal';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 import { SourceBadge } from '@/app/deals/[id]/components/SourceBadge';
 
-type QuickViewDeal = Pick<
-  Deal,
-  | 'id'
-  | 'company_name'
-  | 'location_city'
-  | 'location_state'
-  | 'industry'
-  | 'source_type'
-  | 'verdict'
-  | 'asking_price_extracted'
-  | 'ebitda_ttm_extracted'
-  | 'sba_eligible'
-  | 'ai_summary'
-  | 'criteria_match_json'
-  | 'final_tier'
-> & {
+/** Minimal shape for display; accept any object with at least these (e.g. from DealCard or full Deal). */
+type QuickViewDeal = {
+  id: string;
+  company_name?: string | null;
+  location_city?: string | null;
+  location_state?: string | null;
+  industry?: string | null;
+  source_type?: string | null;
   verdict?: string | null;
   verdict_reason?: string | null;
+  asking_price_extracted?: string | null;
+  ebitda_ttm_extracted?: string | null;
+  sba_eligible?: boolean | null;
+  ai_summary?: string | null;
+  criteria_match_json?: Record<string, unknown> | null;
+  final_tier?: string | null;
   next_action?: string | null;
 };
 
@@ -49,7 +46,7 @@ function VerdictBadge({ verdict }: { verdict: string | null }) {
 interface QuickViewModalProps {
   dealId: string;
   /** When provided, show immediately without fetching (e.g. from deal card) */
-  initialDeal?: QuickViewDeal | Deal | null;
+  initialDeal?: QuickViewDeal | null;
   onClose: () => void;
   fromView?: string | null;
 }
@@ -158,7 +155,7 @@ export function QuickViewModal({ dealId, initialDeal, onClose, fromView }: Quick
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <SourceBadge source={deal.source_type} />
+                  <SourceBadge source={deal.source_type ?? null} />
                   <VerdictBadge verdict={verdict} />
                 </div>
               </div>
