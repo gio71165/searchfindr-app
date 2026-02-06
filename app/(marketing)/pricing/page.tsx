@@ -1,15 +1,17 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Check, X, Zap, Crown, ArrowRight, MessageSquare, Workflow } from 'lucide-react';
+import { useState, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Check, X, Zap, Crown, ArrowRight, MessageSquare, Workflow, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
 import { supabase } from '@/app/supabaseClient';
 import { TrustBoxModal } from '@/components/modals/TrustBoxModal';
 import { TrialTerms } from '@/components/marketing/TrialTerms';
 
-export default function PricingPage() {
+function PricingContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const subscriptionRequired = searchParams.get('reason') === 'subscription_required';
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [isLoading, setIsLoading] = useState(false);
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
@@ -80,6 +82,18 @@ export default function PricingPage() {
           </div>
         </div>
       </div>
+
+      {/* Subscription required notice */}
+        {subscriptionRequired && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+            <div className="flex items-center gap-3 rounded-lg bg-amber-500/10 border border-amber-500/30 px-4 py-3 text-amber-200">
+              <ShieldAlert className="h-5 w-5 flex-shrink-0" />
+              <p className="text-sm">
+                A subscription is required to access the app. Choose a plan below to get started—you’ll get a 7-day free trial and won’t be charged until Day 8.
+              </p>
+            </div>
+          </div>
+        )}
 
       {/* Hero Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-6">
@@ -612,5 +626,13 @@ function FinalCTA() {
         </div>
       </div>
     </section>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0b0f17]" />}>
+      <PricingContent />
+    </Suspense>
   );
 }

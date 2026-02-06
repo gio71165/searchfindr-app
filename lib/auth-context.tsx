@@ -20,8 +20,12 @@ type AuthState = {
   isCoalitionLeader: boolean;
   isCoalitionMember: boolean;
   role: string | null;
+  /** True when subscription_status is 'active' or 'trialing'. Used to gate app access. */
+  hasValidSubscription: boolean;
   loading: boolean;
   error: string | null;
+  /** Re-fetch profile (e.g. after checkout so webhook may have run). */
+  refetchProfile: () => Promise<void>;
 };
 
 const defaultState: AuthState = {
@@ -32,8 +36,10 @@ const defaultState: AuthState = {
   isCoalitionLeader: false,
   isCoalitionMember: false,
   role: null,
+  hasValidSubscription: false,
   loading: true,
   error: null,
+  refetchProfile: async () => {},
 };
 
 const AuthContext = createContext<AuthState>(defaultState);
@@ -46,6 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isCoalitionLeader, setIsCoalitionLeader] = useState(false);
   const [isCoalitionMember, setIsCoalitionMember] = useState(false);
   const [role, setRole] = useState<string | null>(null);
+  const [hasValidSubscription, setHasValidSubscription] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await Promise.race([
         supabase
           .from('profiles')
-          .select('workspace_id, is_admin, is_coalition_leader, is_coalition_member, onboarding_completed, role')
+          .select('workspace_id, is_admin, is_coalition_leader, is_coalition_member, onboarding_completed, role, subscription_status')
           .eq('id', uid)
           .single(),
         timeoutPromise
@@ -68,16 +75,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setError(result.error.message);
         return;
       }
-      setWorkspaceId(result.data?.workspace_id ?? null);
-      setIsAdmin(result.data?.is_admin === true);
-      setIsCoalitionLeader(result.data?.is_coalition_leader === true || result.data?.is_admin === true);
-      setIsCoalitionMember(result.data?.is_coalition_member === true);
-      setRole(result.data?.role ?? null);
+      const data = result.data;
+      setWorkspaceId(data?.workspace_id ?? null);
+      setIsAdmin(data?.is_admin === true);
+      setIsCoalitionLeader(data?.is_coalition_leader === true || data?.is_admin === true);
+      setIsCoalitionMember(data?.is_coalition_member === true);
+      setRole(data?.role ?? null);
+      const status = data?.subscription_status ?? 'inactive';
+      setHasValidSubscription(status === 'active' || status === 'trialing');
     } catch (e) {
       console.error('Profile fetch failed:', e);
       // Don't block app, just log error
     }
   }, []);
+
+  const refetchProfile = useCallback(async () => {
+    if (user?.id) await fetchProfile(user.id);
+  }, [user?.id, fetchProfile]);
 
   useEffect(() => {
     let mounted = true;
@@ -129,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsCoalitionLeader(false);
           setIsCoalitionMember(false);
           setRole(null);
+          setHasValidSubscription(false);
           if (mounted) {
             if (timeoutId) clearTimeout(timeoutId);
             setLoading(false);
@@ -183,6 +198,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setIsCoalitionLeader(false);
           setIsCoalitionMember(false);
           setRole(null);
+          setHasValidSubscription(false);
         }
         
         // Don't set loading here - let the profile fetch complete naturally
@@ -206,10 +222,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isCoalitionLeader,
       isCoalitionMember,
       role,
+      hasValidSubscription,
       loading,
       error,
+      refetchProfile,
     }),
-    [user, session, workspaceId, isAdmin, isCoalitionLeader, isCoalitionMember, role, loading, error]
+    [user, session, workspaceId, isAdmin, isCoalitionLeader, isCoalitionMember, role, hasValidSubscription, loading, error, refetchProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -56,13 +56,13 @@ export function GuidedModelingWizard({ deal }: { deal: Deal | null }) {
     const fin = (deal.ai_financials_json || {}) as Record<string, unknown>;
     const criteria = (deal.criteria_match_json || {}) as Record<string, unknown>;
     const price =
-      parseDealNumber(fin.estimated_purchase_price ?? fin.purchase_price) ||
+      parseDealNumber((fin.estimated_purchase_price ?? fin.purchase_price) as string | number | null | undefined) ||
       parseDealNumber(deal.asking_price_extracted) ||
-      parseDealNumber(criteria.asking_price);
+      parseDealNumber(criteria.asking_price as string | number | null | undefined);
     const ebitda =
       parseDealNumber(deal.ebitda_ttm_extracted) ||
-      parseDealNumber(criteria.ebitda_ttm) ||
-      parseDealNumber(fin.ebitda ?? fin.ttm_ebitda ?? fin.ebitda_ttm);
+      parseDealNumber(criteria.ebitda_ttm as string | number | null | undefined) ||
+      parseDealNumber((fin.ebitda ?? fin.ttm_ebitda ?? fin.ebitda_ttm) as string | number | null | undefined);
 
     setState(prev => ({
       ...prev,

@@ -29,9 +29,26 @@ const tabs: { id: TabId; label: string; icon: typeof CreditCard; activeBg: strin
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, loading, hasValidSubscription } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>('subscription');
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | null>(null);
+
+  // Redirect to login when not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/login');
+    }
+  }, [loading, user, router]);
+
+  // Require valid subscription to access settings (same as dashboard)
+  useEffect(() => {
+    if (loading || !user) return;
+    if (!hasValidSubscription) {
+      router.replace('/pricing?reason=subscription_required');
+    }
+  }, [loading, user, hasValidSubscription, router]);
+
+  const needsSubscription = user && !loading && !hasValidSubscription;
 
   useEffect(() => {
     if (!user) return;
@@ -85,6 +102,16 @@ export default function SettingsPage() {
       showToast('Failed to reset onboarding', 'error', 3000);
     }
   };
+
+  if (!user || needsSubscription) {
+    return (
+      <main className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <p className="text-slate-400">
+          {!user ? 'Redirecting to login...' : 'Redirecting to subscription...'}
+        </p>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-slate-900">
