@@ -5,6 +5,7 @@ import { DealsRepository } from '@/lib/data-access/deals';
 import { buildExtractedMetrics, buildFinancialDelta } from '@/lib/data-access/training-data';
 import { NotFoundError, DatabaseError } from '@/lib/data-access/base';
 import { getCorsHeaders } from '@/lib/api/security';
+import { logAudit } from '@/lib/api/audit';
 
 export const runtime = 'nodejs';
 
@@ -109,6 +110,15 @@ export async function POST(
       financial_delta: finalFinancialDelta,
       extracted_metrics: extractedMetrics,
       pass_reason_sentence: verdictType === 'pass' ? searcherInputText : null,
+    });
+
+    await logAudit(supabase, {
+      workspace_id: workspace.id,
+      user_id: user.id,
+      action: 'verdict_set',
+      resource_type: 'deal',
+      resource_id: dealId,
+      metadata: { verdict_type: verdictType },
     });
 
     revalidatePath(`/deals/${dealId}`);

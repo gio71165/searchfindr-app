@@ -89,6 +89,12 @@ const SHORTCUTS: Shortcut[] = [
     description: 'Pass current deal',
     context: ['dashboard'],
   },
+  {
+    key: 'P',
+    shift: true,
+    description: 'Bulk proceed selected deals',
+    context: ['dashboard'],
+  },
 ];
 
 function formatKey(key: string, shift?: boolean, ctrl?: boolean, alt?: boolean, meta?: boolean): string {

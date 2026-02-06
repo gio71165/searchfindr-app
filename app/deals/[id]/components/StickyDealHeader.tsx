@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import type { Deal } from '@/lib/types/deal';
 import { AsyncButton } from '@/components/ui/AsyncButton';
-import { FileText, ExternalLink, FileSpreadsheet } from 'lucide-react';
+import { FileText, ExternalLink, FileSpreadsheet, GitCompare } from 'lucide-react';
 import { supabase } from '@/app/supabaseClient';
+import { CompareDealModal } from '@/components/modals/CompareDealModal';
 
 interface StickyDealHeaderProps {
   deal: Deal;
@@ -41,6 +42,7 @@ export function StickyDealHeader({
   settingVerdict,
 }: StickyDealHeaderProps) {
   const [loadingSourceAction, setLoadingSourceAction] = useState(false);
+  const [showCompareModal, setShowCompareModal] = useState(false);
   const sourceAction = getSourceAction(deal);
 
   const handleSourceAction = async () => {
@@ -126,17 +128,28 @@ export function StickyDealHeader({
   const userVerdictStyle = userVerdictNormalized ? verdictConfig[userVerdictNormalized as keyof typeof verdictConfig] : null;
 
   return (
-    <div className="sticky top-0 z-40 bg-slate-900 border-b border-slate-700 shadow-sm">
+    <div className="sticky top-0 z-40 bg-slate-900 border-b border-slate-700 shadow-lg shadow-black/20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
         <div className="flex items-center gap-6 min-w-0">
-          {/* Title: takes remaining space, truncates so it never overlaps buttons */}
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <h1 className="text-xl sm:text-2xl font-semibold text-slate-50 truncate">
-              {companyName}
-            </h1>
-            <p className="text-sm text-slate-400 truncate">
-              {industry} · {location}
-            </p>
+          {/* Title + Compare: takes remaining space */}
+          <div className="flex-1 min-w-0 overflow-hidden flex items-center gap-3">
+            <div className="min-w-0 overflow-hidden">
+              <h1 className="text-xl sm:text-2xl font-semibold text-slate-50 truncate">
+                {companyName}
+              </h1>
+              <p className="text-sm text-slate-400 truncate">
+                {industry} · {location}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCompareModal(true)}
+              className="flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 bg-slate-800 border border-slate-600 hover:bg-slate-700 hover:text-slate-50 transition-colors"
+              title="Compare this deal to others"
+            >
+              <GitCompare className="h-4 w-4" />
+              Compare
+            </button>
           </div>
           {/* Verdict + buttons: never shrink, fixed space */}
           <div className="flex items-center gap-4 flex-shrink-0">
@@ -213,6 +226,14 @@ export function StickyDealHeader({
           </div>
         </div>
       </div>
+
+      {showCompareModal && (
+        <CompareDealModal
+          dealId={deal.id}
+          companyName={companyName}
+          onClose={() => setShowCompareModal(false)}
+        />
+      )}
     </div>
   );
 }

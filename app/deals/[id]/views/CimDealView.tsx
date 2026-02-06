@@ -153,9 +153,9 @@ export function CimDealView({
           settingVerdict={settingVerdict}
         />
         
-        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 min-w-0 overflow-hidden">
           {/* Main Content */}
-          <div className="flex-1 lg:pr-6 space-y-6 sm:space-y-8 min-w-0">
+          <div className="flex-1 lg:pr-6 space-y-6 sm:space-y-8 min-w-0 overflow-hidden">
             {/* Tab Navigation and Content - Now appears first */}
             <DealTabs deal={deal}>
               {renderTabContent}

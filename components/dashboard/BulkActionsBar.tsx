@@ -1,9 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Download, X, CheckCircle, ArrowRight, FileDown, Archive, Trash2 } from 'lucide-react';
+import { Download, X, CheckCircle, ArrowRight, FileDown, Archive, Trash2, ThumbsUp } from 'lucide-react';
 import { supabase } from '@/app/supabaseClient';
 import { showToast } from '@/components/ui/Toast';
+import { LoadingDots } from '@/components/ui/LoadingSpinner';
 
 type Stage = 'new' | 'reviewing' | 'follow_up' | 'ioi_sent' | 'loi' | 'dd' | 'passed';
 
@@ -26,6 +27,44 @@ export function BulkActionsBar({ selectedDealIds, onClearSelection, onRefresh }:
     { value: 'dd', label: 'Due Diligence' },
     { value: 'passed', label: 'Passed' },
   ];
+
+  const handleBulkProceed = async () => {
+    if (selectedDealIds.size === 0) return;
+
+    setIsProcessing(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) throw new Error('Not signed in');
+
+      const response = await fetch('/api/deals/bulk-verdict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          dealIds: Array.from(selectedDealIds),
+          verdict_type: 'proceed',
+          searcher_input_text: 'Bulk proceed',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to mark deals as proceed');
+      }
+
+      showToast(`Marked ${selectedDealIds.size} deal(s) as Proceed`, 'success');
+      onClearSelection();
+      onRefresh();
+    } catch (error) {
+      console.error('Bulk proceed error:', error);
+      showToast(error instanceof Error ? error.message : 'Failed to mark deals as proceed', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleBulkPass = async () => {
     if (selectedDealIds.size === 0) return;
@@ -241,13 +280,30 @@ export function BulkActionsBar({ selectedDealIds, onClearSelection, onRefresh }:
 
   return (
     <div className="mb-6 p-4 bg-slate-800 border border-slate-600 rounded-lg flex items-center justify-between gap-4 flex-wrap">
-      <div className="flex items-center gap-3">
-        <span className="text-sm font-semibold text-slate-200">
-          {selectedDealIds.size} deal{selectedDealIds.size !== 1 ? 's' : ''} selected
-        </span>
+      <div className="flex items-center gap-3 min-w-0">
+        {isProcessing ? (
+          <span className="flex items-center gap-2 text-sm font-semibold text-slate-200">
+            <LoadingDots className="text-slate-400" />
+            Processing…
+          </span>
+        ) : (
+          <span className="text-sm font-semibold text-slate-200">
+            {selectedDealIds.size} deal{selectedDealIds.size !== 1 ? 's' : ''} selected
+          </span>
+        )}
       </div>
       
       <div className="flex items-center gap-2 flex-wrap">
+        {/* Proceed */}
+        <button
+          onClick={handleBulkProceed}
+          disabled={isProcessing}
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 border border-emerald-500/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <ThumbsUp className="h-4 w-4" />
+          Proceed
+        </button>
+
         {/* Archive */}
         <button
           onClick={handleBulkArchive}

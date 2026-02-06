@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
+import { AsyncButton } from '@/components/ui/AsyncButton';
 
 export function SubscriptionCard() {
   const [subscription, setSubscription] = useState<any>(null);
   const [usage, setUsage] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [portalLoading, setPortalLoading] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -49,7 +51,7 @@ export function SubscriptionCard() {
 
   async function openBillingPortal() {
     if (!user) return;
-
+    setPortalLoading(true);
     try {
       const response = await fetch('/api/checkout/portal', {
         method: 'POST',
@@ -70,6 +72,7 @@ export function SubscriptionCard() {
     } catch (error) {
       console.error('Error opening billing portal:', error);
       alert('Failed to open billing portal. Please try again.');
+      setPortalLoading(false);
     }
   }
 
@@ -166,12 +169,14 @@ export function SubscriptionCard() {
         </div>
       )}
 
-      <button
+      <AsyncButton
         onClick={openBillingPortal}
+        isLoading={portalLoading}
+        loadingText="Opening…"
         className="btn-primary btn-lg w-full"
       >
         Manage Subscription & Billing
-      </button>
+      </AsyncButton>
       <p className="text-xs text-slate-500 mt-3 text-center">
         Opens Stripe billing portal where you can update payment methods, view invoices, and cancel your subscription
       </p>

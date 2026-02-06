@@ -9,9 +9,10 @@
 }
 
 /* =========================
-   Global Theme (Option B+)
-   Techy blue-gray, consistent light/dark
+   DESIGN TOKENS
+   Centralized colors, spacing, typography
    ========================= */
+
 :root {
   /* Backgrounds - Add warmth and depth */
   --background: #f8fafc;
@@ -69,6 +70,68 @@
   --ui-strong-hover: #1e293b;
   
   color-scheme: light;
+
+  /* Spacing scale (4px base) */
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+
+  /* Card layout */
+  --card-padding: 1.25rem;
+  --card-padding-sm: 1rem;
+  --card-padding-lg: 1.5rem;
+  --card-radius: 0.75rem;
+  --card-radius-sm: 0.5rem;
+  --card-gap: 1.5rem;
+  --section-gap: 1.5rem;
+
+  /* Typography scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+
+  /* Shadows */
+  --shadow-subtle: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-soft: 0 2px 8px 0 rgb(0 0 0 / 0.08);
+  --shadow-medium: 0 4px 16px 0 rgb(0 0 0 / 0.12);
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1);
+  --shadow-card-hover: 0 4px 12px 0 rgb(0 0 0 / 0.15);
+}
+
+/* Dark mode design tokens */
+html.dark {
+  --surface: #1e293b;
+  --surface-elevated: #334155;
+  --surface-muted: #0f172a;
+  --border-default: #334155;
+  --border-muted: #475569;
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-inverted: #0f172a;
+  --brand: #10b981;
+  --brand-hover: #059669;
+  --brand-muted: rgba(16, 185, 129, 0.2);
+  --success: #22c55e;
+  --success-muted: rgba(34, 197, 94, 0.2);
+  --warning: #f59e0b;
+  --warning-muted: rgba(245, 158, 11, 0.2);
+  --danger: #ef4444;
+  --danger-muted: rgba(239, 68, 68, 0.2);
+  --info: #3b82f6;
+  --info-muted: rgba(59, 130, 246, 0.2);
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.3);
+  --shadow-card-hover: 0 4px 12px 0 rgb(0 0 0 / 0.4);
 }
 
 
@@ -139,7 +202,63 @@ select option {
 .view-pill:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* =========================
-   Cards
+   Card variants (design tokens)
+   ========================= */
+.card-default {
+  background: var(--surface);
+  border: 1px solid var(--border-default, #334155);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  box-shadow: var(--shadow-card);
+}
+.card-elevated {
+  background: var(--surface);
+  border: 1px solid var(--border-default, #334155);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  box-shadow: var(--shadow-card);
+  transition: box-shadow 0.2s ease;
+}
+.card-elevated:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+.card-bordered {
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border: 2px solid var(--border-default, #334155);
+  border-radius: calc(var(--card-radius) + 0.25rem);
+  padding: var(--card-padding);
+}
+.card-alert {
+  background: var(--danger-muted, rgba(239, 68, 68, 0.1));
+  border: 2px solid rgba(239, 68, 68, 0.3);
+  border-radius: calc(var(--card-radius) + 0.25rem);
+  padding: var(--card-padding);
+}
+.card-highlight {
+  background: var(--brand-muted, rgba(16, 185, 129, 0.05));
+  border: 2px solid rgba(16, 185, 129, 0.3);
+  border-radius: calc(var(--card-radius) + 0.25rem);
+  padding: var(--card-padding);
+  box-shadow: var(--shadow-card);
+}
+
+/* Responsive content wrapper - prevents overflow on mobile */
+.responsive-content {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+@media (min-width: 640px) {
+  .responsive-content {
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+/* =========================
+   Cards (legacy)
    ========================= */
 .card-table {
   border-radius: 0.75rem;
@@ -275,10 +394,23 @@ body {
 }
 
 /* =========================
-   Keyboard Focus Styles
+   Accessibility: Focus & Contrast
    ========================= */
 *:focus-visible {
-  outline: 2px solid #10b981; /* emerald-500 */
+  outline: 2px solid var(--brand, #10b981);
+  outline-offset: 2px;
+}
+
+/* High-contrast text combinations (WCAG AA compliant on dark bg) */
+.text-accessible {
+  color: var(--text-primary, #f8fafc);
+}
+.text-accessible-muted {
+  color: var(--text-muted, #94a3b8);
+}
+/* Brand/accent on dark: emerald-400 on slate-900 meets 4.5:1 for normal text */
+.btn-focus-ring:focus-visible {
+  outline: 2px solid var(--brand, #10b981);
   outline-offset: 2px;
 }
 

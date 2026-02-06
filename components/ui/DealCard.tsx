@@ -2,11 +2,12 @@
 
 import React, { useState, memo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { MapPin, Building2, Calendar, DollarSign, TrendingUp, StickyNote, Plus, Tag, Clock, ChevronRight } from 'lucide-react';
+import { MapPin, Building2, Calendar, DollarSign, TrendingUp, StickyNote, Plus, Tag, Clock, ChevronRight, Eye } from 'lucide-react';
 import { SourceBadge } from './SourceBadge';
 import { Skeleton } from './Skeleton';
 import { MoreActionsMenu } from '@/components/deal/MoreActionsMenu';
 import { TierBadge } from '@/app/deals/[id]/components/TierBadge';
+import { QuickViewModal } from '@/components/modals/QuickViewModal';
 import { supabase } from '@/app/supabaseClient';
 import { useAuth } from '@/lib/auth-context';
 import { logger } from '@/lib/utils/logger';
@@ -102,6 +103,7 @@ function DealCardComponent({
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [noteInput, setNoteInput] = useState('');
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [showQuickView, setShowQuickView] = useState(false);
   if (isLoading || !deal) {
     return (
       <div className="rounded-xl border border-slate-700 bg-slate-800 p-6">
@@ -391,6 +393,17 @@ function DealCardComponent({
 
       {/* Hover Actions */}
       <div className="mt-4 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowQuickView(true);
+          }}
+          className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-emerald-400 font-medium"
+          data-no-navigate
+        >
+          <Eye className="h-4 w-4" />
+          Quick view
+        </button>
         <button className="text-sm text-emerald-400 hover:text-emerald-300 font-medium">
           View Details
         </button>
@@ -517,11 +530,31 @@ function DealCardComponent({
               </div>
             )}
             
-            {/* Chevron indicator */}
-            <ChevronRight className="absolute right-4 top-4 w-5 h-5 text-slate-400 pointer-events-none" />
+            {/* Quick view + Chevron */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowQuickView(true);
+              }}
+              className="absolute right-4 top-4 flex items-center gap-1 p-2 -m-2 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-slate-700/50"
+              data-no-navigate
+            >
+              <Eye className="w-4 h-4" />
+              <span className="text-xs font-medium">Quick view</span>
+            </button>
           </div>
         </div>
       </div>
+
+      {showQuickView && (
+        <QuickViewModal
+          dealId={deal.id}
+          initialDeal={deal}
+          fromView={fromView ?? undefined}
+          onClose={() => setShowQuickView(false)}
+        />
+      )}
     </>
   );
 }

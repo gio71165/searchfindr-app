@@ -67,29 +67,53 @@ export function LOIGenerator({ deal }: { deal: Deal | null }) {
     ],
   });
 
-  // Pre-fill purchase price from deal analysis
+  // Pre-populate from AI-extracted deal data (price, SBA, and basics if they load later)
   useEffect(() => {
-    if (deal) {
-      const fin = deal.ai_financials_json || {};
-      const finAny = fin as Record<string, unknown>;
-      const estimatedPrice = (finAny.estimated_purchase_price as string | undefined) || 
-        (finAny.purchase_price as string | undefined) || 
-        deal?.asking_price_extracted || '';
-      
+    if (!deal) return;
+
+    const fin = deal.ai_financials_json || {};
+    const finAny = fin as Record<string, unknown>;
+    const criteria = (deal.criteria_match_json || {}) as Record<string, unknown>;
+    const estimatedPrice =
+      (finAny.estimated_purchase_price as string | undefined) ||
+      (finAny.purchase_price as string | undefined) ||
+      deal.asking_price_extracted ||
+      (criteria.asking_price as string | undefined) ||
+      '';
+
+    const sbaEligible =
+      deal.sba_eligible ?? (criteria.sba_eligible as boolean | undefined) ?? null;
+
+    setFormData(prev => {
+      const next = { ...prev };
+
+      // Company basics (in case deal loaded after mount)
+      if (deal.company_name) next.companyName = deal.company_name;
+      if (deal.industry) next.industry = deal.industry;
+      if (deal.location_city || deal.location_state) {
+        next.location =
+          [deal.location_city, deal.location_state].filter(Boolean).join(', ') || prev.location;
+      }
+
+      // Purchase price from financials, asking_price_extracted, or criteria_match_json
       if (estimatedPrice) {
         const priceNum = parseFloat(String(estimatedPrice).replace(/[^0-9.]/g, ''));
         if (priceNum > 0) {
-          setFormData(prev => ({
-            ...prev,
-            purchasePrice: priceNum,
-            purchasePriceRange: {
-              min: Math.round(priceNum * 0.9),
-              max: Math.round(priceNum * 1.1),
-            },
-          }));
+          next.purchasePrice = priceNum;
+          next.purchasePriceRange = {
+            min: Math.round(priceNum * 0.9),
+            max: Math.round(priceNum * 1.1),
+          };
         }
       }
-    }
+
+      // Pre-set financing type when SBA eligibility is known
+      if (sbaEligible === true && prev.financingType !== 'sba_7a') {
+        next.financingType = 'sba_7a';
+      }
+
+      return next;
+    });
   }, [deal]);
 
   const handleInputChange = (field: keyof LOIData, value: any) => {

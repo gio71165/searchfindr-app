@@ -146,7 +146,7 @@ export function SavedFilters({ onLoadFilter, currentFilters }: SavedFiltersProps
       <div className="flex items-center gap-2 flex-wrap">
         {savedFilters.length > 0 && (
           <>
-            <span className="text-xs text-slate-500 font-medium">Saved:</span>
+            <span className="text-xs text-slate-500 font-medium">Smart Lists:</span>
             {savedFilters.map((filter) => (
               <button
                 key={filter.id}
@@ -164,7 +164,7 @@ export function SavedFilters({ onLoadFilter, currentFilters }: SavedFiltersProps
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
         >
           <Plus className="h-3 w-3" />
-          Save Current
+          Save as Smart List
         </button>
       </div>
 
@@ -173,7 +173,7 @@ export function SavedFilters({ onLoadFilter, currentFilters }: SavedFiltersProps
           <div className="fixed inset-0 bg-black/20 z-40" onClick={() => setShowSaveModal(false)} />
           <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white border border-slate-200 rounded-lg shadow-lg p-4 z-50 min-w-[300px]">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-slate-900">Save Filter Preset</h3>
+              <h3 className="text-sm font-semibold text-slate-900">Save Smart List</h3>
               <button
                 onClick={() => setShowSaveModal(false)}
                 className="text-slate-400 hover:text-slate-600"
@@ -192,7 +192,7 @@ export function SavedFilters({ onLoadFilter, currentFilters }: SavedFiltersProps
                   setShowSaveModal(false);
                 }
               }}
-              placeholder="Filter name (e.g., 'HVAC in Texas')"
+              placeholder="e.g. Hot Deals - West Coast Manufacturing"
               className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-3"
               autoFocus
             />

@@ -140,9 +140,9 @@ export function OffMarketDealView({
           settingVerdict={settingVerdict}
         />
         
-        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6 min-w-0 overflow-hidden">
           {/* Main Content */}
-          <div className="flex-1 lg:pr-6 space-y-6 sm:space-y-8 min-w-0">
+          <div className="flex-1 lg:pr-6 space-y-6 sm:space-y-8 min-w-0 overflow-hidden">
             {/* Initial Diligence Run Strip */}
             <section className="rounded-lg border border-slate-200 bg-white p-4">
               <div className="flex items-center justify-between gap-3">

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authenticateRequest, AuthError } from '@/lib/api/auth';
 import { DealsRepository } from '@/lib/data-access/deals';
 import { NotFoundError, DatabaseError } from '@/lib/data-access/base';
+import { logAudit } from '@/lib/api/audit';
 
 export async function GET(req: NextRequest) {
   try {
@@ -115,6 +116,14 @@ export async function GET(req: NextRequest) {
         tags,
       ]);
     }
+
+    await logAudit(supabase, {
+      workspace_id: workspace.id,
+      user_id: user.id,
+      action: 'bulk_export',
+      resource_type: 'deal',
+      metadata: { deal_count: dealList.length, deal_ids: dealIds },
+    });
 
     // Convert to CSV
     const csvContent = rows.map(row => 

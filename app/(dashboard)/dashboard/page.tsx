@@ -10,6 +10,8 @@ import { ContentHeader } from '@/components/dashboard/ContentHeader';
 import { VerdictFilters } from '@/components/dashboard/VerdictFilters';
 import { BulkActionsBar } from '@/components/dashboard/BulkActionsBar';
 import { SavedFilters } from '@/components/dashboard/SavedFilters';
+import { PipelineKanban, KanbanViewToggle } from '@/components/dashboard/PipelineKanban';
+import { PipelineAnalytics } from '@/components/dashboard/PipelineAnalytics';
 import { ApplyCriteriaFilter } from '@/components/dashboard/ApplyCriteriaFilter';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Search as SearchIcon, FileText, TrendingUp, Target, ChevronDown, XCircle, Upload, SlidersHorizontal } from 'lucide-react';
@@ -135,6 +137,7 @@ function DashboardPageContent() {
   const [selectedDealIndex, setSelectedDealIndex] = useState<number | null>(null);
 
   const [selectedDealIds, setSelectedDealIds] = useState<Set<string>>(new Set());
+  const [viewMode, setViewMode] = useState<'cards' | 'kanban'>('cards');
 
   // Handle URL filter params
   useEffect(() => {
@@ -324,6 +327,17 @@ function DashboardPageContent() {
       passed: deals.filter(d => d.passed_at !== null || d.stage === 'passed').length
     };
   }, [deals, selectedSource]);
+
+  // Deals for Kanban: same filters as list but no stage filter (show all stages in columns)
+  const dealsForKanban = useMemo(() => {
+    const base = criteriaFilteredDeals !== null ? criteriaFilteredDeals : deals;
+    return base.filter((deal) => {
+      if (selectedSource !== null && deal.source_type !== selectedSource) return false;
+      if (selectedVerdict !== 'all' && deal.verdict !== selectedVerdict) return false;
+      if (searchQuery && !deal.company_name?.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+      return true;
+    });
+  }, [deals, criteriaFilteredDeals, selectedSource, selectedVerdict, searchQuery]);
 
   // Upload handlers - memoized to prevent re-renders
   const handleCimButtonClick = useCallback(() => cimInputRef.current?.click(), []);
@@ -619,6 +633,36 @@ function DashboardPageContent() {
     router.push(`/deals/compare?ids=${idsArray.join(',')}`);
   }, [selectedDealIds, router]);
 
+  const handleBulkProceed = useCallback(async () => {
+    if (selectedDealIds.size === 0) return;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token;
+    if (!token) {
+      showToast('Please sign in', 'error');
+      return;
+    }
+    try {
+      const res = await fetch('/api/deals/bulk-verdict', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          dealIds: Array.from(selectedDealIds),
+          verdict_type: 'proceed',
+          searcher_input_text: 'Bulk proceed',
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to mark deals as proceed');
+      }
+      showToast(`Marked ${selectedDealIds.size} deal(s) as Proceed`, 'success');
+      handleClearSelection();
+      if (workspaceId) loadDeals(workspaceId);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Failed to mark deals as proceed', 'error');
+    }
+  }, [selectedDealIds, workspaceId, handleClearSelection]);
+
   // Keyboard shortcuts
   useKeyboardShortcuts(
     [
@@ -679,6 +723,10 @@ function DashboardPageContent() {
           showToast('Opening deal to pass', 'info', 1500);
         }
       }, 'Pass selected deal', ['dashboard']),
+      createShortcut('P', () => {
+        if (selectedDealIds.size > 0) handleBulkProceed();
+        else showToast('Select one or more deals first', 'info', 2000);
+      }, 'Bulk proceed selected deals', ['dashboard'], { shift: true }),
     ],
     true
   );
@@ -774,6 +822,9 @@ function DashboardPageContent() {
             </span>
           )}
         </button>
+
+        {/* View mode: Cards | Kanban */}
+        <KanbanViewToggle viewMode={viewMode} onViewModeChange={setViewMode} />
 
         {/* Upload CIM Button */}
         <button
@@ -961,6 +1012,9 @@ function DashboardPageContent() {
         </button>
       </div>
 
+      {/* Pipeline analytics (conversion by stage) */}
+      <PipelineAnalytics stageCounts={stageCounts} />
+
       {/* Saved Filters & Criteria Filter (keep for functionality) */}
       <div className="mb-6">
         <ApplyCriteriaFilter
@@ -1119,6 +1173,23 @@ function DashboardPageContent() {
             }
           }}
         />
+      ) : viewMode === 'kanban' ? (
+        <>
+          <div className="mb-6 text-sm font-medium text-slate-400">
+            Kanban: <span className="font-semibold text-slate-50">{dealsForKanban.length}</span> deals
+            {activeCriteria && (
+              <span className="ml-2 text-blue-400">(filtered by &quot;{activeCriteria.name}&quot;)</span>
+            )}
+          </div>
+          <PipelineKanban
+            deals={dealsForKanban}
+            onRefresh={() => workspaceId && loadDeals(workspaceId)}
+            onToggleSelect={handleToggleDealSelection}
+            selectedDealIds={selectedDealIds}
+            canSelect={true}
+            fromView={selectedSource || undefined}
+          />
+        </>
       ) : filteredDeals.length === 0 ? (
         <EmptyState
           icon={SearchIcon}
