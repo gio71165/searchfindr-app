@@ -88,10 +88,10 @@ export async function canAnalyzeCIM(userId: string): Promise<{ allowed: boolean;
     return { allowed: false, reason: 'Unable to check usage limits' };
   }
 
-  // Check subscription status
-  if (usage.subscription_status !== 'active' && usage.subscription_status !== 'trialing') {
-    return { allowed: false, reason: 'Subscription is not active. Please update your payment method.' };
-  }
+  // TEMPORARY: skip subscription requirement (revert when re-enabling subscription gate)
+  // if (usage.subscription_status !== 'active' && usage.subscription_status !== 'trialing') {
+  //   return { allowed: false, reason: 'Subscription is not active. Please update your payment method.' };
+  // }
 
   // If unlimited (null limit), allow
   if (usage.cim_analyses_limit === null) {
@@ -140,9 +140,10 @@ export async function canGenerateIOI(userId: string): Promise<{ allowed: boolean
     return { allowed: false, reason: 'Unable to check usage limits' };
   }
 
-  if (usage.subscription_status !== 'active' && usage.subscription_status !== 'trialing') {
-    return { allowed: false, reason: 'Subscription is not active' };
-  }
+  // TEMPORARY: skip subscription requirement (revert when re-enabling subscription gate)
+  // if (usage.subscription_status !== 'active' && usage.subscription_status !== 'trialing') {
+  //   return { allowed: false, reason: 'Subscription is not active' };
+  // }
 
   if (usage.ioi_generations_limit === null) {
     return { allowed: true };

@@ -82,7 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsCoalitionMember(data?.is_coalition_member === true);
       setRole(data?.role ?? null);
       const status = data?.subscription_status ?? 'inactive';
-      setHasValidSubscription(status === 'active' || status === 'trialing');
+      // TEMPORARY: treat all logged-in users as having a valid subscription (revert when re-enabling subscription gate)
+      setHasValidSubscription(true); // was: status === 'active' || status === 'trialing'
     } catch (e) {
       console.error('Profile fetch failed:', e);
       // Don't block app, just log error
